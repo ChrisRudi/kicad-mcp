@@ -1,0 +1,31 @@
+# Normalise line endings: store LF in the repo, check out native.
+* text=auto eol=lf
+
+# Explicitly text (LF) — source, config, docs, KiCad s-expression files.
+*.py        text eol=lf
+*.toml      text eol=lf
+*.md        text eol=lf
+*.txt       text eol=lf
+*.json      text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.cfg       text eol=lf
+*.sh        text eol=lf
+*.kicad_pcb text eol=lf
+*.kicad_sch text eol=lf
+*.kicad_pro text eol=lf
+*.kicad_mod text eol=lf
+*.kicad_sym text eol=lf
+*.net       text eol=lf
+
+# Windows-only scripts keep CRLF.
+*.bat       text eol=crlf
+*.ps1       text eol=crlf
+
+# Binary — never normalise or diff as text.
+*.png       binary
+*.jpg       binary
+*.pdf       binary
+*.step      binary
+*.stp       binary
+*.lock      binary

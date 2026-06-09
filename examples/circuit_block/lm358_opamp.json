@@ -1,0 +1,119 @@
+{
+  "schema_version": "1.1",
+  "chip": "LM358",
+  "manufacturer": "Texas Instruments",
+  "datasheet_url": "https://www.ti.com/lit/ds/symlink/lm358.pdf",
+  "datasheet_revision": "SLOS068Y",
+  "datasheet_date": "2014-12",
+
+  "package": "SOIC-8",
+  "kicad_symbol": "Amplifier_Operational:LM358",
+  "kicad_footprint": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+
+  "pins": [
+    {"num": 1, "name": "OUTA", "type": "output",   "function": "Op-amp A output"},
+    {"num": 2, "name": "INA-", "type": "input",    "function": "Op-amp A inverting input"},
+    {"num": 3, "name": "INA+", "type": "input",    "function": "Op-amp A non-inverting input"},
+    {"num": 4, "name": "VEE",  "type": "power_in", "function": "Negative supply / GND"},
+    {"num": 5, "name": "INB+", "type": "input",    "function": "Op-amp B non-inverting input"},
+    {"num": 6, "name": "INB-", "type": "input",    "function": "Op-amp B inverting input"},
+    {"num": 7, "name": "OUTB", "type": "output",   "function": "Op-amp B output"},
+    {"num": 8, "name": "VCC",  "type": "power_in", "function": "Positive supply"}
+  ],
+
+  "peripherals": [
+    {
+      "id": "C_VCC",
+      "role": "input_decoupling",
+      "between": ["VCC", "VEE"],
+      "value": "100nF",
+      "specs": {"type": "ceramic", "dielectric": "X7R"},
+      "placement_hint": "as close to VCC pin as possible",
+      "source": "Standard op-amp practice; DS Section 9.2",
+      "required": true
+    },
+    {
+      "id": "C_VCC_BULK",
+      "role": "input_decoupling",
+      "between": ["VCC", "VEE"],
+      "value": "10uF",
+      "specs": {"type": "ceramic", "dielectric": "X7R", "voltage_min": "16V"},
+      "kicad_footprint": "Capacitor_SMD:C_0805_2012Metric",
+      "comment": "Bulk reservoir; share with neighbouring ICs",
+      "required": false
+    },
+    {
+      "id": "R_FB_A",
+      "role": "feedback_resistor",
+      "between": [{"pin": "OUTA"}, {"pin": "INA-"}],
+      "value": "10k",
+      "comment": "Op-amp A feedback (inverting / non-inverting topology user choice)",
+      "source": "User-defined gain network",
+      "required": false
+    },
+    {
+      "id": "R_GND_A",
+      "role": "feedback_resistor",
+      "between": [{"pin": "INA-"}, "VEE"],
+      "value": "10k",
+      "comment": "Op-amp A inverting input to ground for unity gain",
+      "required": false
+    },
+    {
+      "id": "R_FB_B",
+      "role": "feedback_resistor",
+      "between": [{"pin": "OUTB"}, {"pin": "INB-"}],
+      "value": "10k",
+      "comment": "Op-amp B feedback resistor",
+      "required": false
+    },
+    {
+      "id": "R_GND_B",
+      "role": "feedback_resistor",
+      "between": [{"pin": "INB-"}, "VEE"],
+      "value": "10k",
+      "comment": "Op-amp B inverting input to ground for unity gain",
+      "required": false
+    }
+  ],
+
+  "external_nets": [
+    {"name": "VCC",  "direction": "input",      "type": "power"},
+    {"name": "VEE",  "direction": "passive",    "type": "ground"},
+    {"name": "INA+", "direction": "input",      "type": "signal"},
+    {"name": "OUTA", "direction": "output",     "type": "signal"},
+    {"name": "INB+", "direction": "input",      "type": "signal"},
+    {"name": "OUTB", "direction": "output",     "type": "signal"}
+  ],
+
+  "operating_envelope": {
+    "vcc_min": 3.0,
+    "vcc_max": 32.0,
+    "vcc_split_mode": false,
+    "input_offset_typ_mv": 2.0,
+    "gbw_typ_mhz": 1.0
+  },
+
+  "power_pins_use_kicad_power_symbols": true,
+  "sheet_scope": "root",
+
+  "placement": {
+    "x_mm": 100.0,
+    "y_mm": 80.0,
+    "rotation_deg": 0,
+    "side": "F.Cu"
+  },
+
+  "section_frame": {
+    "title": "Signal: LM358 Dual Op-Amp",
+    "x_mm": 80.0,
+    "y_mm": 60.0,
+    "w_mm": 70.0,
+    "h_mm": 60.0
+  },
+
+  "review_status": "verified_against_datasheet",
+  "needs_review": [
+    "feedback resistor values are placeholders — set R_FB / R_GND ratio to your desired closed-loop gain"
+  ]
+}

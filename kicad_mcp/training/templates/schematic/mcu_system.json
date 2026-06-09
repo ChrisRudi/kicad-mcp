@@ -1,0 +1,149 @@
+{
+  "template_id": "mcu_system",
+  "circuit_type": "microcontroller_system",
+  "description": "MCU with peripherals (LCD, sensors, RS232, display, motor)",
+  "source_schematics": [
+    "040218-D",
+    "DE2008070161",
+    "DE2008070201",
+    "DE2010070081"
+  ],
+  "source_count": 4,
+  "match_rules": {
+    "required_components": [
+      {
+        "type": "mcu",
+        "match": [
+          "ATmega",
+          "PIC",
+          "ESP32",
+          "STM32",
+          "Arduino",
+          "RP2040"
+        ]
+      }
+    ],
+    "optional_components": [
+      "lcd",
+      "7segment",
+      "rs232",
+      "sensor",
+      "motor",
+      "relay",
+      "crystal"
+    ],
+    "min_confidence": 0.5
+  },
+  "placement": {
+    "regions": {
+      "mcu": {
+        "rx_range": [
+          0.25,
+          0.45
+        ],
+        "ry_range": [
+          0.4,
+          0.75
+        ],
+        "description": "MCU centered, slightly left \u2014 dominates schematic"
+      },
+      "crystal": {
+        "rx_range": [
+          0.15,
+          0.3
+        ],
+        "ry_range": [
+          0.7,
+          0.85
+        ],
+        "description": "Crystal below MCU near OSC pins"
+      },
+      "bypass_caps": {
+        "rx_range": [
+          0.2,
+          0.35
+        ],
+        "ry_range": [
+          0.35,
+          0.5
+        ],
+        "description": "Bypass caps near MCU VCC pin"
+      },
+      "input_connectors": {
+        "rx_range": [
+          0.02,
+          0.12
+        ],
+        "ry_range": [
+          0.3,
+          0.6
+        ],
+        "description": "Input connectors at left edge"
+      },
+      "display": {
+        "rx_range": [
+          0.65,
+          0.9
+        ],
+        "ry_range": [
+          0.25,
+          0.55
+        ],
+        "description": "LCD/7-segment display at right"
+      },
+      "rs232_interface": {
+        "rx_range": [
+          0.65,
+          0.85
+        ],
+        "ry_range": [
+          0.65,
+          0.85
+        ],
+        "description": "RS232/USB interface right, below display"
+      },
+      "output_connectors": {
+        "rx_range": [
+          0.85,
+          0.95
+        ],
+        "ry_range": [
+          0.35,
+          0.75
+        ],
+        "description": "Output connectors at right edge"
+      },
+      "power_supply": {
+        "rx_range": [
+          0.02,
+          0.2
+        ],
+        "ry_range": [
+          0.05,
+          0.25
+        ],
+        "description": "Power input/regulator top-left"
+      },
+      "sensor": {
+        "rx_range": [
+          0.02,
+          0.15
+        ],
+        "ry_range": [
+          0.4,
+          0.6
+        ],
+        "description": "Sensor input at left"
+      }
+    },
+    "signal_flow": "left_to_right",
+    "component_rotation": {
+      "R": 90,
+      "C": 90
+    }
+  },
+  "wiring_hint": "Use net labels for MCU port pins (RA0, PB3, etc). Power labels for VCC/GND. Direct wires only for bypass caps and local connections.",
+  "block_definition": null,
+  "block_definition_status": "stub",
+  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the mcu_system pattern. See examples/circuit_block/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
+}

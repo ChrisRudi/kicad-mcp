@@ -1,0 +1,70 @@
+(session tiny_2pin
+  (base_design tiny_2pin)
+  (placement
+    (resolution um 10)
+    (component Resistor_SMD:R_0805_2012Metric
+      (place R1 1485000 -1100000 front 90)
+    )
+    (component LED_SMD:LED_0805_2012Metric
+      (place D1 1485000 -1100000 front 0)
+    )
+    (component TestPoint:TestPoint_Pad_D2.0mm
+      (place J_VCC 1485000 -1100000 front 0)
+      (place J_GND 1485000 -1100000 front 0)
+    )
+  )
+  (was_is
+  )
+  (routes 
+    (resolution um 10)
+    (parser
+      (host_cad "KiCad's Pcbnew")
+      (host_version 10.0.1)
+    )
+    (library_out 
+      (padstack "Via[0-1]_450:200_um"
+        (shape
+          (circle F.Cu 4500 0 0)
+        )
+        (shape
+          (circle B.Cu 4500 0 0)
+        )
+        (attach off)
+      )
+      (padstack "Via[0-1]_800:400_um"
+        (shape
+          (circle F.Cu 8000 0 0)
+        )
+        (shape
+          (circle B.Cu 8000 0 0)
+        )
+        (attach off)
+      )
+      (padstack "Via[0-1]_450:200_um"
+        (shape
+          (circle F.Cu 4500 0 0)
+        )
+        (shape
+          (circle B.Cu 4500 0 0)
+        )
+        (attach off)
+      )
+    )
+    (network_out 
+      (net VCC
+        (wire
+          (path B.Cu 5000
+            1485000 -1090880
+            1485000 -1100000
+          )
+          (type protect)
+        )
+      )
+      (net NET_R_LED
+        (via "Via[0-1]_800:400_um" 1494380 -1109120
+          (type protect)
+        )
+      )
+    )
+  )
+)

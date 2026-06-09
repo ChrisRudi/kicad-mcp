@@ -1,0 +1,60 @@
+{
+  "template_id": "mcu_board",
+  "board_type": "microcontroller",
+  "description": "MCU development/application board layout",
+  "source_count": 8,
+
+  "match_rules": {
+    "required": ["mcu"],
+    "optional": ["crystal", "voltage_regulator", "connector", "lcd", "led"]
+  },
+
+  "placement": {
+    "mcu": {
+      "position": "center",
+      "orientation": "pin1_top_left",
+      "clearance_mm": 15
+    },
+    "crystal": {
+      "position": "near_mcu",
+      "side": "bottom_or_right",
+      "max_distance_mm": 10,
+      "ground_guard": true
+    },
+    "bypass_caps": {
+      "position": "adjacent_to_mcu_vcc",
+      "max_distance_mm": 3,
+      "count_per_vcc_pin": 1
+    },
+    "voltage_regulator": {
+      "position": "board_edge",
+      "preferred": "top_edge",
+      "thermal_via": true
+    },
+    "programming_header": {
+      "position": "board_edge",
+      "preferred": "top_right",
+      "accessible": true
+    },
+    "signal_connectors": {
+      "position": "board_edges",
+      "group_by_function": true
+    },
+    "leds": {
+      "position": "board_edge",
+      "visible_from_top": true,
+      "series_resistor_nearby": true
+    },
+    "reset_circuit": {
+      "position": "near_mcu_reset_pin",
+      "components": ["pullup_resistor", "cap", "button"]
+    }
+  },
+
+  "routing_guidelines": {
+    "power": {"trace_width_mm": 0.5, "via_size_mm": 0.8},
+    "signal": {"trace_width_mm": 0.25, "via_size_mm": 0.6},
+    "clock": {"trace_width_mm": 0.2, "differential": false, "guard_ground": true},
+    "ground_plane": "bottom_layer_continuous"
+  }
+}

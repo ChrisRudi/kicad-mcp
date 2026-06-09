@@ -1,0 +1,133 @@
+{
+  "template_id": "relay_driver",
+  "circuit_type": "driver",
+  "description": "Simple transistor relay driver with flyback diode",
+  "source_schematics": [
+    "040055-D",
+    "040431-D",
+    "060076-D"
+  ],
+  "source_count": 3,
+  "match_rules": {
+    "required_components": [
+      {
+        "type": "transistor_driver",
+        "match": [
+          "BC547",
+          "BC548",
+          "BC337",
+          "2N2222",
+          "2N3904",
+          "BD139",
+          "TIP",
+          "MOSFET",
+          "IRF"
+        ]
+      },
+      {
+        "type": "relay",
+        "match": [
+          "relay",
+          "RE1",
+          "K1"
+        ]
+      }
+    ],
+    "optional_components": [
+      "flyback_diode",
+      "base_resistor",
+      "led_indicator"
+    ],
+    "min_confidence": 0.5
+  },
+  "placement": {
+    "regions": {
+      "control_input": {
+        "rx_range": [
+          0.02,
+          0.15
+        ],
+        "ry_range": [
+          0.4,
+          0.6
+        ],
+        "description": "Control signal input at left"
+      },
+      "base_resistor": {
+        "rx_range": [
+          0.2,
+          0.35
+        ],
+        "ry_range": [
+          0.4,
+          0.6
+        ],
+        "description": "Base/gate resistor"
+      },
+      "transistor": {
+        "rx_range": [
+          0.4,
+          0.55
+        ],
+        "ry_range": [
+          0.4,
+          0.6
+        ],
+        "description": "Driver transistor centered"
+      },
+      "relay": {
+        "rx_range": [
+          0.55,
+          0.75
+        ],
+        "ry_range": [
+          0.25,
+          0.45
+        ],
+        "description": "Relay above transistor"
+      },
+      "flyback_diode": {
+        "rx_range": [
+          0.6,
+          0.7
+        ],
+        "ry_range": [
+          0.2,
+          0.3
+        ],
+        "description": "Flyback diode across relay coil"
+      },
+      "output": {
+        "rx_range": [
+          0.8,
+          0.95
+        ],
+        "ry_range": [
+          0.35,
+          0.55
+        ],
+        "description": "Relay contact output at right"
+      },
+      "led": {
+        "rx_range": [
+          0.75,
+          0.85
+        ],
+        "ry_range": [
+          0.55,
+          0.7
+        ],
+        "description": "Status LED below relay"
+      }
+    },
+    "signal_flow": "left_to_right",
+    "component_rotation": {
+      "R": 0,
+      "D": 90
+    }
+  },
+  "wiring_hint": "Power labels. All direct wires. Flyback diode parallel to relay coil.",
+  "block_definition": null,
+  "block_definition_status": "stub",
+  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the relay_driver pattern. See examples/circuit_block/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
+}

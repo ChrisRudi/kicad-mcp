@@ -1,0 +1,145 @@
+{
+  "template_id": "esp32_basic",
+  "circuit_type": "mcu_system",
+  "description": "ESP32 basic circuit with decoupling caps, LDO, and USB connector",
+  "source_schematics": [
+    "esp32_devkit",
+    "esp32_minimal"
+  ],
+  "source_count": 2,
+  "match_rules": {
+    "required_components": [
+      {
+        "type": "mcu",
+        "match": [
+          "ESP32",
+          "ESP-12",
+          "ESP32-S3",
+          "ESP32-C3",
+          "ESP32-C6"
+        ]
+      }
+    ],
+    "optional_components": [
+      "decoupling_cap",
+      "linear_regulator",
+      "usb_connector",
+      "reset_button",
+      "boot_button"
+    ],
+    "min_confidence": 0.55
+  },
+  "placement": {
+    "regions": {
+      "usb_connector": {
+        "rx_range": [
+          0.02,
+          0.12
+        ],
+        "ry_range": [
+          0.4,
+          0.6
+        ],
+        "description": "USB input at far left"
+      },
+      "ldo_regulator": {
+        "rx_range": [
+          0.15,
+          0.3
+        ],
+        "ry_range": [
+          0.65,
+          0.85
+        ],
+        "description": "LDO below center-left"
+      },
+      "input_cap": {
+        "rx_range": [
+          0.15,
+          0.25
+        ],
+        "ry_range": [
+          0.75,
+          0.9
+        ],
+        "description": "LDO input cap"
+      },
+      "output_cap": {
+        "rx_range": [
+          0.3,
+          0.4
+        ],
+        "ry_range": [
+          0.75,
+          0.9
+        ],
+        "description": "LDO output cap"
+      },
+      "esp32_mcu": {
+        "rx_range": [
+          0.35,
+          0.65
+        ],
+        "ry_range": [
+          0.25,
+          0.55
+        ],
+        "description": "ESP32 module centered"
+      },
+      "decoupling_caps": {
+        "rx_range": [
+          0.35,
+          0.55
+        ],
+        "ry_range": [
+          0.6,
+          0.75
+        ],
+        "description": "Decoupling caps below MCU"
+      },
+      "reset_button": {
+        "rx_range": [
+          0.2,
+          0.3
+        ],
+        "ry_range": [
+          0.2,
+          0.35
+        ],
+        "description": "Reset button top-left of MCU"
+      },
+      "boot_button": {
+        "rx_range": [
+          0.2,
+          0.3
+        ],
+        "ry_range": [
+          0.45,
+          0.55
+        ],
+        "description": "Boot button left of MCU"
+      },
+      "output_header": {
+        "rx_range": [
+          0.8,
+          0.95
+        ],
+        "ry_range": [
+          0.3,
+          0.6
+        ],
+        "description": "GPIO header at right edge"
+      }
+    },
+    "signal_flow": "left_to_right",
+    "component_rotation": {
+      "C": 90,
+      "R": 90,
+      "SW": 0
+    }
+  },
+  "wiring_hint": "Power labels for 3V3/5V/GND. USB \u2192 LDO \u2192 ESP32 power chain. Decoupling caps close to VCC pins. GPIO direct wires to header.",
+  "block_definition": null,
+  "block_definition_status": "stub",
+  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the esp32_basic pattern. See examples/circuit_block/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
+}

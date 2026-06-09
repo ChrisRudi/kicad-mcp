@@ -1,0 +1,475 @@
+(kicad_pcb
+  (version 20240108)
+  (generator "kicad-mcp")
+  (generator_version "1.0")
+  (general (thickness 1.6))
+  (paper "A4")
+
+  (layers
+    (0 "F.Cu" signal)
+    (31 "B.Cu" signal)
+    (32 "B.Adhes" user "B.Adhesive")
+    (33 "F.Adhes" user "F.Adhesive")
+    (34 "B.Paste" user)
+    (35 "F.Paste" user)
+    (36 "B.SilkS" user "B.Silkscreen")
+    (37 "F.SilkS" user "F.Silkscreen")
+    (38 "B.Mask" user)
+    (39 "F.Mask" user)
+    (44 "Edge.Cuts" user)
+    (45 "Margin" user)
+    (46 "B.CrtYd" user "B.Courtyard")
+    (47 "F.CrtYd" user "F.Courtyard")
+    (48 "B.Fab" user)
+    (49 "F.Fab" user)
+  )
+
+  (setup
+    (pad_to_mask_clearance 0.05)
+    (aux_axis_origin 0 0)
+    (grid_origin 0 0)
+    (pcbplotparams
+    )
+  )
+  (net_class "Default" "Default net class"
+    (clearance 0.127)
+    (trace_width 0.127)
+    (via_dia 0.45)
+    (via_drill 0.2)
+    (uvia_dia 0.3)
+    (uvia_drill 0.1)
+  )
+
+  (net 0 "")
+  (net 1 "VCC")
+  (net 2 "NET_R_LED")
+  (net 3 "GND")
+
+  (gr_rect (start 138.5 100.0) (end 158.5 110.0) (layer "Edge.Cuts") (stroke (width 0.1) (type default)) (uuid "4dd70d63-7388-5b30-a043-c571ae1788ad"))
+
+  	(footprint "Resistor_SMD:R_0805_2012Metric"
+		(layer "F.Cu")
+		(at 148.5 110.0 90)
+		(uuid "cde58a93-a823-5215-bc63-3fcff6d4e69b")
+		(path "/b4e6961f-1745-52b1-ab72-75dfdd957157")
+	(descr "Resistor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
+	(tags "resistor")
+		(property "Reference" "R1"
+			(at 0 -2 0)
+			(layer "F.SilkS")
+			(uuid "2a4f6698-bd8a-58a4-a565-575fea6a472a")
+			(effects (font (size 1 1) (thickness 0.15)))
+		)
+		(property "Value" "1k"
+			(at 0 2 0)
+			(layer "F.Fab")
+			(uuid "083b8138-576d-534c-a304-57cc31d730ac")
+			(effects (font (size 1 1) (thickness 0.15)))
+		)
+	(property "KiLib_Generator" "SMD_2terminal_chip_molded"
+		(at 0 0 0)
+		(hide yes)
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr smd)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_line
+		(start -0.227064 -0.735)
+		(end 0.227064 -0.735)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+	)
+	(fp_line
+		(start -0.227064 0.735)
+		(end 0.227064 0.735)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+	)
+	(fp_rect
+		(start -1.68 -0.95)
+		(end 1.68 0.95)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+	)
+	(fp_rect
+		(start -1 -0.625)
+		(end 1 0.625)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(effects
+			(font
+				(size 0.5 0.5)
+				(thickness 0.08)
+			)
+		)
+	)
+	(pad "1" smd roundrect
+			(net 1 "VCC")
+		(at -0.9125 0)
+		(size 1.025 1.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.243902)
+	)
+	(pad "2" smd roundrect
+			(net 2 "NET_R_LED")
+		(at 0.9125 0)
+		(size 1.025 1.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.243902)
+	)
+	(embedded_fonts no)
+	(model "${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0805_2012Metric.step"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 0)
+		)
+	)
+)
+  	(footprint "LED_SMD:LED_0805_2012Metric"
+		(layer "F.Cu")
+		(at 148.5 110.0)
+		(uuid "a1aa69cd-e17c-50ab-815c-338210a3871f")
+		(path "/c2dc3f65-75f3-502c-a5a4-218319f02a23")
+	(descr "LED SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: https://docs.google.com/spreadsheets/d/1BsfQQcO9C6DZCsRaXUlFlo91Tg2WpOkGARC1WS5S8t0/edit?usp=sharing)")
+	(tags "LED")
+		(property "Reference" "D1"
+			(at 0 -2 0)
+			(layer "F.SilkS")
+			(uuid "363a68df-123b-5c36-9215-ab916e67f457")
+			(effects (font (size 1 1) (thickness 0.15)))
+		)
+		(property "Value" "GREEN"
+			(at 0 2 0)
+			(layer "F.Fab")
+			(uuid "3ce32dbd-b790-5150-b201-e3daa5ec25d9")
+			(effects (font (size 1 1) (thickness 0.15)))
+		)
+	(property "KiLib_Generator" "SMD_2terminal_chip_molded"
+		(at 0 0 0)
+		(hide yes)
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr smd)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_line
+		(start -1.685 -0.96)
+		(end -1.685 0.96)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+	)
+	(fp_line
+		(start -1.685 0.96)
+		(end 1 0.96)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+	)
+	(fp_line
+		(start 1 -0.96)
+		(end -1.685 -0.96)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+	)
+	(fp_rect
+		(start -1.68 -0.95)
+		(end 1.68 0.95)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+	)
+	(fp_line
+		(start -1 -0.3)
+		(end -1 0.6)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+	)
+	(fp_line
+		(start -1 0.6)
+		(end 1 0.6)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+	)
+	(fp_line
+		(start -0.7 -0.6)
+		(end -1 -0.3)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+	)
+	(fp_line
+		(start 1 -0.6)
+		(end -0.7 -0.6)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+	)
+	(fp_line
+		(start 1 0.6)
+		(end 1 -0.6)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(effects
+			(font
+				(size 0.5 0.5)
+				(thickness 0.08)
+			)
+		)
+	)
+	(pad "1" smd roundrect
+			(net 3 "GND")
+		(at -0.9375 0)
+		(size 0.975 1.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.25)
+	)
+	(pad "2" smd roundrect
+			(net 2 "NET_R_LED")
+		(at 0.9375 0)
+		(size 0.975 1.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.25)
+	)
+	(embedded_fonts no)
+	(model "${KICAD10_3DMODEL_DIR}/LED_SMD.3dshapes/LED_0805_2012Metric.step"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 0)
+		)
+	)
+)
+  	(footprint "TestPoint:TestPoint_Pad_D2.0mm"
+		(layer "F.Cu")
+		(at 148.5 110.0)
+		(uuid "fc43383f-19a0-5c09-b223-404e647c3612")
+		(path "/82c749ac-a7f0-50f3-970c-bd325f9651c3")
+	(generator_version "10.0")
+	(descr "SMD pad as test Point, diameter 2.0mm")
+	(tags "test point SMD pad")
+		(property "Reference" "J_VCC"
+			(at 0 -2 0)
+			(layer "F.SilkS")
+			(uuid "c6398f8c-99e5-5c6b-a7e4-45d25fd3c63b")
+			(effects (font (size 1 1) (thickness 0.15)))
+		)
+		(property "Value" "VCC"
+			(at 0 2 0)
+			(layer "F.Fab")
+			(uuid "88eda7d5-84b2-5c82-b00f-52df7446d6ee")
+			(effects (font (size 1 1) (thickness 0.15)))
+		)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(hide yes)
+		(uuid "40ad42f5-e2d0-4e9e-be21-5e28f47c7f3d")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(hide yes)
+		(uuid "64d104f9-2e74-41bc-b450-4d835f388b76")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr exclude_from_pos_files exclude_from_bom)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_circle
+		(center 0 0)
+		(end 0 1.2)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(fill no)
+		(uuid "b5b6e09d-9944-4950-8fb1-281d00dc9306")
+	)
+	(fp_circle
+		(center 0 0)
+		(end 1.5 0)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(uuid "efb1b4c8-d2ab-4de8-a462-72ec395048a8")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 -2 0)
+		(uuid "72b10afb-7cb5-4463-8791-79d6bbaccb9d")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" smd circle
+			(net 1 "VCC")
+		(at 0 0)
+		(size 2 2)
+		(layers "F.Cu" "F.Mask")
+		(uuid "66dd818e-46c3-4cc6-8165-861578cda9d2")
+	)
+	(embedded_fonts no)
+)
+  	(footprint "TestPoint:TestPoint_Pad_D2.0mm"
+		(layer "F.Cu")
+		(at 148.5 110.0)
+		(uuid "166e090a-ca3c-5ef5-a5e2-6e0e984bd06e")
+		(path "/6d8ad90c-2061-5fcd-8684-90fb29274e9d")
+	(generator_version "10.0")
+	(descr "SMD pad as test Point, diameter 2.0mm")
+	(tags "test point SMD pad")
+		(property "Reference" "J_GND"
+			(at 0 -2 0)
+			(layer "F.SilkS")
+			(uuid "58479779-2cf3-55f1-a063-657d583aedaf")
+			(effects (font (size 1 1) (thickness 0.15)))
+		)
+		(property "Value" "GND"
+			(at 0 2 0)
+			(layer "F.Fab")
+			(uuid "cdd3b3a7-7925-5bd6-bc59-60cf4d873069")
+			(effects (font (size 1 1) (thickness 0.15)))
+		)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(hide yes)
+		(uuid "40ad42f5-e2d0-4e9e-be21-5e28f47c7f3d")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(hide yes)
+		(uuid "64d104f9-2e74-41bc-b450-4d835f388b76")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr exclude_from_pos_files exclude_from_bom)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_circle
+		(center 0 0)
+		(end 0 1.2)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(fill no)
+		(uuid "b5b6e09d-9944-4950-8fb1-281d00dc9306")
+	)
+	(fp_circle
+		(center 0 0)
+		(end 1.5 0)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(uuid "efb1b4c8-d2ab-4de8-a462-72ec395048a8")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 -2 0)
+		(uuid "72b10afb-7cb5-4463-8791-79d6bbaccb9d")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" smd circle
+			(net 3 "GND")
+		(at 0 0)
+		(size 2 2)
+		(layers "F.Cu" "F.Mask")
+		(uuid "66dd818e-46c3-4cc6-8165-861578cda9d2")
+	)
+	(embedded_fonts no)
+)
+
+  (zone (net 3) (net_name "GND") (layer "F.Cu") (uuid "4e210d31-9f10-596c-979a-5388571dee44")
+    (fill yes)
+    (polygon
+      (pts
+        (xy 138.5 100.0) (xy 158.5 100.0) (xy 158.5 110.0) (xy 138.5 110.0)
+      )
+    )
+  )
+
+  (segment (start 148.500 109.088) (end 148.500 110.000) (width 0.5) (layer "B.Cu") (net 1))
+  (segment (start 148.500 110.912) (end 149.438 110.912) (width 0.25) (layer "F.Cu") (net 2))
+  (via (at 149.438 110.912) (size 0.8) (drill 0.4) (layers "F.Cu" "B.Cu") (net 2))
+  (segment (start 149.438 110.912) (end 149.438 110.000) (width 0.25) (layer "B.Cu") (net 2))
+)
