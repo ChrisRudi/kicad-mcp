@@ -9,33 +9,81 @@ is referenced from its repo path (later it gets copied into the plugin).
 
 from __future__ import annotations
 
+import glob
 import json
 import os
+import sys
 from typing import Optional
+
+
+def _sys_python() -> Optional[str]:
+    """KiCad's own python — the plugin runs INSIDE KiCad's interpreter, so
+    ``sys`` already points at the right python no matter where (which drive),
+    which bitness, or which version KiCad is installed. This is the robust path;
+    the hardcoded scan below is only a fallback."""
+    name = "python.exe" if os.name == "nt" else "python3"
+    cands = []
+    exe = sys.executable or ""
+    if exe and os.path.basename(exe).lower().startswith("python"):
+        cands.append(exe)
+    cands.append(os.path.join(sys.base_prefix, name))
+    cands.append(os.path.join(sys.prefix, name))
+    for c in cands:
+        if c and os.path.isfile(c):
+            return c
+    return None
+
+
+def _version_key(path: str) -> list:
+    """Numeric version of the ``…/KiCad/<ver>/bin/…`` dir, so 10.0 > 9.0."""
+    parts = path.replace("\\", "/").split("/")
+    low = [p.lower() for p in parts]
+    if "kicad" in low:
+        ver = parts[low.index("kicad") + 1] if low.index("kicad") + 1 < len(parts) else ""
+        return [int(t) if t.isdigit() else -1 for t in ver.split(".")]
+    return [-1]
+
+
+def _scan_python() -> Optional[str]:
+    """Fallback: scan install locations across drives / Program Files variants
+    (incl. 32-bit ``(x86)`` and per-user) and KiCad versions; pick the newest."""
+    pats: list[str] = []
+    if os.name == "nt":
+        bases = []
+        for var in ("ProgramW6432", "ProgramFiles", "ProgramFiles(x86)",
+                    "LOCALAPPDATA"):
+            val = os.environ.get(var)
+            if val:
+                bases.append(val if var != "LOCALAPPDATA"
+                             else os.path.join(val, "Programs"))
+        bases += [r"C:\Program Files", r"C:\Program Files (x86)"]
+        for base in dict.fromkeys(bases):  # de-dup, keep order
+            pats.append(os.path.join(base, "KiCad", "*", "bin", "python.exe"))
+    else:
+        # WSL view of Windows installs (any drive) + native posix / mac
+        pats += ["/mnt/*/Program Files/KiCad/*/bin/python.exe",
+                 "/mnt/*/Program Files (x86)/KiCad/*/bin/python.exe",
+                 "/Applications/KiCad/KiCad.app/Contents/Frameworks/"
+                 "Python.framework/Versions/Current/bin/python3"]
+    hits = [h for pat in pats for h in glob.glob(pat) if os.path.isfile(h)]
+    if hits:
+        return max(hits, key=_version_key)
+    if os.name != "nt" and os.path.isfile("/usr/bin/python3"):
+        return "/usr/bin/python3"
+    return None
 
 
 def find_kicad_python() -> Optional[str]:
     """Locate the KiCad-bundled Python (the interpreter that has ``kipy``).
 
-    KiCad ships it at ``<install>/bin/python(.exe)``. Checks an env override,
-    then the common KiCad 10/9 install locations on Windows / WSL / Linux / mac.
+    Order: ``KICAD_PYTHON_PATH`` env override → the running KiCad interpreter
+    (``sys``, robust to any install path/drive/bitness/version) → a scan of the
+    common install locations (incl. 32-bit ``Program Files (x86)`` and per-user).
     """
     override = os.environ.get("KICAD_PYTHON_PATH", "").strip()
     if override and os.path.isfile(override):
         return override
-    cands = []
-    for ver in ("10.0", "9.0"):
-        cands += [
-            rf"C:\Program Files\KiCad\{ver}\bin\python.exe",
-            f"/mnt/c/Program Files/KiCad/{ver}/bin/python.exe",
-            "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/"
-            "Versions/Current/bin/python3",
-        ]
-    cands.append("/usr/bin/python3")
-    for c in cands:
-        if os.path.isfile(c):
-            return c
-    return None
+    return _sys_python() or _scan_python()
 
 
 def build_mcp_config(mcp_root: str, python_exe: str) -> dict:
