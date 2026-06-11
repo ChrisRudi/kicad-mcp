@@ -1,0 +1,123 @@
+{
+  "template_id": "i2c_sensor",
+  "circuit_type": "sensor_interface",
+  "description": "I2C sensor node: MCU, pull-up resistors, sensor IC, connector",
+  "source_schematics": [
+    "i2c_bme280_node",
+    "i2c_generic"
+  ],
+  "source_count": 2,
+  "match_rules": {
+    "required_components": [
+      {
+        "type": "mcu_or_connector",
+        "match": [
+          "ESP32",
+          "STM32",
+          "ATmega",
+          "Arduino",
+          "Conn",
+          "J"
+        ]
+      },
+      {
+        "type": "i2c_pullup",
+        "match": [
+          "R",
+          "4k7",
+          "4.7k",
+          "10k"
+        ]
+      }
+    ],
+    "optional_components": [
+      "sensor_ic",
+      "decoupling_cap",
+      "level_shifter"
+    ],
+    "required_nets": [
+      "SDA",
+      "SCL"
+    ],
+    "min_confidence": 0.5
+  },
+  "placement": {
+    "regions": {
+      "mcu": {
+        "rx_range": [
+          0.05,
+          0.3
+        ],
+        "ry_range": [
+          0.3,
+          0.6
+        ],
+        "description": "MCU or master at left"
+      },
+      "pullup_scl": {
+        "rx_range": [
+          0.35,
+          0.45
+        ],
+        "ry_range": [
+          0.15,
+          0.3
+        ],
+        "description": "SCL pull-up above bus"
+      },
+      "pullup_sda": {
+        "rx_range": [
+          0.5,
+          0.6
+        ],
+        "ry_range": [
+          0.15,
+          0.3
+        ],
+        "description": "SDA pull-up above bus"
+      },
+      "sensor_ic": {
+        "rx_range": [
+          0.55,
+          0.75
+        ],
+        "ry_range": [
+          0.35,
+          0.55
+        ],
+        "description": "Sensor IC along bus"
+      },
+      "sensor_cap": {
+        "rx_range": [
+          0.65,
+          0.75
+        ],
+        "ry_range": [
+          0.6,
+          0.75
+        ],
+        "description": "Sensor decoupling cap"
+      },
+      "connector": {
+        "rx_range": [
+          0.85,
+          0.95
+        ],
+        "ry_range": [
+          0.35,
+          0.55
+        ],
+        "description": "I2C connector at right edge"
+      }
+    },
+    "signal_flow": "left_to_right",
+    "component_rotation": {
+      "R": 0,
+      "C": 90
+    }
+  },
+  "wiring_hint": "I2C bus (SDA/SCL) as horizontal trunk with pull-ups to VCC above. Sensor IC and connector aligned on bus. Power labels for VCC/GND.",
+  "block_definition": null,
+  "block_definition_status": "stub",
+  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the i2c_sensor pattern. See examples/circuit_block/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
+}

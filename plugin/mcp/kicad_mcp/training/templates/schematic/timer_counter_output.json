@@ -1,0 +1,125 @@
+{
+  "template_id": "timer_counter_output",
+  "circuit_type": "timer_counter",
+  "description": "555/4060/4017 timer driving counter with LED/relay/buzzer output",
+  "source_schematics": [
+    "024016-D",
+    "030172-D",
+    "040109-D",
+    "040070-D",
+    "040123-D",
+    "DE2010070162"
+  ],
+  "source_count": 6,
+  "match_rules": {
+    "required_components": [
+      {
+        "type": "timer_or_oscillator",
+        "match": [
+          "555",
+          "556",
+          "4060",
+          "4538"
+        ]
+      },
+      {
+        "type": "counter_or_decoder",
+        "match": [
+          "4017",
+          "4060",
+          "4093",
+          "counter"
+        ]
+      }
+    ],
+    "optional_components": [
+      "transistor_driver",
+      "relay",
+      "led",
+      "buzzer"
+    ],
+    "min_confidence": 0.6
+  },
+  "placement": {
+    "regions": {
+      "oscillator": {
+        "rx_range": [
+          0.15,
+          0.35
+        ],
+        "ry_range": [
+          0.35,
+          0.65
+        ],
+        "description": "Timer/oscillator IC center-left"
+      },
+      "timing_components": {
+        "rx_range": [
+          0.05,
+          0.25
+        ],
+        "ry_range": [
+          0.2,
+          0.85
+        ],
+        "description": "RC timing to left/below oscillator IC"
+      },
+      "counter": {
+        "rx_range": [
+          0.4,
+          0.6
+        ],
+        "ry_range": [
+          0.35,
+          0.65
+        ],
+        "description": "Counter/decoder IC center"
+      },
+      "driver": {
+        "rx_range": [
+          0.65,
+          0.8
+        ],
+        "ry_range": [
+          0.4,
+          0.7
+        ],
+        "description": "Transistor/MOSFET driver right of counter"
+      },
+      "output": {
+        "rx_range": [
+          0.8,
+          0.95
+        ],
+        "ry_range": [
+          0.3,
+          0.7
+        ],
+        "description": "LED/relay/buzzer at far right"
+      },
+      "power_switch": {
+        "rx_range": [
+          0.6,
+          0.8
+        ],
+        "ry_range": [
+          0.05,
+          0.15
+        ],
+        "description": "Power switch at top"
+      }
+    },
+    "signal_flow": "left_to_right",
+    "component_rotation": {
+      "R": 90,
+      "C": 90,
+      "L": 90,
+      "D": 90,
+      "LED": 90
+    }
+  },
+  "wiring_hint": "Direct wires for all. Labels only for power.",
+  "block_definition": null,
+  "block_definition_status": "stub",
+  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the timer_counter_output pattern. See examples/circuit_block/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
+}

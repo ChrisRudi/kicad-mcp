@@ -42,3 +42,7 @@ Thumbs.db
 *-backups/
 **/.history/
 fp-info-cache
+plugin/mcp/**/__pycache__/
+plugin/mcp/**/.cache/
+plugin/**/*.pyc
+/plugin.zip

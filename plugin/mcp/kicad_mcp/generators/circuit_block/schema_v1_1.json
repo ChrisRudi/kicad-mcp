@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kicad-mcp.local/schemas/circuit_block_v1_1.json",
+  "title": "Circuit-Block Spec v1.1",
+  "description": "Datasheet-driven specification for a single IC + its outer components, used by Layer-T MCP tools to insert the block into a KiCad schematic.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "chip", "kicad_symbol", "pins", "peripherals"],
+
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.1"],
+      "description": "Schema version. v1.1 introduces typed pin/net references, instances[], strap[], hierarchical sheet-scope, BOM fields and operating_envelope."
+    },
+
+    "chip": {"type": "string", "description": "Chip part-number, e.g. 'TPS54202'."},
+    "manufacturer": {"type": "string"},
+    "datasheet_url": {"type": "string"},
+    "datasheet_revision": {"type": "string"},
+    "datasheet_date": {"type": "string"},
+
+    "package": {"type": "string", "description": "Mechanical package, e.g. 'SOIC-8-1EP'."},
+    "package_options": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["package", "kicad_footprint"],
+        "properties": {
+          "package": {"type": "string"},
+          "kicad_footprint": {"type": "string"},
+          "pin_remap": {
+            "type": "object",
+            "additionalProperties": {"type": "integer"},
+            "description": "Optional pin-name → pin-number remap when alternate package re-numbers pins."
+          }
+        }
+      },
+      "description": "Optional alternate package variants. Default footprint stays in 'kicad_footprint'."
+    },
+
+    "kicad_symbol": {"type": "string", "description": "KiCad symbol library-id, e.g. 'Regulator_Switching:TPS54202'."},
+    "kicad_footprint": {"type": "string"},
+
+    "pins": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["num", "name"],
+        "properties": {
+          "num": {"type": ["integer", "string"]},
+          "name": {"type": "string"},
+          "type": {
+            "type": "string",
+            "enum": ["passive", "input", "output", "bidirectional", "tri_state", "power_in", "power_out", "open_collector", "open_emitter", "no_connect", "free", "unspecified"],
+            "default": "unspecified"
+          },
+          "function": {"type": "string"}
+        }
+      }
+    },
+
+    "peripherals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "between"],
+        "properties": {
+          "id": {"type": "string"},
+          "role": {"type": "string", "description": "Semantic role, e.g. 'input_decoupling', 'bootstrap', 'feedback_divider_top', 'enable_pulldown', 'output_decoupling', 'inductor', 'test_point', 'pad_array_node', 'strap_resistor'."},
+          "value": {"type": "string"},
+          "value_formula": {
+            "oneOf": [
+              {"type": "string"},
+              {
+                "type": "object",
+                "properties": {
+                  "expr": {"type": "string"},
+                  "inputs": {"type": "object"}
+                },
+                "required": ["expr"]
+              }
+            ],
+            "description": "Either a doc string or a parseable expression with named inputs."
+          },
+          "between": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "oneOf": [
+                {"type": "string", "description": "Pin name shorthand. If multiple pins share that name, the tool uses pin_num override or merges to one net."},
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "pin": {"type": "string", "description": "Pin name on the chip."},
+                    "pin_num": {"type": ["integer", "string"], "description": "Specific pin number when name is ambiguous."},
+                    "net": {"type": "string", "description": "External net name (must be in external_nets[])."}
+                  }
+                }
+              ]
+            }
+          },
+          "polarity": {"type": "string", "enum": ["non_polarized", "polarized"], "default": "non_polarized"},
+          "anode": {"type": "string"},
+          "cathode": {"type": "string"},
+          "kicad_symbol": {"type": "string", "description": "Override library-id for this part. Defaults derived from role+value."},
+          "kicad_footprint": {"type": "string"},
+          "specs": {"type": "object"},
+          "placement_hint": {"type": "string"},
+          "source": {"type": "string", "description": "Datasheet section / figure reference for traceability."},
+          "required": {"type": "boolean", "default": true},
+          "lcsc": {"type": "string"},
+          "mouser": {"type": "string"},
+          "jlc_class": {"type": "string", "enum": ["Basic", "Extended", "External", ""]},
+          "comment": {"type": "string"}
+        }
+      }
+    },
+
+    "external_nets": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {"type": "string", "description": "Bare net name; defaults to direction='bidirectional', type='signal'."},
+          {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": {"type": "string"},
+              "direction": {"type": "string", "enum": ["input", "output", "bidirectional", "passive"]},
+              "type": {"type": "string", "enum": ["signal", "power", "ground"]},
+              "net_class": {"type": "string"}
+            }
+          }
+        ]
+      }
+    },
+
+    "instances": {
+      "type": "array",
+      "description": "Multi-instance configuration. Each entry maps the chip+peripherals onto a distinct ref+net-suffix.",
+      "items": {
+        "type": "object",
+        "required": ["ref"],
+        "properties": {
+          "ref": {"type": "string"},
+          "net_suffix": {"type": "string", "description": "Suffix appended to every external_nets[] entry for this instance, e.g. '_1' yields VOUT_1."},
+          "x_mm": {"type": "number"},
+          "y_mm": {"type": "number"},
+          "rotation_deg": {"type": "number"}
+        }
+      }
+    },
+
+    "strap": {
+      "type": "array",
+      "description": "Strap-pin configuration (BOOT0, SEL, ADDR …) — tool emits the matching pull-up/-down resistor automatically.",
+      "items": {
+        "type": "object",
+        "required": ["pin", "value"],
+        "properties": {
+          "pin": {"type": "string"},
+          "value": {"type": ["string", "number", "boolean"]},
+          "implementation": {"type": "string", "enum": ["pullup_to_3v3", "pullup_to_5v", "pulldown_to_gnd", "tied_to_3v3", "tied_to_5v", "tied_to_gnd", "left_floating"], "default": "pullup_to_3v3"},
+          "resistor_value": {"type": "string", "default": "100k"},
+          "comment": {"type": "string"}
+        }
+      }
+    },
+
+    "operating_envelope": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Free-form key/value of voltages, currents, frequencies for the block."
+    },
+
+    "power_pins_use_kicad_power_symbols": {
+      "type": "boolean",
+      "default": true,
+      "description": "If true (default), every pin of type power_in/power_out is wired with a power: lib-symbol; if false, plain global labels are used (NOT recommended)."
+    },
+
+    "sheet_scope": {
+      "type": "string",
+      "enum": ["root", "hierarchical"],
+      "default": "root",
+      "description": "If 'hierarchical', external_nets[] are emitted as label mode (sheet-pins) instead of root-level globals."
+    },
+
+    "placement": {
+      "type": "object",
+      "properties": {
+        "x_mm": {"type": "number"},
+        "y_mm": {"type": "number"},
+        "rotation_deg": {"type": "number"},
+        "side": {"type": "string", "enum": ["F.Cu", "B.Cu", "either"], "default": "F.Cu"},
+        "forbidden_zones": {"type": "array", "items": {"type": "object"}}
+      }
+    },
+
+    "section_frame": {
+      "type": "object",
+      "properties": {
+        "title": {"type": "string"},
+        "x_mm": {"type": "number"},
+        "y_mm": {"type": "number"},
+        "w_mm": {"type": "number"},
+        "h_mm": {"type": "number"}
+      }
+    },
+
+    "review_status": {
+      "type": "string",
+      "enum": ["draft", "needs_review", "verified_against_datasheet", "in_use"],
+      "default": "draft"
+    },
+    "needs_review": {"type": "array", "items": {"type": "string"}}
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "template_id": "power_supply_board",
+  "board_type": "power_supply",
+  "description": "Linear/switching power supply board layout",
+  "source_count": 5,
+
+  "match_rules": {
+    "required": ["voltage_regulator"],
+    "optional": ["inductor", "diode", "capacitor_bulk", "connector"]
+  },
+
+  "placement": {
+    "input_connector": {
+      "position": "left_edge",
+      "orientation": "pins_facing_left"
+    },
+    "input_caps": {
+      "position": "near_input_connector",
+      "bulk_cap_first": true
+    },
+    "voltage_regulator": {
+      "position": "center_left",
+      "thermal_pad": "ground_plane",
+      "heatsink_clearance_mm": 10
+    },
+    "inductor": {
+      "position": "between_regulator_and_output",
+      "short_loop": true
+    },
+    "catch_diode": {
+      "position": "near_inductor",
+      "short_loop": true
+    },
+    "output_caps": {
+      "position": "near_output_connector",
+      "bulk_cap_first": true
+    },
+    "output_connector": {
+      "position": "right_edge",
+      "orientation": "pins_facing_right"
+    },
+    "feedback_resistors": {
+      "position": "near_regulator_fb_pin",
+      "away_from_inductor": true
+    }
+  },
+
+  "routing_guidelines": {
+    "power_loop": {"minimize_area": true, "wide_traces_mm": 1.0},
+    "feedback": {"away_from_switching_node": true, "trace_width_mm": 0.25},
+    "ground": {"star_or_plane": "plane", "kelvin_sense": true}
+  },
+
+  "layout_flow": "input(left) → regulator(center) → inductor+diode → output(right)"
+}

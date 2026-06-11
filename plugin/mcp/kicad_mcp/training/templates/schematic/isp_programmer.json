@@ -1,0 +1,99 @@
+{
+  "template_id": "isp_programmer",
+  "circuit_type": "digital_interface",
+  "description": "ISP/JTAG programmer with buffer IC and connector",
+  "source_schematics": [
+    "060374-D",
+    "040218-D"
+  ],
+  "source_count": 2,
+  "match_rules": {
+    "required_components": [
+      {
+        "type": "buffer_ic",
+        "match": [
+          "74HC244",
+          "74LS244",
+          "74HC125",
+          "74HC245",
+          "buffer"
+        ]
+      }
+    ],
+    "optional_components": [
+      "connector_sub_d",
+      "connector_isp",
+      "led",
+      "resistor"
+    ],
+    "min_confidence": 0.6
+  },
+  "placement": {
+    "regions": {
+      "host_connector": {
+        "rx_range": [
+          0.02,
+          0.15
+        ],
+        "ry_range": [
+          0.35,
+          0.65
+        ],
+        "description": "PC/host connector at left"
+      },
+      "buffer_ic": {
+        "rx_range": [
+          0.35,
+          0.55
+        ],
+        "ry_range": [
+          0.35,
+          0.65
+        ],
+        "description": "Buffer IC centered"
+      },
+      "target_connector": {
+        "rx_range": [
+          0.75,
+          0.95
+        ],
+        "ry_range": [
+          0.35,
+          0.65
+        ],
+        "description": "Target ISP header at right"
+      },
+      "indicator": {
+        "rx_range": [
+          0.55,
+          0.7
+        ],
+        "ry_range": [
+          0.15,
+          0.3
+        ],
+        "description": "Status LED above buffer"
+      },
+      "bypass_cap": {
+        "rx_range": [
+          0.3,
+          0.4
+        ],
+        "ry_range": [
+          0.2,
+          0.3
+        ],
+        "description": "Bypass cap near IC VCC"
+      }
+    },
+    "signal_flow": "left_to_right",
+    "component_rotation": {
+      "R": 90,
+      "C": 90
+    }
+  },
+  "wiring_hint": "Net labels for MOSI/MISO/SCK/RST. Power labels for VCC/GND. Buffer data lines direct.",
+  "block_definition": null,
+  "block_definition_status": "stub",
+  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the isp_programmer pattern. See examples/circuit_block/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
+}

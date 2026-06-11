@@ -1,0 +1,133 @@
+{
+  "template_id": "audio_amplifier_ic",
+  "circuit_type": "audio_amplifier",
+  "description": "Audio amplifier IC (LM386/TDA2030/TBA820M) with minimal external parts",
+  "source_schematics": [
+    "DE2010070161",
+    "030310-D"
+  ],
+  "source_count": 2,
+  "match_rules": {
+    "required_components": [
+      {
+        "type": "audio_amp_ic",
+        "match": [
+          "LM386",
+          "TDA2030",
+          "TBA820",
+          "PAM8403",
+          "TPA",
+          "MAX98"
+        ]
+      }
+    ],
+    "optional_components": [
+      "coupling_cap",
+      "volume_pot",
+      "speaker",
+      "feedback_resistor"
+    ],
+    "min_confidence": 0.5
+  },
+  "placement": {
+    "regions": {
+      "input": {
+        "rx_range": [
+          0.02,
+          0.15
+        ],
+        "ry_range": [
+          0.4,
+          0.6
+        ],
+        "description": "Audio input at left"
+      },
+      "coupling_cap": {
+        "rx_range": [
+          0.15,
+          0.25
+        ],
+        "ry_range": [
+          0.4,
+          0.6
+        ],
+        "description": "Input coupling cap"
+      },
+      "volume": {
+        "rx_range": [
+          0.2,
+          0.3
+        ],
+        "ry_range": [
+          0.6,
+          0.8
+        ],
+        "description": "Volume pot below input"
+      },
+      "amp_ic": {
+        "rx_range": [
+          0.4,
+          0.6
+        ],
+        "ry_range": [
+          0.35,
+          0.55
+        ],
+        "description": "Amplifier IC centered"
+      },
+      "bypass_cap": {
+        "rx_range": [
+          0.4,
+          0.55
+        ],
+        "ry_range": [
+          0.2,
+          0.3
+        ],
+        "description": "Bypass cap above IC"
+      },
+      "output_cap": {
+        "rx_range": [
+          0.65,
+          0.75
+        ],
+        "ry_range": [
+          0.4,
+          0.55
+        ],
+        "description": "Output coupling cap"
+      },
+      "speaker": {
+        "rx_range": [
+          0.8,
+          0.95
+        ],
+        "ry_range": [
+          0.4,
+          0.6
+        ],
+        "description": "Speaker at right edge"
+      },
+      "feedback": {
+        "rx_range": [
+          0.45,
+          0.65
+        ],
+        "ry_range": [
+          0.65,
+          0.8
+        ],
+        "description": "Gain/feedback network below IC"
+      }
+    },
+    "signal_flow": "left_to_right",
+    "component_rotation": {
+      "R": 90,
+      "C": 0
+    }
+  },
+  "wiring_hint": "Power labels. Audio signal chain all direct wires. Coupling caps horizontal (0 deg).",
+  "block_definition": null,
+  "block_definition_status": "stub",
+  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the audio_amplifier_ic pattern. See examples/circuit_block/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
+}

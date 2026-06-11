@@ -1,0 +1,134 @@
+{
+  "template_id": "sensor_driver_actuator",
+  "circuit_type": "sensor_actuator",
+  "description": "Sensor input \u2192 signal conditioning \u2192 transistor/MOSFET driver \u2192 actuator (relay, motor, LED)",
+  "source_schematics": [
+    "040055-D",
+    "040058-D",
+    "040431-D",
+    "040148-D"
+  ],
+  "source_count": 4,
+  "match_rules": {
+    "required_components": [
+      {
+        "type": "sensor_or_input",
+        "match": [
+          "sensor",
+          "hall",
+          "temp",
+          "photo",
+          "mic",
+          "connector_in"
+        ]
+      },
+      {
+        "type": "driver",
+        "match": [
+          "transistor",
+          "mosfet",
+          "opamp"
+        ]
+      }
+    ],
+    "optional_components": [
+      "relay",
+      "motor",
+      "led",
+      "buzzer",
+      "comparator"
+    ],
+    "min_confidence": 0.5
+  },
+  "placement": {
+    "regions": {
+      "sensor_input": {
+        "rx_range": [
+          0.02,
+          0.15
+        ],
+        "ry_range": [
+          0.35,
+          0.65
+        ],
+        "description": "Sensor/input at far left"
+      },
+      "signal_conditioning": {
+        "rx_range": [
+          0.2,
+          0.45
+        ],
+        "ry_range": [
+          0.3,
+          0.6
+        ],
+        "description": "Opamp/comparator/IC for signal processing"
+      },
+      "driver": {
+        "rx_range": [
+          0.55,
+          0.75
+        ],
+        "ry_range": [
+          0.35,
+          0.65
+        ],
+        "description": "Transistor/MOSFET driver center-right"
+      },
+      "actuator": {
+        "rx_range": [
+          0.8,
+          0.95
+        ],
+        "ry_range": [
+          0.25,
+          0.55
+        ],
+        "description": "Relay/motor/LED at far right"
+      },
+      "flyback_diode": {
+        "rx_range": [
+          0.75,
+          0.85
+        ],
+        "ry_range": [
+          0.2,
+          0.35
+        ],
+        "description": "Flyback diode across relay coil"
+      },
+      "power_supply": {
+        "rx_range": [
+          0.02,
+          0.2
+        ],
+        "ry_range": [
+          0.05,
+          0.2
+        ],
+        "description": "Power input top-left"
+      },
+      "feedback": {
+        "rx_range": [
+          0.4,
+          0.6
+        ],
+        "ry_range": [
+          0.7,
+          0.85
+        ],
+        "description": "Feedback/hysteresis below signal chain"
+      }
+    },
+    "signal_flow": "left_to_right",
+    "component_rotation": {
+      "R": 90,
+      "C": 90,
+      "D": 90
+    }
+  },
+  "wiring_hint": "Power labels only. Linear signal chain fully wired directly.",
+  "block_definition": null,
+  "block_definition_status": "stub",
+  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the sensor_driver_actuator pattern. See examples/circuit_block/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
+}

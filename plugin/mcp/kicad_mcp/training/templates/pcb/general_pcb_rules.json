@@ -1,0 +1,80 @@
+{
+  "template_id": "general_pcb_rules",
+  "description": "Universal PCB placement rules from Elektor board analysis",
+  "source_count": 20,
+
+  "universal_rules": [
+    {
+      "rule": "connectors_at_board_edges",
+      "description": "All connectors placed at board perimeter, pins facing outward",
+      "priority": 1
+    },
+    {
+      "rule": "bypass_caps_adjacent_to_ic",
+      "description": "100nF bypass caps within 5mm of IC power pin, on same layer",
+      "max_distance_mm": 5,
+      "priority": 1
+    },
+    {
+      "rule": "crystal_near_osc_pins",
+      "description": "Crystal/oscillator within 10mm of MCU oscillator pins",
+      "max_distance_mm": 10,
+      "priority": 1
+    },
+    {
+      "rule": "main_ic_center",
+      "description": "Main IC (MCU, DSP, FPGA) centered on board",
+      "priority": 2
+    },
+    {
+      "rule": "power_input_corner",
+      "description": "Power connector and voltage regulator at board corner/edge",
+      "preferred_corner": "top_left",
+      "priority": 2
+    },
+    {
+      "rule": "analog_digital_separation",
+      "description": "Keep analog components on one side, digital on other. Avoid crossing traces.",
+      "priority": 3
+    },
+    {
+      "rule": "thermal_components_at_edge",
+      "description": "Voltage regulators, power MOSFETs near board edge for heat dissipation",
+      "priority": 3
+    },
+    {
+      "rule": "smd_passives_same_orientation",
+      "description": "All SMD resistors/caps aligned to same axis for pick-and-place",
+      "priority": 3
+    },
+    {
+      "rule": "ground_plane_unbroken",
+      "description": "Avoid routing signal traces under ICs on ground plane layer",
+      "priority": 2
+    },
+    {
+      "rule": "mounting_holes_at_corners",
+      "description": "M3 mounting holes at board corners, min 3mm from edge",
+      "priority": 4
+    }
+  ],
+
+  "placement_zones": {
+    "power_input": {"position": "edge", "preferred": "top_left_corner"},
+    "voltage_regulator": {"position": "near_power_input", "thermal": "near_edge"},
+    "main_ic": {"position": "center"},
+    "bypass_caps": {"position": "adjacent_to_ic_power_pins"},
+    "crystal": {"position": "near_mcu_osc_pins"},
+    "connectors_signal": {"position": "board_edges"},
+    "connectors_power": {"position": "board_edge", "preferred": "same_side_as_regulator"},
+    "leds": {"position": "board_edge", "visible": true},
+    "test_points": {"position": "accessible", "not_under_components": true}
+  },
+
+  "routing_priorities": [
+    {"priority": 1, "nets": "power", "rule": "wide_traces_short_paths"},
+    {"priority": 2, "nets": "clock", "rule": "short_matched_length"},
+    {"priority": 3, "nets": "analog", "rule": "away_from_digital"},
+    {"priority": 4, "nets": "digital_signal", "rule": "standard_routing"}
+  ]
+}
