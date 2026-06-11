@@ -1,11 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""The KiCad-side chat panel: a small wx dialog that is the input/output for
-talking to Claude about the open board.
+"""The KiCad-side chat UI for talking to Claude about the open board.
 
-Each "Send" runs one Claude Code turn in a worker thread (so the GUI stays
-responsive) via :mod:`claude_bridge`, and appends the reply. The Claude session
-id is kept on the dialog so the whole exchange is one conversation. The look
-(dark terminal, monospace, Claude-orange bullets, pulsing spinner) comes from
+:class:`ClaudeChatPanel` is the actual UI (a wx.Panel) so it can live either
+docked inside the PCB editor as an AUI pane (see :mod:`dock`) or hosted in
+the floating :class:`ClaudeChatDialog` fallback. Each "Send" runs one Claude
+Code turn in a worker thread (so the GUI stays responsive) via
+:mod:`claude_bridge`, and appends the reply. The Claude session id is kept on
+the panel so the whole exchange is one conversation. The look (dark terminal,
+monospace, Claude-orange bullets, pulsing spinner) comes from
 :mod:`chat_theme` so it matches the Claude Code CLI.
 """
 
@@ -30,12 +32,11 @@ def _pick_mono_font() -> "wx.Font":
     return font
 
 
-class ClaudeChatDialog(wx.Dialog):
+class ClaudeChatPanel(wx.Panel):
+    """The chat surface itself — dockable (AUI pane) or dialog-hosted."""
+
     def __init__(self, parent, plan, on_open_setup=None):
-        super().__init__(
-            parent, title=f"Claude — KiCad (v{__version__})", size=(680, 580),
-            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
-        )
+        super().__init__(parent)
         # The RunPlan carries the path-consistent cwd / --mcp-config / claude
         # argv for this machine (native Windows, native Linux, or WSL-bridge).
         self._plan = plan
@@ -45,12 +46,10 @@ class ClaudeChatDialog(wx.Dialog):
         self._mono = _pick_mono_font()
 
         self.SetBackgroundColour(wx.Colour(theme.BACKGROUND))
-        panel = wx.Panel(self)
-        panel.SetBackgroundColour(wx.Colour(theme.BACKGROUND))
         root = wx.BoxSizer(wx.VERTICAL)
 
         self._out = wx.TextCtrl(
-            panel,
+            self,
             style=(wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2
                    | wx.BORDER_NONE),
         )
@@ -60,18 +59,18 @@ class ClaudeChatDialog(wx.Dialog):
         root.Add(self._out, 1, wx.EXPAND | wx.ALL, 8)
 
         row = wx.BoxSizer(wx.HORIZONTAL)
-        chevron = wx.StaticText(panel, label="❯")
+        chevron = wx.StaticText(self, label="❯")
         chevron.SetForegroundColour(wx.Colour(theme.CLAUDE_ORANGE))
         chevron.SetFont(self._mono.Bold())
         row.Add(chevron, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
-        self._in = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+        self._in = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
         self._in.SetBackgroundColour(wx.Colour(theme.SURFACE))
         self._in.SetForegroundColour(wx.Colour(theme.FOREGROUND))
         self._in.SetFont(self._mono)
         self._in.SetHint("Frag Claude etwas über dieses Board …")
         self._in.Bind(wx.EVT_TEXT_ENTER, self._on_send)
         row.Add(self._in, 1, wx.EXPAND | wx.RIGHT, 6)
-        self._send = wx.Button(panel, label="Senden")
+        self._send = wx.Button(self, label="Senden")
         self._send.SetBackgroundColour(wx.Colour(theme.SURFACE))
         self._send.SetForegroundColour(wx.Colour(theme.FOREGROUND))
         row.Add(self._send, 0)
@@ -79,19 +78,19 @@ class ClaudeChatDialog(wx.Dialog):
         root.Add(row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         foot = wx.BoxSizer(wx.HORIZONTAL)
-        self._status = wx.StaticText(panel, label=theme.STATUS_READY)
+        self._status = wx.StaticText(self, label=theme.STATUS_READY)
         self._status.SetForegroundColour(wx.Colour(theme.DIM))
         self._status.SetFont(self._mono)
         foot.Add(self._status, 1, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 8)
         if self._on_open_setup:
-            setup_btn = wx.Button(panel, label="Einrichtung / Update")
+            setup_btn = wx.Button(self, label="Einrichtung / Update")
             setup_btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
             setup_btn.SetForegroundColour(wx.Colour(theme.DIM))
             setup_btn.Bind(wx.EVT_BUTTON, lambda e: self._on_open_setup())
             foot.Add(setup_btn, 0, wx.RIGHT, 6)
         root.Add(foot, 0, wx.EXPAND | wx.BOTTOM, 8)
 
-        panel.SetSizer(root)
+        self.SetSizer(root)
 
         # Pulsing CLI-style spinner ("✻ Claude denkt nach … (12s)").
         self._spinner = wx.Timer(self)
@@ -106,6 +105,13 @@ class ClaudeChatDialog(wx.Dialog):
             "kleinsten'.",
         )
         self._in.SetFocus()
+
+    # -- public -------------------------------------------------------------
+
+    def set_plan(self, plan) -> None:
+        """Refresh the run plan (a re-shown docked pane keeps the old panel;
+        the project/board may have changed since)."""
+        self._plan = plan
 
     # -- ui helpers ---------------------------------------------------------
 
@@ -171,6 +177,8 @@ class ClaudeChatDialog(wx.Dialog):
         wx.CallAfter(self._on_reply, result)
 
     def _on_reply(self, result: dict) -> None:
+        if not self:  # panel destroyed while Claude was thinking
+            return
         if result.get("ok"):
             self._session_id = result.get("session_id") or self._session_id
             self._append("claude", result.get("text") or "(keine Antwort)")
@@ -178,3 +186,18 @@ class ClaudeChatDialog(wx.Dialog):
             self._append("error", result.get("error") or "unbekannt")
         self._set_busy(False)
         self._in.SetFocus()
+
+
+class ClaudeChatDialog(wx.Dialog):
+    """Floating fallback when docking into the PCB editor isn't possible."""
+
+    def __init__(self, parent, plan, on_open_setup=None):
+        super().__init__(
+            parent, title=f"Claude — KiCad (v{__version__})", size=(680, 580),
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self.SetBackgroundColour(wx.Colour(theme.BACKGROUND))
+        self.panel = ClaudeChatPanel(self, plan, on_open_setup=on_open_setup)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(self.panel, 1, wx.EXPAND)
+        self.SetSizer(sizer)

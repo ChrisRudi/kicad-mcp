@@ -9,6 +9,16 @@ the first tag ships.
 ## [Unreleased]
 
 ### Changed
+- **Plugin-Chat dockt jetzt in KiCad an (Plugin v0.2.7).** Das Chat-Panel wird als
+  natives AUI-Pane in den PCB-Editor eingehängt (neues `plugin/dock.py`, über
+  `wx.aui.AuiManager.GetManager` am `PcbFrame`) — es snapt an die Fensterränder, lässt
+  sich wie Darstellung/Suche abreißen, verschieben, in der Größe ziehen und wieder
+  andocken; KiCad merkt sich die Position in der Perspective. Das UI lebt dafür jetzt in
+  `ClaudeChatPanel` (wx.Panel); der bisherige schwebende `ClaudeChatDialog` bleibt als
+  automatischer Fallback, wenn das Andocken auf einem System nicht möglich ist.
+  Erneuter Toolbar-Klick zeigt das vorhandene Pane wieder (mit aufgefrischtem RunPlan)
+  statt ein zweites Fenster zu öffnen. Pure Anteile (Frame-Erkennung inkl. deutscher
+  Titel, Pane-Spec) headless getestet (`tests/test_plugin_dock.py`).
 - **Plugin-Chat im Claude-Code-Look (Plugin v0.2.6).** Das Chat-Panel sieht jetzt aus wie
   das Claude-Code-Terminal: dunkler Hintergrund, Monospace-Schrift (Cascadia/Consolas/…),
   Claude-Orange für Antwort-Bullets (`●`) und Eingabe-Chevron (`❯`), eigene Eingaben

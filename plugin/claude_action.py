@@ -14,6 +14,7 @@ import os
 import pcbnew  # only importable inside KiCad
 
 from . import ipc_setup, mcp_config, preflight, runtime_env
+from .version import __version__
 
 # Dev fallback only — used when neither an env override nor the bundled copy is
 # present (e.g. running from a repo checkout before bundling).
@@ -74,7 +75,8 @@ class ClaudeActionPlugin(pcbnew.ActionPlugin):
         mcp_root = _mcp_root()  # bundled-first; env override; dev fallback
 
         def open_chat() -> None:
-            from .chat_dialog import ClaudeChatDialog
+            from . import dock
+            from .chat_dialog import ClaudeChatDialog, ClaudeChatPanel
             # Resolve a path-consistent plan (native Win/Linux, or WSL-bridge),
             # then write the MCP config in that plan's path styles. The preflight
             # guarantees python+root+claude are present before this runs.
@@ -100,6 +102,19 @@ class ClaudeActionPlugin(pcbnew.ActionPlugin):
                     "KICAD_PYTHON_PATH (KiCad-Python mit kipy).",
                     "Claude", wx.OK | wx.ICON_ERROR,
                 )
+                return
+            # Preferred: snap the chat into the PCB editor as a native AUI
+            # pane (dockable/tear-off like Appearance/Search). A re-shown pane
+            # keeps its panel, so refresh the plan. Fallback: floating dialog.
+            panel = dock.attach(
+                lambda frame: ClaudeChatPanel(
+                    frame, plan, on_open_setup=open_setup),
+                caption=f"Claude — KiCad (v{__version__})",
+            )
+            if panel is not None:
+                set_plan = getattr(panel, "set_plan", None)
+                if set_plan:
+                    set_plan(plan)
                 return
             dlg = ClaudeChatDialog(None, plan, on_open_setup=open_setup)
             _OPEN_DIALOGS.append(dlg)
