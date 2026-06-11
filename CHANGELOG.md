@@ -8,6 +8,15 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed
+- **Plugin-Chat im Claude-Code-Look (Plugin v0.2.6).** Das Chat-Panel sieht jetzt aus wie
+  das Claude-Code-Terminal: dunkler Hintergrund, Monospace-Schrift (Cascadia/Consolas/…),
+  Claude-Orange für Antwort-Bullets (`●`) und Eingabe-Chevron (`❯`), eigene Eingaben
+  gedimmt, Fehler rot, plus pulsierender CLI-Spinner mit Sekundenzähler
+  („✻ Claude denkt nach … (12s)") statt statischem Statustext. Farben/Rollen/Spinner leben
+  als reine Logik in `plugin/chat_theme.py` (headless getestet,
+  `tests/test_plugin_chat_theme.py`); `chat_dialog.py` wendet sie nur an.
+
 ### Fixed
 - **Plugin-Chat: kein schwarzes Konsolenfenster mehr pro Frage.** Der headless
   `claude -p`-Kindprozess (auch der `wsl claude`-Fallback) wird unter Windows jetzt mit

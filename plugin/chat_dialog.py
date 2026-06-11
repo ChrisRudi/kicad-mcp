@@ -4,7 +4,9 @@ talking to Claude about the open board.
 
 Each "Send" runs one Claude Code turn in a worker thread (so the GUI stays
 responsive) via :mod:`claude_bridge`, and appends the reply. The Claude session
-id is kept on the dialog so the whole exchange is one conversation.
+id is kept on the dialog so the whole exchange is one conversation. The look
+(dark terminal, monospace, Claude-orange bullets, pulsing spinner) comes from
+:mod:`chat_theme` so it matches the Claude Code CLI.
 """
 
 from __future__ import annotations
@@ -13,14 +15,25 @@ import threading
 
 import wx  # KiCad ships wxPython; only importable inside KiCad
 
+from . import chat_theme as theme
 from . import claude_bridge
 from .version import __version__
+
+
+def _pick_mono_font() -> "wx.Font":
+    """The first installed monospace face from the theme's candidate list."""
+    font = wx.Font(theme.FONT_SIZE_PT, wx.FONTFAMILY_TELETYPE,
+                   wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+    for face in theme.FONT_FACES:
+        if font.SetFaceName(face):
+            break
+    return font
 
 
 class ClaudeChatDialog(wx.Dialog):
     def __init__(self, parent, plan, on_open_setup=None):
         super().__init__(
-            parent, title=f"Claude — KiCad (v{__version__})", size=(640, 560),
+            parent, title=f"Claude — KiCad (v{__version__})", size=(680, 580),
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
         # The RunPlan carries the path-consistent cwd / --mcp-config / claude
@@ -29,37 +42,65 @@ class ClaudeChatDialog(wx.Dialog):
         self._on_open_setup = on_open_setup  # reopen Einrichtung/Update panel
         self._session_id = None
         self._busy = False
+        self._mono = _pick_mono_font()
 
+        self.SetBackgroundColour(wx.Colour(theme.BACKGROUND))
         panel = wx.Panel(self)
+        panel.SetBackgroundColour(wx.Colour(theme.BACKGROUND))
         root = wx.BoxSizer(wx.VERTICAL)
 
         self._out = wx.TextCtrl(
-            panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2
+            panel,
+            style=(wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2
+                   | wx.BORDER_NONE),
         )
-        root.Add(self._out, 1, wx.EXPAND | wx.ALL, 6)
+        self._out.SetBackgroundColour(wx.Colour(theme.BACKGROUND))
+        self._out.SetForegroundColour(wx.Colour(theme.FOREGROUND))
+        self._out.SetFont(self._mono)
+        root.Add(self._out, 1, wx.EXPAND | wx.ALL, 8)
 
         row = wx.BoxSizer(wx.HORIZONTAL)
+        chevron = wx.StaticText(panel, label="❯")
+        chevron.SetForegroundColour(wx.Colour(theme.CLAUDE_ORANGE))
+        chevron.SetFont(self._mono.Bold())
+        row.Add(chevron, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
         self._in = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+        self._in.SetBackgroundColour(wx.Colour(theme.SURFACE))
+        self._in.SetForegroundColour(wx.Colour(theme.FOREGROUND))
+        self._in.SetFont(self._mono)
         self._in.SetHint("Frag Claude etwas über dieses Board …")
         self._in.Bind(wx.EVT_TEXT_ENTER, self._on_send)
         row.Add(self._in, 1, wx.EXPAND | wx.RIGHT, 6)
         self._send = wx.Button(panel, label="Senden")
-        self._send.Bind(wx.EVT_BUTTON, self._on_send)
+        self._send.SetBackgroundColour(wx.Colour(theme.SURFACE))
+        self._send.SetForegroundColour(wx.Colour(theme.FOREGROUND))
         row.Add(self._send, 0)
-        root.Add(row, 0, wx.EXPAND | wx.ALL, 6)
+        self._send.Bind(wx.EVT_BUTTON, self._on_send)
+        root.Add(row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         foot = wx.BoxSizer(wx.HORIZONTAL)
-        self._status = wx.StaticText(panel, label="Bereit.")
+        self._status = wx.StaticText(panel, label=theme.STATUS_READY)
+        self._status.SetForegroundColour(wx.Colour(theme.DIM))
+        self._status.SetFont(self._mono)
         foot.Add(self._status, 1, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 8)
         if self._on_open_setup:
             setup_btn = wx.Button(panel, label="Einrichtung / Update")
+            setup_btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
+            setup_btn.SetForegroundColour(wx.Colour(theme.DIM))
             setup_btn.Bind(wx.EVT_BUTTON, lambda e: self._on_open_setup())
             foot.Add(setup_btn, 0, wx.RIGHT, 6)
         root.Add(foot, 0, wx.EXPAND | wx.BOTTOM, 8)
 
         panel.SetSizer(root)
+
+        # Pulsing CLI-style spinner ("✻ Claude denkt nach … (12s)").
+        self._spinner = wx.Timer(self)
+        self._tick = 0
+        self.Bind(wx.EVT_TIMER, self._on_spin, self._spinner)
+        self.Bind(wx.EVT_WINDOW_DESTROY, self._on_destroy)
+
         self._append(
-            "Claude",
+            "banner",
             "Hallo! Ich bin über kicad-mcp mit deinem offenen Board verbunden. "
             "Frag mich z.B. 'wie viele GND-Vias gibt es?' oder 'markier die 3 "
             "kleinsten'.",
@@ -68,14 +109,41 @@ class ClaudeChatDialog(wx.Dialog):
 
     # -- ui helpers ---------------------------------------------------------
 
-    def _append(self, who: str, text: str) -> None:
-        self._out.AppendText(f"{who}: {text}\n\n")
+    def _write(self, text: str, color: str, bold: bool = False) -> None:
+        attr = wx.TextAttr(wx.Colour(color))
+        attr.SetFontWeight(wx.FONTWEIGHT_BOLD if bold else wx.FONTWEIGHT_NORMAL)
+        self._out.SetDefaultStyle(attr)
+        self._out.AppendText(text)
+
+    def _append(self, role: str, text: str) -> None:
+        style = theme.style_for(role)
+        self._write(style["prefix"], style["prefix_color"], bold=True)
+        self._write(text + "\n\n", style["text_color"])
+
+    def _set_status(self, label: str, color: str) -> None:
+        self._status.SetLabel(label)
+        self._status.SetForegroundColour(wx.Colour(color))
+        self._status.Refresh()
 
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
         self._send.Enable(not busy)
         self._in.Enable(not busy)
-        self._status.SetLabel("Claude denkt nach …" if busy else "Bereit.")
+        if busy:
+            self._tick = 0
+            self._set_status(theme.spinner_label(0), theme.CLAUDE_ORANGE)
+            self._spinner.Start(theme.SPINNER_INTERVAL_MS)
+        else:
+            self._spinner.Stop()
+            self._set_status(theme.STATUS_READY, theme.DIM)
+
+    def _on_spin(self, _evt) -> None:
+        self._tick += 1
+        self._set_status(theme.spinner_label(self._tick), theme.CLAUDE_ORANGE)
+
+    def _on_destroy(self, evt) -> None:
+        self._spinner.Stop()  # never let the timer outlive the window
+        evt.Skip()
 
     # -- send flow ----------------------------------------------------------
 
@@ -86,7 +154,7 @@ class ClaudeChatDialog(wx.Dialog):
         if not prompt:
             return
         self._in.SetValue("")
-        self._append("Du", prompt)
+        self._append("user", prompt)
         self._set_busy(True)
         threading.Thread(
             target=self._worker, args=(prompt,), daemon=True
@@ -105,8 +173,8 @@ class ClaudeChatDialog(wx.Dialog):
     def _on_reply(self, result: dict) -> None:
         if result.get("ok"):
             self._session_id = result.get("session_id") or self._session_id
-            self._append("Claude", result.get("text") or "(keine Antwort)")
+            self._append("claude", result.get("text") or "(keine Antwort)")
         else:
-            self._append("Fehler", result.get("error") or "unbekannt")
+            self._append("error", result.get("error") or "unbekannt")
         self._set_busy(False)
         self._in.SetFocus()
