@@ -46,3 +46,4 @@ plugin/mcp/**/__pycache__/
 plugin/mcp/**/.cache/
 plugin/**/*.pyc
 /plugin.zip
+plugin/_deps/

@@ -9,6 +9,23 @@ the first tag ships.
 ## [Unreleased]
 
 ### Fixed
+- **Kein „ungespeicherte Änderungen" mehr durch bloßes Reden mit dem MCP.** Der
+  Presence-Beacon (erster IPC-Kontakt) hat die MCP.Skizze-Ebene im Board-Setup aktiviert
+  und die How-to-Legende aufs Board gestempelt — beides markiert das Board als geändert,
+  und da jeder Chat-Turn ein frischer Server-Prozess ist, stand der Dialog nach jedem
+  KiCad-Neustart wieder da. Der Beacon ist jetzt strikt nicht-mutierend: Er schaltet die
+  Skizzen-Ebene nur noch *sichtbar* (View-Einstellung), und nur wenn sie bereits aktiviert
+  ist. Ebene aktivieren + Legende stempeln passiert erst, wenn der Agent wirklich zeichnet
+  (Marker-Tools / `ipc_draw_sketch_legend`) — also wenn eine Board-Änderung der Zweck ist.
+- **Plugin v0.2.9: MCP-Abhängigkeiten landen jetzt in einem plugin-eigenen Ordner**
+  (`<plugin>/_deps`, `pip install --target`) statt per `pip --user` in der User-Site —
+  die ist mit anderen CPython-Installationen geteilt (Versionskonflikte) und unter
+  KiCads gebündeltem Python nicht zuverlässig auf `sys.path` („Installation klappt,
+  Server startet trotzdem nicht"). Der `_deps`-Ordner wird überall konsistent auf den
+  `PYTHONPATH` gesetzt: MCP-Config (`build_mcp_config`), Deps-Check (`deps.check_deps`)
+  und Server-Start-Probe (`server_probe`). Frühere `--user`-Installationen funktionieren
+  weiter (Site-Verzeichnisse bleiben Fallback); der Deps-Check läuft zudem ohne
+  aufblitzendes Konsolenfenster.
 - **Plugin: „Claude antwortet, hat aber keinen MCP" wird jetzt erkannt und blockiert
   (Plugin v0.2.8).** `claude -p` verwirft einen nicht startenden MCP-Server *stillschweigend*
   — der Chat lief dann ohne Board-Tools weiter. Drei Gegenmaßnahmen: (1) Neue

@@ -40,13 +40,47 @@ class TestCheckDeps:
 
 
 class TestPipInstallCommands:
-    def test_command_line(self):
+    def test_installs_into_plugin_target_dir(self):
+        # --target (plugin-owned dir), NOT --user: the user-site dir is shared
+        # with other CPython installs and not reliably on KiCad-python's path.
         cmds = deps.pip_install_commands(r"C:\KiCad\python.exe")
         assert len(cmds) == 1
-        assert "pip install --user" in cmds[0] and "fastmcp" in cmds[0]
+        assert "pip install --upgrade --target" in cmds[0]
+        assert "--user" not in cmds[0]
+        assert "_deps" in cmds[0] and "fastmcp" in cmds[0]
         assert r'"C:\KiCad\python.exe"' in cmds[0]  # quoted (path has spaces)
+
+    def test_explicit_target_wins(self):
+        cmds = deps.pip_install_commands("/k/py", target="/tmp/x")
+        assert '--target "/tmp/x"' in cmds[0]
 
     def test_specs_have_no_brackets(self):
         # brackets would need cross-shell quoting; fastmcp pulls mcp anyway
         assert all("[" not in s for s in deps.PIP_SPECS)
         assert "pyyaml" in deps.PIP_SPECS  # imports as yaml
+
+
+class TestDepsDir:
+    def test_default_target_is_inside_plugin(self):
+        d = deps.default_target_dir()
+        assert d.endswith("_deps") and d.startswith(deps.PLUGIN_DIR)
+
+    def test_active_none_when_missing(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(deps, "default_target_dir",
+                            lambda: str(tmp_path / "nope"))
+        assert deps.active_deps_dir() is None
+
+    def test_active_when_present(self, monkeypatch, tmp_path):
+        d = tmp_path / "_deps"; d.mkdir()
+        monkeypatch.setattr(deps, "default_target_dir", lambda: str(d))
+        assert deps.active_deps_dir() == str(d)
+
+    def test_check_probes_with_deps_dir_on_pythonpath(self):
+        seen = {}
+
+        def _run(cmd, **kw):
+            seen.update(kw)
+            return SimpleNamespace(stdout="", stderr="", returncode=0)
+
+        deps.check_deps("/k/py", _run=_run, deps_dir="/plug/_deps")
+        assert seen["env"]["PYTHONPATH"] == "/plug/_deps"

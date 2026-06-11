@@ -19,6 +19,7 @@ import os
 import subprocess
 from typing import Optional
 
+from . import deps
 from .claude_bridge import hidden_console_kwargs
 
 PROBE_CODE = "import kicad_mcp.server"
@@ -35,7 +36,8 @@ def error_tail(stderr: str, lines: int = 3) -> str:
 
 
 def probe_server(kicad_py: Optional[str], mcp_root: str,
-                 timeout: float = 90.0, _run=subprocess.run) -> dict:
+                 timeout: float = 90.0, _run=subprocess.run,
+                 deps_dir: Optional[str] = None) -> dict:
     """Run the import probe; returns ``{ok, error, missing_dep}``.
 
     ``missing_dep`` is True when the failure is a ModuleNotFoundError — then
@@ -46,7 +48,10 @@ def probe_server(kicad_py: Optional[str], mcp_root: str,
         out["error"] = "KiCad-Python nicht gefunden"
         return out
     env = dict(os.environ)
-    env["PYTHONPATH"] = mcp_root  # exactly what the MCP config will use
+    if deps_dir is None:
+        deps_dir = deps.active_deps_dir()
+    # exactly what the MCP config will use
+    env["PYTHONPATH"] = mcp_root + (os.pathsep + deps_dir if deps_dir else "")
     try:
         proc = _run(build_probe_cmd(kicad_py), capture_output=True, text=True,
                     timeout=timeout, check=False, env=env,

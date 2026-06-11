@@ -357,11 +357,18 @@ def _presence_disabled() -> bool:
 
 
 def ensure_mcp_presence(board: Any) -> None:
-    """First-board-contact presence beacon: enable + show the MCP.Skizze layer
-    and stamp the how-to legend (if missing), so the user can *see* in KiCad
-    that the MCP server is active on this board. Runs **once per process**,
-    best-effort (never raises), and is skipped entirely when
-    ``KICAD_MCP_SKETCH_PRESENCE`` is set to 0/false/off/no.
+    """First-board-contact presence beacon — strictly NON-MUTATING on the
+    board document. It only flips the sketch layer *visible* (a view setting),
+    and only when the layer is already enabled in Board Setup.
+
+    It must never enable layers or stamp the legend: both mark the board as
+    modified, and because each chat turn is a fresh server process the user
+    ended up with a perpetual "ungespeicherte Änderungen" prompt after merely
+    *talking* to the MCP. Enable+legend now happen only when the agent
+    actually draws (``_ensure_layer_enabled`` in the marker tools /
+    ``ipc_draw_sketch_legend``) — i.e. when dirtying the board is the point.
+    Runs **once per process**, best-effort (never raises); skipped entirely
+    when ``KICAD_MCP_SKETCH_PRESENCE`` is set to 0/false/off/no.
     """
     global _PRESENCE_DONE
     if _PRESENCE_DONE:
@@ -373,24 +380,12 @@ def ensure_mcp_presence(board: Any) -> None:
         layer_enum = _layer_to_enum(DEFAULT_MARKER_LAYER)
         if layer_enum is None:
             return
-        _ensure_layer_enabled(board, layer_enum)
-        if _legend_items_on_layer(board, layer_enum):
-            return  # already has a legend — just leave it enabled/visible
-        xs: list[float] = []
-        ys: list[float] = []
-        try:
-            for f in board.get_footprints():
-                p = f.position
-                xs.append(p.x / 1_000_000)
-                ys.append(p.y / 1_000_000)
-        except Exception:
-            pass
-        x0 = round(min(xs), 1) if xs else 10.0
-        y0 = round(min(ys) - 12.0, 1) if ys else 10.0
-        items = _build_legend_items(layer_enum, x0, y0, _LEGEND_LINES, 1.0)
-        commit = board.begin_commit()
-        board.create_items(items)
-        board.push_commit(commit, "kicad-mcp presence beacon")
+        enabled = [int(x) for x in board.get_enabled_layers()]
+        if layer_enum not in enabled:
+            return  # enabling would dirty the board — drawing tools only
+        vis = [int(x) for x in board.get_visible_layers()]
+        if layer_enum not in vis:
+            board.set_visible_layers(vis + [layer_enum])
     except Exception:
         pass
 

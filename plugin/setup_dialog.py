@@ -128,8 +128,9 @@ class SetupDialog(wx.Dialog):
             terminal.open_terminal(deps.pip_install_commands(py),
                                    "MCP-Abhaengigkeiten installieren")
             wx.MessageBox(
-                "Installation läuft im Terminal (pip --user, kein Admin). Wenn "
-                "'Fertig' erscheint, hier auf 'Erneut prüfen'.",
+                "Installation läuft im Terminal — in den Plugin-Ordner "
+                "(pip --target, kein Admin). Wenn 'Fertig' erscheint, hier "
+                "auf 'Erneut prüfen'.",
                 "MCP-Abhängigkeiten", wx.OK | wx.ICON_INFORMATION)
         except Exception as exc:
             wx.MessageBox(f"Konnte die Installation nicht starten:\n{exc}",

@@ -706,45 +706,57 @@ class TestSketchLegend:
 
 
 class TestPresenceBeacon:
-    def test_first_contact_enables_layer_and_draws_legend(self, monkeypatch):
+    """The beacon must be STRICTLY non-mutating on the board document —
+    enabling a layer or stamping the legend marks the board modified, which
+    left users with a perpetual "ungespeicherte Änderungen" prompt after
+    merely talking to the MCP (each chat turn is a fresh server process).
+    """
+
+    def test_never_enables_layer_or_draws(self, monkeypatch):
         monkeypatch.delenv("KICAD_MCP_SKETCH_PRESENCE", raising=False)
         mod._reset_presence_for_tests()
         board = FakeEditBoard(footprints=[_fp("R1", "1k", "r1", 50, 50)])
-        # before: marker layer not enabled, no legend
         from kicad_mcp.tools.ipc_tools import _layer_to_enum
         L = _layer_to_enum(mod.DEFAULT_MARKER_LAYER)
-        assert L not in board.enabled
+        assert L not in board.enabled   # sketch layer off in Board Setup
         mod.ensure_mcp_presence(board)
-        assert L in board.enabled and L in board.visible
-        assert len(mod._legend_items_on_layer(board, L)) == len(mod._LEGEND_LINES)
+        assert L not in board.enabled   # NOT enabled (would dirty the board)
+        assert len(board.get_text()) == 0  # no legend stamped
+        assert board.commits == 0          # zero document mutations
+
+    def test_shows_layer_when_already_enabled(self, monkeypatch):
+        # Visibility is a view setting, not a document change — flipping it
+        # is the only thing the beacon may still do.
+        monkeypatch.delenv("KICAD_MCP_SKETCH_PRESENCE", raising=False)
+        mod._reset_presence_for_tests()
+        from kicad_mcp.tools.ipc_tools import _layer_to_enum
+        L = _layer_to_enum(mod.DEFAULT_MARKER_LAYER)
+        board = FakeEditBoard()
+        board.enabled.append(L)         # user enabled it in Board Setup
+        mod.ensure_mcp_presence(board)
+        assert L in board.visible
+        assert len(board.get_text()) == 0 and board.commits == 0
 
     def test_runs_only_once_per_process(self, monkeypatch):
         monkeypatch.delenv("KICAD_MCP_SKETCH_PRESENCE", raising=False)
         mod._reset_presence_for_tests()
+        from kicad_mcp.tools.ipc_tools import _layer_to_enum
+        L = _layer_to_enum(mod.DEFAULT_MARKER_LAYER)
         board = FakeEditBoard()
+        board.enabled.append(L)
         mod.ensure_mcp_presence(board)
-        n = len(board.get_text())
-        mod.ensure_mcp_presence(board)   # second call: no-op
-        assert len(board.get_text()) == n
+        assert L in board.visible
+        board.visible.remove(L)         # user hides it again …
+        mod.ensure_mcp_presence(board)  # … second call must not re-flip
+        assert L not in board.visible
 
     def test_disabled_by_env(self, monkeypatch):
         monkeypatch.setenv("KICAD_MCP_SKETCH_PRESENCE", "0")
         mod._reset_presence_for_tests()
-        board = FakeEditBoard()
-        mod.ensure_mcp_presence(board)
         from kicad_mcp.tools.ipc_tools import _layer_to_enum
         L = _layer_to_enum(mod.DEFAULT_MARKER_LAYER)
-        assert L not in board.enabled
+        board = FakeEditBoard()
+        board.enabled.append(L)
+        mod.ensure_mcp_presence(board)
+        assert L not in board.visible
         assert len(board.get_text()) == 0
-
-    def test_does_not_redraw_existing_legend(self, monkeypatch):
-        monkeypatch.delenv("KICAD_MCP_SKETCH_PRESENCE", raising=False)
-        from kicad_mcp.tools.ipc_tools import _layer_to_enum
-        L = _layer_to_enum(mod.DEFAULT_MARKER_LAYER)
-        board = FakeEditBoard()
-        # pre-existing legend
-        board.create_items(mod._build_legend_items(L, 10, 10, mod._LEGEND_LINES, 1.0))
-        n = len(board.get_text())
-        mod._reset_presence_for_tests()
-        mod.ensure_mcp_presence(board)
-        assert len(board.get_text()) == n   # not duplicated

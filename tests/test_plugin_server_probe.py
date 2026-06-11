@@ -61,8 +61,16 @@ class TestProbeServer:
     def test_pythonpath_matches_mcp_config(self):
         seen = {}
         server_probe.probe_server(
-            "/k/py", "/repo", _run=_runner(rc=0, capture=seen))
+            "/k/py", "/repo", _run=_runner(rc=0, capture=seen), deps_dir="")
         assert seen["env"]["PYTHONPATH"] == "/repo"
+
+    def test_pythonpath_includes_plugin_deps_dir(self):
+        import os
+        seen = {}
+        server_probe.probe_server(
+            "/k/py", "/repo", _run=_runner(rc=0, capture=seen),
+            deps_dir="/plug/_deps")
+        assert seen["env"]["PYTHONPATH"] == "/repo" + os.pathsep + "/plug/_deps"
 
 
 class TestErrorTail:

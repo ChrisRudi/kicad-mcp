@@ -15,6 +15,8 @@ import os
 import sys
 from typing import Optional
 
+from . import deps
+
 
 def _sys_python() -> Optional[str]:
     """KiCad's own python — the plugin runs INSIDE KiCad's interpreter, so
@@ -86,22 +88,32 @@ def find_kicad_python() -> Optional[str]:
     return _sys_python() or _scan_python()
 
 
-def build_mcp_config(mcp_root: str, python_exe: str) -> dict:
-    """Return the Claude-Code MCP config dict for the kicad-mcp stdio server."""
+def build_mcp_config(mcp_root: str, python_exe: str,
+                     deps_dir: Optional[str] = None) -> dict:
+    """Return the Claude-Code MCP config dict for the kicad-mcp stdio server.
+
+    ``deps_dir`` (default: the plugin-local ``_deps`` dir, if present) is
+    appended to PYTHONPATH so the pip-``--target``-installed runtime deps are
+    found regardless of user-site quirks in KiCad's bundled Python.
+    """
+    if deps_dir is None:
+        deps_dir = deps.active_deps_dir()
+    pythonpath = mcp_root + (os.pathsep + deps_dir if deps_dir else "")
     return {
         "mcpServers": {
             "kicad-mcp": {
                 "type": "stdio",
                 "command": python_exe,
                 "args": ["-m", "kicad_mcp.server"],
-                "env": {"PYTHONPATH": mcp_root},
+                "env": {"PYTHONPATH": pythonpath},
             }
         }
     }
 
 
 def write_mcp_config(
-    path: str, mcp_root: str, python_exe: Optional[str] = None
+    path: str, mcp_root: str, python_exe: Optional[str] = None,
+    deps_dir: Optional[str] = None,
 ) -> str:
     """Write the MCP config to ``path``; returns the path.
 
@@ -114,7 +126,7 @@ def write_mcp_config(
         )
     if not os.path.isdir(mcp_root):
         raise RuntimeError(f"kicad-mcp-Pfad existiert nicht: {mcp_root}")
-    cfg = build_mcp_config(mcp_root, python_exe)
+    cfg = build_mcp_config(mcp_root, python_exe, deps_dir=deps_dir)
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(cfg, fh, indent=2)

@@ -156,12 +156,20 @@ class TestHiddenConsole:
 
 class TestMcpConfig:
     def test_build_shape(self):
-        cfg = mcp_config.build_mcp_config("/repo", "/kipy/python.exe")
+        cfg = mcp_config.build_mcp_config("/repo", "/kipy/python.exe",
+                                          deps_dir="")
         srv = cfg["mcpServers"]["kicad-mcp"]
         assert srv["type"] == "stdio"
         assert srv["command"] == "/kipy/python.exe"
         assert srv["args"] == ["-m", "kicad_mcp.server"]
         assert srv["env"]["PYTHONPATH"] == "/repo"
+
+    def test_build_appends_plugin_deps_dir(self):
+        import os as _os
+        cfg = mcp_config.build_mcp_config("/repo", "/kipy/python.exe",
+                                          deps_dir="/plug/_deps")
+        pp = cfg["mcpServers"]["kicad-mcp"]["env"]["PYTHONPATH"]
+        assert pp == "/repo" + _os.pathsep + "/plug/_deps"
 
     def test_write_creates_valid_json(self, tmp_path):
         root = tmp_path / "repo"; root.mkdir()
