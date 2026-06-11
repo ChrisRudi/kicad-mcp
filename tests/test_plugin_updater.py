@@ -28,6 +28,23 @@ class TestVersionLogic:
         assert updater.is_newer("0.10.0", "0.9.0") is True  # numeric, not str
 
 
+class TestCacheBuster:
+    def test_appends_cb(self):
+        assert "cb=" in updater._bust("https://x/v.py")
+        assert updater._bust("https://x/v.py").startswith("https://x/v.py?")
+
+    def test_uses_amp_when_query_present(self):
+        assert "&cb=" in updater._bust("https://x/v.py?ref=main")
+
+    def test_check_passes_busted_url(self):
+        seen = {}
+        def _get(url):
+            seen["url"] = url
+            return b'__version__ = "9.9.9"'
+        updater.check_for_update("0.1.0", _get=_get)
+        assert "cb=" in seen["url"] and "version.py" in seen["url"]
+
+
 class TestCheckForUpdate:
     def test_available(self):
         res = updater.check_for_update(

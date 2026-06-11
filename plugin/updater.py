@@ -18,6 +18,7 @@ from __future__ import annotations
 import io
 import os
 import re
+import time
 import zipfile
 from typing import Callable, Optional
 
@@ -54,6 +55,13 @@ def is_newer(remote: str, local: str) -> bool:
     return version_tuple(remote) > version_tuple(local)
 
 
+def _bust(url: str) -> str:
+    """Append a changing cache-buster so the raw-CDN (~5 min cache) doesn't
+    serve a stale version right after a push."""
+    sep = "&" if "?" in url else "?"
+    return f"{url}{sep}cb={int(time.time())}"
+
+
 def _http_get(url: str, timeout: float = 30.0) -> bytes:
     import urllib.request
     req = urllib.request.Request(
@@ -69,7 +77,7 @@ def check_for_update(local_version: str,
     out = {"ok": False, "available": False, "local": local_version,
            "remote": None, "error": ""}
     try:
-        raw = _get(RAW_VERSION_URL)
+        raw = _get(_bust(RAW_VERSION_URL))
     except Exception as exc:
         out["error"] = f"Netzwerk: {exc}"
         return out
