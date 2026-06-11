@@ -102,6 +102,31 @@ class TestAsk:
         assert claude_bridge.find_claude() == ["/usr/bin/wsl", "claude"]
 
 
+class TestHiddenConsole:
+    """The claude child must not flash a black console window on Windows."""
+
+    def test_windows_suppresses_console(self):
+        kw = claude_bridge.hidden_console_kwargs("nt")
+        assert kw["creationflags"] == 0x08000000  # CREATE_NO_WINDOW
+        assert "stdin" in kw
+
+    def test_posix_needs_nothing(self):
+        assert claude_bridge.hidden_console_kwargs("posix") == {}
+
+    def test_ask_passes_flags_to_runner(self, monkeypatch):
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        monkeypatch.setattr(claude_bridge, "hidden_console_kwargs",
+                            lambda: {"creationflags": 0x08000000})
+        seen = {}
+
+        def _run(cmd, **kw):
+            seen.update(kw)
+            return SimpleNamespace(stdout="ok", stderr="", returncode=0)
+
+        r = claude_bridge.ask("x", "/proj", "/m.json", _runner=_run)
+        assert r["ok"] and seen["creationflags"] == 0x08000000
+
+
 # --- mcp_config --------------------------------------------------------------
 
 class TestMcpConfig:

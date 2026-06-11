@@ -14,9 +14,26 @@ testable headless.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from typing import Any, Optional
+
+
+def hidden_console_kwargs(os_name: str = os.name) -> dict[str, Any]:
+    """Extra ``subprocess`` kwargs so the ``claude`` child stays invisible.
+
+    KiCad is a GUI process; without this, Windows pops up a black console
+    window for every chat turn (also for the ``wsl claude`` fallback) that
+    flashes open and shut while the reply is computed. ``CREATE_NO_WINDOW``
+    suppresses it; the output already flows into the chat panel via pipes.
+    """
+    if os_name == "nt":
+        return {
+            "creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
+            "stdin": subprocess.DEVNULL,  # hidden console has no usable stdin
+        }
+    return {}
 
 
 def find_claude() -> Optional[list[str]]:
@@ -120,7 +137,7 @@ def ask(
     try:
         proc = _runner(
             cmd, cwd=project_dir, capture_output=True, text=True,
-            timeout=timeout, check=False,
+            timeout=timeout, check=False, **hidden_console_kwargs(),
         )
     except subprocess.TimeoutExpired:
         return {"ok": False, "text": "", "session_id": session_id,

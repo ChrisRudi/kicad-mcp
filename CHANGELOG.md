@@ -8,6 +8,14 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed
+- **Plugin-Chat: kein schwarzes Konsolenfenster mehr pro Frage.** Der headless
+  `claude -p`-Kindprozess (auch der `wsl claude`-Fallback) wird unter Windows jetzt mit
+  `CREATE_NO_WINDOW` gestartet (`claude_bridge.hidden_console_kwargs`), statt für jede
+  Chat-Runde ein cmd-Fenster aufblitzen zu lassen. Die Antwort floss schon immer per Pipe
+  ins Chat-Panel — das Fenster war ein reiner Windows-Nebeneffekt (GUI-Prozess spawnt
+  Konsolen-Kind) ohne Funktion.
+
 ### Added
 - **KiCad Action Plugin (`plugin/`, Stufe 1)** — a "Claude" toolbar button in the PCB editor
   that opens a chat panel wired to the open board. Each message runs one headless **Claude
