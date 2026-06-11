@@ -45,6 +45,30 @@ class TestCacheBuster:
         assert "cb=" in seen["url"] and "version.py" in seen["url"]
 
 
+class TestApiSource:
+    def test_api_json_parsed_first(self):
+        import base64
+        import json
+        calls = []
+        def _get(url):
+            calls.append(url)
+            if "api.github.com" in url:
+                body = base64.b64encode(b'__version__ = "0.3.0"').decode()
+                return json.dumps({"content": body}).encode()
+            return b'__version__ = "0.1.0"'  # raw (should not be needed)
+        res = updater.check_for_update("0.2.0", _get=_get)
+        assert res["ok"] and res["remote"] == "0.3.0" and res["available"]
+        assert calls and "api.github.com" in calls[0]  # API tried first
+
+    def test_falls_back_to_raw_when_api_fails(self):
+        def _get(url):
+            if "api.github.com" in url:
+                raise OSError("api down")
+            return b'__version__ = "0.4.0"'
+        res = updater.check_for_update("0.2.0", _get=_get)
+        assert res["ok"] and res["remote"] == "0.4.0"
+
+
 class TestCheckForUpdate:
     def test_available(self):
         res = updater.check_for_update(

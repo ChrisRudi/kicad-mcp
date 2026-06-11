@@ -15,7 +15,9 @@ Network calls are injectable (``_get``) so the logic is unit-testable headless.
 
 from __future__ import annotations
 
+import base64
 import io
+import json
 import os
 import re
 import time
@@ -28,6 +30,12 @@ GITHUB_BRANCH = os.environ.get("KICAD_MCP_PLUGIN_BRANCH", "main")
 RAW_VERSION_URL = (
     f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}"
     "/plugin/version.py"
+)
+# The API contents endpoint is near-realtime (raw's CDN lags a push by minutes,
+# even with a cache-buster); used as the primary version source, raw as backup.
+API_VERSION_URL = (
+    f"https://api.github.com/repos/{GITHUB_REPO}/contents/plugin/version.py"
+    f"?ref={GITHUB_BRANCH}"
 )
 ZIPBALL_URL = (
     f"https://codeload.github.com/{GITHUB_REPO}/zip/refs/heads/{GITHUB_BRANCH}"
@@ -70,20 +78,37 @@ def _http_get(url: str, timeout: float = 30.0) -> bytes:
         return resp.read()
 
 
+def _remote_version_via_api(_get: Callable[[str], bytes]) -> Optional[str]:
+    data = json.loads(_get(API_VERSION_URL).decode("utf-8", "replace"))
+    content = data.get("content")
+    if not content:
+        return None
+    text = base64.b64decode(content).decode("utf-8", "replace")
+    return parse_version(text)
+
+
+def _remote_version_via_raw(_get: Callable[[str], bytes]) -> Optional[str]:
+    return parse_version(_get(_bust(RAW_VERSION_URL)).decode("utf-8", "replace"))
+
+
 def check_for_update(local_version: str,
                      _get: Callable[[str], bytes] = _http_get) -> dict:
     """Return ``{ok, available, local, remote, error}`` by reading the repo's
-    ``version.py``. Never raises — network errors come back as ``ok=False``."""
+    ``version.py`` (API first for freshness, raw as fallback). Never raises —
+    network errors come back as ``ok=False``."""
     out = {"ok": False, "available": False, "local": local_version,
            "remote": None, "error": ""}
-    try:
-        raw = _get(_bust(RAW_VERSION_URL))
-    except Exception as exc:
-        out["error"] = f"Netzwerk: {exc}"
-        return out
-    remote = parse_version(raw.decode("utf-8", "replace"))
+    remote, errs = None, []
+    for source in (_remote_version_via_api, _remote_version_via_raw):
+        try:
+            remote = source(_get)
+        except Exception as exc:
+            errs.append(str(exc))
+            remote = None
+        if remote:
+            break
     if not remote:
-        out["error"] = "Konnte Remote-Version nicht lesen."
+        out["error"] = "; ".join(errs) or "Konnte Remote-Version nicht lesen."
         return out
     out["ok"] = True
     out["remote"] = remote
