@@ -27,18 +27,13 @@ def install_command_text() -> str:
     return _PS1 if os.name == "nt" else _SH
 
 
-def build_install_terminal_cmd() -> list:
-    """A command that opens a VISIBLE terminal running the official installer.
+def install_terminal_commands() -> list:
+    """The command line(s) to run in a visible terminal (see plugin.terminal).
 
-    Windows: a new console runs the PowerShell one-liner, then pauses so the
-    user can read the result. POSIX (dev): runs the shell one-liner.
+    Windows runs the PowerShell one-liner via ``powershell -Command`` (so the
+    ``|`` stays inside its quotes); POSIX runs the shell one-liner.
     """
     if os.name == "nt":
-        inner = (
-            'powershell -NoProfile -ExecutionPolicy Bypass -Command '
-            '"irm https://claude.ai/install.ps1 | iex" && '
-            'echo. && echo Fertig - dann hier auf Erneut pruefen. && pause'
-        )
-        return ["cmd.exe", "/c", "start", "Claude Code installieren",
-                "cmd", "/k", inner]
-    return ["bash", "-lc", _SH]
+        return ['powershell -NoProfile -ExecutionPolicy Bypass -Command '
+                '"irm https://claude.ai/install.ps1 | iex"']
+    return [_SH]

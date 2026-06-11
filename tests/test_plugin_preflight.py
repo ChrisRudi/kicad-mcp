@@ -188,15 +188,12 @@ class TestHardOk:
         assert preflight.hard_ok(checks) is False
 
 
-class TestBuildLoginTerminalCmd:
-    def test_windows_shape(self, monkeypatch):
-        monkeypatch.setattr(preflight.os, "name", "nt")
-        cmd = preflight.build_login_terminal_cmd(r"C:\proj", ["claude"])
-        assert cmd[0] == "cmd.exe" and "start" in cmd
-        inner = cmd[-1]
-        assert "claude login" in inner and r"C:\proj" in inner
+class TestLoginCommands:
+    def test_native_claude(self):
+        cmds = preflight.login_commands(["claude"])
+        assert cmds == ["claude login"]
 
-    def test_posix_fallback(self, monkeypatch):
-        monkeypatch.setattr(preflight.os, "name", "posix")
-        cmd = preflight.build_login_terminal_cmd("/proj", ["wsl.exe", "claude"])
-        assert cmd == ["wsl.exe", "claude", "login"]
+    def test_wsl_claude(self):
+        cmds = preflight.login_commands(["wsl.exe", "claude"])
+        assert len(cmds) == 1 and cmds[0].endswith("login")
+        assert "wsl.exe" in cmds[0] and "claude" in cmds[0]

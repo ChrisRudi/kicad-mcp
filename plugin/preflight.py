@@ -181,17 +181,9 @@ def hard_ok(checks: list[Check]) -> bool:
     return all(c.status != FAIL for c in checks)
 
 
-# --- fix-action command builders (pure; the panel runs them) -----------------
+# --- fix-action command builders (pure; plugin.terminal runs them) -----------
 
-def build_login_terminal_cmd(project_dir: str, claude_cmd: list[str]) -> list[str]:
-    """A terminal command that opens an interactive ``claude`` in the project
-    dir — doing the OAuth login AND the per-directory trust in one go."""
-    login = subprocess.list2cmdline(list(claude_cmd) + ["login"])
-    if os.name == "nt":
-        inner = (
-            f'cd /d "{project_dir}" && {login} && '
-            f'echo. && echo Fertig - Fenster kann zu. && pause'
-        )
-        return ["cmd.exe", "/c", "start", "Claude Login", "cmd", "/k", inner]
-    # posix fallback (dev): just run it
-    return list(claude_cmd) + ["login"]
+def login_commands(claude_cmd: list[str]) -> list[str]:
+    """The command line(s) for an interactive ``claude login`` — OAuth + the
+    per-directory trust in one go (run in the project dir via plugin.terminal)."""
+    return [subprocess.list2cmdline(list(claude_cmd) + ["login"])]

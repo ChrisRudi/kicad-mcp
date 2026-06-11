@@ -11,7 +11,6 @@ Pure logic (command builders + an injectable runner); unit-testable headless.
 
 from __future__ import annotations
 
-import os
 import subprocess
 from typing import Optional
 
@@ -53,14 +52,8 @@ def check_deps(kicad_py: Optional[str], _run=subprocess.run) -> dict:
     return out
 
 
-def build_pip_install_terminal_cmd(kicad_py: str) -> list:
-    """A visible terminal running ``pip install --user`` for the runtime deps."""
+def pip_install_commands(kicad_py: str) -> list:
+    """The ``pip install --user`` command line to run in a visible terminal
+    (see plugin.terminal)."""
     pkgs = " ".join(PIP_SPECS)
-    if os.name == "nt":
-        inner = (
-            f'"{kicad_py}" -m pip install --user {pkgs} && '
-            'echo. && echo Fertig - dann hier auf Erneut pruefen. && pause'
-        )
-        return ["cmd.exe", "/c", "start", "MCP-Abhaengigkeiten installieren",
-                "cmd", "/k", inner]
-    return ["bash", "-lc", f'"{kicad_py}" -m pip install --user {pkgs}']
+    return [f'"{kicad_py}" -m pip install --user {pkgs}']

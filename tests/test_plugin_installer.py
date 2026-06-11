@@ -18,18 +18,17 @@ class TestInstallCommandText:
         assert "install.sh" in installer.install_command_text()
 
 
-class TestBuildInstallTerminalCmd:
-    def test_windows_opens_visible_console(self, monkeypatch):
+class TestInstallTerminalCommands:
+    def test_windows_powershell_oneliner(self, monkeypatch):
         monkeypatch.setattr(installer.os, "name", "nt")
-        cmd = installer.build_install_terminal_cmd()
-        assert cmd[0] == "cmd.exe" and "start" in cmd
-        inner = cmd[-1]
-        assert "install.ps1" in inner and "pause" in inner
+        cmds = installer.install_terminal_commands()
+        assert len(cmds) == 1 and "install.ps1" in cmds[0]
+        assert cmds[0].startswith("powershell")  # | stays inside -Command "…"
 
-    def test_posix_runs_shell_oneliner(self, monkeypatch):
+    def test_posix_shell_oneliner(self, monkeypatch):
         monkeypatch.setattr(installer.os, "name", "posix")
-        cmd = installer.build_install_terminal_cmd()
-        assert cmd[0] == "bash" and "install.sh" in cmd[-1]
+        cmds = installer.install_terminal_commands()
+        assert "install.sh" in cmds[0]
 
     def test_uses_official_claude_ai_source(self, monkeypatch):
         for nm in ("nt", "posix"):

@@ -8,12 +8,11 @@ straight to the chat.
 from __future__ import annotations
 
 import os
-import subprocess
 
 import wx  # KiCad ships wxPython
 
 from . import deps, installer, ipc_setup, mcp_config, preflight, runtime_env, \
-    updater
+    terminal, updater
 from .version import __version__
 
 _ICON = {preflight.OK: ("✓", wx.Colour(0, 140, 0)),
@@ -126,7 +125,8 @@ class SetupDialog(wx.Dialog):
                           "Abhängigkeiten", wx.OK | wx.ICON_WARNING)
             return
         try:
-            subprocess.Popen(deps.build_pip_install_terminal_cmd(py))  # noqa: S603
+            terminal.open_terminal(deps.pip_install_commands(py),
+                                   "MCP-Abhaengigkeiten installieren")
             wx.MessageBox(
                 "Installation läuft im Terminal (pip --user, kein Admin). Wenn "
                 "'Fertig' erscheint, hier auf 'Erneut prüfen'.",
@@ -169,7 +169,8 @@ class SetupDialog(wx.Dialog):
             wx.LaunchDefaultBrowser(installer.INSTALL_DOCS_URL)
             return
         try:
-            subprocess.Popen(installer.build_install_terminal_cmd())  # noqa: S603
+            terminal.open_terminal(installer.install_terminal_commands(),
+                                   "Claude Code installieren")
             wx.MessageBox(
                 "Installer gestartet. Wenn das Terminal 'Fertig' zeigt, hier auf "
                 "'Erneut prüfen' klicken.",
@@ -183,9 +184,9 @@ class SetupDialog(wx.Dialog):
 
     def _open_login_terminal(self) -> None:
         claude = runtime_env.find_claude() or ["claude"]
-        cmd = preflight.build_login_terminal_cmd(self._project_dir, claude)
         try:
-            subprocess.Popen(cmd, cwd=self._project_dir)  # noqa: S603
+            terminal.open_terminal(preflight.login_commands(claude),
+                                   "Claude Login", cwd=self._project_dir)
             wx.MessageBox(
                 "Ein Terminal wurde geöffnet. Melde dich dort an (Browser) und "
                 "bestätige den Projekt-Zugriff. Danach hier auf 'Erneut prüfen'.",

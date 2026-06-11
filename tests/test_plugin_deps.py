@@ -39,19 +39,12 @@ class TestCheckDeps:
         assert "find_spec" in cmd[2] and "fastmcp" in cmd[2]
 
 
-class TestPipInstallCmd:
-    def test_windows(self, monkeypatch):
-        monkeypatch.setattr(deps.os, "name", "nt")
-        cmd = deps.build_pip_install_terminal_cmd(r"C:\KiCad\python.exe")
-        assert cmd[0] == "cmd.exe"
-        inner = cmd[-1]
-        assert "pip install --user" in inner and "fastmcp" in inner
-        assert "pause" in inner
-
-    def test_posix(self, monkeypatch):
-        monkeypatch.setattr(deps.os, "name", "posix")
-        cmd = deps.build_pip_install_terminal_cmd("/k/py")
-        assert cmd[0] == "bash" and "pip install --user" in cmd[-1]
+class TestPipInstallCommands:
+    def test_command_line(self):
+        cmds = deps.pip_install_commands(r"C:\KiCad\python.exe")
+        assert len(cmds) == 1
+        assert "pip install --user" in cmds[0] and "fastmcp" in cmds[0]
+        assert r'"C:\KiCad\python.exe"' in cmds[0]  # quoted (path has spaces)
 
     def test_specs_have_no_brackets(self):
         # brackets would need cross-shell quoting; fastmcp pulls mcp anyway
