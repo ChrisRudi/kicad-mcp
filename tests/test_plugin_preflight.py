@@ -118,10 +118,34 @@ class TestRunPreflight:
         monkeypatch.setattr(preflight, "_claude_config_paths", lambda: [])
         monkeypatch.setattr(preflight.deps, "check_deps",
                             lambda py, **kw: {"ok": True, "missing": [], "error": ""})
+        monkeypatch.setattr(preflight.server_probe, "probe_server",
+                            lambda py, root, **kw: {"ok": True, "error": "",
+                                                    "missing_dep": False})
         checks = preflight.run_preflight(
             str(tmp_path), str(tmp_path), board_open=True, board_name="b")
         assert [c.key for c in checks] == [
-            "claude", "python", "mcp", "deps", "login", "ipc", "board"]
+            "claude", "python", "mcp", "deps", "server", "login", "ipc",
+            "board"]
+
+    def test_probe_skipped_when_deps_missing(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(preflight.runtime_env, "find_claude",
+                            lambda: ["claude"])
+        monkeypatch.setattr(preflight.mcp_config, "find_kicad_python",
+                            lambda: "/k/python.exe")
+        (tmp_path / "kicad_mcp").mkdir()
+        monkeypatch.setattr(preflight, "_claude_config_paths", lambda: [])
+        monkeypatch.setattr(preflight.deps, "check_deps",
+                            lambda py, **kw: {"ok": False,
+                                              "missing": ["fastmcp"]})
+        probed = []
+        monkeypatch.setattr(preflight.server_probe, "probe_server",
+                            lambda *a, **kw: probed.append(1))
+        checks = preflight.run_preflight(
+            str(tmp_path), str(tmp_path), board_open=True)
+        by_key = {c.key: c for c in checks}
+        assert not probed  # heavy probe skipped — deps row already says why
+        assert by_key["server"].status == preflight.WARN
+        assert by_key["deps"].status == preflight.FAIL
 
 
 class TestCheckDeps:
@@ -133,13 +157,15 @@ class TestCheckDeps:
         c = preflight.check_deps()
         assert c.status == preflight.OK and c.fix is None
 
-    def test_missing_warns_with_fix(self, monkeypatch):
+    def test_missing_fails_with_fix(self, monkeypatch):
+        # FAIL, not WARN: claude -p drops a dead MCP server silently, so a
+        # toolless chat must be blocked here instead.
         monkeypatch.setattr(preflight.mcp_config, "find_kicad_python",
                             lambda: "/k/py")
         monkeypatch.setattr(preflight.deps, "check_deps",
                             lambda py, **kw: {"ok": False, "missing": ["fastmcp"]})
         c = preflight.check_deps()
-        assert c.status == preflight.WARN and c.fix == "install_deps"
+        assert c.status == preflight.FAIL and c.fix == "install_deps"
         assert "fastmcp" in c.detail
 
     def test_no_python_is_soft_warn(self, monkeypatch):
@@ -150,6 +176,39 @@ class TestCheckDeps:
                                               "error": "x"})
         c = preflight.check_deps()
         assert c.status == preflight.WARN and c.fix is None
+
+
+class TestCheckServer:
+    def test_starting_server_is_ok(self, monkeypatch):
+        monkeypatch.setattr(preflight.mcp_config, "find_kicad_python",
+                            lambda: "/k/py")
+        monkeypatch.setattr(preflight.server_probe, "probe_server",
+                            lambda py, root, **kw: {"ok": True})
+        c = preflight.check_server("/repo")
+        assert c.status == preflight.OK
+
+    def test_missing_dep_fails_with_install_fix(self, monkeypatch):
+        monkeypatch.setattr(preflight.mcp_config, "find_kicad_python",
+                            lambda: "/k/py")
+        monkeypatch.setattr(
+            preflight.server_probe, "probe_server",
+            lambda py, root, **kw: {
+                "ok": False, "missing_dep": True,
+                "error": "ModuleNotFoundError: No module named 'fastmcp'"})
+        c = preflight.check_server("/repo")
+        assert c.status == preflight.FAIL and c.fix == "install_deps"
+        assert "fastmcp" in c.detail
+
+    def test_other_error_fails_without_fix(self, monkeypatch):
+        monkeypatch.setattr(preflight.mcp_config, "find_kicad_python",
+                            lambda: "/k/py")
+        monkeypatch.setattr(
+            preflight.server_probe, "probe_server",
+            lambda py, root, **kw: {"ok": False, "missing_dep": False,
+                                    "error": "ValueError: kaputt"})
+        c = preflight.check_server("/repo")
+        assert c.status == preflight.FAIL and c.fix is None
+        assert "kaputt" in c.detail
 
 
 class TestCheckIpc:

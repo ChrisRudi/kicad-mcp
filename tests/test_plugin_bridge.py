@@ -113,6 +113,31 @@ class TestHiddenConsole:
     def test_posix_needs_nothing(self):
         assert claude_bridge.hidden_console_kwargs("posix") == {}
 
+    def test_ask_gives_mcp_startup_headroom(self, monkeypatch):
+        # claude drops a too-slow MCP server silently → generous MCP_TIMEOUT.
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        monkeypatch.delenv("MCP_TIMEOUT", raising=False)
+        seen = {}
+
+        def _run(cmd, **kw):
+            seen.update(kw)
+            return SimpleNamespace(stdout="ok", stderr="", returncode=0)
+
+        claude_bridge.ask("x", "/proj", "/m.json", _runner=_run)
+        assert seen["env"]["MCP_TIMEOUT"] == "120000"
+
+    def test_ask_respects_user_mcp_timeout(self, monkeypatch):
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        monkeypatch.setenv("MCP_TIMEOUT", "5000")
+        seen = {}
+
+        def _run(cmd, **kw):
+            seen.update(kw)
+            return SimpleNamespace(stdout="ok", stderr="", returncode=0)
+
+        claude_bridge.ask("x", "/proj", "/m.json", _runner=_run)
+        assert seen["env"]["MCP_TIMEOUT"] == "5000"
+
     def test_ask_passes_flags_to_runner(self, monkeypatch):
         monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
         monkeypatch.setattr(claude_bridge, "hidden_console_kwargs",

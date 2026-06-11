@@ -8,6 +8,19 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed
+- **Plugin: „Claude antwortet, hat aber keinen MCP" wird jetzt erkannt und blockiert
+  (Plugin v0.2.8).** `claude -p` verwirft einen nicht startenden MCP-Server *stillschweigend*
+  — der Chat lief dann ohne Board-Tools weiter. Drei Gegenmaßnahmen: (1) Neue
+  Server-Start-Probe (`plugin/server_probe.py`): KiCads Python importiert
+  `kicad_mcp.server` mit derselben `PYTHONPATH` wie die MCP-Config; schlägt das fehl,
+  zeigt der Preflight die echte Traceback-Zeile als FAIL-Zeile („MCP-Server startet
+  nicht") mit Ein-Klick-Fix bei fehlenden Modulen. (2) Fehlende MCP-Abhängigkeiten
+  (fastmcp/mcp/…) sind jetzt FAIL statt WARN — der Chat startet nicht mehr, solange der
+  Server gar nicht starten kann. (3) `MCP_TIMEOUT=120000` als Default beim
+  `claude`-Aufruf, damit ein kalter KiCad-Python-Start (165 Tools, gesyncte Disks) nicht
+  am Standard-Startup-Timeout scheitert und still wegfällt.
+
 ### Changed
 - **Plugin-Chat dockt jetzt in KiCad an (Plugin v0.2.7).** Das Chat-Panel wird als
   natives AUI-Pane in den PCB-Editor eingehängt (neues `plugin/dock.py`, über

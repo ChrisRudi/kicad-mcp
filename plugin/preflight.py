@@ -15,7 +15,7 @@ import subprocess
 from dataclasses import dataclass
 from typing import Optional
 
-from . import deps, ipc_setup, mcp_config, runtime_env
+from . import deps, ipc_setup, mcp_config, runtime_env, server_probe
 
 OK = "ok"
 FAIL = "fail"
@@ -70,9 +70,10 @@ def check_mcp_root(mcp_root: str) -> Check:
 def check_deps() -> Check:
     """Are the bundled MCP server's runtime deps importable in KiCad's Python?
 
-    WARN (not FAIL): without them the MCP server can't start, so the board tools
-    go dark — but Claude still answers text, so we don't hard-block the chat. The
-    one-click fix pip-installs them (``--user``, no admin).
+    FAIL (not WARN): without them the MCP server can't start, and ``claude -p``
+    drops a dead server SILENTLY — the chat then answers without any board
+    tools, which reads like "kein MCP verbunden" and confuses more than a
+    blocked start. The one-click fix pip-installs them (``--user``, no admin).
     """
     py = mcp_config.find_kicad_python()
     res = deps.check_deps(py)
@@ -82,9 +83,27 @@ def check_deps() -> Check:
         return Check("deps", "MCP-Abhängigkeiten", WARN,
                      "Erst KiCad-Python nötig.")
     detail = ", ".join(res.get("missing") or []) or res.get("error") or "?"
-    return Check("deps", "MCP-Abhängigkeiten fehlen", WARN,
+    return Check("deps", "MCP-Abhängigkeiten fehlen", FAIL,
                  f"Fehlt: {detail} — ein Klick installiert sie (pip --user).",
                  "install_deps")
+
+
+def check_server(mcp_root: str) -> Check:
+    """Does the MCP server actually start (import) in KiCad's Python?
+
+    The authoritative check behind "Claude antwortet, hat aber keine
+    Board-Tools": a failing server is dropped silently by ``claude -p``, so a
+    broken import must block the chat HERE, with the real traceback line
+    shown. Catches what the fast find_spec check can't (version conflicts,
+    half-installed packages, import-time errors).
+    """
+    py = mcp_config.find_kicad_python()
+    res = server_probe.probe_server(py, mcp_root)
+    if res.get("ok"):
+        return Check("server", "MCP-Server startfähig", OK)
+    fix = "install_deps" if res.get("missing_dep") else None
+    return Check("server", "MCP-Server startet nicht", FAIL,
+                 res.get("error") or "?", fix)
 
 
 def check_ipc(common_path: Optional[str], restart_hint: bool = False) -> Check:
@@ -165,11 +184,18 @@ def run_preflight(
     mcp_root: str, project_dir: str, board_open: bool, board_name: str = "",
     common_path: Optional[str] = None, ipc_restart_hint: bool = False,
 ) -> list[Check]:
+    deps_check = check_deps()
+    if deps_check.status == OK:
+        server_check = check_server(mcp_root)
+    else:  # don't run the heavy probe when the deps row already says why
+        server_check = Check("server", "MCP-Server-Start übersprungen", WARN,
+                             "Erst die Abhängigkeiten installieren.")
     return [
         check_claude(),
         check_kicad_python(),
         check_mcp_root(mcp_root),
-        check_deps(),
+        deps_check,
+        server_check,
         check_login(project_dir),
         check_ipc(common_path, ipc_restart_hint),
         check_board(board_open, board_name),

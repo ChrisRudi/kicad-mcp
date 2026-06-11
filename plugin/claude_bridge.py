@@ -134,10 +134,15 @@ def ask(
             ),
         }
     cmd = build_command(claude, prompt, mcp_config_path, session_id)
+    env = dict(os.environ)
+    # A cold KiCad-Python start (165 tools, synced disks) can exceed claude's
+    # default MCP startup timeout — and a too-slow server is dropped SILENTLY
+    # (chat without board tools). Generous headroom, user override wins.
+    env.setdefault("MCP_TIMEOUT", "120000")  # ms
     try:
         proc = _runner(
             cmd, cwd=project_dir, capture_output=True, text=True,
-            timeout=timeout, check=False, **hidden_console_kwargs(),
+            timeout=timeout, check=False, env=env, **hidden_console_kwargs(),
         )
     except subprocess.TimeoutExpired:
         return {"ok": False, "text": "", "session_id": session_id,
