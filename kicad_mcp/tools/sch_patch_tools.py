@@ -52,10 +52,16 @@ from kicad_mcp.generators.schematic_patcher import (
     pin_outward_angle,
     power_lib_id_for,
     render_label,
+    render_no_connect,
     render_symbol_instance,
     render_wire,
     stable_uuid,
 )
+from kicad_mcp.generators.symbol_author import (
+    SymbolSpecError,
+    render_library_symbol,
+)
+from kicad_mcp.generators.symbol_cache import _extract_top_level_symbol
 from kicad_mcp.generators.symbol_lib import resolve_lib_id
 from kicad_mcp.utils.path_env import to_local_path
 from kicad_mcp.utils.sch_geometry import (
@@ -209,6 +215,7 @@ def _build_power_symbol_snippet(
     rotation_deg: int,
     group_id: Optional[str],
     proj_uuid: str,
+    snap: bool = True,
 ) -> str:
     """Render a single ``power:``-symbol-instance snippet for ``doc``.
 
@@ -217,6 +224,10 @@ def _build_power_symbol_snippet(
     global labels). Caller is responsible for ``ensure_lib_symbol``,
     reference allocation, and ``insert_before_close`` — this helper only
     builds the S-expression text using the canonical UUID convention.
+
+    ``snap`` (default True) rounds the anchor to the 1.27 mm grid; pass
+    False to keep an exact off-grid pin endpoint (fine-pitch IC pad) so
+    the connection point coincides with the pad.
     """
     uuid_val = stable_uuid(f"{proj_uuid}|{ref}|sym")
     lib_node = doc.find_lib_symbol(lib_id)
@@ -228,8 +239,12 @@ def _build_power_symbol_snippet(
         ]
     # Defensive: keep the power-pin anchor on the 1.27 mm grid even when
     # the caller passed an inherited (and possibly drifted) global-label
-    # position from convert_global_labels_to_power.
-    x_mm, y_mm = snap_to_grid(float(x_mm), float(y_mm))
+    # position from convert_global_labels_to_power. Skipped when snap=False
+    # so the symbol can land exactly on an off-grid pin endpoint.
+    if snap:
+        x_mm, y_mm = snap_to_grid(float(x_mm), float(y_mm))
+    else:
+        x_mm, y_mm = round(float(x_mm), 4), round(float(y_mm), 4)
     return render_symbol_instance(
         ref=ref,
         lib_id=lib_id,
@@ -242,6 +257,7 @@ def _build_power_symbol_snippet(
         uuid=uuid_val,
         group_id=group_id,
         project_uuid=proj_uuid,
+        snap=snap,
         pin_numbers=pin_numbers,
         project_name=doc.project_name(),
         sheet_path_uuid=doc.root_sheet_path(),
@@ -278,6 +294,95 @@ def _alloc_pwr_ref(used_pwr_nums: set[int], existing_refs: set[str]) -> str:
 # rotate / move, re-issue ``connect_pins`` to lay down fresh wiring.
 
 
+def _write_symbol_to_lib(
+    lib_path: str, symbol_name: str, symbol_block: str, overwrite: bool
+) -> tuple[bool, str]:
+    """Insert ``symbol_block`` into the ``.kicad_sym`` at ``lib_path``.
+
+    Creates the library file (with a ``kicad_symbol_lib`` header) when it
+    does not exist. If a top-level symbol of the same name is already present
+    it is replaced when ``overwrite`` is True, otherwise an error is returned.
+
+    Returns ``(created, error)`` — ``created`` True if the file was newly
+    made, ``error`` a non-empty message on failure.
+    """
+    block = symbol_block.rstrip() + "\n"
+    if not os.path.isfile(lib_path):
+        header = (
+            '(kicad_symbol_lib\n'
+            '  (version 20231120)\n'
+            '  (generator "kicad-mcp")\n'
+            '  (generator_version "10.0")\n'
+        )
+        with open(lib_path, "w", encoding="utf-8") as fh:
+            fh.write(header + block + ")\n")
+        return True, ""
+
+    with open(lib_path, encoding="utf-8") as fh:
+        content = fh.read()
+
+    existing = _extract_top_level_symbol(content, symbol_name)
+    if existing is not None:
+        if not overwrite:
+            return False, (
+                f"Symbol {symbol_name!r} already exists in {lib_path}; "
+                f"pass overwrite=true to replace it."
+            )
+        new_content = content.replace(existing, block.rstrip(), 1)
+        with open(lib_path, "w", encoding="utf-8") as fh:
+            fh.write(new_content)
+        return False, ""
+
+    # Append before the final top-level ')'.
+    close = content.rstrip()
+    if not close.endswith(")"):
+        return False, f"{lib_path} is not a valid kicad_symbol_lib (no closing paren)."
+    head = close[:-1].rstrip()
+    new_content = head + "\n" + block + ")\n"
+    with open(lib_path, "w", encoding="utf-8") as fh:
+        fh.write(new_content)
+    return False, ""
+
+
+def _register_lib_in_project_table(project_dir: str, lib_path: str) -> tuple[str, bool]:
+    """Ensure a ``${KIPRJMOD}``-relative entry for ``lib_path`` exists in the
+    project ``sym-lib-table``. Creates the table file if missing.
+
+    Returns ``(lib_name, added)`` — ``lib_name`` is the registered nickname
+    (the .kicad_sym basename), ``added`` False if it was already registered.
+    """
+    lib_name = os.path.splitext(os.path.basename(lib_path))[0]
+    table_path = os.path.join(project_dir, "sym-lib-table")
+    # Relative URI when the lib lives under the project dir, else absolute.
+    try:
+        rel = os.path.relpath(lib_path, project_dir).replace(os.sep, "/")
+    except ValueError:
+        rel = None
+    uri = f"${{KIPRJMOD}}/{rel}" if rel and not rel.startswith("..") else lib_path
+
+    entry = (
+        f'  (lib (name "{lib_name}")(type "KiCad")'
+        f'(uri "{uri}")(options "")(descr ""))\n'
+    )
+    if not os.path.isfile(table_path):
+        with open(table_path, "w", encoding="utf-8") as fh:
+            fh.write("(sym_lib_table\n  (version 7)\n" + entry + ")\n")
+        return lib_name, True
+
+    with open(table_path, encoding="utf-8") as fh:
+        content = fh.read()
+    if f'(name "{lib_name}")' in content:
+        return lib_name, False
+    close = content.rstrip()
+    if close.endswith(")"):
+        content = close[:-1].rstrip() + "\n" + entry + ")\n"
+    else:
+        content = close + "\n" + entry
+    with open(table_path, "w", encoding="utf-8") as fh:
+        fh.write(content)
+    return lib_name, True
+
+
 # ---------------------------------------------------------------------------
 # MCP registration
 # ---------------------------------------------------------------------------
@@ -289,7 +394,9 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
     # ------------------------------------------------------------------ READ
 
     @mcp.tool()
-    def compute_pin_world_positions_sch(sch_path: str) -> dict[str, Any]:
+    def compute_pin_world_positions_sch(
+        sch_path: str, refs: Optional[list[str]] = None
+    ) -> dict[str, Any]:
         """World-coordinate (mm) of every pin on every placed symbol in a ``.kicad_sch`` — flip + rotation aware.
 
         Use this when you need to wire something to a specific pin and
@@ -305,6 +412,10 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
 
         Args:
             sch_path: ``.kicad_sch`` file.
+            refs: optional list of reference designators (e.g. ``["U1B", "U_589"]``)
+                to restrict the result to those symbols only. ``None`` / empty
+                (default) returns every symbol — use ``refs`` to avoid the
+                full-board pin dump when you only need a few symbols' pins.
         """
         sch_path = to_local_path(sch_path)
         if not os.path.isfile(sch_path):
@@ -314,6 +425,7 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
         except Exception as exc:
             return {"success": False, "error": f"Load failed: {exc}"}
 
+        wanted: set[str] | None = set(refs) if refs else None
         out: dict[str, list[dict[str, Any]]] = {}
         pin_count = 0
         for start, end in doc.iter_symbol_offsets():
@@ -322,6 +434,8 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
                 continue
             attrs = get_symbol_attrs(node)
             ref = attrs.get("ref") or "?"
+            if wanted is not None and ref not in wanted:
+                continue
             lib_id = attrs.get("lib_id")
             if not lib_id:
                 out.setdefault(ref, [])
@@ -352,13 +466,16 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
                 )
             out[ref] = entries
             pin_count += len(entries)
-        return {
+        result: dict[str, Any] = {
             "success": True,
             "sch_path": sch_path,
             "symbol_count": len(out),
             "pin_count": pin_count,
             "symbols": out,
         }
+        if wanted is not None:
+            result["not_found"] = sorted(wanted - set(out))
+        return result
 
     @mcp.tool()
     def list_schematic_groups(sch_path: str) -> dict[str, Any]:
@@ -462,9 +579,12 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
         Args:
             sch_path: Path to a ``.kicad_sch``.
             parts: JSON string — list of ``{ref, name OR lib_id, value,
-                footprint, x_mm, y_mm, rotation_deg?, mirror?, group_id?}``
-                entries. ``name``/``lib_id`` is resolved via the same
-                three-tier strategy as ``generate_schematic``.
+                footprint, x_mm, y_mm, rotation_deg?, mirror?, unit?,
+                group_id?}`` entries. ``name``/``lib_id`` is resolved via the
+                same three-tier strategy as ``generate_schematic``. ``unit``
+                (default 1) places a specific unit of a multi-unit part (e.g.
+                ``unit: 2`` for gate B of a 74xx / the second op-amp) — its
+                pin set + ``(unit N)`` are emitted correctly.
             group_id: Default group-id assigned to every part lacking its
                 own. Empty string = no group.
         """
@@ -541,6 +661,10 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
             x, y = snap_to_grid(raw_x, raw_y)
             rot = int(round(float(p.get("rotation_deg", 0))))
             mirror = p.get("mirror") or None
+            try:
+                unit = max(1, int(p.get("unit", 1)))
+            except (TypeError, ValueError):
+                unit = 1
 
             # Bug 8 — half-pitch passives (Device:C/R/L/CP, *_Small) silently
             # land their pins off-grid when the user picks an x/y on the 2.54
@@ -582,7 +706,9 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
             lib_node = doc.find_lib_symbol(lib_id)
             pin_numbers: list[str] = []
             if lib_node:
-                lib_pins = get_lib_symbol_pins(lib_node[2])
+                # Filter to THIS unit's pins — a multi-unit part must not get
+                # the other units' pin UUIDs (corrupts connectivity).
+                lib_pins = get_lib_symbol_pins(lib_node[2], unit=unit)
                 pin_numbers = [str(pn["number"]) for pn in lib_pins if pn.get("number")]
 
             snippet = render_symbol_instance(
@@ -600,6 +726,7 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
                 pin_numbers=pin_numbers,
                 project_name=doc.project_name(),
                 sheet_path_uuid=doc.root_sheet_path(),
+                unit=unit,
             )
             doc.insert_before_close(snippet)
             inserted.append(ref)
@@ -617,7 +744,7 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def add_schematic_wire(
-        sch_path: str, segments: str, group_id: str = ""
+        sch_path: str, segments: str, group_id: str = "", snap: bool = True
     ) -> dict[str, Any]:
         """Insert raw wire segments at given mm coordinates into a ``.kicad_sch``.
 
@@ -632,6 +759,10 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
             segments: JSON list of ``[x1, y1, x2, y2]`` quadruples in mm.
             group_id: Optional ``kicad-mcp.group`` tag (informational only —
                 wires don't carry group tags in S-expr).
+            snap: Snap endpoints to the 1.27 mm grid (default True). Pass
+                False to keep an exact endpoint on an off-grid (fine-pitch IC)
+                pin — snapping would pull the wire off the pad and break the net
+                (take the pin coord from ``compute_pin_world_positions_sch``).
         """
         sch_path = to_local_path(sch_path)
         if not os.path.isfile(sch_path):
@@ -651,11 +782,14 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
             except Exception:
                 return {"success": False, "error": f"Bad segment {s!r}"}
             # Snap each endpoint to the 1.27 mm placement grid so wires never
-            # land off-grid (would surface as endpoint_off_grid in ERC).
-            x1, y1 = snap_to_grid(x1, y1)
-            x2, y2 = snap_to_grid(x2, y2)
+            # land off-grid (would surface as endpoint_off_grid in ERC) — unless
+            # snap=False, to land exactly on an off-grid fine-pitch pin.
+            if snap:
+                x1, y1 = snap_to_grid(x1, y1)
+                x2, y2 = snap_to_grid(x2, y2)
             snippet = render_wire(
-                x1, y1, x2, y2, group_id=group_id or None, project_uuid=proj_uuid
+                x1, y1, x2, y2, group_id=group_id or None, project_uuid=proj_uuid,
+                snap=snap,
             )
             doc.insert_before_close(snippet)
             added += 1
@@ -665,6 +799,34 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
             "sch_path": sch_path,
             "segments_added": added,
         }
+
+    @mcp.tool()
+    def add_no_connect(sch_path: str, x_mm: float, y_mm: float) -> dict[str, Any]:
+        """Place a no-connect (×) flag at a pin coordinate in a ``.kicad_sch``.
+
+        Use this to mark a single pin as intentionally unconnected so ERC
+        stops raising ``pin_not_connected`` for it — e.g. a reserved MCU pin
+        or an unused IC output. The flag is only effective when it sits
+        exactly on the pin's endpoint, so pull the coordinate from
+        ``compute_pin_world_positions_sch`` rather than eyeballing it. To
+        remove one again use ``delete_schematic_items`` with
+        ``types=["no_connect"]``.
+
+        Args:
+            sch_path: ``.kicad_sch`` file.
+            x_mm: pin endpoint X (mm). Snapped to the 1.27 mm placement grid.
+            y_mm: pin endpoint Y (mm). Snapped to the 1.27 mm placement grid.
+        """
+        sch_path = to_local_path(sch_path)
+        if not os.path.isfile(sch_path):
+            return {"success": False, "error": f"File not found: {sch_path}"}
+        sx, sy = snap_to_grid(float(x_mm), float(y_mm))
+        doc = SchematicDoc.load(sch_path)
+        doc.insert_before_close(
+            render_no_connect(sx, sy, project_uuid=doc.project_uuid())
+        )
+        doc.save()
+        return {"success": True, "sch_path": sch_path, "x_mm": sx, "y_mm": sy}
 
     @mcp.tool()
     def add_schematic_label(
@@ -765,7 +927,7 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def add_power_symbols(
-        sch_path: str, anchors: str, group_id: str = ""
+        sch_path: str, anchors: str, group_id: str = "", snap: bool = True
     ) -> dict[str, Any]:
         """Drop one or more KiCad power-symbol instances at given coordinates.
 
@@ -784,13 +946,27 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
         ``rotation_deg`` (0 = pin points up = standard for GND,
         180 = pin points down = standard for +3V3 / +5V / VBUS).
 
+        Grid snapping: by default each coordinate is rounded to KiCad's
+        1.27 mm placement grid. A power symbol's connection point sits at
+        its origin, so this is what you want when placing onto on-grid
+        wires/pins. BUT for a pin on a fine-pitch IC (pads at 0.65 / 0.5 mm
+        pitch are *off* the 1.27 grid), snapping moves the symbol up to
+        ~0.6 mm off the pin endpoint — the two no longer coincide and ERC
+        reports ``pin_not_connected``. Pass ``snap=false`` (tool-wide) or
+        ``"snap": false`` on the individual anchor to land the connection
+        point *exactly* on the pin endpoint (take it from
+        ``compute_pin_world_positions_sch``).
+
         Args:
             sch_path: ``.kicad_sch`` to patch.
             anchors: JSON list of ``{net?, lib_id?, x_mm, y_mm,
-                rotation_deg?, ref?}``. ``ref`` defaults to a
+                rotation_deg?, ref?, snap?}``. ``ref`` defaults to a
                 deterministic ``#PWR_<seq>`` (KiCad's standard auto-
-                annotated power-symbol prefix).
+                annotated power-symbol prefix). Per-anchor ``snap``
+                overrides the tool-wide default.
             group_id: Default ``kicad-mcp.group`` tag.
+            snap: Tool-wide default for grid snapping (``True``). Set
+                ``False`` when placing onto off-grid (fine-pitch IC) pins.
 
         Returns:
             ``{success, sch_path, inserted: [refs], lib_symbols_added,
@@ -853,9 +1029,18 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
             except (TypeError, ValueError):
                 errors.append(f"Bad coordinates for {lib_id}: {a!r}")
                 continue
-            # Snap to placement grid so the power symbol's pin lands on the
-            # 1.27 mm grid even when the caller passes a slightly off value.
-            x, y = snap_to_grid(x, y)
+            # Snap to the 1.27 mm placement grid by default so the power
+            # symbol's connection point lands on standard wire/pin vertices.
+            # Skippable per-anchor (or tool-wide) for off-grid fine-pitch IC
+            # pins, where snapping would pull the connection point off the
+            # pad endpoint and break the net (ERC pin_not_connected).
+            do_snap = a.get("snap", snap)
+            if do_snap:
+                x, y = snap_to_grid(x, y)
+            else:
+                # Still clamp to the schematic's 0.0001 mm resolution so we
+                # don't emit float noise, but keep the exact pin endpoint.
+                x, y = round(x, 4), round(y, 4)
             rot = int(round(float(a.get("rotation_deg", 0))))
 
             ref = str(a.get("ref") or "").strip()
@@ -878,6 +1063,7 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
                 rotation_deg=rot,
                 group_id=grp,
                 proj_uuid=proj_uuid,
+                snap=do_snap,
             )
             doc.insert_before_close(snippet)
             inserted.append(ref)
@@ -1135,6 +1321,7 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
         connections: str,
         mode: str = "wire",
         group_id: str = "",
+        snap: bool = True,
     ) -> dict[str, Any]:
         """Connect pins on a ``.kicad_sch`` — Manhattan wire or matched-label pair.
 
@@ -1158,10 +1345,16 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
                 (use this for sheet-spanning nets).
             group_id: Optional ``kicad-mcp.group`` tag — informational
                 only; wires/labels carry no group property in S-expr.
+            snap: Snap wire endpoints to the 1.27 mm grid (default True).
+                Pass False when either pin is on a fine-pitch IC (off the
+                1.27 grid) — snapping pulls the wire off the pad and breaks
+                the net.
 
         Returns:
             ``{success, sch_path, mode, segments_added, labels_added,
-            junctions_added, results: [...]}``.
+            junctions_added, results: [...]}``. ``junctions_added`` is always
+            0 — a pin-to-pin connect creates no junction node; drop one
+            explicitly if a third wire taps the same point.
         """
         sch_path = to_local_path(sch_path)
         if not os.path.isfile(sch_path):
@@ -1209,6 +1402,7 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
                         p2[1],
                         group_id=group_id or None,
                         project_uuid=proj_uuid,
+                        snap=snap,
                     )
                     doc.insert_before_close(snippet)
                     added_segments += 1
@@ -1221,6 +1415,7 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
                         knee[1],
                         group_id=group_id or None,
                         project_uuid=proj_uuid,
+                        snap=snap,
                     )
                     s2 = render_wire(
                         knee[0],
@@ -1229,6 +1424,7 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
                         p2[1],
                         group_id=group_id or None,
                         project_uuid=proj_uuid,
+                        snap=snap,
                     )
                     doc.insert_before_close(s1)
                     doc.insert_before_close(s2)
@@ -2280,29 +2476,28 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
             new_text = patt.sub(
                 rf'\g<1>{new_lib_id}\g<2>', new_text,
             )
-            # Also swap inside (lib_symbols ...) block — replace entry
-            # name keyword as well
-            new_text = re.sub(
-                r'(\(symbol\s+")' + re.escape(old_lib_id) + r'("\s)',
-                rf'\g<1>{new_lib_id}\g<2>', new_text,
-            )
-            # Rename the per-unit CHILD symbols inside that block too. They
-            # are named "<bare>_<unit>_<style>" (bare = symbol name without
-            # the "Lib:" prefix, e.g. "ESP32-S3-MINI-1_0_1"). The parent
-            # rename above does not match them (they have no closing-quote
-            # right after the name), so without this the parent and its
-            # units diverge — KiCad then refuses to load the schematic
-            # ("Konnte Schaltplan nicht laden").
-            bare_old = old_lib_id.split(":")[-1]
-            bare_new = new_lib_id.split(":")[-1]
-            new_text = re.sub(
-                r'(\(symbol\s+")' + re.escape(bare_old) + r'(_\d+_\d+")',
-                rf'\g<1>{bare_new}\g<2>', new_text,
-            )
             doc.text = new_text
             doc._invalidate()  # noqa: SLF001 - mark lazy _tree stale after text edit
-            # Ensure new lib_symbol entry exists
-            added = doc.ensure_lib_symbol(new_lib_id)
+            # Drop the OLD cached lib_symbol block and re-embed the NEW one
+            # fresh from the library. We deliberately do NOT rename the cached
+            # block in place: that would keep the old symbol's geometry/pins
+            # under the new name (wrong whenever the two symbols differ — the
+            # whole point of a swap). drop+re-embed guarantees the new symbol's
+            # real graphics and pin map land in lib_symbols.
+            old_dropped = doc.drop_lib_symbol(old_lib_id)
+            # project_dir lets ensure_lib_symbol resolve project-local
+            # (${KIPRJMOD}) libraries, not just stock/global ones.
+            project_dir = os.path.dirname(sch_path)
+            added = doc.ensure_lib_symbol(new_lib_id, project_dir=project_dir)
+            if not added and not doc.find_lib_symbol(new_lib_id):
+                return {
+                    "success": False,
+                    "error": (
+                        f"Could not resolve lib_symbol for {new_lib_id!r} "
+                        f"(stock, global, or project-local at {project_dir}). "
+                        f"Instances were not changed."
+                    ),
+                }
             if not dry_run:
                 doc.save()
             return {
@@ -2312,7 +2507,118 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
                 "new_lib_id": new_lib_id,
                 "instances_swapped": instances,
                 "lib_symbol_added": added,
+                "old_lib_symbol_dropped": old_dropped,
                 "dry_run": dry_run,
             }
         except Exception as exc:  # pylint: disable=broad-except
             return {"success": False, "error": str(exc)}
+
+    @mcp.tool()
+    def create_library_symbol(
+        lib_path: str,
+        symbol_name: str,
+        pins: str,
+        reference: str = "U",
+        value: str = "",
+        footprint: str = "",
+        datasheet: str = "",
+        description: str = "",
+        width_mm: float = 0.0,
+        overwrite: bool = False,
+        register_in_project: str = "",
+    ) -> dict[str, Any]:
+        """Author a new KiCad library symbol (``.kicad_sym`` entry) from a pin
+        spec — a standard rectangular-IC symbol with a body rectangle and pins
+        laid out on the requested sides.
+
+        Use this to create a custom part (a chip with no stock symbol, a
+        module, a connector) instead of hand-editing a ``.kicad_sym`` file —
+        hand edits are error-prone and have corrupted symbols before. After
+        creation, register the library project-locally (``register_in_project``)
+        so ``add_schematic_symbols`` / ``bulk_swap_symbol`` can resolve it via
+        the project ``sym-lib-table``.
+
+        Pins are evenly pitched (2.54 mm) and centred per side. Pins without an
+        explicit ``side`` are split deterministically half to the left edge
+        (top→bottom) and half to the right.
+
+        Args:
+            lib_path: Target ``.kicad_sym`` file (created if missing).
+            symbol_name: Bare symbol name (no ``Lib:`` prefix), e.g.
+                ``"74HC589"``.
+            pins: JSON list of ``{number, name?, type?, side?}``. ``type`` is a
+                KiCad pin type (``input``/``output``/``bidirectional``/
+                ``power_in``/``passive``/… default ``passive``); ``side`` is
+                ``left``/``right``/``top``/``bottom``.
+            reference: Reference prefix (default ``"U"``).
+            value: Value field (defaults to ``symbol_name``).
+            footprint / datasheet / description: optional metadata.
+            width_mm: Body width override (0 = auto from pin-name lengths).
+            overwrite: Replace an existing same-named symbol (default False —
+                error out instead).
+            register_in_project: Project directory whose ``sym-lib-table``
+                should get a ``${KIPRJMOD}`` entry for this lib (empty = skip).
+
+        Returns:
+            ``{success, lib_path, symbol_name, lib_id, pin_count,
+            lib_created, registered_lib, registered}``.
+        """
+        lib_path = to_local_path(lib_path)
+        try:
+            pin_list = json.loads(pins)
+        except Exception as exc:
+            return {"success": False, "error": f"Invalid pins JSON: {exc}"}
+        if not isinstance(pin_list, list):
+            return {"success": False, "error": "pins must be a JSON list."}
+
+        lib_dir = os.path.dirname(lib_path) or "."
+        if not os.path.isdir(lib_dir):
+            return {"success": False, "error": f"Directory not found: {lib_dir}"}
+
+        try:
+            block = render_library_symbol(
+                symbol_name,
+                pin_list,
+                reference=reference,
+                value=value,
+                footprint=footprint,
+                datasheet=datasheet,
+                description=description,
+                width_mm=float(width_mm),
+                indent=1,
+            )
+        except SymbolSpecError as exc:
+            return {"success": False, "error": str(exc)}
+
+        created, err = _write_symbol_to_lib(
+            lib_path, symbol_name, block, overwrite
+        )
+        if err:
+            return {"success": False, "error": err}
+
+        registered_lib = ""
+        registered = False
+        if register_in_project:
+            proj = to_local_path(register_in_project)
+            if not os.path.isdir(proj):
+                return {
+                    "success": False,
+                    "error": f"register_in_project dir not found: {proj}",
+                }
+            registered_lib, registered = _register_lib_in_project_table(
+                proj, lib_path
+            )
+
+        lib_nick = registered_lib or os.path.splitext(
+            os.path.basename(lib_path)
+        )[0]
+        return {
+            "success": True,
+            "lib_path": lib_path,
+            "symbol_name": symbol_name,
+            "lib_id": f"{lib_nick}:{symbol_name}",
+            "pin_count": len(pin_list),
+            "lib_created": created,
+            "registered_lib": registered_lib,
+            "registered": registered,
+        }

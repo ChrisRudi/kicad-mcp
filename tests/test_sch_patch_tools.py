@@ -154,6 +154,43 @@ class TestRoundTrip:
         # Device:R was embedded into lib_symbols
         assert "Device:R" in r["lib_symbols_added"]
 
+    def test_pin_positions_refs_filter(self, server, seeded_sch):
+        added = _call(
+            server,
+            "add_schematic_symbols",
+            sch_path=seeded_sch,
+            parts=self._three_resistors(),
+            group_id="g1",
+        )
+        if not added["success"] and added.get("errors"):
+            pytest.skip(f"library lookup unavailable: {added['errors']}")
+
+        # Unfiltered: every symbol, no not_found key (backward compatible).
+        full = _call(server, "compute_pin_world_positions_sch", sch_path=seeded_sch)
+        assert set(full["symbols"]) == {"R10", "R11", "R12"}
+        assert "not_found" not in full
+
+        # refs= restricts the dump to the requested symbols only.
+        one = _call(
+            server,
+            "compute_pin_world_positions_sch",
+            sch_path=seeded_sch,
+            refs=["R10"],
+        )
+        assert set(one["symbols"]) == {"R10"}
+        assert one["symbol_count"] == 1
+        assert one["not_found"] == []
+
+        # Unknown refs are reported, present ones still returned.
+        miss = _call(
+            server,
+            "compute_pin_world_positions_sch",
+            sch_path=seeded_sch,
+            refs=["R10", "NOPE"],
+        )
+        assert set(miss["symbols"]) == {"R10"}
+        assert miss["not_found"] == ["NOPE"]
+
     def test_validate_collision_after_add(self, server, seeded_sch):
         _call(
             server,
@@ -513,6 +550,56 @@ class TestAnnotateSchematic:
         )
         assert r["success"] is False
         assert r["errors"]
+
+    @staticmethod
+    def _gnd_at(text: str) -> tuple[float, float]:
+        """Return the (x, y) of the GND power symbol's (at ...) in the file."""
+        # The power symbol is the only (symbol (lib_id "power:GND") ...) block.
+        m = re.search(
+            r'\(symbol\s*\(lib_id "power:GND"\)\s*\(at\s+([\d.\-]+)\s+([\d.\-]+)',
+            text,
+        )
+        assert m, "GND power symbol not found in file"
+        return float(m.group(1)), float(m.group(2))
+
+    def test_offgrid_pin_snaps_by_default(self, server, seeded_sch):
+        # Default behaviour: an off-grid coordinate (fine-pitch IC pad at
+        # x=100.65) is pulled to the 1.27 mm grid -> 100.33.
+        r = _call(
+            server, "add_power_symbols", sch_path=seeded_sch,
+            anchors=json.dumps(
+                [{"net": "GND", "x_mm": 100.65, "y_mm": 104.14}]
+            ),
+        )
+        assert r["success"], r.get("errors")
+        x, _ = self._gnd_at(open(seeded_sch, encoding="utf-8").read())
+        assert x == 100.33  # snapped off the requested 100.65
+
+    def test_snap_false_lands_exactly_on_offgrid_pin(self, server, seeded_sch):
+        # snap=False keeps the exact off-grid pin endpoint so the power
+        # symbol's connection point coincides with the IC pad (no ERC
+        # pin_not_connected). This is the S4 fix.
+        r = _call(
+            server, "add_power_symbols", sch_path=seeded_sch, snap=False,
+            anchors=json.dumps(
+                [{"net": "GND", "x_mm": 100.65, "y_mm": 104.14}]
+            ),
+        )
+        assert r["success"], r.get("errors")
+        x, y = self._gnd_at(open(seeded_sch, encoding="utf-8").read())
+        assert (x, y) == (100.65, 104.14)  # exact, not snapped
+
+    def test_per_anchor_snap_override(self, server, seeded_sch):
+        # Tool default snaps, but a single anchor opts out via "snap": false.
+        r = _call(
+            server, "add_power_symbols", sch_path=seeded_sch,
+            anchors=json.dumps(
+                [{"net": "GND", "x_mm": 100.65, "y_mm": 104.14, "snap": False}]
+            ),
+        )
+        assert r["success"], r.get("errors")
+        x, _ = self._gnd_at(open(seeded_sch, encoding="utf-8").read())
+        assert x == 100.65  # per-anchor override beat the tool default
 
     def _seed_with_global_labels(self, sch_path: str) -> None:
         """Drop a handful of top-level labels into a seeded schematic.
@@ -1062,6 +1149,10 @@ class TestBulkSwapSymbol:
         txt = open(p, encoding="utf-8").read()
         assert '(lib_id "Device:R_Small")' in txt
         assert '(lib_id "Device:R")' not in txt
+        # The new symbol is embedded fresh from the stock library (not a
+        # rename of the old one) — its real definition lands in lib_symbols.
+        assert out["lib_symbol_added"] is True
+        assert '(symbol "Device:R_Small"' in txt
 
     def test_dry_run_does_not_write(self, server, tmp_path):
         p = str(tmp_path / "swap_dry.kicad_sch")
@@ -1117,20 +1208,270 @@ class TestBulkSwapSymbol:
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(text)
 
-    def test_swap_renames_unit_child_symbols(self, server, tmp_path):
-        # Regression: parent and per-unit child symbols must stay
-        # name-consistent, otherwise KiCad can't load the schematic.
-        p = str(tmp_path / "swap_units.kicad_sch")
-        self._seed_multiunit(p)
+    @staticmethod
+    def _write_project_lib(project_dir: str) -> None:
+        """A project-local symbol library + ``${KIPRJMOD}`` sym-lib-table.
+
+        Exercises S2: ``ensure_lib_symbol`` must resolve project-local libs,
+        which ``get_real_symbol`` (stock + global only) deliberately skips.
+        """
+        lib = os.path.join(project_dir, "mylib.kicad_sym")
+        with open(lib, "w", encoding="utf-8") as fh:
+            fh.write(
+                '(kicad_symbol_lib (version 20231120) (generator "test")\n'
+                '  (symbol "DUALX" (in_bom yes) (on_board yes)\n'
+                '    (property "Reference" "U" (at 0 0 0))\n'
+                '    (property "Value" "DUALX" (at 0 0 0))\n'
+                '    (symbol "DUALX_0_1"\n'
+                '      (rectangle (start -5 5) (end 5 -5)\n'
+                '        (stroke (width 0.254) (type default)) (fill (type background)))\n'
+                '    )\n'
+                '    (symbol "DUALX_1_1"\n'
+                '      (pin power_in line (at 0 -7 90) (length 2)\n'
+                '        (name "VCC_MARKER" (effects (font (size 1.27 1.27))))\n'
+                '        (number "1" (effects (font (size 1.27 1.27)))))\n'
+                '    )\n'
+                '  )\n'
+                ')\n'
+            )
+        with open(
+            os.path.join(project_dir, "sym-lib-table"), "w", encoding="utf-8"
+        ) as fh:
+            fh.write(
+                '(sym_lib_table\n'
+                '  (lib (name "MyLib")(type "KiCad")'
+                '(uri "${KIPRJMOD}/mylib.kicad_sym")(options "")(descr ""))\n'
+                ')\n'
+            )
+
+    def test_swap_to_project_local_drops_stale_and_reembeds(self, server, tmp_path):
+        # S2 core: swapping must DROP the stale cached block (not rename it,
+        # which would keep the old geometry/pins under a new name) and embed
+        # the NEW symbol's real definition — resolved from the project-local
+        # ${KIPRJMOD} library.
+        project_dir = str(tmp_path)
+        self._write_project_lib(project_dir)
+        p = os.path.join(project_dir, "swap_proj.kicad_sch")
+        self._seed_multiunit(p)  # stale "Fake:DUAL" cache + one instance
         out = _call(
             server, "bulk_swap_symbol", sch_path=p,
-            old_lib_id="Fake:DUAL", new_lib_id="Fake:DUALX",
+            old_lib_id="Fake:DUAL", new_lib_id="MyLib:DUALX",
         )
         assert out["success"] is True, out
+        assert out["old_lib_symbol_dropped"] is True
+        assert out["lib_symbol_added"] is True
         txt = open(p, encoding="utf-8").read()
-        assert '(symbol "Fake:DUALX"' in txt          # parent renamed
-        assert '(symbol "DUALX_0_1"' in txt           # units renamed
+        # Instances re-pointed.
+        assert '(lib_id "MyLib:DUALX")' in txt
+        assert '(lib_id "Fake:DUAL")' not in txt
+        # Stale old cache block gone (the bug); fresh parent embedded.
+        assert '(symbol "Fake:DUAL"' not in txt
+        assert '(symbol "MyLib:DUALX"' in txt
+        # NEW geometry embedded (its distinctive pin name), not the old body.
+        assert "VCC_MARKER" in txt
+        assert "GND" not in txt  # old seed's pin name is gone
+        # Unit children present and bare-named (KiCad's required form).
+        assert '(symbol "DUALX_0_1"' in txt
         assert '(symbol "DUALX_1_1"' in txt
-        assert '(symbol "DUAL_0_1"' not in txt         # old unit names gone
-        assert '(symbol "DUAL_1_1"' not in txt
-        assert '(lib_id "Fake:DUALX")' in txt
+
+    def test_unresolvable_new_id_errors_without_write(self, server, tmp_path):
+        # If the new symbol can't be resolved anywhere, fail cleanly and leave
+        # the file untouched (no half-applied swap on disk).
+        p = str(tmp_path / "swap_bad.kicad_sch")
+        self._seed_with_r(p)
+        before = open(p, encoding="utf-8").read()
+        out = _call(
+            server, "bulk_swap_symbol", sch_path=p,
+            old_lib_id="Device:R", new_lib_id="NoSuchLib:Nope",
+        )
+        assert out["success"] is False
+        assert "resolve" in out["error"].lower()
+        assert open(p, encoding="utf-8").read() == before
+
+
+# ---------------------------------------------------------------------------
+# add_no_connect (PLAN.md Anhang A — S5)
+# ---------------------------------------------------------------------------
+
+
+class TestCreateLibrarySymbol:
+    PINS = json.dumps([
+        {"number": "1", "name": "A", "type": "input", "side": "left"},
+        {"number": "2", "name": "B", "type": "input", "side": "left"},
+        {"number": "3", "name": "Y", "type": "output", "side": "right"},
+        {"number": "8", "name": "VCC", "type": "power_in", "side": "top"},
+        {"number": "4", "name": "GND", "type": "power_in", "side": "bottom"},
+    ])
+
+    def test_creates_lib_and_symbol(self, server, tmp_path):
+        lib = str(tmp_path / "mylib.kicad_sym")
+        r = _call(
+            server, "create_library_symbol",
+            lib_path=lib, symbol_name="MYGATE", pins=self.PINS,
+        )
+        assert r["success"], r
+        assert r["lib_created"] is True
+        assert r["pin_count"] == 5
+        assert r["lib_id"] == "mylib:MYGATE"
+        text = open(lib, encoding="utf-8").read()
+        assert text.startswith("(kicad_symbol_lib")
+        assert '(symbol "MYGATE"' in text
+        assert '(symbol "MYGATE_0_1"' in text   # body unit
+        assert '(symbol "MYGATE_1_1"' in text   # pin unit
+        assert "(rectangle" in text
+        # all five pins present with their types
+        assert text.count("(pin ") == 5
+        assert "(pin power_in line" in text
+        assert "(pin output line" in text
+
+    def test_generated_symbol_parses(self, server, tmp_path):
+        # The emitted block must be depth-balanced / parseable.
+        from kicad_mcp.utils.sexpr_parser import parse_sexpr
+        from kicad_mcp.generators.symbol_cache import _extract_top_level_symbol
+        lib = str(tmp_path / "p.kicad_sym")
+        _call(server, "create_library_symbol",
+              lib_path=lib, symbol_name="CHIP", pins=self.PINS)
+        content = open(lib, encoding="utf-8").read()
+        block = _extract_top_level_symbol(content, "CHIP")
+        assert block is not None
+        node = parse_sexpr(block)
+        assert isinstance(node, list) and node[0] == "symbol"
+
+    def test_no_overwrite_without_flag(self, server, tmp_path):
+        lib = str(tmp_path / "o.kicad_sym")
+        _call(server, "create_library_symbol",
+              lib_path=lib, symbol_name="DUP", pins=self.PINS)
+        r2 = _call(server, "create_library_symbol",
+                   lib_path=lib, symbol_name="DUP", pins=self.PINS)
+        assert r2["success"] is False
+        assert "exists" in r2["error"].lower()
+        r3 = _call(server, "create_library_symbol",
+                   lib_path=lib, symbol_name="DUP", pins=self.PINS,
+                   overwrite=True)
+        assert r3["success"] is True
+        # still exactly one DUP symbol after overwrite
+        assert open(lib, encoding="utf-8").read().count('(symbol "DUP"') == 1
+
+    def test_second_symbol_appends(self, server, tmp_path):
+        lib = str(tmp_path / "multi.kicad_sym")
+        _call(server, "create_library_symbol",
+              lib_path=lib, symbol_name="ONE", pins=self.PINS)
+        _call(server, "create_library_symbol",
+              lib_path=lib, symbol_name="TWO", pins=self.PINS)
+        text = open(lib, encoding="utf-8").read()
+        assert '(symbol "ONE"' in text and '(symbol "TWO"' in text
+
+    def test_invalid_pin_type_errors(self, server, tmp_path):
+        lib = str(tmp_path / "bad.kicad_sym")
+        r = _call(
+            server, "create_library_symbol", lib_path=lib, symbol_name="X",
+            pins=json.dumps([{"number": "1", "type": "wibble"}]),
+        )
+        assert r["success"] is False
+        assert "invalid type" in r["error"].lower()
+
+    def test_register_in_project_and_resolve_via_s2(self, server, tmp_path):
+        # End-to-end with S2: author a symbol, register it project-locally,
+        # then confirm get_project_symbol (the ${KIPRJMOD} resolver) finds it.
+        from kicad_mcp.generators.symbol_cache import get_project_symbol
+        proj = str(tmp_path)
+        lib = str(tmp_path / "proj.kicad_sym")
+        r = _call(
+            server, "create_library_symbol",
+            lib_path=lib, symbol_name="CUSTOMIC", pins=self.PINS,
+            register_in_project=proj,
+        )
+        assert r["success"], r
+        assert r["registered"] is True
+        assert r["registered_lib"] == "proj"
+        # sym-lib-table written with a ${KIPRJMOD} entry
+        table = open(os.path.join(proj, "sym-lib-table"), encoding="utf-8").read()
+        assert "${KIPRJMOD}" in table and '(name "proj")' in table
+        # S2 resolver pulls it back as a lib_symbols-ready block
+        resolved = get_project_symbol("proj:CUSTOMIC", proj)
+        assert resolved is not None
+        assert '(symbol "proj:CUSTOMIC"' in resolved
+
+
+class TestNoConnect:
+    def test_add_writes_flag(self, server, seeded_sch):
+        r = _call(
+            server, "add_no_connect", sch_path=seeded_sch, x_mm=50.8, y_mm=50.8
+        )
+        assert r["success"] is True
+        assert (r["x_mm"], r["y_mm"]) == (50.8, 50.8)  # on-grid, unchanged
+        text = open(seeded_sch, encoding="utf-8").read()
+        assert text.count("(no_connect") == 1
+        nc = next(line for line in text.splitlines() if "(no_connect" in line)
+        assert "(at " in nc and "50.8" in nc and "(uuid " in nc
+
+    def test_off_grid_is_snapped(self, server, seeded_sch):
+        # 50.9 is off the 1.27 mm grid -> snapped, reported coord differs.
+        r = _call(
+            server, "add_no_connect", sch_path=seeded_sch, x_mm=50.9, y_mm=50.8
+        )
+        assert r["success"] is True
+        assert r["x_mm"] != 50.9
+
+    def test_add_then_delete_roundtrip(self, server, seeded_sch):
+        _call(server, "add_no_connect", sch_path=seeded_sch, x_mm=50.8, y_mm=50.8)
+        d = _call(
+            server,
+            "delete_schematic_items",
+            sch_path=seeded_sch,
+            types=["no_connect"],
+            region={"x": 50.5, "y": 50.5, "w": 0.6, "h": 0.6},
+        )
+        assert d["success"] is True
+        assert d["deleted_count"] == 1
+        assert "(no_connect" not in open(seeded_sch, encoding="utf-8").read()
+
+
+# ---------------------------------------------------------------------------
+# Multi-unit symbols (audit regression — pins per unit + (unit N))
+# ---------------------------------------------------------------------------
+
+
+class TestMultiUnitSymbols:
+    LIB = (
+        '(symbol "Lib:DUALOP"'
+        '  (symbol "DUALOP_0_1" (rectangle (start -1 1) (end 1 -1)))'
+        '  (symbol "DUALOP_1_1"'
+        '    (pin input line (at -5 2 0) (length 2) (name "A1") (number "1"))'
+        '    (pin output line (at 5 0 180) (length 2) (name "O1") (number "3")))'
+        '  (symbol "DUALOP_2_1"'
+        '    (pin input line (at -5 2 0) (length 2) (name "A2") (number "5"))'
+        '    (pin output line (at 5 0 180) (length 2) (name "O2") (number "7")))'
+        '  (symbol "DUALOP_0_0"'
+        '    (pin power_in line (at 0 5 270) (length 2) (name "V+") (number "8"))))'
+    )
+
+    def _node(self):
+        from kicad_mcp.utils.sexpr_parser import parse_sexpr
+        return parse_sexpr(self.LIB)
+
+    def test_pins_filtered_per_unit(self):
+        from kicad_mcp.generators.schematic_patcher import get_lib_symbol_pins
+        node = self._node()
+        all_p = sorted(p["number"] for p in get_lib_symbol_pins(node))
+        u1 = sorted(p["number"] for p in get_lib_symbol_pins(node, unit=1))
+        u2 = sorted(p["number"] for p in get_lib_symbol_pins(node, unit=2))
+        assert all_p == ["1", "3", "5", "7", "8"]   # legacy: union of all units
+        assert u1 == ["1", "3", "8"]                # unit 1 + common (8)
+        assert u2 == ["5", "7", "8"]                # unit 2 + common (8)
+
+    def test_render_emits_unit_and_correct_pin_uuids(self):
+        from kicad_mcp.generators.schematic_patcher import (
+            get_lib_symbol_pins, render_symbol_instance,
+        )
+        node = self._node()
+        u2 = [p["number"] for p in get_lib_symbol_pins(node, unit=2)]
+        inst = render_symbol_instance(
+            ref="U1", lib_id="Lib:DUALOP", value="DUALOP", footprint="",
+            x=100, y=100, unit=2, pin_numbers=u2, project_name="p",
+        )
+        assert "(unit 2)" in inst
+        for n in ("5", "7", "8"):
+            assert f'(pin "{n}"' in inst
+        # unit 1's pins must NOT appear on the unit-2 instance
+        assert '(pin "1"' not in inst and '(pin "3"' not in inst

@@ -29,8 +29,65 @@ _NAME_KEY_RE = re.compile(r'\(name\s+"([^"]+)"\)')
 _URI_KEY_RE = re.compile(r'\(uri\s+"([^"]+)"\)')
 
 
+def _balanced_block_end(content: str, start: int) -> int:
+    """Index just past the balanced-paren block beginning at ``content[start]``
+    (which must be ``(``). **String-literal aware** — parens inside ``"…"``
+    (e.g. a Description ``"smiley :)"`` or a URI with ``(``) are NOT counted,
+    so they can't truncate the block. Returns -1 if unbalanced.
+    """
+    depth = 0
+    in_str = False
+    i = start
+    n = len(content)
+    while i < n:
+        ch = content[i]
+        if in_str:
+            if ch == "\\":
+                i += 2
+                continue
+            if ch == '"':
+                in_str = False
+        elif ch == '"':
+            in_str = True
+        elif ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        i += 1
+    return -1
+
+
+def _paren_depth_before(content: str, end: int) -> int:
+    """String-literal-aware paren depth of ``content[:end]`` (parens inside
+    string literals are ignored). Used to verify a symbol sits at top level."""
+    depth = 0
+    in_str = False
+    i = 0
+    while i < end:
+        ch = content[i]
+        if in_str:
+            if ch == "\\":
+                i += 2
+                continue
+            if ch == '"':
+                in_str = False
+        elif ch == '"':
+            in_str = True
+        elif ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        i += 1
+    return depth
+
+
 def _iter_sym_lib_blocks(content: str):
-    """Yield balanced-paren ``(lib ...)`` blocks from a sym-lib-table file."""
+    """Yield balanced-paren ``(lib ...)`` blocks from a sym-lib-table file.
+
+    String-literal aware (a ``(``/``)`` inside a URI or descr won't truncate).
+    """
     pos = 0
     while True:
         start = content.find("(lib", pos)
@@ -41,18 +98,11 @@ def _iter_sym_lib_blocks(content: str):
         if nxt >= len(content) or content[nxt] not in (" ", "\t", "\n", "\r"):
             pos = start + 1
             continue
-        depth = 0
-        for i in range(start, len(content)):
-            if content[i] == "(":
-                depth += 1
-            elif content[i] == ")":
-                depth -= 1
-                if depth == 0:
-                    yield content[start:i + 1]
-                    pos = i + 1
-                    break
-        else:
+        end = _balanced_block_end(content, start)
+        if end == -1:
             return
+        yield content[start:end]
+        pos = end
 
 
 def _find_kicad_sym_dir() -> str | None:
@@ -232,28 +282,19 @@ def _extract_top_level_symbol(content: str, sym_name: str) -> str | None:
             pos = start + 1
             continue
 
-        # Check this is a top-level symbol (depth <= 1 means inside kicad_symbol_lib)
-        depth_before = 0
-        for c in content[:start]:
-            if c == '(':
-                depth_before += 1
-            elif c == ')':
-                depth_before -= 1
-        if depth_before > 1:
+        # Check this is a top-level symbol (depth <= 1 means inside
+        # kicad_symbol_lib). String-literal aware so a stray paren in an
+        # earlier property string can't throw off the depth.
+        if _paren_depth_before(content, start) > 1:
             pos = start + 1
             continue
 
-        # Extract by balanced parens
-        depth = 0
-        for i in range(start, len(content)):
-            if content[i] == '(':
-                depth += 1
-            elif content[i] == ')':
-                depth -= 1
-                if depth == 0:
-                    return content[start:i + 1]
-
-        return None
+        # Extract by balanced parens (string-literal aware — a `)` inside a
+        # Description/keywords string must not end the symbol early).
+        end = _balanced_block_end(content, start)
+        if end == -1:
+            return None
+        return content[start:end]
 
 
 @lru_cache(maxsize=64)
@@ -261,6 +302,29 @@ def _read_lib_file(lib_path: str) -> str:
     """Read and cache a library file's contents."""
     with open(lib_path, encoding="utf-8") as f:
         return f.read()
+
+
+def _symbol_properties(sym_block: str) -> dict[str, str]:
+    """Return ``{property_name: full_(property …)_block}`` for a symbol block.
+
+    Used to overlay a derived symbol's own properties onto an inlined
+    ``extends`` base. String-literal/paren-balanced; first occurrence wins.
+    """
+    out: dict[str, str] = {}
+    pos = 0
+    while True:
+        idx = sym_block.find("(property", pos)
+        if idx == -1:
+            break
+        end = _balanced_block_end(sym_block, idx)
+        if end == -1:
+            break
+        block = sym_block[idx:end]
+        m = re.match(r'\(property\s+"([^"]+)"', block)
+        if m:
+            out.setdefault(m.group(1), block)
+        pos = end
+    return out
 
 
 def _resolve_symbol_from_lib(lib_path: str, sym_name: str, lib_id: str) -> str | None:
@@ -278,18 +342,27 @@ def _resolve_symbol_from_lib(lib_path: str, sym_name: str, lib_id: str) -> str |
         return None
 
     # Handle (extends "BaseSymbol") — symbol inherits from another.
-    # In .kicad_sch lib_symbols, extends does NOT work.  The simplest
-    # reliable approach: take the complete base symbol, rename all
-    # occurrences to the derived name, and update the Value property.
+    # In .kicad_sch lib_symbols, extends does NOT work, so we inline: take the
+    # base symbol's GEOMETRY/pins (renamed to the derived name), then OVERLAY
+    # the derived symbol's OWN properties (Description / ki_keywords / Footprint
+    # / Datasheet / Value …). Without the overlay the inlined symbol carries the
+    # *base's* identity metadata, which is wrong (KiCad's extends semantics put
+    # the derived properties on top of the base geometry).
     extends_match = re.search(r'\(extends\s+"([^"]+)"\)', sym_text)
     if extends_match:
         base_name = extends_match.group(1)
-        logger.info(f"Symbol '{sym_name}' extends '{base_name}' — using base with rename")
+        logger.info(f"Symbol '{sym_name}' extends '{base_name}' — inlining base + derived props")
 
         base_text = _extract_top_level_symbol(content, base_name)
         if base_text:
-            sym_text = base_text.replace(f'"{base_name}"', f'"{sym_name}"')
-            sym_text = sym_text.replace(f'"{base_name}_', f'"{sym_name}_')
+            derived_props = _symbol_properties(sym_text)
+            renamed = base_text.replace(f'"{base_name}"', f'"{sym_name}"')
+            renamed = renamed.replace(f'"{base_name}_', f'"{sym_name}_')
+            base_props = _symbol_properties(renamed)
+            for prop_name, derived_block in derived_props.items():
+                if prop_name in base_props:
+                    renamed = renamed.replace(base_props[prop_name], derived_block, 1)
+            sym_text = renamed
         else:
             logger.warning(f"Base symbol '{base_name}' not found — using as-is")
 
@@ -349,4 +422,68 @@ def get_real_symbol(lib_id: str) -> str | None:
             return resolved
 
     logger.debug(f"lib_id '{lib_id}' not resolved in stock or user libraries")
+    return None
+
+
+def get_project_symbol(lib_id: str, project_dir: str) -> str | None:
+    """Resolve a symbol from a project-local ``sym-lib-table`` (``${KIPRJMOD}``).
+
+    Complements :func:`get_real_symbol`, which deliberately skips
+    ``${KIPRJMOD}`` entries because they only have meaning inside a specific
+    project. This reads ``<project_dir>/sym-lib-table``, expands
+    ``${KIPRJMOD}`` to ``project_dir``, and extracts the requested symbol.
+
+    Use this when a schematic references a custom symbol that lives in a
+    library registered project-locally (KiCad Preferences → Manage Symbol
+    Libraries → Project tab), e.g. ``"iFloat:74HC589"``.
+
+    Args:
+        lib_id: KiCad library ID, e.g. ``"MyProjLib:CustomChip"``.
+        project_dir: Directory containing the ``.kicad_pro`` and the
+            project-local ``sym-lib-table``.
+
+    Returns:
+        The complete symbol definition with the top-level name rewritten to
+        the ``Library:Symbol`` form, or ``None`` if it cannot be resolved.
+    """
+    if ":" not in lib_id:
+        return None
+    if not project_dir:
+        return None
+
+    lib_name, sym_name = lib_id.split(":", 1)
+    table_path = os.path.join(project_dir, "sym-lib-table")
+    if not os.path.isfile(table_path):
+        return None
+
+    try:
+        with open(table_path, encoding="utf-8") as f:
+            content = f.read()
+    except OSError as exc:
+        logger.warning(f"Could not read project sym-lib-table at {table_path}: {exc}")
+        return None
+
+    for block in _iter_sym_lib_blocks(content):
+        name_m = _NAME_KEY_RE.search(block)
+        uri_m = _URI_KEY_RE.search(block)
+        if not name_m or not uri_m:
+            continue
+        if name_m.group(1) != lib_name:
+            continue
+        raw_uri = uri_m.group(1)
+        expanded = os.path.expandvars(raw_uri.replace("${KIPRJMOD}", project_dir))
+        if "${" in expanded:
+            logger.debug(
+                f"project sym-lib-table: '{lib_name}' URI has unresolved var: {raw_uri}"
+            )
+            return None
+        lib_path = to_local_path(expanded)
+        if not os.path.isfile(lib_path):
+            logger.debug(
+                f"project sym-lib-table: '{lib_name}' URI not on disk: {lib_path}"
+            )
+            return None
+        return _resolve_symbol_from_lib(lib_path, sym_name, lib_id)
+
+    logger.debug(f"lib_id '{lib_id}' not found in project sym-lib-table at {table_path}")
     return None

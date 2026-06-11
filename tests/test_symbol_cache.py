@@ -164,3 +164,65 @@ def test_unknown_lib_returns_none(tmp_path, monkeypatch):
     assert symbol_cache.get_real_symbol("NoSuchLib:NoSuchSym") is None
     # Malformed lib_id (no colon) — None, no exception.
     assert symbol_cache.get_real_symbol("malformed_no_colon") is None
+
+
+# ---------------------------------------------------------------------------
+# String-literal-aware paren extraction (audit regression)
+# ---------------------------------------------------------------------------
+
+
+def test_extract_symbol_with_paren_in_string_not_truncated():
+    # A stray ')' inside a property string must not end the symbol early.
+    content = (
+        '(kicad_symbol_lib (version 20231120)\n'
+        '  (symbol "A" (property "Description" "smiley :)")\n'
+        '    (symbol "A_0_1" (rectangle (start -1 1) (end 1 -1))) )\n'
+        '  (symbol "B" (property "Value" "B")) )\n'
+    )
+    a = symbol_cache._extract_top_level_symbol(content, "A")
+    assert a is not None
+    assert "(rectangle" in a            # body survived the stray ')'
+    assert a.rstrip().endswith(")")
+    # the following symbol is still independently extractable
+    b = symbol_cache._extract_top_level_symbol(content, "B")
+    assert b is not None and '"B"' in b
+
+
+def test_sym_lib_blocks_with_paren_in_uri_or_descr():
+    tbl = (
+        '(sym_lib_table '
+        '(lib (name "X")(uri "${KIPRJMOD}/a.kicad_sym")(descr "has ) paren")) '
+        '(lib (name "Y")(uri "y")) )'
+    )
+    blocks = list(symbol_cache._iter_sym_lib_blocks(tbl))
+    assert len(blocks) == 2
+    joined = "".join(blocks)
+    assert '"X"' in joined and '"Y"' in joined
+
+
+def test_extends_overlays_derived_properties(tmp_path):
+    # extends inlining must keep the BASE geometry but the DERIVED properties.
+    lib = tmp_path / "ext.kicad_sym"
+    lib.write_text(
+        '(kicad_symbol_lib (version 20231120) (generator "t")\n'
+        '  (symbol "Base" (in_bom yes)\n'
+        '    (property "Reference" "U" (at 0 0 0))\n'
+        '    (property "Value" "Base" (at 0 0 0))\n'
+        '    (property "Description" "base desc" (at 0 0 0))\n'
+        '    (property "ki_keywords" "base kw" (at 0 0 0))\n'
+        '    (symbol "Base_0_1" (rectangle (start -1 1) (end 1 -1)))\n'
+        '    (symbol "Base_1_1" (pin passive line (at 0 -2 90) (length 1)\n'
+        '      (name "P1" (effects (font (size 1 1)))) (number "1" (effects (font (size 1 1)))))) )\n'
+        '  (symbol "Derived" (extends "Base")\n'
+        '    (property "Value" "Derived" (at 0 0 0))\n'
+        '    (property "Description" "derived desc" (at 0 0 0))\n'
+        '    (property "ki_keywords" "derived kw" (at 0 0 0))) )\n',
+        encoding="utf-8",
+    )
+    out = symbol_cache._resolve_symbol_from_lib(
+        str(lib), "Derived", "Lib:Derived")
+    assert out is not None
+    assert "derived desc" in out and "base desc" not in out       # derived props win
+    assert "derived kw" in out and "base kw" not in out
+    assert "(rectangle" in out and "(pin passive" in out          # base geometry kept
+    assert '(symbol "Lib:Derived"' in out

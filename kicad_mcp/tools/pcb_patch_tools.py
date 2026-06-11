@@ -1404,16 +1404,24 @@ def _patch_loaded_footprint(
     side."""
     block = template
 
-    # Footprint position is the first (at …) inside the block.
-    if _FIRST_AT_RE.search(block):
-        block = _FIRST_AT_RE.sub(
-            f"(at {x_mm:.6f} {y_mm:.6f} {rot_deg:.6f})", block, count=1
-        )
+    # Set the footprint-HEADER position. CRUCIAL: a raw .kicad_mod has NO
+    # header (at) — its first (at …) is the Reference property's *local*
+    # offset. Matching "the first (at)" therefore clobbers the Reference label
+    # position (so the part stacks at 0,0 and its ref designator flies off by
+    # the board coordinate). Always INSERT a real header (at) right after the
+    # (footprint line, and leave every property's local (at) untouched. If the
+    # template already carries a header (at) (an already-placed block), replace
+    # that one instead of adding a second.
+    _HDR_AT = re.compile(
+        r"(\(footprint[^\n]*\n(?:[ \t]*\((?:version|generator|generator_version|"
+        r"layer|uuid|tedit|descr|tags|attr)\b[^\n]*\n)*)[ \t]*\(at [^\n]*\n"
+    )
+    hdr = f"\t(at {x_mm:.6f} {y_mm:.6f} {rot_deg:.6f})\n"
+    if _HDR_AT.search(block):
+        block = _HDR_AT.sub(lambda m: m.group(1) + hdr, block, count=1)
     else:
         block = re.sub(
-            r"(\(footprint[^\n]*\n)",
-            rf"\1\t(at {x_mm:.6f} {y_mm:.6f} {rot_deg:.6f})\n",
-            block, count=1,
+            r"(\(footprint[^\n]*\n)", lambda m: m.group(1) + hdr, block, count=1,
         )
 
     # Reference + Value properties.

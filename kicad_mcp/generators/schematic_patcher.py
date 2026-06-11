@@ -29,7 +29,7 @@ from uuid import uuid5
 from ..utils.sexpr_parser import find_node, find_nodes, parse_sexpr
 from ..utils.sch_geometry import pin_world_xy
 from .sexpr import KICAD_MCP_NS
-from .symbol_cache import get_real_symbol
+from .symbol_cache import get_project_symbol, get_real_symbol
 
 
 GROUP_PROP_NAME = "kicad-mcp.group"
@@ -523,15 +523,39 @@ class SchematicDoc:
         self._invalidate()
         return True
 
-    def ensure_lib_symbol(self, lib_id: str) -> bool:
+    def drop_lib_symbol(self, lib_id: str) -> bool:
+        """Remove the ``(symbol "lib_id" …)`` block from the ``lib_symbols``
+        container. Returns ``True`` if a block was removed, ``False`` if the
+        lib_id was not cached.
+
+        Use this before re-embedding a fresh definition (e.g. in
+        ``bulk_swap_symbol``): renaming the cached block in place keeps the
+        *old* geometry/pins under the new name, which is wrong when the two
+        symbols differ.
+        """
+        found = self.find_lib_symbol(lib_id)
+        if not found:
+            return False
+        start, end, _ = found
+        self.delete_block(start, end)
+        return True
+
+    def ensure_lib_symbol(self, lib_id: str, project_dir: Optional[str] = None) -> bool:
         """Make sure ``lib_id`` is present in the ``lib_symbols`` container.
         Loads the symbol from the bundled KiCad library on demand. Returns
         ``True`` if the lib_symbol now exists, ``False`` if it could not be
         located.
+
+        Resolution order: stock + global ``sym-lib-table`` (via
+        :func:`get_real_symbol`); on miss, if ``project_dir`` is given, the
+        project-local ``sym-lib-table`` (``${KIPRJMOD}`` libs) is consulted
+        via :func:`get_project_symbol`.
         """
         if self.find_lib_symbol(lib_id):
             return True
         sym_text = get_real_symbol(lib_id)
+        if not sym_text and project_dir:
+            sym_text = get_project_symbol(lib_id, project_dir)
         if not sym_text:
             return False
         # The cache returns the symbol with leading "(symbol \"Lib:Name\" …)";
@@ -627,17 +651,40 @@ def get_symbol_attrs(node: list) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def get_lib_symbol_pins(lib_node: list) -> list[dict[str, Any]]:
+def get_lib_symbol_pins(
+    lib_node: list, unit: Optional[int] = None
+) -> list[dict[str, Any]]:
     """Return list of pins for a lib_symbol entry. Walks every nested
-    ``(symbol "<Sub>" …)`` (KiCad splits each symbol into ``_0_1``, ``_1_1``
-    sub-pieces — pins are usually under ``_1_1``).
+    ``(symbol "<Sub>" …)`` (KiCad splits each symbol into ``_<unit>_<style>``
+    sub-pieces, e.g. ``_0_1`` common / ``_1_1`` unit 1 / ``_2_1`` unit 2).
+
+    ``unit`` filters to a single unit's pins (plus the shared unit-0 pins) —
+    REQUIRED for multi-unit parts (op-amps, the 74xx gates): without it the
+    union of *all* units' pins is returned, so placing unit 2 would emit pin
+    UUIDs for unit 1's pins and corrupt connectivity. ``unit=None`` (default)
+    keeps the legacy "all pins" behaviour for single-unit parts / callers that
+    only need a bbox.
     """
     pins: list[dict[str, Any]] = []
 
-    def _walk(node: Any) -> None:
+    def _sub_unit(name: Any) -> Optional[int]:
+        m = re.search(r"_(\d+)_\d+$", str(name))
+        return int(m.group(1)) if m else None
+
+    def _walk(node: Any, in_unit: Optional[int] = None) -> None:
         if not isinstance(node, list):
             return
+        if node and node[0] == "symbol" and len(node) > 1:
+            su = _sub_unit(node[1])
+            if su is not None:
+                in_unit = su
         if node and node[0] == "pin" and len(node) >= 2:
+            if (
+                unit is not None
+                and in_unit is not None
+                and in_unit not in (0, unit)
+            ):
+                return  # pin belongs to a different unit
             pin_type = str(node[1]) if isinstance(node[1], str) else "unspecified"
             x, y, angle = 0.0, 0.0, 0
             name, number = "", ""
@@ -668,7 +715,7 @@ def get_lib_symbol_pins(lib_node: list) -> list[dict[str, Any]]:
             return
         for child in node:
             if isinstance(child, list):
-                _walk(child)
+                _walk(child, in_unit)
 
     _walk(lib_node)
     return pins
@@ -717,6 +764,8 @@ def render_symbol_instance(
     project_name: Optional[str] = None,
     sheet_path_uuid: str = "",
     hide_reference: bool = False,
+    snap: bool = True,
+    unit: int = 1,
 ) -> str:
     """Render a top-level ``(symbol (lib_id …) …)`` block as text. The output
     is a single newline-terminated chunk ready for insertion via
@@ -745,13 +794,18 @@ def render_symbol_instance(
     if uuid is None:
         uuid = stable_uuid(f"{project_uuid}|{ref}|sym")
     from kicad_mcp.utils.sch_geometry import snap_to_grid as _snap
-    x, y = _snap(float(x), float(y))
+    if snap:
+        x, y = _snap(float(x), float(y))
+    else:
+        # Keep an exact off-grid endpoint (e.g. a fine-pitch IC pin) instead
+        # of pulling it to the 1.27 mm grid; clamp only to sch resolution.
+        x, y = round(float(x), 4), round(float(y), 4)
     pad = " " * indent
     mirror_line = f"\n{pad}  (mirror {mirror})" if mirror else ""
     rot_norm = ((int(round(rot)) % 360) + 360) % 360
     extra_names = {n for n, _ in (extra_props or [])}
     lines = [
-        f"{pad}(symbol (lib_id \"{lib_id}\") (at {_fmt(x)} {_fmt(y)} {rot_norm}) (unit 1)"
+        f"{pad}(symbol (lib_id \"{lib_id}\") (at {_fmt(x)} {_fmt(y)} {rot_norm}) (unit {int(unit)})"
         f"{mirror_line}",
         f'{pad}  (in_bom yes) (on_board yes) (dnp no)',
         f'{pad}  (uuid "{uuid}")',
@@ -797,7 +851,7 @@ def render_symbol_instance(
         lines.append(f'{pad}    (project "{project_name}"')
         lines.append(f'{pad}      (path "/{sheet_path}"')
         lines.append(f'{pad}        (reference "{ref}")')
-        lines.append(f'{pad}        (unit 1)')
+        lines.append(f'{pad}        (unit {int(unit)})')
         lines.append(f'{pad}      )')
         lines.append(f'{pad}    )')
         lines.append(f'{pad}  )')
@@ -960,6 +1014,7 @@ def render_wire(
     group_id: Optional[str] = None,
     project_uuid: str = "",
     indent: int = 2,
+    snap: bool = True,
 ) -> str:
     """Render a ``(wire …)`` block. ``group_id`` is accepted for API
     symmetry but currently has no effect — KiCad's S-expression format does
@@ -967,14 +1022,20 @@ def render_wire(
     would survive only by accident. Group membership is therefore tracked
     only on symbol instances (via the ``kicad-mcp.group`` hidden property).
 
-    Endpoint coordinates are defensively snapped to the 1.27 mm placement
-    grid so wires never land off-grid, regardless of caller hygiene.
+    Endpoint coordinates are snapped to the 1.27 mm placement grid by default.
+    Pass ``snap=False`` to keep an exact off-grid endpoint — a wire to a
+    fine-pitch IC pin (pads off the 1.27 grid) must land *exactly* on the pin
+    or the net breaks (same footgun as ``add_power_symbols``).
     """
     _ = group_id  # noqa: F841 — reserved for future use
     # Local import to avoid pulling sch_geometry into module init order
     from kicad_mcp.utils.sch_geometry import snap_to_grid as _snap
-    x1, y1 = _snap(float(x1), float(y1))
-    x2, y2 = _snap(float(x2), float(y2))
+    if snap:
+        x1, y1 = _snap(float(x1), float(y1))
+        x2, y2 = _snap(float(x2), float(y2))
+    else:
+        x1, y1 = round(float(x1), 4), round(float(y1), 4)
+        x2, y2 = round(float(x2), 4), round(float(y2), 4)
     if uuid is None:
         uuid = stable_uuid(f"{project_uuid}|wire|{x1},{y1}-{x2},{y2}")
     pad = " " * indent
@@ -982,6 +1043,28 @@ def render_wire(
         f"{pad}(wire (pts (xy {_fmt(x1)} {_fmt(y1)}) (xy {_fmt(x2)} {_fmt(y2)}))"
         f' (uuid "{uuid}"))'
     )
+
+
+def render_no_connect(
+    x: float,
+    y: float,
+    uuid: Optional[str] = None,
+    project_uuid: str = "",
+    indent: int = 2,
+) -> str:
+    """Render a ``(no_connect …)`` block — marks a pin as intentionally
+    unconnected so ERC stops raising ``pin_not_connected`` for it.
+
+    The flag is electrically active only when its ``(at x y)`` coincides
+    with the pin's endpoint, so the coordinate is defensively snapped to
+    the 1.27 mm placement grid (pins live on that grid).
+    """
+    from kicad_mcp.utils.sch_geometry import snap_to_grid as _snap
+    x, y = _snap(float(x), float(y))
+    if uuid is None:
+        uuid = stable_uuid(f"{project_uuid}|no_connect|{x},{y}")
+    pad = " " * indent
+    return f'{pad}(no_connect (at {_fmt(x)} {_fmt(y)}) (uuid "{uuid}"))'
 
 
 def render_label(

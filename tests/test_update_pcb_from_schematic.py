@@ -413,3 +413,50 @@ class TestErrors:
         )
         assert out["success"] is False
         assert "library root" in out["error"].lower()
+
+
+# ---------------------------------------------------------------------------
+# _patch_loaded_footprint anchor (audit regression)
+# ---------------------------------------------------------------------------
+
+
+class TestPatchLoadedFootprintAnchor:
+    # A raw .kicad_mod: NO footprint-header (at); first (at) is the Reference
+    # property's LOCAL offset (must not be clobbered with the board position).
+    TEMPLATE = (
+        '(footprint "R_0402"\n'
+        '\t(version 20240108)\n'
+        '\t(generator "x")\n'
+        '\t(layer "F.Cu")\n'
+        '\t(property "Reference" "REF**"\n'
+        '\t\t(at 0 -1.17 0)\n'
+        '\t\t(layer "F.SilkS"))\n'
+        '\t(property "Value" "R"\n'
+        '\t\t(at 0 1.17 0)\n'
+        '\t\t(layer "F.Fab"))\n'
+        '\t(pad "1" smd roundrect (at -0.51 0) (size 0.6 0.6) (layers "F.Cu"))\n'
+        ')\n'
+    )
+
+    def test_inserts_header_at_and_keeps_reference_local(self):
+        out = ppt._patch_loaded_footprint(
+            self.TEMPLATE, "R_X1", "10k", 250.0, 52.5, 0.0, mirror_to_bcu=False)
+        # a real footprint-header (at) at the staging position was inserted
+        assert "(at 250.000000 52.500000 0.000000)" in out
+        # exactly one such header (no duplicate)
+        assert out.count("(at 250.000000 52.500000") == 1
+        # the Reference property's LOCAL (at) is untouched (NOT the board pos)
+        ref = re.search(
+            r'\(property "Reference"[^\n]*\n\s*\(at ([^\)]+)\)', out)
+        assert ref is not None
+        assert ref.group(1).strip() == "0 -1.17 0"
+        # value property local (at) likewise untouched
+        assert "(at 0 1.17 0)" in out
+
+    def test_two_parts_do_not_stack(self):
+        a = ppt._patch_loaded_footprint(
+            self.TEMPLATE, "R_A", "1k", 250.0, 50.0, 0.0, mirror_to_bcu=False)
+        b = ppt._patch_loaded_footprint(
+            self.TEMPLATE, "R_B", "2k", 252.5, 50.0, 0.0, mirror_to_bcu=False)
+        assert "(at 250.000000 50.000000 0.000000)" in a
+        assert "(at 252.500000 50.000000 0.000000)" in b   # spread, not stacked

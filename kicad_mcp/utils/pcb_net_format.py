@@ -117,8 +117,14 @@ def _ensure_index_net(pcb_text: str, net_name: str) -> tuple[str, int]:
              for m in _NET_TABLE_RE.finditer(pcb_text)}
     if net_name in table:
         return pcb_text, table[net_name]
-    next_id = (max(table.values()) + 1) if table else 0
+    # KiCad reserves index 0 for "no net" — a real net must start at 1. On a
+    # bootstrap board with no net table at all, also emit the (net 0 "")
+    # sentinel, or the first real net would land on 0 and read as unconnected.
+    bootstrap = not table
+    next_id = (max(table.values()) + 1) if table else 1
     new_line = f'\n\t(net {next_id} "{net_name}")'
+    if bootstrap:
+        new_line = '\n\t(net 0 "")' + new_line
     last_def = list(_NET_TABLE_RE.finditer(pcb_text))
     if last_def:
         insert_at = last_def[-1].end()

@@ -250,6 +250,23 @@ class TestRoutingErrorPaths:
         assert out["success"] is False
         assert "at least 2" in out["error"]
 
+    def test_power_ring_unknown_net_fails_loudly(self, mcp_with_ipc_tools, monkeypatch):
+        # An unresolved net must error, not silently create unconnected copper.
+        class _FakeBoard:
+            def get_nets(self):
+                return []  # net_name won't be found -> _find_net returns None
+        monkeypatch.setattr(ipc_tools, "_require_editor", lambda *a, **k: None)
+        monkeypatch.setattr(
+            ipc_tools, "_connect_kicad", lambda: (object(), _FakeBoard())
+        )
+        out = _call_tool(
+            mcp_with_ipc_tools, "ipc_route_power_ring",
+            net_name="NOPE", layer="B.Cu", nodes=[["U1", "1"], ["U2", "1"]],
+        )
+        assert out["success"] is False
+        assert "not found" in out["error"].lower()
+        assert out["segments_added"] == 0
+
     def test_zone_pour_too_few_vertices(self, mcp_with_ipc_tools):
         out = _call_tool(
             mcp_with_ipc_tools, "ipc_add_zone_pour",
@@ -258,3 +275,85 @@ class TestRoutingErrorPaths:
         )
         assert out["success"] is False
         assert "at least 3" in out["error"]
+
+
+# ---------------------------------------------------------------------------
+# ipc_open_kicad — dual-instance conflict guard (no real spawn)
+# ---------------------------------------------------------------------------
+
+
+class TestOpenKicadManagerGuard:
+    def _seed(self, monkeypatch, tmp_path):
+        pcb = tmp_path / "demo.kicad_pcb"
+        pcb.write_text("(kicad_pcb)")
+        monkeypatch.setattr(ipc_tools, "_kipy_available", lambda: True)
+        monkeypatch.setattr(ipc_tools, "_editor_binary_path", lambda dt: "/fake/pcbnew")
+        return str(pcb)
+
+    def test_refuses_when_manager_running_and_editor_not(
+        self, mcp_with_ipc_tools, monkeypatch, tmp_path
+    ):
+        # A project manager is up but pcbnew is not: launching a standalone
+        # pcbnew would create the GetOpenDocuments-killing socket conflict.
+        pcb = self._seed(monkeypatch, tmp_path)
+        monkeypatch.setattr(ipc_tools, "_editor_process_running", lambda dt: False)
+        monkeypatch.setattr(ipc_tools, "_kicad_manager_running", lambda: True)
+
+        spawned = {"n": 0}
+
+        class _NoSpawn:
+            def __init__(self, *_a, **_kw):
+                spawned["n"] += 1
+
+        monkeypatch.setattr(ipc_tools.subprocess, "Popen", _NoSpawn)
+
+        out = _call_tool(mcp_with_ipc_tools, "ipc_open_kicad", project_path=pcb)
+        assert out["success"] is False
+        assert out.get("manager_running") is True
+        assert "project manager" in out["error"].lower()
+        assert spawned["n"] == 0, "must NOT spawn a competing standalone editor"
+
+    def test_api_handler_missing_reported_distinctly(
+        self, mcp_with_ipc_tools, monkeypatch, tmp_path
+    ):
+        # No manager, editor already running, but GetOpenDocuments has no
+        # handler -> distinct api_handler_missing error, not the generic
+        # "did not register / enable the API" timeout message.
+        pcb = self._seed(monkeypatch, tmp_path)
+        monkeypatch.setattr(ipc_tools, "_editor_process_running", lambda dt: True)
+        monkeypatch.setattr(ipc_tools, "_kicad_manager_running", lambda: False)
+
+        class _NoHandler:
+            def get_open_documents(self, dt):
+                raise RuntimeError(
+                    "KiCad returned error: no handler available for request "
+                    "of type kiapi.common.commands.GetOpenDocuments"
+                )
+
+        import kipy  # type: ignore
+        monkeypatch.setattr(kipy, "KiCad", lambda *_a, **_kw: _NoHandler())
+
+        out = _call_tool(
+            mcp_with_ipc_tools, "ipc_open_kicad", project_path=pcb, timeout_s=2.0
+        )
+        assert out["success"] is False
+        assert out.get("api_handler_missing") is True
+        assert "getopendocuments" in out["error"].lower()
+
+
+class TestManagerRunningHelper:
+    def test_true_when_tasklist_lists_kicad(self, monkeypatch):
+        class _R:
+            stdout = '"kicad.exe","4088","Console","1","100 K"\n'
+            returncode = 0
+        monkeypatch.setattr(ipc_tools.os, "name", "nt")
+        monkeypatch.setattr(ipc_tools.subprocess, "run", lambda *_a, **_kw: _R())
+        assert ipc_tools._kicad_manager_running() is True
+
+    def test_false_when_absent(self, monkeypatch):
+        class _R:
+            stdout = "INFO: No tasks are running which match the criteria.\n"
+            returncode = 1
+        monkeypatch.setattr(ipc_tools.os, "name", "nt")
+        monkeypatch.setattr(ipc_tools.subprocess, "run", lambda *_a, **_kw: _R())
+        assert ipc_tools._kicad_manager_running() is False

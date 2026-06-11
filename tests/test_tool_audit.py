@@ -319,7 +319,7 @@ def test_allowlist_has_no_obsolete_entries(tool_list):
 # 2026-06-09: -5 — FreeRouting/autoroute removed entirely (autoroute_tools.py
 # deleted): install_autorouter, autoroute_pcb, check_autorouter_status,
 # export_pcb_dsn, import_pcb_ses.
-EXPECTED_TOOL_COUNT = 147
+EXPECTED_TOOL_COUNT = 165  # +ipc_interact G1-G6 (15) + ipc_draw_sketch_legend
 
 
 def test_tool_count_locked(tool_list):
@@ -651,6 +651,9 @@ PATH_EXIST_EXEMPT = {
     "generate_from_netlist",
     # IPC tools — many take an output_path that doesn't need to pre-exist.
     "ipc_export_schematic", "ipc_save", "ipc_save_all",
+    # IPC DRC session: pcb_path is optional (derived from the open document)
+    # and only checked after the live-editor connection — needs a board open.
+    "ipc_drc_session_start",
     # Conversion tools — same: input must exist but output is created.
     "esphome_to_kicad", "convert_ltspice_to_kicad",
     # Export-to-disk: writes a fresh file at the given output_path.

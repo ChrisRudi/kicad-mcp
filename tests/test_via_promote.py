@@ -79,6 +79,30 @@ class TestPromoteLayersText:
         # bbb untouched
         assert out.count('(layers "In1.Cu" "In2.Cu")') == 1
 
+    def test_strips_blind_buried_type_token(self):
+        # The promote must remove the blind/buried/micro token too — KiCad
+        # treats it as authoritative over (layers), so leaving it makes the
+        # via still blind/buried at fab despite the F/B rewrite.
+        pcb = (
+            '(kicad_pcb '
+            '(via blind (at 1 2) (size 0.45) (drill 0.2) '
+            '(layers "F.Cu" "In2.Cu") (net 3) (uuid "aaa")) '
+            '(via buried (at 3 4) (size 0.45) (drill 0.2) '
+            '(layers "In1.Cu" "In3.Cu") (net 3) (uuid "bbb")) )'
+        )
+        out, n = _promote_layers_text(pcb, ["aaa", "bbb"])
+        assert n == 2
+        assert "(via blind" not in out and "(via buried" not in out
+        assert out.count('(layers "F.Cu" "B.Cu")') == 2
+        assert out.count("(via (at") == 2
+
+    def test_through_via_promote_is_noop_on_token(self):
+        # A via with no type token stays token-less (no spurious change).
+        pcb = '(kicad_pcb (via (at 1 2) (layers "In1.Cu" "In2.Cu") (uuid "x")))'
+        out, n = _promote_layers_text(pcb, ["x"])
+        assert n == 1
+        assert "(via (at 1 2)" in out and '(layers "F.Cu" "B.Cu")' in out
+
     def test_empty_set_is_noop(self):
         pcb = '(kicad_pcb (via (layers "In1.Cu" "In2.Cu") (uuid "x")))'
         out, n = _promote_layers_text(pcb, [])

@@ -101,6 +101,12 @@ def _promote_layers_text(pcb_text: str, uuids) -> tuple[str, int]:
             new_block, n = _LAYERS_PAIR_RE.subn(
                 '(layers "F.Cu" "B.Cu")', block, count=1)
             if n:
+                # Also strip the blind/buried/micro TYPE TOKEN. KiCad treats the
+                # token as authoritative over (layers) (CLAUDE.md §6), so without
+                # this the via stays blind/buried at fab despite the F/B rewrite —
+                # i.e. the promotion silently does nothing. _VIA_TYPE_RE turns
+                # "(via blind " → "(via " (no-op on an already-through via).
+                new_block = _VIA_TYPE_RE.sub(r"(via\2", new_block, count=1)
                 changed += 1
             out.append(new_block)
         else:

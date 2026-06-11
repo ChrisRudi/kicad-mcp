@@ -133,6 +133,33 @@ def _editor_process_running(doc_type: str) -> bool:
         return False
 
 
+def _kicad_manager_running() -> bool:
+    """True if the KiCad **project manager** (``kicad``/``kicad.exe``) runs.
+
+    Distinct from :func:`_editor_process_running`, which only looks for the
+    pcbnew/eeschema editors. This matters for launch decisions: the project
+    manager hosts the IPC API server for itself **and** its child editors.
+    Spawning a *standalone* editor (launched directly, not from the manager)
+    while a manager is already running creates a SECOND API server on the
+    same socket — they conflict and ``GetOpenDocuments`` stops resolving
+    ("no handler"). So callers must not double-launch when this returns True.
+    """
+    try:
+        if os.name == "nt":
+            out = subprocess.run(
+                ["tasklist", "/FI", "IMAGENAME eq kicad.exe", "/NH", "/FO", "CSV"],
+                capture_output=True, text=True, timeout=5, check=False,
+            )
+            return "kicad.exe" in out.stdout.lower()
+        out = subprocess.run(
+            ["pgrep", "-x", "kicad"],
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+        return out.returncode == 0
+    except Exception:
+        return False
+
+
 def _kill_editor_process(doc_type: str) -> bool:
     """Force-terminate the ``eeschema``/``pcbnew`` OS process and verify
     it is gone. Returns True when the process is confirmed not running.
@@ -434,6 +461,16 @@ def _connect_kicad():
             f"PCB Editor before calling IPC tools."
         ) from exc
 
+    # First-board-contact presence beacon: light up the MCP.Skizze layer so the
+    # user sees the MCP is active here. Once per process, best-effort, and
+    # disablable via KICAD_MCP_SKETCH_PRESENCE=0. Lazy import avoids a circular
+    # import at module load (ipc_interact_tools imports from this module).
+    try:
+        from .ipc_interact_tools import ensure_mcp_presence  # local import
+        ensure_mcp_presence(board)
+    except Exception:
+        pass
+
     return client, board
 
 
@@ -470,6 +507,7 @@ def _close_editor_silent(doc_type: str) -> dict[str, Any]:
         return {"closed_count": 0, "errors": []}
     # Best-effort graceful CloseDocument (closes the document tab only).
     try:
+        from google.protobuf.empty_pb2 import Empty  # type: ignore
         from kipy.proto.common.commands.editor_commands_pb2 import (  # type: ignore
             CloseDocument,
         )
@@ -479,7 +517,9 @@ def _close_editor_silent(doc_type: str) -> dict[str, Any]:
                 cmd = CloseDocument()
                 if hasattr(cmd, "document"):
                     cmd.document.CopyFrom(d)
-                client._client.send(cmd)  # noqa: SLF001
+                # send() REQUIRES a response type — omitting it raises TypeError
+                # (silently swallowed here), so the graceful close never ran.
+                client._client.send(cmd, Empty)  # noqa: SLF001
             except Exception:
                 pass
     except ImportError:
@@ -663,6 +703,26 @@ def _find_net(board, name: str):
         if getattr(n, "name", None) == name:
             return n
     return None
+
+
+def _board_default_via_nm(board) -> tuple[int, int]:
+    """Return the board's default ``(via_diameter, via_drill)`` in nm.
+
+    A freshly-constructed kipy ``Via()`` has diameter/drill **0** and KiCad
+    keeps it at 0 on create — a degenerate via. Callers that create vias must
+    fall back to the Default net class's via size. Falls back to 0.4/0.2 mm if
+    the net classes can't be read.
+    """
+    try:
+        for nc in board.get_project().get_net_classes():
+            if getattr(nc, "name", None) in ("Default", "default"):
+                d = int(getattr(nc, "via_diameter", 0) or 0)
+                k = int(getattr(nc, "via_drill", 0) or 0)
+                if d > 0 and k > 0:
+                    return d, k
+    except Exception:
+        pass
+    return 400_000, 200_000
 
 
 def _pad_primary_layer_enum(pad) -> int | None:
@@ -1811,6 +1871,11 @@ def register_ipc_tools(mcp: FastMCP) -> None:
             if with_via and l1 is not None and l2 is not None and l1 != l2:
                 via = Via()
                 via.position = Vector2.from_xy_mm(x2, y2)
+                # A default Via() has diameter/drill 0 (degenerate). Set the
+                # board default so the via is real.
+                _vd, _vk = _board_default_via_nm(board)
+                via.diameter = _vd
+                via.drill_diameter = _vk
                 try:
                     via.net = pad1.net
                 except Exception:
@@ -1959,6 +2024,15 @@ def register_ipc_tools(mcp: FastMCP) -> None:
                 "error": f"Unknown layer: {layer!r}",
             }
         net = _find_net(board, net_name)
+        if net is None:
+            # Without a resolved net the ring tracks would be created with no
+            # net (unconnected copper) while the tool reported success — fail
+            # loudly instead (mirrors ipc_add_zone_pour).
+            return {
+                "success": False,
+                "error": f"net {net_name!r} not found on board.",
+                "segments_added": 0,
+            }
         commit = board.begin_commit()
         tracks: list = []
         for ref, pin in nodes:
@@ -2028,11 +2102,13 @@ def register_ipc_tools(mcp: FastMCP) -> None:
     ) -> dict[str, Any]:
         """Launch KiCad (pcbnew or eeschema) with an explicit project file.
 
-        Unlike :func:`_require_editor` (the auto-open hook that derives the
-        project from whichever editor is already running), this tool starts
-        from a cold KiCad state — useful when *no* editor is open yet and
-        you have the project path. The companion :func:`ipc_close_kicad`
-        sends a clean shutdown.
+        Use this to start from a **cold** KiCad state — no editor open yet —
+        when you have the project path. It deliberately refuses to spawn a
+        standalone editor when a KiCad project manager is already running
+        (that would create a second IPC server on the same socket and break
+        GetOpenDocuments for every ipc_* tool); in that case open the editor
+        from the running manager instead, or close KiCad first. The companion
+        :func:`ipc_close_kicad` sends a clean shutdown.
 
         Args:
             project_path: Path to ``.kicad_pro``, ``.kicad_pcb``, or
@@ -2044,7 +2120,12 @@ def register_ipc_tools(mcp: FastMCP) -> None:
                 IPC bus before giving up. Default 15 s.
 
         Returns:
-            ``{success, doc_type, binary, project_file, already_running}``.
+            On success ``{success: True, doc_type, binary, project_file,
+            already_running}``. On failure a ``{success: False, error, …}``
+            that may carry ``manager_running: True`` (a manager was already
+            up — open the doc there, don't double-launch) or
+            ``api_handler_missing: True`` (KiCad reached but GetOpenDocuments
+            unhandled — dual-instance state or kipy↔KiCad version skew).
         """
         from kicad_mcp.utils.path_env import to_local_path
 
@@ -2096,6 +2177,33 @@ def register_ipc_tools(mcp: FastMCP) -> None:
             }
 
         already_running = _editor_process_running(doc_type)
+        editor_name = "eeschema" if doc_type == "schematic" else "pcbnew"
+        # Guard against the dual-instance conflict: if a KiCad project manager
+        # is already running but its editor frame is not, launching a
+        # *standalone* editor here spins up a SECOND IPC API server on the same
+        # socket. The two then fight and GetOpenDocuments stops resolving
+        # ("no handler") — exactly the failure that blocks every other ipc_*
+        # tool. Don't double-launch; tell the caller to open the editor from
+        # the running manager (which shares the manager's API server) or to
+        # close KiCad fully so we can cold-start a single clean instance.
+        if not already_running and _kicad_manager_running():
+            return {
+                "success": False,
+                "error": (
+                    f"A KiCad project manager is already running. Launching a "
+                    f"standalone {editor_name} now would open a second IPC API "
+                    f"server on the same socket and break GetOpenDocuments "
+                    f"(every ipc_* tool then fails with 'no handler'). Open the "
+                    f"{doc_type} from the running KiCad project manager instead, "
+                    f"or close KiCad entirely and call this again for a clean "
+                    f"cold start."
+                ),
+                "doc_type": doc_type,
+                "binary": binary,
+                "project_file": target_file,
+                "manager_running": True,
+                "already_running": False,
+            }
         if not already_running:
             try:
                 if os.name == "nt" or binary.lower().endswith(".exe"):
@@ -2130,6 +2238,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
             if doc_type == "schematic"
             else DocumentType.DOCTYPE_PCB
         )
+        api_handler_missing = False
         deadline = time.time() + timeout_s
         while time.time() < deadline:
             try:
@@ -2142,9 +2251,32 @@ def register_ipc_tools(mcp: FastMCP) -> None:
                         "project_file": target_file,
                         "already_running": already_running,
                     }
-            except Exception:
-                pass
+            except Exception as exc:
+                # "no handler for GetOpenDocuments" never resolves by waiting —
+                # it's a dual-instance API state or a kipy<->KiCad version skew,
+                # not a slow editor launch. Break out and report it accurately
+                # instead of burning the whole timeout on a misleading message.
+                if "no handler" in str(exc).lower():
+                    api_handler_missing = True
+                    break
             time.sleep(0.3)
+        if api_handler_missing:
+            return {
+                "success": False,
+                "error": (
+                    "KiCad's API is reachable but did not handle "
+                    "GetOpenDocuments (needed to confirm the open board). This "
+                    "is almost always a dual-instance API state (a second, "
+                    "standalone editor running alongside the project manager) "
+                    "or a kipy<->KiCad version skew. Ensure exactly ONE KiCad "
+                    "instance is running (project manager + its editor), then "
+                    "retry."
+                ),
+                "api_handler_missing": True,
+                "binary": binary,
+                "project_file": target_file,
+                "already_running": already_running,
+            }
         return {
             "success": False,
             "error": (
@@ -2230,6 +2362,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
                         pass
                 if save and docs:
                     try:
+                        from google.protobuf.empty_pb2 import Empty  # type: ignore
                         from kipy.proto.common.commands.editor_commands_pb2 import (  # type: ignore  # noqa: E501
                             SaveDocument,
                         )
@@ -2238,13 +2371,17 @@ def register_ipc_tools(mcp: FastMCP) -> None:
                             cmd = SaveDocument()
                             if hasattr(cmd, "document"):
                                 cmd.document.CopyFrom(d)
-                            client._client.send(cmd)  # noqa: SLF001
+                            # send() needs a response type; without it the save
+                            # raised TypeError and was caught below → the
+                            # graceful save before the force-kill never ran.
+                            client._client.send(cmd, Empty)  # noqa: SLF001
                         result["saved"] = True
                         time.sleep(0.8)
                     except Exception as exc:
                         result["save_error"] = str(exc)
                 if docs:
                     try:
+                        from google.protobuf.empty_pb2 import Empty  # type: ignore
                         from kipy.proto.common.commands.editor_commands_pb2 import (  # type: ignore  # noqa: E501
                             CloseDocument,
                         )
@@ -2253,7 +2390,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
                             cmd = CloseDocument()
                             if hasattr(cmd, "document"):
                                 cmd.document.CopyFrom(d)
-                            client._client.send(cmd)  # noqa: SLF001
+                            client._client.send(cmd, Empty)  # noqa: SLF001
                     except Exception:
                         pass
             except Exception as exc:

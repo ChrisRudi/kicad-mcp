@@ -6,6 +6,179 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 the first tag ships.
 
+## [Unreleased]
+
+### Added
+- **KiCad Action Plugin (`plugin/`, Stufe 1)** — a "Claude" toolbar button in the PCB editor
+  that opens a chat panel wired to the open board. Each message runs one headless **Claude
+  Code** turn (`claude -p … --mcp-config … --strict-mcp-config --resume … --output-format
+  json`) against the bundled kicad-mcp server — the user's subscription, **no API key/cost**.
+  The session id from the first reply is reused so the turns form one conversation; the panel
+  is non-modal so the board updates live. Pure-logic layers (`claude_bridge`, `mcp_config`)
+  are unit-tested headless (`tests/test_plugin_bridge.py`); the wx/pcbnew layers are
+  KiCad-only. One-time user setup (install Claude Code + `claude login`, trust the project
+  dir) is unavoidable and documented in `plugin/README.md`. Backend choice (Codex/…) +
+  bundling + onboarding are Stufe 2/3.
+- Live PCB-editor **selection** tools over IPC (PLAN.md §4.2 gaps G1+G2), new module
+  `tools/ipc_interact_tools.py`: `ipc_get_selection` (read what the user has highlighted —
+  type/ref/uuid/net/layer/position/bbox, empty = note not error), `ipc_inspect_item`
+  (by ref or uuid, with `get_connected_items`), `ipc_select_items` (set selection by
+  refs/uuids/net/item_type/layer — native highlight) and `ipc_clear_selection`. Reuses the
+  existing `ipc_tools` connection helpers (one client). The PLAN.md Block-B draft was
+  condensed (v4) against the already-present IPC/`live_*` layer — Phase 0/1 + save/DRC/
+  routing were already covered; only the selection/marker/edit/DRC-session gaps remain.
+  kipy 0.7.1 selection API verified headless. Tool count 149 → 153.
+- **Presence beacon**: on the MCP's **first contact with an open board** (the first time any
+  `ipc_*` tool connects), the MCP.Skizze layer is auto-enabled + made visible and the how-to
+  legend is stamped (if missing) — so the user can *see* in KiCad that the MCP server is
+  active on this board. Runs once per server process, best-effort (never breaks a tool), and
+  is disablable with `KICAD_MCP_SKETCH_PRESENCE=0` (or false/off/no). (Note: the IPC API
+  cannot *rename* the layer, so its display stays "User.9" until renamed once in Board Setup
+  → "MCP.Skizze".)
+- The MCP marker layer is now framed as the **"MCP.Skizze" sketch / proposal layer** (the
+  agent draws marker proposals + DRC findings there; the user accepts or clears them). New
+  `ipc_draw_sketch_legend` tool stamps a short German how-to legend onto the layer so it's
+  self-documenting in KiCad; `ipc_clear_markers` was made legend-safe (it now removes only
+  `M<n>` markers + their shapes, never the legend). The layer is still `User.9` internally
+  (rename its display to "MCP.Skizze" once in Board Setup; the tools address it by enum and
+  keep working). Tool count 164 → 165. Tool docstrings/`session_status` hints updated to the
+  sketch-layer terminology.
+- Live PCB-editor **markers** over IPC (PLAN.md §4.2 gap G3): `ipc_draw_markers`
+  (circle/cross/label on a dedicated MCP user layer, sequential `M<n>` IDs encoded in each
+  marker's text), `ipc_list_markers`, `ipc_clear_markers` (all or by ID) and
+  `ipc_check_markers_before_save` (warn before a git commit). Graphics only, undoable. The
+  marker layer (default `User.9`) is auto-**enabled and made visible** — KiCad silently drops
+  `create_items` onto a disabled layer, and a hidden layer shows nothing. The whole
+  create→commit→scan→remove pipeline + the layer enable/visible handling were validated live
+  against a running KiCad 10.0.1 (the `set_enabled_layers(copper_count, layers)` signature and
+  the BoardText/BoardCircle/BoardSegment construction were confirmed on the real board, not
+  just mocks). Tool count 153 → 157.
+- Live PCB-editor **edits + DRC session + status** over IPC (PLAN.md §4.2 gaps G4/G5/G6),
+  completing the condensed Block B. G4: `ipc_create_via` (custom diameter/drill via the kipy
+  `Via.diameter`/`drill_diameter` setters), `ipc_accept_markers` (turn G3 markers into real
+  vias + clear them), `ipc_set_track_width`, `ipc_move_items`, `ipc_remove_items` (by uuid).
+  G5: `ipc_drc_session_start` — saves the live board (`board.save()`), runs headless
+  `kicad-cli` DRC, drops a capped set of cross markers at the violations and returns
+  counts + item uuids so you can select→fix→re-check. G6: `ipc_session_status` — read-only
+  roll-up of open markers + current selection. All edit primitives (via create, width,
+  move, remove, `board.save()`, DRC parse) were validated live against KiCad 10.0.1 on a
+  real board (scrap items created and removed). Source-confirmed via the local kipy package
+  (`create_items` takes a list; `update_items`/`remove_items_by_id`; `Via.diameter`).
+  Tool count 157 → 164.
+- `compute_pin_world_positions_sch` now accepts an optional `refs` list to restrict
+  the output to specific symbols (e.g. `refs=["U1B"]`). Without it the full-board pin
+  dump routinely exceeded the MCP token limit on real boards; the filter returns only
+  the requested symbols and reports unknown refs in `not_found`. No new tool, fully
+  backward-compatible (omitting `refs` returns every symbol). (PLAN.md Anhang A — S1)
+- New `add_no_connect(sch_path, x_mm, y_mm)` tool — places a no-connect (×) flag at a
+  pin so ERC stops raising `pin_not_connected` for an intentionally unused/reserved pin.
+  Deterministic UUID + grid-snap (new `render_no_connect` renderer); removable via
+  `delete_schematic_items` `types=["no_connect"]`. Tool count 147 → 148. (PLAN.md Anhang A — S5)
+- `bulk_swap_symbol` can now resolve the target symbol from a **project-local**
+  (`${KIPRJMOD}`) `sym-lib-table`, not just stock + global libraries — via the new
+  `get_project_symbol()` resolver and an optional `project_dir` arg on
+  `SchematicDoc.ensure_lib_symbol`. (PLAN.md Anhang A — S2)
+- New `create_library_symbol` tool — authors a complete KiCad library symbol
+  (`.kicad_sym` entry) from a pin spec: a rectangular-IC body with pins evenly pitched
+  and centred on the requested sides (left/right/top/bottom, auto-split when omitted).
+  Creates/extends the `.kicad_sym` (replace existing only with `overwrite=true`) and can
+  register the lib project-locally (`register_in_project`) so the S2 resolver picks it up.
+  Lets an agent create custom parts via MCP instead of hand-editing `.kicad_sym` (which has
+  corrupted symbols before). Output validated by `kicad-cli sym upgrade`. New generator
+  module `generators/symbol_author.py`. Tool count 148 → 149. (PLAN.md Anhang A — S6)
+
+- `add_power_symbols` gained a `snap` flag (tool-wide, default `True`) plus a per-anchor
+  `"snap"` override, and `render_symbol_instance` / `_build_power_symbol_snippet` gained a
+  matching `snap` parameter (default `True`, all other callers unchanged). (PLAN.md Anhang A — S4)
+
+### Fixed
+- `_patch_loaded_footprint` (used by `update_pcb_from_schematic` add_new,
+  `resolve_pcb_footprints`, `_swap_fp_library`) wrote the board position onto the
+  **Reference property's local `(at)`** instead of inserting a footprint-header `(at)` — a
+  raw `.kicad_mod` has no header `(at)`, so "the first `(at)`" is the ref label's offset.
+  Result: added footprints stacked at one spot and their ref designators flew off by the
+  staging coordinate (confirmed on the V16_06 board). It now always inserts a real header
+  `(at)` and leaves every property's local `(at)` untouched.
+- `_ensure_index_net` gave the **first** net on a bootstrap index-format board index **0** —
+  KiCad's "no net" sentinel — so that net read as unconnected. Real nets now start at 1 and a
+  `(net 0 "")` sentinel is emitted.
+- **Multi-unit symbols** were placed wrong: `render_symbol_instance` hardcoded `(unit 1)` and
+  `get_lib_symbol_pins` returned the **union of all units'** pins — so placing unit 2 of a
+  multi-unit part (op-amp, 74xx gate) emitted unit 1's pin UUIDs and corrupted connectivity.
+  `add_schematic_symbols` now takes a per-part `unit` field; `get_lib_symbol_pins(node, unit=N)`
+  filters to that unit's pins (+ the shared unit-0 pins), and `(unit N)` is emitted in both the
+  header and the instances block.
+- `connect_pins` / `add_schematic_wire` / `render_wire` force-snapped wire endpoints to the
+  1.27 mm grid, pulling a wire **off a fine-pitch IC pin** (off-grid pad) and breaking the net
+  — the same footgun fixed earlier for `add_power_symbols`. They now take a `snap` flag
+  (default True); pass `snap=false` to land exactly on a pin endpoint from
+  `compute_pin_world_positions_sch`.
+- Symbol extraction (`symbol_cache`) used **string-literal-unaware** paren counting, so a
+  stray `)` inside a property string (e.g. `Description "smiley :)"`) or a `(`/`)` in a
+  sym-lib-table URI/descr **truncated** the extracted symbol/lib block — KiCad then rejects
+  or mis-renders it. `_extract_top_level_symbol` and `_iter_sym_lib_blocks` are now
+  string-aware (new `_balanced_block_end`/`_paren_depth_before` helpers).
+- `(extends …)` inlining discarded the **derived** symbol's own properties: the inlined
+  symbol carried the *base's* Description/keywords/Footprint instead of the derived ones.
+  It now overlays the derived symbol's properties onto the base geometry (verified against
+  stock `Filter_EMI_CommonMode`).
+- `ipc_route_pin_to_pin` created its layer-change via at **zero size** (same default-`Via()`
+  bug) — now uses the board default via size (`_board_default_via_nm`, shared with
+  `ipc_create_via`).
+- `ipc_route_power_ring` **silently created unconnected copper** when the net name wasn't
+  found: it built the ring tracks with no net but reported `success`. It now fails loudly
+  (mirrors `ipc_add_zone_pour`).
+- `ipc_close_kicad` / `_close_editor_silent` called `client._client.send(cmd)` **without the
+  required response type**, raising a `TypeError` that was swallowed — so the graceful
+  Save/CloseDocument before the force-`taskkill` never actually ran (risking a lost save).
+  Now pass `Empty`, matching the working call sites.
+- `ipc_create_via` / `ipc_accept_markers` created **zero-size vias** when `size_mm`/`drill_mm`
+  were left at 0: a default kipy `Via()` has diameter/drill 0 and KiCad keeps it at 0 (a
+  degenerate via). They now fall back to the board's Default net-class via size (new
+  `_board_default_via_nm` helper; 0.4/0.2 mm fallback). Verified live (size 0 → 0.4/0.2 mm).
+- `ipc_draw_markers` / `ipc_drc_session_start` drew **degenerate circle markers**: kipy's
+  `Circle` has no `radius` setter (it's a derived method), so `c.radius = …` was a silent
+  no-op that left `radius_point` at the origin → a circle from the marker centre to (0,0)
+  instead of a small ring. Now sets `radius_point = centre + (radius, 0)`. (Found by the
+  source-vs-impl audit; confirmed against the kipy `Circle` source.)
+- `via_promote` silently did nothing: it rewrote a blind/buried via's `(layers …)` to
+  `"F.Cu" "B.Cu"` but left the `(via blind`/`(via buried` **type token**, which KiCad treats
+  as authoritative over the layer pair — so the via stayed blind/buried at fab and the
+  reported tier savings were fictional. It now also strips the type token (verified against
+  pcbnew's `GetViaType()`). (Found by the geometry audit.)
+- `ipc_inspect_item` / `ipc_get_selection` / `ipc_select_items` read footprint references
+  wrong against **live kipy**: `Field.text` is a `BoardText` (string in `.value`), not a bare
+  string, so `_field_text` returned the object and every footprint ref/value lookup missed
+  (found via a live smoke — the mocks used the flat shape). Fixed `_field_text` to unwrap
+  `.value`; the unit mocks now mirror the real nested shape so this can't regress.
+- `ipc_inspect_item` now answers footprint connectivity via the **pad→net map**
+  (`pads` + distinct `nets`) instead of `get_connected_items`, which KiCad rejects for a
+  footprint argument. Verified live on `U_589` (the 74HC589: pins 1–6 = `nFAULT_DRV1..6`).
+- `ipc_open_kicad` could launch a **standalone** pcbnew/eeschema while a KiCad **project
+  manager** was already running — two IPC API servers then fought over one socket and
+  `GetOpenDocuments` stopped resolving (`no handler`), which silently broke *every* `ipc_*`
+  tool. It now detects a running manager (new `_kicad_manager_running()` helper) and refuses
+  to double-launch, returning `manager_running: True` with guidance to open the editor from
+  the manager (or close KiCad for a clean cold start). The readiness poll also now
+  distinguishes the unrecoverable `no handler for GetOpenDocuments` state (returns
+  `api_handler_missing: True` immediately) from a slow editor launch, instead of burning the
+  whole timeout on a misleading "enable the API" message.
+- `add_power_symbols` force-snapped every anchor to the 1.27 mm grid, which silently moved a
+  power symbol up to ~0.6 mm **off** a fine-pitch IC pin (pads at 0.65 / 0.5 mm pitch are
+  off-grid) — the connection point no longer coincided with the pad and ERC raised
+  `pin_not_connected`. (This was the real cause behind the "power-symbol-on-pin doesn't
+  connect" symptom; pin-on-pin itself connects fine.) Pass `snap=false` (or `"snap": false`
+  on the anchor) to land the connection point exactly on the pin endpoint from
+  `compute_pin_world_positions_sch`. (PLAN.md Anhang A — S4)
+- `bulk_swap_symbol` embedded the **wrong geometry** for the new symbol: it renamed the
+  old cached `lib_symbol` block in place, keeping the source symbol's graphics and pin map
+  under the target's name. Whenever the two symbols differed (the entire point of a swap)
+  the schematic showed/used the old body. It now **drops** the stale block (new
+  `SchematicDoc.drop_lib_symbol`) and **re-embeds** the target's real definition fresh from
+  the library — its true graphics and per-unit children (correctly bare-named) land in
+  `lib_symbols`. An unresolvable target now fails cleanly without writing a half-applied
+  swap, and the result reports `old_lib_symbol_dropped`. (PLAN.md Anhang A — S2)
+
 ## [1.0.0] — 2026-06-09 — First public release (GPL-3.0-or-later)
 
 First tagged, publicly released version. Headline changes vs. the
