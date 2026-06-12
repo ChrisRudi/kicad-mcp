@@ -26,7 +26,10 @@ def _mcp_root() -> str:
 
     1) ``KICAD_MCP_ROOT`` env (if it actually contains ``kicad_mcp/``),
     2) the bundled copy shipped inside the plugin (``<plugin>/mcp``),
-    3) the dev checkout fallback.
+    3) the dev checkout fallback (only if it actually exists),
+    4) else the bundled path anyway — it is the EXPECTED location, so every
+       preflight/probe error message then points at the right directory
+       instead of a foreign dev path.
     """
     env = os.environ.get("KICAD_MCP_ROOT", "").strip()
     if env and os.path.isdir(os.path.join(env, "kicad_mcp")):
@@ -34,7 +37,9 @@ def _mcp_root() -> str:
     bundled = os.path.join(os.path.dirname(__file__), "mcp")
     if os.path.isdir(os.path.join(bundled, "kicad_mcp")):
         return bundled
-    return _DEV_MCP_ROOT
+    if os.path.isdir(os.path.join(_DEV_MCP_ROOT, "kicad_mcp")):
+        return _DEV_MCP_ROOT
+    return bundled
 
 # Keep references so non-modal dialogs aren't garbage-collected.
 _OPEN_DIALOGS: list = []

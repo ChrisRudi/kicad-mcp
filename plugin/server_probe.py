@@ -69,9 +69,22 @@ def probe_server(kicad_py: Optional[str], mcp_root: str,
     ``missing_dep`` is True when the failure is a ModuleNotFoundError — then
     the one-click dependency install is the right fix. Never raises.
     """
-    out = {"ok": False, "error": "", "missing_dep": False}
+    out = {"ok": False, "error": "", "missing_dep": False,
+           "missing_root": False}
     if not kicad_py:
         out["error"] = "KiCad-Python nicht gefunden"
+        return out
+    # "Error while finding module specification for 'kicad_mcp.server'" means
+    # the PACKAGE itself is missing under mcp_root (broken/partial plugin
+    # install) — say that precisely instead of a generic module error.
+    pkg_dir = os.path.join(mcp_root, "kicad_mcp")
+    if not os.path.isdir(pkg_dir):
+        out["error"] = (
+            f"kicad_mcp-Paket fehlt: {pkg_dir} existiert nicht — "
+            "Plugin-Installation unvollständig. In der Einrichtung "
+            "'Update prüfen' ausführen (lädt den mcp/-Ordner neu)."
+        )
+        out["missing_root"] = True
         return out
     env = dict(os.environ)
     if deps_dir is None:
@@ -97,7 +110,8 @@ def probe_server(kicad_py: Optional[str], mcp_root: str,
         out["ok"] = True
         return out
     rc = getattr(proc, "returncode", None)
-    out["error"] = (error_tail(stderr or stdout)
-                    or f"Kein MCP-Handshake (exit {rc})")
+    tail = error_tail(stderr or stdout) or f"Kein MCP-Handshake (exit {rc})"
+    # The used path is half the diagnosis — show it in the red row.
+    out["error"] = f"{tail} [PYTHONPATH={env['PYTHONPATH']}]"
     out["missing_dep"] = "ModuleNotFoundError" in (stderr or "")
     return out

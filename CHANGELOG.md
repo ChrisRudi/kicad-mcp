@@ -9,6 +9,14 @@ the first tag ships.
 ## [Unreleased]
 
 ### Fixed
+- **Plugin v0.2.12: „Error while finding module" präzise diagnostiziert.** Diese Meldung
+  heißt: das `kicad_mcp`-Paket selbst fehlt unter dem `mcp_root` (unvollständige
+  Plugin-Installation) — nicht fehlende Abhängigkeiten. Die Server-Probe prüft das jetzt
+  vor dem Start und meldet den konkreten fehlenden Pfad samt Abhilfe („Update prüfen"
+  lädt den `mcp/`-Ordner neu); jeder andere Probe-Fehler zeigt zusätzlich den verwendeten
+  `PYTHONPATH` in der roten Zeile. `_mcp_root()` fällt außerdem nicht mehr auf einen
+  nicht existierenden Dev-Pfad zurück, sondern auf den gebündelten `mcp/`-Pfad — damit
+  zeigen Fehlermeldungen immer auf das erwartete Verzeichnis.
 - **Plugin v0.2.11: Claude darf im Board-Chat keine Dateien mehr schreiben.** Ohne
   verbundenen MCP hat Claude Fragen „hilfsbereit" beantwortet, indem es Projektdateien
   (`.kicad_pcb`/`.kicad_sch`/`.kicad_pro`) mit seinen eingebauten Tools direkt editierte —

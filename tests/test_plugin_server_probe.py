@@ -12,6 +12,8 @@ import json
 import os
 import subprocess
 
+import pytest
+
 from plugin import server_probe
 
 _OK_REPLY = ('{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":'
@@ -45,50 +47,72 @@ def _popen_for(proc, capture=None):
     return _popen
 
 
+@pytest.fixture
+def root(tmp_path):
+    """A valid mcp_root: contains the kicad_mcp package directory."""
+    (tmp_path / "kicad_mcp").mkdir()
+    return str(tmp_path)
+
+
 class TestProbeServer:
-    def test_handshake_reply_is_ok(self):
+    def test_handshake_reply_is_ok(self, root):
         proc = _FakeProc(stdout=_OK_REPLY)
-        res = server_probe.probe_server("/k/py", "/repo",
+        res = server_probe.probe_server("/k/py", root,
                                         _popen=_popen_for(proc))
         assert res["ok"] is True and res["error"] == ""
         req = json.loads(proc.sent)
         assert req["method"] == "initialize"  # real MCP handshake sent
 
-    def test_launches_like_claude_does(self):
+    def test_launches_like_claude_does(self, root):
         seen = {}
         server_probe.probe_server(
-            "/k/py", "/repo", _popen=_popen_for(_FakeProc(stdout=_OK_REPLY),
-                                                capture=seen),
+            "/k/py", root, _popen=_popen_for(_FakeProc(stdout=_OK_REPLY),
+                                             capture=seen),
             deps_dir="/plug/_deps")
         assert seen["cmd"] == ["/k/py", "-m", "kicad_mcp.server"]
-        assert seen["env"]["PYTHONPATH"] == "/repo" + os.pathsep + "/plug/_deps"
+        assert seen["env"]["PYTHONPATH"] == root + os.pathsep + "/plug/_deps"
 
-    def test_missing_dep_flagged_with_traceback_tail(self):
+    def test_missing_package_named_precisely(self, tmp_path):
+        # "Error while finding module specification" == kicad_mcp missing
+        # under mcp_root: the probe must say that BEFORE starting anything.
+        res = server_probe.probe_server(
+            "/k/py", str(tmp_path / "leer"), _popen=_popen_for(_FakeProc()))
+        assert res["ok"] is False and res["missing_root"] is True
+        assert "kicad_mcp-Paket fehlt" in res["error"]
+        assert str(tmp_path / "leer") in res["error"]
+
+    def test_missing_dep_flagged_with_traceback_tail(self, root):
         stderr = ("Traceback (most recent call last):\n"
                   '  File "<string>", line 1, in <module>\n'
                   "ModuleNotFoundError: No module named 'fastmcp'\n")
         proc = _FakeProc(stderr=stderr, rc=1)
-        res = server_probe.probe_server("/k/py", "/repo",
+        res = server_probe.probe_server("/k/py", root,
                                         _popen=_popen_for(proc))
         assert res["ok"] is False and res["missing_dep"] is True
         assert "fastmcp" in res["error"]
 
-    def test_runtime_crash_is_not_missing_dep(self):
+    def test_failure_shows_used_pythonpath(self, root):
         proc = _FakeProc(stderr="ValueError: kaputt", rc=1)
-        res = server_probe.probe_server("/k/py", "/repo",
+        res = server_probe.probe_server("/k/py", root,
+                                        _popen=_popen_for(proc))
+        assert "PYTHONPATH=" in res["error"] and root in res["error"]
+
+    def test_runtime_crash_is_not_missing_dep(self, root):
+        proc = _FakeProc(stderr="ValueError: kaputt", rc=1)
+        res = server_probe.probe_server("/k/py", root,
                                         _popen=_popen_for(proc))
         assert res["ok"] is False and res["missing_dep"] is False
         assert "kaputt" in res["error"]
 
-    def test_silent_exit_without_reply_is_error(self):
+    def test_silent_exit_without_reply_is_error(self, root):
         proc = _FakeProc(stdout="", stderr="", rc=0)
-        res = server_probe.probe_server("/k/py", "/repo",
+        res = server_probe.probe_server("/k/py", root,
                                         _popen=_popen_for(proc))
         assert res["ok"] is False and "Handshake" in res["error"]
 
-    def test_hanging_server_killed_and_reported(self):
+    def test_hanging_server_killed_and_reported(self, root):
         proc = _FakeProc(hang=True)
-        res = server_probe.probe_server("/k/py", "/repo", timeout=5,
+        res = server_probe.probe_server("/k/py", root, timeout=5,
                                         _popen=_popen_for(proc))
         assert res["ok"] is False and "5" in res["error"]
         assert proc.killed is True
