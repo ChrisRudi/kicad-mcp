@@ -9,6 +9,21 @@ the first tag ships.
 ## [Unreleased]
 
 ### Fixed
+- **Plugin v0.2.11: Claude darf im Board-Chat keine Dateien mehr schreiben.** Ohne
+  verbundenen MCP hat Claude Fragen „hilfsbereit" beantwortet, indem es Projektdateien
+  (`.kicad_pcb`/`.kicad_sch`/`.kicad_pro`) mit seinen eingebauten Tools direkt editierte —
+  KiCad sah externe Änderungen an offenen Dokumenten und meldete beim Öffnen/Schließen
+  dauerhaft „ungespeicherte Änderungen". Jeder `claude -p`-Aufruf läuft jetzt mit
+  `--disallowedTools Bash,Edit,Write,MultiEdit,NotebookEdit`: Mutationen gehen
+  ausschließlich über die MCP-Tools (die Flip/Rotation/Netz korrekt rechnen), Lesen
+  (Read/Grep/Glob) bleibt erlaubt.
+- **Plugin v0.2.11: Server-Probe ist jetzt eine echte Generalprobe (MCP-Handshake).**
+  Die Import-Probe reichte im Feld nicht („alles installiert, MCP läuft trotzdem nicht"):
+  Module können importierbar sein und der Server trotzdem beim Start sterben. Die Probe
+  startet den Server jetzt exakt wie Claude (`python -m kicad_mcp.server`, gleiche
+  `PYTHONPATH`) und verlangt die Antwort auf ein echtes MCP-`initialize` über stdio —
+  antwortet er der Probe, antwortet er auch Claude. Bei Fehlschlag zeigt die rote
+  Preflight-Zeile den echten Stderr-Traceback (Timeout 120 s für den Kaltstart).
 - **Plugin v0.2.10: Deps-Installation ist jetzt selbst-diagnostizierend.** Das
   Install-Terminal zeigt, welches Python läuft (`<KiCad>\bin\python.exe` + Version),
   bootstrappt pip per `ensurepip --user`, falls das KiCad-Bundle ohne pip ausgeliefert

@@ -1,32 +1,52 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Does the bundled kicad-mcp server actually START in KiCad's Python?
+"""Does the bundled kicad-mcp server actually START for Claude? Full dress
+rehearsal: launch the server EXACTLY like Claude Code will (``python -m
+kicad_mcp.server`` with PYTHONPATH = mcp_root + plugin ``_deps``) and complete
+the MCP ``initialize`` handshake over stdio.
 
 ``claude -p`` drops a failing MCP server SILENTLY: the chat still answers,
-just without any board tools ("kein MCP verbunden"). The fast find_spec
-dependency check can't catch everything (version conflicts, broken installs,
-import-time errors), so this probe runs the real thing: KiCad's Python
-imports ``kicad_mcp.server`` with the same PYTHONPATH the MCP config uses.
-Import time is where the server dies in practice (top-level ``from fastmcp
-import FastMCP``); when the import succeeds, ``python -m kicad_mcp.server``
-will start.
+just without any board tools ("kein MCP verbunden"). An import-only probe
+proved insufficient in the field — modules can import fine while the server
+still dies at startup — so the handshake is the authoritative check: if it
+answers ``initialize``, it will answer Claude. On failure the real stderr
+tail (traceback) is returned for the preflight panel.
 
-Pure logic (injectable runner); unit-testable headless.
+Pure logic (injectable Popen); unit-testable headless.
 """
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
-from typing import Optional
+from typing import Any, Optional
 
 from . import deps
 from .claude_bridge import hidden_console_kwargs
 
-PROBE_CODE = "import kicad_mcp.server"
+PROBE_TIMEOUT = 120.0  # cold start imports pandas + 165 tools — be generous
+
+
+def _popen_kwargs() -> dict:
+    # hidden_console_kwargs' stdin=DEVNULL would clash with the stdin PIPE the
+    # handshake needs — keep only the no-window flag.
+    return {k: v for k, v in hidden_console_kwargs().items() if k != "stdin"}
+
+
+def init_request() -> str:
+    """One MCP ``initialize`` JSON-RPC line, as a stdio client would send."""
+    return json.dumps({
+        "jsonrpc": "2.0", "id": 1, "method": "initialize",
+        "params": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {"name": "kicad-claude-plugin", "version": "probe"},
+        },
+    }) + "\n"
 
 
 def build_probe_cmd(kicad_py: str) -> list:
-    return [kicad_py, "-c", PROBE_CODE]
+    return [kicad_py, "-m", "kicad_mcp.server"]
 
 
 def error_tail(stderr: str, lines: int = 3) -> str:
@@ -35,10 +55,16 @@ def error_tail(stderr: str, lines: int = 3) -> str:
     return " | ".join(rows[-lines:])
 
 
+def is_handshake_reply(stdout: str) -> bool:
+    """Did the server answer ``initialize``? (serverInfo in a result line)"""
+    return '"serverInfo"' in (stdout or "")
+
+
 def probe_server(kicad_py: Optional[str], mcp_root: str,
-                 timeout: float = 90.0, _run=subprocess.run,
+                 timeout: float = PROBE_TIMEOUT,
+                 _popen: Any = subprocess.Popen,
                  deps_dir: Optional[str] = None) -> dict:
-    """Run the import probe; returns ``{ok, error, missing_dep}``.
+    """Run the handshake probe; returns ``{ok, error, missing_dep}``.
 
     ``missing_dep`` is True when the failure is a ModuleNotFoundError — then
     the one-click dependency install is the right fix. Never raises.
@@ -53,20 +79,25 @@ def probe_server(kicad_py: Optional[str], mcp_root: str,
     # exactly what the MCP config will use
     env["PYTHONPATH"] = mcp_root + (os.pathsep + deps_dir if deps_dir else "")
     try:
-        proc = _run(build_probe_cmd(kicad_py), capture_output=True, text=True,
-                    timeout=timeout, check=False, env=env,
-                    **hidden_console_kwargs())
-    except subprocess.TimeoutExpired:
-        out["error"] = f"Import-Probe hängt (> {int(timeout)}s)"
-        return out
+        proc = _popen(build_probe_cmd(kicad_py), stdin=subprocess.PIPE,
+                      stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                      text=True, env=env, **_popen_kwargs())
+        try:
+            # closing stdin after the request makes a healthy server exit
+            stdout, stderr = proc.communicate(init_request(), timeout=timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.communicate()
+            out["error"] = f"Server antwortet nicht (> {int(timeout)}s)"
+            return out
     except Exception as exc:
         out["error"] = str(exc)
         return out
-    if getattr(proc, "returncode", 1) == 0:
+    if is_handshake_reply(stdout):
         out["ok"] = True
         return out
-    stderr = proc.stderr or ""
-    out["error"] = (error_tail(stderr or proc.stdout)
-                    or "Import fehlgeschlagen (ohne Meldung)")
-    out["missing_dep"] = "ModuleNotFoundError" in stderr
+    rc = getattr(proc, "returncode", None)
+    out["error"] = (error_tail(stderr or stdout)
+                    or f"Kein MCP-Handshake (exit {rc})")
+    out["missing_dep"] = "ModuleNotFoundError" in (stderr or "")
     return out

@@ -86,6 +86,15 @@ def _parse_json_reply(stdout: str) -> tuple[str, Optional[str]]:
     return stdout, session_id
 
 
+# Claude must NEVER text-edit project files itself: without (or even with)
+# the MCP it would otherwise "helpfully" patch .kicad_pcb/.kicad_sch/.kicad_pro
+# directly — KiCad sees external edits on open documents and nags about
+# unsaved changes; and hand-patched geometry is exactly what the MCP server
+# exists to prevent. Mutations go through MCP tools only; reading stays
+# allowed (Read/Grep/Glob are useful and harmless).
+FORBIDDEN_BUILTIN_TOOLS = "Bash,Edit,Write,MultiEdit,NotebookEdit"
+
+
 def build_command(
     claude: list[str],
     prompt: str,
@@ -98,6 +107,7 @@ def build_command(
         "--mcp-config", mcp_config_path,
         "--strict-mcp-config",            # ONLY the bundled kicad-mcp
         "--dangerously-skip-permissions",  # headless: no TTY to approve tools
+        "--disallowedTools", FORBIDDEN_BUILTIN_TOOLS,
         "--output-format", "json",
     ]
     if session_id:

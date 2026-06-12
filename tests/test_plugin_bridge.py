@@ -26,6 +26,15 @@ class TestBuildCommand:
         assert cmd[cmd.index("--output-format") + 1] == "json"
         assert "--resume" not in cmd                 # first turn, no session
 
+    def test_file_mutation_tools_forbidden(self):
+        # Claude must not text-edit project files itself (KiCad nags about
+        # external edits; geometry patching is the MCP server's job).
+        cmd = claude_bridge.build_command(
+            ["claude"], "x", "/m.json", session_id=None)
+        forbidden = cmd[cmd.index("--disallowedTools") + 1]
+        for tool in ("Edit", "Write", "Bash"):
+            assert tool in forbidden
+
     def test_resume_added_when_session(self):
         cmd = claude_bridge.build_command(
             ["wsl.exe", "claude"], "weiter", "/tmp/m.json", session_id="abc-123")
