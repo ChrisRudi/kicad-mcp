@@ -92,9 +92,11 @@ class ClaudeChatPanel(wx.Panel):
 
         self.SetSizer(root)
 
-        # Pulsing CLI-style spinner ("✻ Claude denkt nach … (12s)").
+        # Pulsing CLI-style spinner ("✻ Claude denkt nach … (12s)") plus the
+        # live activity from the stream ("Tool list_pcb_footprints …").
         self._spinner = wx.Timer(self)
         self._tick = 0
+        self._activity = ""
         self.Bind(wx.EVT_TIMER, self._on_spin, self._spinner)
         self.Bind(wx.EVT_WINDOW_DESTROY, self._on_destroy)
 
@@ -137,15 +139,23 @@ class ClaudeChatPanel(wx.Panel):
         self._in.Enable(not busy)
         if busy:
             self._tick = 0
+            self._activity = ""
             self._set_status(theme.spinner_label(0), theme.CLAUDE_ORANGE)
             self._spinner.Start(theme.SPINNER_INTERVAL_MS)
         else:
             self._spinner.Stop()
             self._set_status(theme.STATUS_READY, theme.DIM)
 
+    def _on_activity(self, text: str) -> None:
+        """Live progress from the stream (called via wx.CallAfter)."""
+        self._activity = text or ""
+
     def _on_spin(self, _evt) -> None:
         self._tick += 1
-        self._set_status(theme.spinner_label(self._tick), theme.CLAUDE_ORANGE)
+        label = theme.spinner_label(self._tick)
+        if self._activity:
+            label += "  ·  " + self._activity
+        self._set_status(label, theme.CLAUDE_ORANGE)
 
     def _on_destroy(self, evt) -> None:
         self._spinner.Stop()  # never let the timer outlive the window
@@ -173,12 +183,20 @@ class ClaudeChatPanel(wx.Panel):
             mcp_config_path=self._plan.config_arg_path,
             session_id=self._session_id,
             claude_cmd=self._plan.claude_cmd,
+            on_status=lambda s: wx.CallAfter(self._on_activity, s),
         )
         wx.CallAfter(self._on_reply, result)
 
     def _on_reply(self, result: dict) -> None:
         if not self:  # panel destroyed while Claude was thinking
             return
+        mcp_status = result.get("mcp_status") or ""
+        if mcp_status.startswith("failed"):
+            self._append(
+                "error",
+                "MCP nicht verbunden (" + mcp_status + ") — Antwort kam OHNE "
+                "Board-Tools. Einrichtung öffnen und 'Erneut prüfen'.",
+            )
         if result.get("ok"):
             self._session_id = result.get("session_id") or self._session_id
             self._append("claude", result.get("text") or "(keine Antwort)")

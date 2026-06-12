@@ -8,6 +8,17 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed
+- **Plugin v0.2.16: Streaming statt 300-s-Fallbeil.** Der Chat konsumiert `claude -p`
+  jetzt als `stream-json` (mit `--verbose`): Die Statuszeile zeigt **live**, was gerade
+  passiert („✻ Claude denkt nach … (45s) · Tool list_pcb_footprints …"), und abgebrochen
+  wird nur noch bei **Inaktivität** (180 s ohne Stream-Event; Sicherheitsdeckel 30 min)
+  statt nach starren 300 s Gesamtzeit — ehrliche lange Board-Arbeit (OneDrive-Kaltreads
+  ~80 s/Datei) überlebt damit. Bonus: Das Init-Event verrät den **MCP-Verbindungsstatus**
+  pro Turn; ist der Server nicht verbunden, zeigt das Panel das jetzt als rote Zeile statt
+  stillschweigend ohne Board-Tools zu antworten. Idle-Abbrüche nennen die häufigsten
+  Ursachen (Projekt-Trust, `claude login`).
+
 ### Fixed
 - **Plugin v0.2.15 — ROOT CAUSE „MCP läuft nicht": KiCads Python ignoriert `PYTHONPATH`.**
   Experimentell bestätigt auf der betroffenen Maschine: `set PYTHONPATH=…` +

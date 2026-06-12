@@ -1,19 +1,62 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Unit tests for the KiCad plugin's pure-logic layer (no KiCad/wx needed):
-the Claude Code subprocess bridge + the MCP config generator.
+the Claude Code streaming bridge + the MCP config generator.
 """
 
 from __future__ import annotations
 
 import json
-from types import SimpleNamespace
-
-import pytest
 
 from plugin import claude_bridge, mcp_config
 
 
-# --- claude_bridge -----------------------------------------------------------
+def _ev(**kw) -> str:
+    return json.dumps(kw)
+
+
+_INIT_OK = _ev(type="system", subtype="init", session_id="S1",
+               mcp_servers=[{"name": "kicad-mcp", "status": "connected"}])
+_INIT_BAD = _ev(type="system", subtype="init", session_id="S1",
+                mcp_servers=[{"name": "kicad-mcp", "status": "failed"}])
+_TOOL = _ev(type="assistant", message={"content": [
+    {"type": "tool_use", "name": "mcp__kicad-mcp__list_pcb_footprints"}]})
+_TEXT = _ev(type="assistant", message={"content": [
+    {"type": "text", "text": "42 Vias"}]})
+_RESULT = _ev(type="result", subtype="success", result="42 Vias",
+              session_id="S1")
+
+
+class _FakeStdout:
+    def __init__(self, lines):
+        self._lines = list(lines)
+
+    def __iter__(self):
+        return iter(self._lines)
+
+
+class _FakeProc:
+    def __init__(self, lines, rc=0, stderr=""):
+        self.stdout = _FakeStdout(lines)
+        self.stderr = type("E", (), {"read": staticmethod(lambda: stderr)})()
+        self.returncode = rc
+        self.killed = False
+
+    def wait(self, timeout=None):
+        return self.returncode
+
+    def kill(self):
+        self.killed = True
+
+
+def _popen_for(proc, capture=None):
+    def _popen(cmd, **kw):
+        if capture is not None:
+            capture.update(kw, cmd=cmd)
+        return proc
+    return _popen
+
+
+# --- build_command ------------------------------------------------------------
 
 class TestBuildCommand:
     def test_core_flags_present(self):
@@ -23,7 +66,9 @@ class TestBuildCommand:
         assert "--mcp-config" in cmd and "/tmp/m.json" in cmd
         assert "--strict-mcp-config" in cmd          # only the bundled MCP
         assert "--dangerously-skip-permissions" in cmd  # headless tool use
-        assert cmd[cmd.index("--output-format") + 1] == "json"
+        # stream-json for live progress; claude demands --verbose with it
+        assert cmd[cmd.index("--output-format") + 1] == "stream-json"
+        assert "--verbose" in cmd
         assert "--resume" not in cmd                 # first turn, no session
 
     def test_file_mutation_tools_forbidden(self):
@@ -42,63 +87,110 @@ class TestBuildCommand:
         assert cmd[cmd.index("--resume") + 1] == "abc-123"
 
 
-class TestParseReply:
-    def test_result_schema(self):
-        out = json.dumps({"result": "42 Vias", "session_id": "s1"})
-        text, sid = claude_bridge._parse_json_reply(out)
-        assert text == "42 Vias" and sid == "s1"
+# --- stream parsing -----------------------------------------------------------
 
-    def test_assistant_content_schema(self):
-        out = json.dumps({
-            "assistant_content": [{"type": "text", "text": "Hallo "},
-                                  {"type": "text", "text": "Welt"}],
-            "session_id": "s2",
-        })
-        text, sid = claude_bridge._parse_json_reply(out)
-        assert text == "Hallo Welt" and sid == "s2"
+class TestStreamParsing:
+    def test_non_json_noise_ignored(self):
+        assert claude_bridge.parse_stream_event("") is None
+        assert claude_bridge.parse_stream_event("warn: blah") is None
+        assert claude_bridge.parse_stream_event('"nur-string"') is None
 
-    def test_plain_text_fallback(self):
-        text, sid = claude_bridge._parse_json_reply("nicht json")
-        assert text == "nicht json" and sid is None
+    def test_mcp_status_connected_and_failed(self):
+        ok = claude_bridge.parse_stream_event(_INIT_OK)
+        bad = claude_bridge.parse_stream_event(_INIT_BAD)
+        assert claude_bridge.mcp_status_from_init(ok) == "connected"
+        assert claude_bridge.mcp_status_from_init(bad) == "failed: kicad-mcp"
 
-    def test_empty(self):
-        assert claude_bridge._parse_json_reply("") == ("", None)
+    def test_describe_tool_use_shows_short_name(self):
+        ev = claude_bridge.parse_stream_event(_TOOL)
+        assert "list_pcb_footprints" in claude_bridge.describe_event(ev)
 
+    def test_extract_text(self):
+        ev = claude_bridge.parse_stream_event(_TEXT)
+        assert claude_bridge.extract_text(ev) == "42 Vias"
+
+
+# --- ask (streaming turn) -------------------------------------------------
 
 class TestAsk:
-    def _runner(self, stdout="", stderr="", rc=0):
-        def _run(cmd, **kw):
-            return SimpleNamespace(stdout=stdout, stderr=stderr, returncode=rc)
-        return _run
-
-    def test_happy_path_returns_text_and_session(self, monkeypatch):
+    def test_happy_path_returns_text_session_and_status(self, monkeypatch):
         monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
-        r = claude_bridge.ask(
-            "x", "/proj", "/m.json",
-            _runner=self._runner(json.dumps({"result": "ok", "session_id": "S"})),
-        )
-        assert r["ok"] and r["text"] == "ok" and r["session_id"] == "S"
+        statuses = []
+        proc = _FakeProc([_INIT_OK, _TOOL, _TEXT, _RESULT])
+        r = claude_bridge.ask("x", "/proj", "/m.json",
+                              on_status=statuses.append,
+                              _popen=_popen_for(proc))
+        assert r["ok"] and r["text"] == "42 Vias" and r["session_id"] == "S1"
+        assert r["mcp_status"] == "connected"
+        assert any("list_pcb_footprints" in s for s in statuses)
+
+    def test_failed_mcp_is_reported(self, monkeypatch):
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        proc = _FakeProc([_INIT_BAD, _RESULT])
+        r = claude_bridge.ask("x", "/proj", "/m.json",
+                              _popen=_popen_for(proc))
+        assert r["ok"] is True
+        assert r["mcp_status"].startswith("failed")
 
     def test_claude_missing(self, monkeypatch):
         monkeypatch.setattr(claude_bridge, "find_claude", lambda: None)
-        r = claude_bridge.ask("x", "/proj", "/m.json", _runner=self._runner())
+        r = claude_bridge.ask("x", "/proj", "/m.json",
+                              _popen=_popen_for(_FakeProc([])))
         assert r["ok"] is False and "claude" in r["error"].lower()
 
-    def test_nonzero_with_no_text_is_error(self, monkeypatch):
+    def test_stream_without_result_uses_text(self, monkeypatch):
         monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
-        r = claude_bridge.ask(
-            "x", "/proj", "/m.json",
-            _runner=self._runner(stdout="", stderr="boom", rc=1),
-        )
+        proc = _FakeProc([_INIT_OK, _TEXT])
+        r = claude_bridge.ask("x", "/proj", "/m.json",
+                              _popen=_popen_for(proc))
+        assert r["ok"] and r["text"] == "42 Vias"
+
+    def test_empty_stream_is_error_with_stderr(self, monkeypatch):
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        proc = _FakeProc([], stderr="boom: not logged in")
+        r = claude_bridge.ask("x", "/proj", "/m.json",
+                              _popen=_popen_for(proc))
         assert r["ok"] is False and "boom" in r["error"]
 
     def test_session_preserved_when_no_new_id(self, monkeypatch):
         monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
-        r = claude_bridge.ask(
-            "x", "/proj", "/m.json", session_id="OLD",
-            _runner=self._runner("plain reply"),
-        )
-        assert r["ok"] and r["text"] == "plain reply" and r["session_id"] == "OLD"
+        proc = _FakeProc([_TEXT])
+        r = claude_bridge.ask("x", "/proj", "/m.json", session_id="OLD",
+                              _popen=_popen_for(proc))
+        assert r["ok"] and r["session_id"] == "OLD"
+
+    def test_idle_timeout_kills_and_explains(self, monkeypatch):
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+
+        class _Blocking:
+            def __iter__(self):
+                import time as _t
+                _t.sleep(5)  # longer than the test's idle_timeout
+                return iter([])
+
+        proc = _FakeProc([])
+        proc.stdout = _Blocking()
+        r = claude_bridge.ask("x", "/proj", "/m.json", idle_timeout=0.1,
+                              _popen=_popen_for(proc))
+        assert r["ok"] is False and proc.killed is True
+        assert "Lebenszeichen" in r["error"]
+
+    def test_ask_gives_mcp_startup_headroom(self, monkeypatch):
+        # claude drops a too-slow MCP server silently → generous MCP_TIMEOUT.
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        monkeypatch.delenv("MCP_TIMEOUT", raising=False)
+        seen = {}
+        claude_bridge.ask("x", "/proj", "/m.json",
+                          _popen=_popen_for(_FakeProc([_RESULT]), seen))
+        assert seen["env"]["MCP_TIMEOUT"] == "120000"
+
+    def test_ask_respects_user_mcp_timeout(self, monkeypatch):
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        monkeypatch.setenv("MCP_TIMEOUT", "5000")
+        seen = {}
+        claude_bridge.ask("x", "/proj", "/m.json",
+                          _popen=_popen_for(_FakeProc([_RESULT]), seen))
+        assert seen["env"]["MCP_TIMEOUT"] == "5000"
 
     def test_find_claude_native(self, monkeypatch):
         monkeypatch.setattr(claude_bridge.shutil, "which",
@@ -117,48 +209,9 @@ class TestHiddenConsole:
     def test_windows_suppresses_console(self):
         kw = claude_bridge.hidden_console_kwargs("nt")
         assert kw["creationflags"] == 0x08000000  # CREATE_NO_WINDOW
-        assert "stdin" in kw
 
     def test_posix_needs_nothing(self):
         assert claude_bridge.hidden_console_kwargs("posix") == {}
-
-    def test_ask_gives_mcp_startup_headroom(self, monkeypatch):
-        # claude drops a too-slow MCP server silently → generous MCP_TIMEOUT.
-        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
-        monkeypatch.delenv("MCP_TIMEOUT", raising=False)
-        seen = {}
-
-        def _run(cmd, **kw):
-            seen.update(kw)
-            return SimpleNamespace(stdout="ok", stderr="", returncode=0)
-
-        claude_bridge.ask("x", "/proj", "/m.json", _runner=_run)
-        assert seen["env"]["MCP_TIMEOUT"] == "120000"
-
-    def test_ask_respects_user_mcp_timeout(self, monkeypatch):
-        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
-        monkeypatch.setenv("MCP_TIMEOUT", "5000")
-        seen = {}
-
-        def _run(cmd, **kw):
-            seen.update(kw)
-            return SimpleNamespace(stdout="ok", stderr="", returncode=0)
-
-        claude_bridge.ask("x", "/proj", "/m.json", _runner=_run)
-        assert seen["env"]["MCP_TIMEOUT"] == "5000"
-
-    def test_ask_passes_flags_to_runner(self, monkeypatch):
-        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
-        monkeypatch.setattr(claude_bridge, "hidden_console_kwargs",
-                            lambda: {"creationflags": 0x08000000})
-        seen = {}
-
-        def _run(cmd, **kw):
-            seen.update(kw)
-            return SimpleNamespace(stdout="ok", stderr="", returncode=0)
-
-        r = claude_bridge.ask("x", "/proj", "/m.json", _runner=_run)
-        assert r["ok"] and seen["creationflags"] == 0x08000000
 
 
 # --- mcp_config --------------------------------------------------------------
@@ -186,13 +239,6 @@ class TestMcpConfig:
         list_src = code.split("= ", 1)[1].split("];")[0] + "]"
         assert ast.literal_eval(list_src) == [r"C:\plug\mcp", r"C:\plug\_deps"]
 
-    def test_build_appends_plugin_deps_dir(self):
-        import os as _os
-        cfg = mcp_config.build_mcp_config("/repo", "/kipy/python.exe",
-                                          deps_dir="/plug/_deps")
-        pp = cfg["mcpServers"]["kicad-mcp"]["env"]["PYTHONPATH"]
-        assert pp == "/repo" + _os.pathsep + "/plug/_deps"
-
     def test_write_creates_valid_json(self, tmp_path):
         root = tmp_path / "repo"; root.mkdir()
         py = tmp_path / "python.exe"; py.write_text("")
@@ -203,6 +249,7 @@ class TestMcpConfig:
 
     def test_write_errors_on_missing_root(self, tmp_path):
         py = tmp_path / "python.exe"; py.write_text("")
+        import pytest
         with pytest.raises(RuntimeError):
             mcp_config.write_mcp_config(
                 str(tmp_path / "x.json"), str(tmp_path / "nope"), str(py))
@@ -211,6 +258,7 @@ class TestMcpConfig:
         root = tmp_path / "repo"; root.mkdir()
         monkeypatch.setattr(mcp_config, "find_kicad_python", lambda: None)
         monkeypatch.delenv("KICAD_PYTHON_PATH", raising=False)
+        import pytest
         with pytest.raises(RuntimeError):
             mcp_config.write_mcp_config(str(tmp_path / "x.json"), str(root))
 

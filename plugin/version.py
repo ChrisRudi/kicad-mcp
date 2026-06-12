@@ -8,4 +8,4 @@ update apply?" is answerable at a glance, and it feeds the PCM metadata.
 
 from __future__ import annotations
 
-__version__ = "0.2.15"
+__version__ = "0.2.16"
