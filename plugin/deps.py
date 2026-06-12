@@ -102,6 +102,7 @@ def pip_install_commands(kicad_py: str, target: Optional[str] = None) -> list:
     )
     return [
         f"echo Python: {kicad_py}",
+        f"echo Ziel-Ordner (_deps): {target}",
         f"{q} --version",
         # Some bundles ship without pip -> bootstrap it (no admin needed).
         f"{q} -m pip --version || {q} -m ensurepip --user",

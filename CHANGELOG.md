@@ -9,6 +9,9 @@ the first tag ships.
 ## [Unreleased]
 
 ### Fixed
+- **Plugin v0.2.13:** Das Deps-Install-Terminal zeigt jetzt auch den `_deps`-Zielordner
+  („Ziel-Ordner (_deps): …") — damit sind alle an der Diagnose beteiligten Pfade direkt
+  im Terminal-Output ablesbar.
 - **Plugin v0.2.12: „Error while finding module" präzise diagnostiziert.** Diese Meldung
   heißt: das `kicad_mcp`-Paket selbst fehlt unter dem `mcp_root` (unvollständige
   Plugin-Installation) — nicht fehlende Abhängigkeiten. Die Server-Probe prüft das jetzt
