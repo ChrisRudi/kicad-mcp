@@ -9,6 +9,13 @@ the first tag ships.
 ## [Unreleased]
 
 ### Fixed
+- **Plugin v0.2.10: Deps-Installation ist jetzt selbst-diagnostizierend.** Das
+  Install-Terminal zeigt, welches Python läuft (`<KiCad>\bin\python.exe` + Version),
+  bootstrappt pip per `ensurepip --user`, falls das KiCad-Bundle ohne pip ausgeliefert
+  wurde (häufige Ursache für „er versucht die Installation, aber nichts passiert"), und
+  **verifiziert nach der Installation per Test-Import** aus dem `_deps`-Ordner, dass alle
+  sechs Module wirklich importierbar sind („OK - alle MCP-Module importierbar") —
+  Installation und Server-Start können nicht mehr still auseinanderlaufen.
 - **Kein „ungespeicherte Änderungen" mehr durch bloßes Reden mit dem MCP.** Der
   Presence-Beacon (erster IPC-Kontakt) hat die MCP.Skizze-Ebene im Board-Setup aktiviert
   und die How-to-Legende aufs Board gestempelt — beides markiert das Board als geändert,

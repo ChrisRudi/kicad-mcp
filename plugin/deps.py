@@ -84,10 +84,27 @@ def check_deps(kicad_py: Optional[str], _run=subprocess.run,
 
 
 def pip_install_commands(kicad_py: str, target: Optional[str] = None) -> list:
-    """The pip command line for a visible terminal (see plugin.terminal):
-    installs into the plugin-local ``--target`` dir (no admin, no user-site)."""
+    """The command lines for a visible terminal (see plugin.terminal):
+    install into the plugin-local ``--target`` dir (no admin, no user-site).
+
+    Self-diagnosing: shows which Python runs, bootstraps pip via ensurepip
+    when the bundle ships without it, and VERIFIES after the install that
+    every module actually imports from the target dir — so "Installation
+    klappt scheinbar" and "Server startet" can't diverge silently anymore.
+    """
     target = target or default_target_dir()
     pkgs = " ".join(PIP_SPECS)
+    q = f'"{kicad_py}"'
+    verify = (
+        f"import sys;sys.path.insert(0,r'{target}');"
+        f"import {','.join(IMPORT_NAMES)};"
+        "print('OK - alle MCP-Module importierbar')"
+    )
     return [
-        f'"{kicad_py}" -m pip install --upgrade --target "{target}" {pkgs}'
+        f"echo Python: {kicad_py}",
+        f"{q} --version",
+        # Some bundles ship without pip -> bootstrap it (no admin needed).
+        f"{q} -m pip --version || {q} -m ensurepip --user",
+        f'{q} -m pip install --upgrade --target "{target}" {pkgs}',
+        f'{q} -c "{verify}"',
     ]

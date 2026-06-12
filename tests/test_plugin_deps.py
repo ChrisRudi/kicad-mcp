@@ -44,15 +44,27 @@ class TestPipInstallCommands:
         # --target (plugin-owned dir), NOT --user: the user-site dir is shared
         # with other CPython installs and not reliably on KiCad-python's path.
         cmds = deps.pip_install_commands(r"C:\KiCad\python.exe")
-        assert len(cmds) == 1
-        assert "pip install --upgrade --target" in cmds[0]
-        assert "--user" not in cmds[0]
-        assert "_deps" in cmds[0] and "fastmcp" in cmds[0]
-        assert r'"C:\KiCad\python.exe"' in cmds[0]  # quoted (path has spaces)
+        install = next(c for c in cmds if "pip install" in c)
+        assert "pip install --upgrade --target" in install
+        assert "--user" not in install
+        assert "_deps" in install and "fastmcp" in install
+        assert r'"C:\KiCad\python.exe"' in install  # quoted (path has spaces)
+
+    def test_bootstraps_pip_when_bundle_lacks_it(self):
+        cmds = deps.pip_install_commands("/k/py")
+        boot = next(c for c in cmds if "ensurepip" in c)
+        assert "-m pip --version ||" in boot  # only when pip is missing
+
+    def test_verifies_imports_after_install(self):
+        cmds = deps.pip_install_commands("/k/py", target="/plug/_deps")
+        verify = cmds[-1]
+        assert "sys.path.insert(0,r'/plug/_deps')" in verify
+        for name in deps.IMPORT_NAMES:
+            assert name in verify
 
     def test_explicit_target_wins(self):
         cmds = deps.pip_install_commands("/k/py", target="/tmp/x")
-        assert '--target "/tmp/x"' in cmds[0]
+        assert any('--target "/tmp/x"' in c for c in cmds)
 
     def test_specs_have_no_brackets(self):
         # brackets would need cross-shell quoting; fastmcp pulls mcp anyway
