@@ -88,13 +88,30 @@ def find_kicad_python() -> Optional[str]:
     return _sys_python() or _scan_python()
 
 
+def server_bootstrap_code(mcp_root: str, deps_dir: Optional[str] = None) -> str:
+    """The ``-c`` bootstrap that starts the server with sys.path set
+    EXPLICITLY in-process.
+
+    KiCad's bundled Python can IGNORE the ``PYTHONPATH`` env var (isolated
+    ``._pth``-style builds do) — field symptom: "Error while finding module
+    specification for 'kicad_mcp.server'" despite a correct env. In-process
+    ``sys.path`` insertion is immune; it is the same mechanism as the install
+    verification and ``start_mcp.bat``'s script launch, both proven working
+    on the affected machine.
+    """
+    paths = [mcp_root] + ([deps_dir] if deps_dir else [])
+    entries = ", ".join(repr(p) for p in paths)
+    return (f"import sys; sys.path[:0] = [{entries}]; "
+            "from kicad_mcp.server import main; main()")
+
+
 def build_mcp_config(mcp_root: str, python_exe: str,
                      deps_dir: Optional[str] = None) -> dict:
     """Return the Claude-Code MCP config dict for the kicad-mcp stdio server.
 
-    ``deps_dir`` (default: the plugin-local ``_deps`` dir, if present) is
-    appended to PYTHONPATH so the pip-``--target``-installed runtime deps are
-    found regardless of user-site quirks in KiCad's bundled Python.
+    ``deps_dir`` (default: the plugin-local ``_deps`` dir, if present) joins
+    ``mcp_root`` on the in-process sys.path bootstrap; PYTHONPATH is set too,
+    but only as belt-and-suspenders for pythons that do honor it.
     """
     if deps_dir is None:
         deps_dir = deps.active_deps_dir()
@@ -104,7 +121,7 @@ def build_mcp_config(mcp_root: str, python_exe: str,
             "kicad-mcp": {
                 "type": "stdio",
                 "command": python_exe,
-                "args": ["-m", "kicad_mcp.server"],
+                "args": ["-c", server_bootstrap_code(mcp_root, deps_dir)],
                 "env": {"PYTHONPATH": pythonpath},
             }
         }

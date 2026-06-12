@@ -8,6 +8,18 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed
+- **Plugin v0.2.15 — ROOT CAUSE „MCP läuft nicht": KiCads Python ignoriert `PYTHONPATH`.**
+  Experimentell bestätigt auf der betroffenen Maschine: `set PYTHONPATH=…` +
+  `python -m kicad_mcp.server` → „No module named 'kicad_mcp'" trotz korrektem Pfad
+  (isolierter `._pth`-Build). Deshalb fand Claudes MCP-Start den Server nie, während
+  Installation (pip) und Verifikation (in-process `sys.path.insert`) funktionierten.
+  Der Server wird jetzt überall per `-c`-Bootstrap gestartet, der `sys.path` **im
+  Prozess** setzt (`mcp_config.server_bootstrap_code`): MCP-Config (`args: ["-c", …]`),
+  Server-Probe und das Diagnose-Rezept. `PYTHONPATH` bleibt nur noch als Hosenträger
+  für Pythons, die ihn beachten. Damit ist die gesamte Fehlerklasse
+  „env-var-abhängiger Start" beseitigt.
+
 ### Added
 - **Plugin v0.2.14: Diagnose-Button.** Nach mehreren Debug-Runden über abgetippte
   Einzelzeilen sammelt ein Klick im Einrichtungs-Panel jetzt ALLES in einen kopierbaren

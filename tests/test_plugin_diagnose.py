@@ -43,8 +43,9 @@ class TestCollect:
         report = diagnose.collect(str(tmp_path), "/proj", _run=_runner())
         assert "FEHLER" in report
         assert "ValueError: kaputt" in report          # FULL stderr
-        assert "-m kicad_mcp.server" in report          # manual repro recipe
-        assert "set PYTHONPATH=" in report
+        # manual repro recipe uses the -c sys.path bootstrap (KiCad's
+        # Python ignores PYTHONPATH)
+        assert "kicad_mcp.server" in report and "sys.path[:0]" in report
 
     def test_missing_pieces_named_not_crashing(self, monkeypatch, tmp_path):
         _patch_env(monkeypatch, py=None, deps_dir=None, claude=[],

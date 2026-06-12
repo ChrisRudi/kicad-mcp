@@ -96,8 +96,9 @@ def collect(mcp_root: str, project_dir: str, _run=subprocess.run) -> str:
             add(full)
     add("")
     add("--- Manuell nachstellen (cmd.exe) ---")
-    add(f"set PYTHONPATH={pythonpath}")
-    add(f'"{py}" -m kicad_mcp.server')
-    add("(Startet der Server, wartet er still auf Eingaben = OK, mit Strg+C "
+    bootstrap = mcp_config.server_bootstrap_code(mcp_root, deps_dir)
+    add(f'"{py}" -c "{bootstrap}"')
+    add("(KiCads Python ignoriert PYTHONPATH — deshalb der sys.path-"
+        "Bootstrap. Wartet der Server still auf Eingaben = OK, mit Strg+C "
         "beenden. Ein Fehler erscheint direkt als Traceback.)")
     return "\n".join(lines)

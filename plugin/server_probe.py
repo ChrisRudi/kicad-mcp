@@ -21,7 +21,7 @@ import os
 import subprocess
 from typing import Any, Optional
 
-from . import deps
+from . import deps, mcp_config
 from .claude_bridge import hidden_console_kwargs
 
 PROBE_TIMEOUT = 120.0  # cold start imports pandas + 165 tools — be generous
@@ -45,8 +45,12 @@ def init_request() -> str:
     }) + "\n"
 
 
-def build_probe_cmd(kicad_py: str) -> list:
-    return [kicad_py, "-m", "kicad_mcp.server"]
+def build_probe_cmd(kicad_py: str, mcp_root: str,
+                    deps_dir: "str | None" = None) -> list:
+    """Launch EXACTLY like the MCP config does: ``-c`` bootstrap with
+    in-process sys.path (KiCad's Python proved to ignore PYTHONPATH)."""
+    return [kicad_py, "-c",
+            mcp_config.server_bootstrap_code(mcp_root, deps_dir)]
 
 
 def error_tail(stderr: str, lines: int = 3) -> str:
@@ -89,10 +93,11 @@ def probe_server(kicad_py: Optional[str], mcp_root: str,
     env = dict(os.environ)
     if deps_dir is None:
         deps_dir = deps.active_deps_dir()
-    # exactly what the MCP config will use
+    # belt-and-suspenders only — the bootstrap sets sys.path in-process
     env["PYTHONPATH"] = mcp_root + (os.pathsep + deps_dir if deps_dir else "")
     try:
-        proc = _popen(build_probe_cmd(kicad_py), stdin=subprocess.PIPE,
+        proc = _popen(build_probe_cmd(kicad_py, mcp_root, deps_dir),
+                      stdin=subprocess.PIPE,
                       stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                       text=True, env=env, **_popen_kwargs())
         try:

@@ -69,7 +69,11 @@ class TestProbeServer:
             "/k/py", root, _popen=_popen_for(_FakeProc(stdout=_OK_REPLY),
                                              capture=seen),
             deps_dir="/plug/_deps")
-        assert seen["cmd"] == ["/k/py", "-m", "kicad_mcp.server"]
+        # -c bootstrap with in-process sys.path — KiCad's Python ignores
+        # PYTHONPATH (proven in the field), so -m would not find the package.
+        assert seen["cmd"][0] == "/k/py" and seen["cmd"][1] == "-c"
+        assert root in seen["cmd"][2] and "/plug/_deps" in seen["cmd"][2]
+        assert "kicad_mcp.server" in seen["cmd"][2]
         assert seen["env"]["PYTHONPATH"] == root + os.pathsep + "/plug/_deps"
 
     def test_missing_package_named_precisely(self, tmp_path):

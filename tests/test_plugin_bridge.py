@@ -170,8 +170,21 @@ class TestMcpConfig:
         srv = cfg["mcpServers"]["kicad-mcp"]
         assert srv["type"] == "stdio"
         assert srv["command"] == "/kipy/python.exe"
-        assert srv["args"] == ["-m", "kicad_mcp.server"]
-        assert srv["env"]["PYTHONPATH"] == "/repo"
+        # -c bootstrap, NOT -m + PYTHONPATH: KiCad's bundled Python proved to
+        # ignore the env var (._pth isolation) — sys.path must be set
+        # in-process.
+        assert srv["args"][0] == "-c"
+        assert "sys.path[:0] = ['/repo']" in srv["args"][1]
+        assert "kicad_mcp.server" in srv["args"][1]
+        assert srv["env"]["PYTHONPATH"] == "/repo"  # belt-and-suspenders
+
+    def test_bootstrap_includes_deps_dir_and_escapes_windows_paths(self):
+        import ast
+        code = mcp_config.server_bootstrap_code(r"C:\plug\mcp",
+                                                r"C:\plug\_deps")
+        # the generated path list must be valid Python despite backslashes
+        list_src = code.split("= ", 1)[1].split("];")[0] + "]"
+        assert ast.literal_eval(list_src) == [r"C:\plug\mcp", r"C:\plug\_deps"]
 
     def test_build_appends_plugin_deps_dir(self):
         import os as _os
