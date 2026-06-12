@@ -8,6 +8,17 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added
+- **Plugin v0.2.14: Diagnose-Button.** Nach mehreren Debug-Runden über abgetippte
+  Einzelzeilen sammelt ein Klick im Einrichtungs-Panel jetzt ALLES in einen kopierbaren
+  Report (`plugin/diagnose.py`, headless getestet): Plugin-/Projekt-/`mcp_root`-/`_deps`-
+  Pfade samt Ordnerinhalt, KiCad-Python + Version, Claude + Version, Env-Overrides
+  (`KICAD_MCP_ROOT`/`KICAD_PYTHON_PATH`), das Ergebnis der echten Server-Probe mit
+  **vollem** Stderr-Traceback (`probe_server` liefert jetzt auch `stderr` ungekürzt)
+  und ein Copy-Paste-Rezept, um den Serverstart manuell in `cmd.exe` nachzustellen.
+  Der Report wird zusätzlich als `kicad_claude_diagnose.txt` ins Temp-Verzeichnis
+  geschrieben; „Alles kopieren"-Knopf inklusive.
+
 ### Fixed
 - **Plugin v0.2.13:** Das Deps-Install-Terminal zeigt jetzt auch den `_deps`-Zielordner
   („Ziel-Ordner (_deps): …") — damit sind alle an der Diagnose beteiligten Pfade direkt

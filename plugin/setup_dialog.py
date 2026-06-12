@@ -54,6 +54,9 @@ class SetupDialog(wx.Dialog):
         update = wx.Button(self._panel, label="Update prüfen")
         update.Bind(wx.EVT_BUTTON, lambda e: self._check_update())
         bar.Add(update, 0, wx.RIGHT, 8)
+        diag = wx.Button(self._panel, label="Diagnose")
+        diag.Bind(wx.EVT_BUTTON, lambda e: self._show_diagnose())
+        bar.Add(diag, 0, wx.RIGHT, 8)
         bar.AddStretchSpacer()
         self._start = wx.Button(self._panel, label="Chat starten")
         self._start.Bind(wx.EVT_BUTTON, self._on_start)
@@ -117,6 +120,52 @@ class SetupDialog(wx.Dialog):
             self._enable_ipc()
         elif fix == "install_deps":
             self._install_deps()
+
+    def _show_diagnose(self) -> None:
+        """Collect the full diagnosis report (runs the server probe — can take
+        a minute on a cold start) and show it copyable + save it to a file."""
+        import tempfile
+
+        from . import diagnose
+        busy = wx.BusyCursor()
+        try:
+            report = diagnose.collect(self._mcp_root, self._project_dir)
+        finally:
+            del busy
+        path = os.path.join(tempfile.gettempdir(), "kicad_claude_diagnose.txt")
+        try:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(report)
+            note = f"Auch gespeichert unter: {path}"
+        except Exception as exc:
+            note = f"(Datei nicht gespeichert: {exc})"
+
+        dlg = wx.Dialog(self, title="Diagnose — alles kopieren & senden",
+                        size=(720, 540),
+                        style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        panel = wx.Panel(dlg)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        txt = wx.TextCtrl(panel, value=report,
+                          style=wx.TE_MULTILINE | wx.TE_READONLY)
+        txt.SetFont(wx.Font(9, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL,
+                            wx.FONTWEIGHT_NORMAL))
+        sizer.Add(txt, 1, wx.EXPAND | wx.ALL, 8)
+        foot = wx.BoxSizer(wx.HORIZONTAL)
+        copy_btn = wx.Button(panel, label="Alles kopieren")
+
+        def _copy(_evt):
+            if wx.TheClipboard.Open():
+                wx.TheClipboard.SetData(wx.TextDataObject(report))
+                wx.TheClipboard.Close()
+
+        copy_btn.Bind(wx.EVT_BUTTON, _copy)
+        foot.Add(copy_btn, 0, wx.RIGHT, 8)
+        foot.Add(wx.StaticText(panel, label=note), 1,
+                 wx.ALIGN_CENTER_VERTICAL)
+        sizer.Add(foot, 0, wx.EXPAND | wx.ALL, 8)
+        panel.SetSizer(sizer)
+        dlg.ShowModal()
+        dlg.Destroy()
 
     def _install_deps(self) -> None:
         py = mcp_config.find_kicad_python()

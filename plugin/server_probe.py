@@ -70,7 +70,7 @@ def probe_server(kicad_py: Optional[str], mcp_root: str,
     the one-click dependency install is the right fix. Never raises.
     """
     out = {"ok": False, "error": "", "missing_dep": False,
-           "missing_root": False}
+           "missing_root": False, "stderr": ""}
     if not kicad_py:
         out["error"] = "KiCad-Python nicht gefunden"
         return out
@@ -114,4 +114,5 @@ def probe_server(kicad_py: Optional[str], mcp_root: str,
     # The used path is half the diagnosis — show it in the red row.
     out["error"] = f"{tail} [PYTHONPATH={env['PYTHONPATH']}]"
     out["missing_dep"] = "ModuleNotFoundError" in (stderr or "")
+    out["stderr"] = stderr or ""  # full text for the diagnose report
     return out
