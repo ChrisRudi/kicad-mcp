@@ -60,6 +60,12 @@ der Server rechnet Flip/Rotation/Net-Auflösung korrekt. Faustregeln:
 - Runde/Polar-Boards → `polar_grid`
 - Headless ERC/DRC → `run_erc` / `run_drc_check` (kicad-cli), nicht von Hand
 - Power-/GND-Pins verdrahten → `add_power_symbols` (nicht `add_schematic_label`)
+- **Offenes Board mutieren → IPC, nicht Text-Patcher.** Ist die `.kicad_pcb` in der KiCad-GUI
+  offen, blockiert `write_text` (in `cache/file_cache.py`) Direkt-Patches hart
+  (`BoardOpenError`, via `utils/board_open_guard.py`) — sie kollidieren mit dem
+  Editor-Speichern. Nutze die Live-Tools (`ipc_*` / `live_*`), die KiCads In-Memory-Modell
+  ändern (beide Seiten speichern kohärent). Override: `KICAD_MCP_ALLOW_DISK_WRITE_WHILE_OPEN=1`.
+  Schaltpläne sind ausgenommen (Eeschema hat in KiCad 10 keinen IPC-Save).
 
 ## KiCad-Koordinaten — Footguns (hart erkämpft)
 

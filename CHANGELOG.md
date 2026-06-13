@@ -9,6 +9,19 @@ the first tag ships.
 ## [Unreleased]
 
 ### Added
+- **Disk-Write-Guard fürs gemeinsame Arbeiten (Plugin v0.2.19).** Beim gleichzeitigen
+  Arbeiten (du in KiCad, der Agent über MCP) blockiert der Server jetzt Direkt-Patches auf
+  eine `.kicad_pcb`, die in der KiCad-GUI **offen** ist (`utils/board_open_guard.py` →
+  `BoardOpenError`). Grund: Ein Platten-Patch ist für den laufenden Editor unsichtbar, das
+  nächste Strg+S überschreibt ihn (oder umgekehrt) — ein echtes Zwei-Seiten-Datei-Locking
+  gibt es nicht. Stattdessen ist der **IPC-Live-Pfad** der Locking-Mechanismus: `ipc_*` /
+  `live_*` ändern KiCads In-Memory-Modell (eine Wahrheit), **alle Fenster bleiben offen und
+  beide Seiten speichern kohärent**. Zentraler Chokepoint: neue `cache/file_cache.write_text`
+  (Guard + Schreiben + Cache) ersetzt die 23 `open()+put_text`-Paare im PCB-Text-Patcher.
+  Headless (KiCad zu / kein `KICAD_API_SOCKET`) unverändert; Erkennung nur bei erreichbarer
+  GUI, Client negativ-gecacht (kurze Zugriffszeit). Override:
+  `KICAD_MCP_ALLOW_DISK_WRITE_WHILE_OPEN=1`. **Schaltpläne sind ausgenommen** — Eeschema hat
+  in KiCad 10 keinen IPC-Save, daher bleibt der Text-Patcher dort der Weg.
 - **Plugin v0.2.18: auch Koordinaten im Chat sind anklickbar.** Gibt Claude eine Stelle als
   Koordinatenpaar an (`(120.5, 84.0)`, auch mit `mm` / negativ), wird das im Panel zum Link;
   ein Klick **selektiert das nächstgelegene Board-Element (Footprint/Via/Pad) an dieser

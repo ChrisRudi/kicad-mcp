@@ -102,6 +102,23 @@ def put_text(path: str, text: str) -> None:
         _touch(key)
 
 
+def write_text(path: str, text: str, encoding: str = "utf-8") -> None:
+    """Write ``text`` to ``path`` on disk and register it in the cache.
+
+    The single disk-write chokepoint for the PCB text-patcher: it first runs
+    the board-open guard, which BLOCKS the write (``BoardOpenError``) if the
+    target .kicad_pcb is open in a running KiCad GUI — preventing the
+    file-vs-editor save conflict (use the IPC live tools for an open board).
+    Non-PCB files and headless runs are unaffected. Replaces the old
+    ``open(...,"w") + put_text(...)`` pair so every tool is guarded centrally.
+    """
+    from kicad_mcp.utils.board_open_guard import guard_pcb_disk_write
+    guard_pcb_disk_write(path)  # raises BoardOpenError if open in the GUI
+    with open(path, "w", encoding=encoding) as fh:
+        fh.write(text)
+    put_text(path, text)
+
+
 def invalidate(path: str | None = None) -> None:
     """Drop a single cached path, or the whole cache when ``path`` is
     None. Idempotent — dropping an absent path is a no-op."""

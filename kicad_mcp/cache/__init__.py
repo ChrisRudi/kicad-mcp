@@ -10,6 +10,7 @@ from kicad_mcp.cache.file_cache import (
     get_text,
     invalidate,
     put_text,
+    write_text,
 )
 
-__all__ = ["get_text", "put_text", "invalidate", "cache_status"]
+__all__ = ["get_text", "put_text", "write_text", "invalidate", "cache_status"]

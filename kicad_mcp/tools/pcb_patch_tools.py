@@ -34,7 +34,7 @@ from typing import Any, Callable
 
 from mcp.server.fastmcp import FastMCP
 
-from kicad_mcp.cache import get_text, put_text
+from kicad_mcp.cache import get_text, write_text
 from kicad_mcp.utils.path_env import kicad_lib_root, to_local_path
 from kicad_mcp.utils.pcb_geometry import (
     align_radial_rotation,
@@ -2990,9 +2990,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
             with open(netlist_path, encoding="utf-8") as fh:
                 net_text = fh.read()
             new_pcb, n_patched, n_total, n_nets = _patch_pcb_nets(pcb_text, net_text)
-            with open(pcb_path, "w", encoding="utf-8") as fh:
-                fh.write(new_pcb)
-            put_text(pcb_path, new_pcb)
+            write_text(pcb_path, new_pcb)
             return {
                 "success": True,
                 "pads_patched": n_patched,
@@ -3046,9 +3044,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
         try:
             pcb_text = get_text(pcb_path)
             new_pcb, replaced, missing = _resolve_pcb_footprints(pcb_text, root)
-            with open(pcb_path, "w", encoding="utf-8") as fh:
-                fh.write(new_pcb)
-            put_text(pcb_path, new_pcb)
+            write_text(pcb_path, new_pcb)
             return {
                 "success": True,
                 "replaced": replaced,
@@ -3309,9 +3305,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
         if not result.get("success"):
             return result
         if not dry_run:
-            with open(pcb_path, "w", encoding="utf-8") as fh:
-                fh.write(new_text)
-            put_text(pcb_path, new_text)
+            write_text(pcb_path, new_text)
         return {"dry_run": dry_run, **result}
 
     @mcp.tool()
@@ -3402,9 +3396,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
         if not result.get("success"):
             return result
         if not dry_run:
-            with open(pcb_path, "w", encoding="utf-8") as fh:
-                fh.write(new_text)
-            put_text(pcb_path, new_text)
+            write_text(pcb_path, new_text)
         return {"dry_run": dry_run, **result}
 
     @mcp.tool()
@@ -3504,9 +3496,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
         if not result.get("success"):
             return result
         if not dry_run:
-            with open(pcb_path, "w", encoding="utf-8") as fh:
-                fh.write(new_text)
-            put_text(pcb_path, new_text)
+            write_text(pcb_path, new_text)
         return {"dry_run": dry_run, **result}
 
     @mcp.tool()
@@ -3595,9 +3585,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
         if not result.get("success"):
             return result
         if not dry_run and result.get("deleted", 0) > 0:
-            with open(pcb_path, "w", encoding="utf-8") as fh:
-                fh.write(new_text)
-            put_text(pcb_path, new_text)
+            write_text(pcb_path, new_text)
         return {"dry_run": dry_run, **result}
 
     @mcp.tool()
@@ -3737,9 +3725,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
         if not result.get("success"):
             return result
         if not dry_run:
-            with open(pcb_path, "w", encoding="utf-8") as fh:
-                fh.write(new_text)
-            put_text(pcb_path, new_text)
+            write_text(pcb_path, new_text)
         return {"dry_run": dry_run, **result}
 
     @mcp.tool()
@@ -3880,9 +3866,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
                     break
 
         if all_ok and not dry_run:
-            with open(pcb_path, "w", encoding="utf-8") as fh:
-                fh.write(text)
-            put_text(pcb_path, text)
+            write_text(pcb_path, text)
 
         return {
             "success": all_ok,
@@ -3942,9 +3926,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
                 dry_run=dry_run,
             )
             if not dry_run and new_text != pcb_text:
-                with open(pcb_path, "w", encoding="utf-8") as fh:
-                    fh.write(new_text)
-                put_text(pcb_path, new_text)
+                write_text(pcb_path, new_text)
             report["pcb_path"] = pcb_path
             return report
         except Exception as exc:  # pylint: disable=broad-except
@@ -4147,9 +4129,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
 
             new_text = pcb_text[:fp_start] + new_block + pcb_text[fp_end:]
             if not dry_run and new_text != pcb_text:
-                with open(pcb_path, "w", encoding="utf-8") as fh:
-                    fh.write(new_text)
-                put_text(pcb_path, new_text)
+                write_text(pcb_path, new_text)
             return {
                 "success": True,
                 "ref": ref,
@@ -4333,9 +4313,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
                 last_close = pcb_text.rfind(")")
             new_text = pcb_text[:last_close] + zone_block + pcb_text[last_close:]
 
-            with open(pcb_path, "w", encoding="utf-8") as fh:
-                fh.write(new_text)
-            put_text(pcb_path, new_text)
+            write_text(pcb_path, new_text)
 
             return {
                 "success": True,
@@ -4503,9 +4481,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
                 + "\t" + instance.lstrip() + "\n"
                 + pcb_text[last_close:]
             )
-            with open(pcb_path, "w", encoding="utf-8") as fh:
-                fh.write(new_text)
-            put_text(pcb_path, new_text)
+            write_text(pcb_path, new_text)
             return {
                 "success": True,
                 "ref": ref,
@@ -4563,9 +4539,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
             if not report.get("success"):
                 return report
             if not dry_run and new_text != pcb_text:
-                with open(pcb_path, "w", encoding="utf-8") as fh:
-                    fh.write(new_text)
-                put_text(pcb_path, new_text)
+                write_text(pcb_path, new_text)
             report["pcb_path"] = pcb_path
             report["dry_run"] = dry_run
             return report
@@ -4610,9 +4584,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
             if not report.get("success"):
                 return report
             if not dry_run and new_text != pcb_text:
-                with open(pcb_path, "w", encoding="utf-8") as fh:
-                    fh.write(new_text)
-                put_text(pcb_path, new_text)
+                write_text(pcb_path, new_text)
             report["pcb_path"] = pcb_path
             report["dry_run"] = dry_run
             return report
@@ -4661,9 +4633,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
             if not report.get("success"):
                 return report
             if not dry_run and new_text != pcb_text:
-                with open(pcb_path, "w", encoding="utf-8") as fh:
-                    fh.write(new_text)
-                put_text(pcb_path, new_text)
+                write_text(pcb_path, new_text)
             report["pcb_path"] = pcb_path
             report["dry_run"] = dry_run
             return report
@@ -4899,9 +4869,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
                     })
 
             if not dry_run and applied:
-                with open(pcb_path, "w", encoding="utf-8") as fh:
-                    fh.write(pcb_text)
-                put_text(pcb_path, pcb_text)
+                write_text(pcb_path, pcb_text)
             return {
                 "success": len(failed) == 0,
                 "applied": applied,
@@ -4961,9 +4929,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
             if not report.get("success"):
                 return report
             if not dry_run and new_text != pcb_text:
-                with open(pcb_path, "w", encoding="utf-8") as fh:
-                    fh.write(new_text)
-                put_text(pcb_path, new_text)
+                write_text(pcb_path, new_text)
             report["pcb_path"] = pcb_path
             report["dry_run"] = dry_run
             return report
@@ -5033,9 +4999,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
             if not report.get("success"):
                 return report
             if not dry_run and new_text != pcb_text:
-                with open(pcb_path, "w", encoding="utf-8") as fh:
-                    fh.write(new_text)
-                put_text(pcb_path, new_text)
+                write_text(pcb_path, new_text)
             report["pcb_path"] = pcb_path
             report["dry_run"] = dry_run
             return report
@@ -5085,9 +5049,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
             if not report.get("success"):
                 return report
             if not dry_run and new_text != pcb_text:
-                with open(pcb_path, "w", encoding="utf-8") as fh:
-                    fh.write(new_text)
-                put_text(pcb_path, new_text)
+                write_text(pcb_path, new_text)
             report["pcb_path"] = pcb_path
             report["dry_run"] = dry_run
             return report
@@ -5164,9 +5126,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
             if not report.get("success"):
                 return report
             if not dry_run and new_text != pcb_text:
-                with open(pcb_path, "w", encoding="utf-8") as fh:
-                    fh.write(new_text)
-                put_text(pcb_path, new_text)
+                write_text(pcb_path, new_text)
             report["pcb_path"] = pcb_path
             report["dry_run"] = dry_run
             return report
@@ -5246,9 +5206,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
             if not report.get("success"):
                 return report
             if not dry_run and new_text != pcb_text:
-                with open(pcb_path, "w", encoding="utf-8") as fh:
-                    fh.write(new_text)
-                put_text(pcb_path, new_text)
+                write_text(pcb_path, new_text)
             report["pcb_path"] = pcb_path
             report["dry_run"] = dry_run
             return report
@@ -5309,9 +5267,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
             if not report.get("success"):
                 return report
             if not dry_run and new_text != pcb_text:
-                with open(pcb_path, "w", encoding="utf-8") as fh:
-                    fh.write(new_text)
-                put_text(pcb_path, new_text)
+                write_text(pcb_path, new_text)
             report["pcb_path"] = pcb_path
             report["dry_run"] = dry_run
             return report
@@ -5464,9 +5420,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
                     and not result.get("placed"):
                 return result
             if not dry_run and new_text != pcb_text:
-                with open(pcb_path, "w", encoding="utf-8") as fh:
-                    fh.write(new_text)
-                put_text(pcb_path, new_text)
+                write_text(pcb_path, new_text)
             result["block_name"] = block_name
             result["refs_resolved"] = refs
             result["dry_run"] = dry_run
