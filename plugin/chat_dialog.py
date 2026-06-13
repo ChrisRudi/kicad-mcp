@@ -13,6 +13,7 @@ monospace, Claude-orange bullets, pulsing spinner) comes from
 
 from __future__ import annotations
 
+import shlex
 import threading
 
 import wx  # KiCad ships wxPython; only importable inside KiCad
@@ -43,6 +44,8 @@ class ClaudeChatPanel(wx.Panel):
         self._on_open_setup = on_open_setup  # reopen Einrichtung/Update panel
         self._session_id = None
         self._busy = False
+        self._proc = None       # live claude process of the running turn
+        self._stopped = False   # set when the user pressed Stopp
         self._mono = _pick_mono_font()
         # Board elements named in replies become clickable: char-range → target.
         self._refs: set = set()
@@ -81,7 +84,30 @@ class ClaudeChatPanel(wx.Panel):
         self._send.SetForegroundColour(wx.Colour(theme.FOREGROUND))
         row.Add(self._send, 0)
         self._send.Bind(wx.EVT_BUTTON, self._on_send)
+        # Stopp button — usable WHILE Claude thinks (the input is disabled then),
+        # so a too-long turn can be cancelled. Hidden until a turn is running.
+        self._stop = wx.Button(self, label="Stopp")
+        self._stop.SetBackgroundColour(wx.Colour(theme.SURFACE))
+        self._stop.SetForegroundColour(wx.Colour(theme.ERROR_RED))
+        self._stop.Bind(wx.EVT_BUTTON, self._on_stop)
+        self._stop.Hide()
+        row.Add(self._stop, 0, wx.LEFT, 6)
         root.Add(row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+
+        # Raw Claude Code CLI switches (e.g. "--model sonnet"), shlex-split and
+        # appended to every turn's command. Empty = plain defaults.
+        opt = wx.BoxSizer(wx.HORIZONTAL)
+        opt_lbl = wx.StaticText(self, label="⚑")
+        opt_lbl.SetForegroundColour(wx.Colour(theme.DIM))
+        opt_lbl.SetFont(self._mono)
+        opt.Add(opt_lbl, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 6)
+        self._opts = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
+        self._opts.SetBackgroundColour(wx.Colour(theme.SURFACE))
+        self._opts.SetForegroundColour(wx.Colour(theme.DIM))
+        self._opts.SetFont(self._mono)
+        self._opts.SetHint("Claude-Optionen, z. B. --model sonnet  (optional)")
+        opt.Add(self._opts, 1, wx.EXPAND | wx.RIGHT, 6)
+        root.Add(opt, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         foot = wx.BoxSizer(wx.HORIZONTAL)
         self._status = wx.StaticText(self, label=theme.STATUS_READY)
@@ -162,6 +188,11 @@ class ClaudeChatPanel(wx.Panel):
         self._busy = busy
         self._send.Enable(not busy)
         self._in.Enable(not busy)
+        # While thinking, swap Senden→Stopp so the turn is cancellable.
+        self._send.Show(not busy)
+        self._stop.Show(busy)
+        self._stop.Enable(busy)
+        self.Layout()
         if busy:
             self._tick = 0
             self._activity = ""
@@ -200,21 +231,42 @@ class ClaudeChatPanel(wx.Panel):
         prompt = self._in.GetValue().strip()
         if not prompt:
             return
+        try:
+            extra_args = shlex.split(self._opts.GetValue().strip())
+        except ValueError:  # unbalanced quotes in the options field
+            self._append("error", "Optionen unlesbar (Anführungszeichen?).")
+            return
         self._in.SetValue("")
         self._append("user", prompt)
+        self._proc = None
+        self._stopped = False
         self._set_busy(True)
         threading.Thread(
-            target=self._worker, args=(prompt,), daemon=True
+            target=self._worker, args=(prompt, extra_args), daemon=True
         ).start()
 
-    def _worker(self, prompt: str) -> None:
+    def _on_stop(self, _evt) -> None:
+        """User pressed Stopp — kill the running turn now."""
+        if not self._busy:
+            return
+        self._stopped = True
+        self._stop.Enable(False)
+        self._set_status("⏹ Wird gestoppt …", theme.ERROR_RED)
+        proc = self._proc
+        threading.Thread(target=lambda: claude_bridge.stop(proc),
+                         daemon=True).start()
+
+    def _worker(self, prompt: str, extra_args: list) -> None:
         result = claude_bridge.ask(
             prompt,
             project_dir=self._plan.run_cwd,
             mcp_config_path=self._plan.config_arg_path,
             session_id=self._session_id,
             claude_cmd=self._plan.claude_cmd,
+            extra_args=extra_args,
             on_status=lambda s: wx.CallAfter(self._on_activity, s),
+            on_tool=lambda n: wx.CallAfter(self._on_tool, n),
+            on_proc=lambda p: wx.CallAfter(self._on_proc, p),
         )
         # Refresh the board's refs/nets/layers so this reply can be linkified
         # (best effort; an unreachable editor just means no links this turn).
@@ -228,8 +280,23 @@ class ClaudeChatPanel(wx.Panel):
             pass
         wx.CallAfter(self._on_reply, result)
 
+    def _on_proc(self, proc) -> None:
+        """The bridge handed us the live process — store it for the Stopp button."""
+        self._proc = proc
+
+    def _on_tool(self, name: str) -> None:
+        """Append one streamed tool call to the transcript (dim ⚙ line)."""
+        if self:
+            self._write(f"  ⚙ {name}\n", theme.DIM)
+
     def _on_reply(self, result: dict) -> None:
         if not self:  # panel destroyed while Claude was thinking
+            return
+        self._proc = None
+        if self._stopped:  # user pressed Stopp — show that, ignore the rest
+            self._append("error", "⏹ Abgebrochen.")
+            self._set_busy(False)
+            self._in.SetFocus()
             return
         if result.get("_refs") is not None:
             self._refs = result["_refs"]
