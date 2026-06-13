@@ -8,6 +8,18 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added
+- **Plugin v0.2.17: anklickbare Board-Elemente im Chat (Cross-Probe).** Footprint-
+  Referenzen (`R12`, `U8`) und Netznamen (`GND`), die Claude in einer Antwort nennt,
+  werden im Panel als orange unterstrichene Links dargestellt; ein Klick **selektiert das
+  Element im laufenden PCB-Editor und zoomt darauf** (native Auswahl + best-effort
+  `zoomFitSelection`) — löst das „auf einer großen, viellagigen Platine finde ich das
+  Teil nicht"-Problem. Verlinkt werden nur Tokens, die wirklich auf dem Board existieren
+  (Refs/Netze werden je Antwort frisch über IPC geholt), daher keine toten Links und keine
+  Substring-Fehltreffer (`R1` matcht nicht in `R12`/`R1_OUT`). Reine Tokenizer-/Select-
+  Logik in `plugin/board_links.py` (headless getestet), das wx-Panel hängt nur Klick +
+  Styling dran. Auswahl/Zoom laufen direkt über kipy aus dem Panel — kein Claude-Turn nötig.
+
 ### Changed
 - **Plugin v0.2.16: Streaming statt 300-s-Fallbeil.** Der Chat konsumiert `claude -p`
   jetzt als `stream-json` (mit `--verbose`): Die Statuszeile zeigt **live**, was gerade

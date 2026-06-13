@@ -44,6 +44,10 @@ class ClaudeChatPanel(wx.Panel):
         self._session_id = None
         self._busy = False
         self._mono = _pick_mono_font()
+        # Board elements named in replies become clickable: char-range → target.
+        self._refs: set = set()
+        self._nets: set = set()
+        self._links: list = []  # (start, end, kind, value)
 
         self.SetBackgroundColour(wx.Colour(theme.BACKGROUND))
         root = wx.BoxSizer(wx.VERTICAL)
@@ -56,6 +60,7 @@ class ClaudeChatPanel(wx.Panel):
         self._out.SetBackgroundColour(wx.Colour(theme.BACKGROUND))
         self._out.SetForegroundColour(wx.Colour(theme.FOREGROUND))
         self._out.SetFont(self._mono)
+        self._out.Bind(wx.EVT_LEFT_UP, self._on_output_click)
         root.Add(self._out, 1, wx.EXPAND | wx.ALL, 8)
 
         row = wx.BoxSizer(wx.HORIZONTAL)
@@ -117,9 +122,11 @@ class ClaudeChatPanel(wx.Panel):
 
     # -- ui helpers ---------------------------------------------------------
 
-    def _write(self, text: str, color: str, bold: bool = False) -> None:
+    def _write(self, text: str, color: str, bold: bool = False,
+               underline: bool = False) -> None:
         attr = wx.TextAttr(wx.Colour(color))
         attr.SetFontWeight(wx.FONTWEIGHT_BOLD if bold else wx.FONTWEIGHT_NORMAL)
+        attr.SetFontUnderlined(underline)
         self._out.SetDefaultStyle(attr)
         self._out.AppendText(text)
 
@@ -127,6 +134,22 @@ class ClaudeChatPanel(wx.Panel):
         style = theme.style_for(role)
         self._write(style["prefix"], style["prefix_color"], bold=True)
         self._write(text + "\n\n", style["text_color"])
+
+    def _append_claude(self, text: str) -> None:
+        """Claude reply with board references/nets rendered as clickable links
+        (orange + underlined); clicking selects + zooms them in the editor."""
+        from . import board_links
+        style = theme.style_for("claude")
+        self._write(style["prefix"], style["prefix_color"], bold=True)
+        for chunk, target in board_links.tokenize(text + "\n\n", self._refs,
+                                                   self._nets):
+            if target is None:
+                self._write(chunk, style["text_color"])
+                continue
+            start = self._out.GetLastPosition()
+            self._write(chunk, theme.CLAUDE_ORANGE, underline=True)
+            kind, value = target
+            self._links.append((start, self._out.GetLastPosition(), kind, value))
 
     def _set_status(self, label: str, color: str) -> None:
         self._status.SetLabel(label)
@@ -185,11 +208,22 @@ class ClaudeChatPanel(wx.Panel):
             claude_cmd=self._plan.claude_cmd,
             on_status=lambda s: wx.CallAfter(self._on_activity, s),
         )
+        # Refresh the board's refs/nets so this reply can be linkified (best
+        # effort; an unreachable editor just means no links this turn).
+        try:
+            from . import board_links
+            _client, board = board_links.connect()
+            result["_refs"], result["_nets"] = board_links.board_targets(board)
+        except Exception:
+            pass
         wx.CallAfter(self._on_reply, result)
 
     def _on_reply(self, result: dict) -> None:
         if not self:  # panel destroyed while Claude was thinking
             return
+        if result.get("_refs") is not None:
+            self._refs = result["_refs"]
+            self._nets = result.get("_nets") or set()
         mcp_status = result.get("mcp_status") or ""
         if mcp_status.startswith("failed"):
             self._append(
@@ -199,11 +233,43 @@ class ClaudeChatPanel(wx.Panel):
             )
         if result.get("ok"):
             self._session_id = result.get("session_id") or self._session_id
-            self._append("claude", result.get("text") or "(keine Antwort)")
+            self._append_claude(result.get("text") or "(keine Antwort)")
         else:
             self._append("error", result.get("error") or "unbekannt")
         self._set_busy(False)
         self._in.SetFocus()
+
+    # -- board cross-probe (clickable elements) -----------------------------
+
+    def _on_output_click(self, evt) -> None:
+        evt.Skip()  # let the control handle caret/selection as usual
+        if not self._links:
+            return
+        hit = self._out.HitTestPos(evt.GetPosition())
+        # wx returns (HitTestResult, pos); pos is the char index.
+        pos = hit[1] if isinstance(hit, (tuple, list)) else hit
+        target = next((( k, v) for s, e, k, v in self._links
+                       if s <= pos < e), None)
+        if target is None:
+            return
+        kind, value = target
+        threading.Thread(target=self._select_worker, args=(kind, value),
+                         daemon=True).start()
+
+    def _select_worker(self, kind: str, value: str) -> None:
+        from . import board_links
+        try:
+            client, board = board_links.connect()
+            count = board_links.select(client, board, kind, value)
+            msg = (f"{value}: {count} Element(e) markiert"
+                   if count else f"{value}: nichts gefunden")
+        except Exception as exc:
+            msg = f"Auswahl fehlgeschlagen: {exc}"
+        wx.CallAfter(self._flash_status, msg)
+
+    def _flash_status(self, msg: str) -> None:
+        if self and not self._busy:
+            self._set_status(msg, theme.CLAUDE_ORANGE)
 
 
 class ClaudeChatDialog(wx.Dialog):
