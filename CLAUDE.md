@@ -104,3 +104,11 @@ hydratisiert die Multi-MB-Datei aus der Cloud (~80 s), nicht pcbnew (Load+Fill ~
 → aktives Projekt auf **lokale Disk**, nur Outputs syncen. Die Warm-Board-Daemons
 (`_warm_daemon.py`) amortisieren Load+Fill über wiederholte Queries; `pcb_batch` bündelt
 Writes (jeder Write = ein Sync-Upload); `file_cache` killt redundante Reads.
+
+**Live-IPC:** Der zentrale Session-Layer `utils/ipc_session.py` hält **einen** wieder-
+verwendeten kipy-Client (`get_client()`, von `_connect_kicad` genutzt) statt pro Tool-Call
+neu zu verbinden — der größte Latenz-Hebel. Timeout konfigurierbar via
+`KICAD_MCP_IPC_TIMEOUT_MS` (Default 15000 ms, statt kipys 2000 ms); `call_with_retry`
+fängt „KiCad is busy" mit Backoff ab und reconnectet bei abgerissener Verbindung. File-Log
+neben dem Board (`kicad_mcp_ipc.log`, Fallback Temp-Dir), da stdout beim Plugin-Launch
+unsichtbar ist. Wait-/Restart-Loops nutzen `new_client()` (frisch, gleicher Timeout).

@@ -8,6 +8,22 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added
+- **Zentraler IPC-Session-Layer (`utils/ipc_session.py`) — Connection-Robustheit + Speed
+  (Task A).** Behebt „MCP nicht verbunden (failed)" auf großen Boards und die Per-Call-
+  Reconnect-Latenz. (1) **Wiederverwendeter Client:** `get_client()` hält prozessweit eine
+  IPC-Verbindung, die `_connect_kicad()` (Hot-Path fast aller Read/Edit-Tools) jetzt nutzt
+  statt pro Tool-Call neu zu verbinden — größter Speed-Hebel; Reconnect-on-stale inklusive.
+  (2) **Konfigurierbarer Timeout:** `KICAD_MCP_IPC_TIMEOUT_MS` (Default **15000 ms** statt
+  kipys 2000 ms); alle 12 Inline-`KiCad()`-Stellen in `ipc_tools.py` bekommen den zentralen
+  Timeout. (3) **Busy-Retry:** `call_with_retry` fängt „KiCad is busy and cannot respond"
+  mit exponentiellem Backoff ab und reconnectet einmal bei abgerissener Verbindung.
+  (4) **File-Logging** neben dem offenen `.kicad_pcb` (`kicad_mcp_ipc.log`, Fallback
+  `tempfile.gettempdir()`): Connect/Reconnect, Timeouts, Busy-Retries, Call-Dauer — da
+  stdout/stderr beim Plugin-Launch unsichtbar sind. (5) **Klare Fehlermeldungen** an den
+  MCP-Client statt nur „failed". Wait-/Restart-Loops nutzen `new_client()` (frisch, gleicher
+  Timeout — kein stale-Cache). Headless getestet (`tests/test_ipc_session.py`), kipy lazy.
+
 ### Fixed
 - **Plugin v0.2.20: kein verwaister Claude/MCP-Prozess mehr, wenn KiCad geschlossen wird.**
   `claude -p` (+ sein MCP-Kindprozess) wird aus KiCad heraus gestartet; unter Windows

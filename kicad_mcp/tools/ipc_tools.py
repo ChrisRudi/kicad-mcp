@@ -51,6 +51,10 @@ from typing import Any, Optional
 
 from mcp.server.fastmcp import FastMCP
 
+# Central IPC timeout (Env KICAD_MCP_IPC_TIMEOUT_MS, default 15000 ms) — every
+# inline KiCad(timeout_ms=_ipc_timeout_ms()) below is constructed with it instead of kipy's 2000 ms.
+from kicad_mcp.utils.ipc_session import timeout_ms as _ipc_timeout_ms
+
 
 # ---------------------------------------------------------------------------
 # Lazy KiCad-IPC client wrapper. We never import kipy at module load time so
@@ -280,7 +284,7 @@ def _require_editor(
     )
 
     try:
-        client = KiCad()
+        client = KiCad(timeout_ms=_ipc_timeout_ms())
     except Exception as exc:
         return {"success": False, "error": f"Cannot reach KiCad: {exc}"}
 
@@ -430,36 +434,20 @@ def _attach_auto_open(response: dict[str, Any]) -> dict[str, Any]:
 
 
 def _connect_kicad():
-    """Open a fresh KiCad IPC client. Caller must close it.
+    """Reused KiCad IPC client + its board (central session layer).
 
     Returns a ``(client, board)`` tuple on success or raises ``RuntimeError``
     with a clear message on failure (kipy missing, KiCad not running, no
-    board open).
+    board open). The client is process-wide REUSED (``ipc_session``) with the
+    configurable timeout, busy-retry/backoff and reconnect-on-stale — so
+    repeated tool calls don't pay a fresh-connect each time.
     """
     if not _kipy_available():
         raise RuntimeError(
             "kicad-python (kipy) is not installed. Run ipc_install_kipy first."
         )
-    try:
-        from kipy import KiCad  # type: ignore
-    except Exception as exc:
-        raise RuntimeError(f"kicad-python import failed: {exc}") from exc
-
-    try:
-        client = KiCad()
-    except Exception as exc:
-        raise RuntimeError(
-            f"Cannot reach KiCad IPC server: {exc}. Is KiCad running and "
-            f"is the IPC API enabled (Preferences → Plugins → IPC API)?"
-        ) from exc
-
-    try:
-        board = client.get_board()
-    except Exception as exc:
-        raise RuntimeError(
-            f"No board accessible via IPC: {exc}. Open a .kicad_pcb in the "
-            f"PCB Editor before calling IPC tools."
-        ) from exc
+    from kicad_mcp.utils import ipc_session
+    client, board = ipc_session.connect_board()
 
     # First-board-contact presence beacon: light up the MCP.Skizze layer so the
     # user sees the MCP is active here. Once per process, best-effort, and
@@ -491,7 +479,7 @@ def _close_editor_silent(doc_type: str) -> dict[str, Any]:
     except Exception as exc:
         return {"closed_count": 0, "errors": [f"kipy import failed: {exc}"]}
     try:
-        client = KiCad()
+        client = KiCad(timeout_ms=_ipc_timeout_ms())
     except Exception as exc:
         return {"closed_count": 0, "errors": [f"Cannot reach KiCad: {exc}"]}
     doc_const = (
@@ -828,7 +816,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
         except Exception as exc:
             return {"success": False, "error": f"kipy import failed: {exc}"}
         try:
-            client = KiCad()
+            client = KiCad(timeout_ms=_ipc_timeout_ms())
         except Exception as exc:
             return {
                 "success": False,
@@ -889,7 +877,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
         except Exception as exc:
             return {"success": False, "error": f"kipy import failed: {exc}"}
         try:
-            client = KiCad()
+            client = KiCad(timeout_ms=_ipc_timeout_ms())
         except Exception as exc:
             return {"success": False, "error": f"Cannot reach KiCad: {exc}"}
         try:
@@ -971,7 +959,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
         except Exception as exc:
             return {"success": False, "error": f"kipy import failed: {exc}"}
         try:
-            client = KiCad()
+            client = KiCad(timeout_ms=_ipc_timeout_ms())
         except Exception as exc:
             return {"success": False, "error": f"Cannot reach KiCad: {exc}"}
         try:
@@ -1200,7 +1188,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
                     DocumentType,
                 )
 
-                client = KiCad()
+                client = KiCad(timeout_ms=_ipc_timeout_ms())
                 kicad_running = True
                 try:
                     kicad_version = _kicad_version_string(client)
@@ -1322,7 +1310,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
                     ),
                 }
         try:
-            client = KiCad()
+            client = KiCad(timeout_ms=_ipc_timeout_ms())
         except Exception as exc:
             return {"success": False, "error": f"Cannot reach KiCad: {exc}"}
         try:
@@ -1458,7 +1446,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
                 ),
             }
         try:
-            client = KiCad()
+            client = KiCad(timeout_ms=_ipc_timeout_ms())
         except Exception as exc:
             return {"success": False, "error": f"Cannot reach KiCad: {exc}"}
         try:
@@ -1582,7 +1570,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
         except Exception as exc:
             return {"success": False, "error": f"kipy import failed: {exc}"}
         try:
-            client = KiCad()
+            client = KiCad(timeout_ms=_ipc_timeout_ms())
         except Exception as exc:
             return {"success": False, "error": f"Cannot reach KiCad: {exc}"}
         action = "common.Control.revert"
@@ -2242,7 +2230,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
         deadline = time.time() + timeout_s
         while time.time() < deadline:
             try:
-                client = KiCad()
+                client = KiCad(timeout_ms=_ipc_timeout_ms())
                 if client.get_open_documents(doc_const):
                     return {
                         "success": True,
@@ -2338,7 +2326,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
                     DocumentType,
                 )
 
-                client = KiCad()
+                client = KiCad(timeout_ms=_ipc_timeout_ms())
                 doc_const = (
                     DocumentType.DOCTYPE_SCHEMATIC
                     if doc_type == "schematic"
