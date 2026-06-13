@@ -1,0 +1,121 @@
+{
+  "template_id": "h_bridge",
+  "circuit_type": "motor_driver",
+  "description": "H-Bridge motor driver with flyback diodes, decoupling, and connectors",
+  "source_schematics": ["l298n_driver", "drv8833_minimal"],
+  "source_count": 2,
+
+  "match_rules": {
+    "required_components": [
+      {"type": "motor_driver", "match": ["L298", "DRV8833", "DRV8825", "DRV8835", "TB6612", "L293", "BTS7960"]}
+    ],
+    "optional_components": ["flyback_diode", "decoupling_cap", "motor_connector", "mcu_connector", "current_sense_resistor"],
+    "min_confidence": 0.55
+  },
+
+  "placement": {
+    "regions": {
+      "mcu_connector": {"rx_range": [0.02, 0.12], "ry_range": [0.35, 0.55], "description": "MCU/logic input at left"},
+      "driver_ic": {"rx_range": [0.30, 0.55], "ry_range": [0.30, 0.55], "description": "H-Bridge driver IC centered"},
+      "diode_upper": {"rx_range": [0.60, 0.75], "ry_range": [0.15, 0.35], "description": "Upper flyback diodes"},
+      "diode_lower": {"rx_range": [0.60, 0.75], "ry_range": [0.55, 0.75], "description": "Lower flyback diodes"},
+      "decoupling_cap": {"rx_range": [0.30, 0.40], "ry_range": [0.70, 0.85], "description": "Power decoupling cap near driver"},
+      "bulk_cap": {"rx_range": [0.45, 0.55], "ry_range": [0.70, 0.85], "description": "Bulk capacitor for motor supply"},
+      "motor_connector": {"rx_range": [0.85, 0.95], "ry_range": [0.35, 0.55], "description": "Motor output at right edge"},
+      "power_connector": {"rx_range": [0.30, 0.45], "ry_range": [0.85, 0.95], "description": "Motor power supply at bottom"}
+    },
+    "signal_flow": "left_to_right",
+    "component_rotation": {"D": 90, "C": 90, "R": 0}
+  },
+
+  "wiring_hint": "Logic input left → Driver IC center → Motor output right. Flyback diodes close to motor pins. Power labels for VM/VCC/GND. Decoupling caps close to driver power pins.",
+
+  "block_definition": {
+    "schema_version": "1.1",
+    "chip": "HBRIDGE_GENERIC",
+    "kicad_symbol": "Driver_Motor:DRV8833PWP",
+    "kicad_footprint": "Package_SO:HTSSOP-16-1EP_4.4x5mm_P0.65mm_EP3.4x5mm",
+    "pins": [
+      {"num": 1,  "name": "VINT",  "type": "passive",   "function": "Internal regulator output, 1uF cap to GND"},
+      {"num": 2,  "name": "VM",    "type": "power_in",  "function": "Motor power supply"},
+      {"num": 3,  "name": "AOUT1", "type": "output",    "function": "H-Bridge A output 1"},
+      {"num": 4,  "name": "AISEN", "type": "passive",   "function": "Bridge A sense / GND"},
+      {"num": 5,  "name": "AOUT2", "type": "output",    "function": "H-Bridge A output 2"},
+      {"num": 6,  "name": "BOUT2", "type": "output",    "function": "H-Bridge B output 2"},
+      {"num": 7,  "name": "BISEN", "type": "passive",   "function": "Bridge B sense / GND"},
+      {"num": 8,  "name": "BOUT1", "type": "output",    "function": "H-Bridge B output 1"},
+      {"num": 9,  "name": "BIN1",  "type": "input",     "function": "Bridge B input 1"},
+      {"num": 10, "name": "BIN2",  "type": "input",     "function": "Bridge B input 2"},
+      {"num": 11, "name": "nSLEEP","type": "input",     "function": "Sleep mode, active low"},
+      {"num": 12, "name": "nFAULT","type": "open_collector", "function": "Fault output"},
+      {"num": 13, "name": "AIN2",  "type": "input",     "function": "Bridge A input 2"},
+      {"num": 14, "name": "AIN1",  "type": "input",     "function": "Bridge A input 1"},
+      {"num": 15, "name": "GND",   "type": "power_in",  "function": "Logic ground"},
+      {"num": 16, "name": "VCC",   "type": "power_in",  "function": "Logic supply"}
+    ],
+    "peripherals": [
+      {
+        "id": "C_VM_BULK", "role": "input_decoupling",
+        "between": ["VM", "GND"], "value": "10uF",
+        "specs": {"type": "ceramic", "dielectric": "X7R", "voltage_min": "16V"},
+        "kicad_footprint": "Capacitor_SMD:C_0805_2012Metric",
+        "placement_hint": "as close to VM pin as possible (motor commutation transients)",
+        "required": true
+      },
+      {
+        "id": "C_VM_HF", "role": "input_decoupling",
+        "between": ["VM", "GND"], "value": "100nF",
+        "required": true
+      },
+      {
+        "id": "C_VINT", "role": "internal_regulator_output",
+        "between": ["VINT", "GND"], "value": "1uF",
+        "specs": {"type": "ceramic", "dielectric": "X7R"},
+        "comment": "stabilises internal logic regulator (do not load externally)",
+        "required": true
+      },
+      {
+        "id": "C_VCC", "role": "input_decoupling",
+        "between": ["VCC", "GND"], "value": "100nF",
+        "required": true
+      },
+      {
+        "id": "R_nSLEEP", "role": "enable_pullup",
+        "between": ["nSLEEP", "VCC"], "value": "100k",
+        "comment": "wakes driver from sleep when MCU not driving",
+        "required": false
+      },
+      {
+        "id": "R_nFAULT", "role": "open_drain_pullup",
+        "between": ["nFAULT", "VCC"], "value": "10k",
+        "comment": "fault is open-collector",
+        "required": true
+      }
+    ],
+    "external_nets": [
+      {"name": "VM",     "direction": "input",  "type": "power"},
+      {"name": "VCC",    "direction": "input",  "type": "power"},
+      {"name": "GND",    "direction": "passive","type": "ground"},
+      {"name": "AIN1",   "direction": "input",  "type": "signal"},
+      {"name": "AIN2",   "direction": "input",  "type": "signal"},
+      {"name": "BIN1",   "direction": "input",  "type": "signal"},
+      {"name": "BIN2",   "direction": "input",  "type": "signal"},
+      {"name": "AOUT1",  "direction": "output", "type": "signal"},
+      {"name": "AOUT2",  "direction": "output", "type": "signal"},
+      {"name": "BOUT1",  "direction": "output", "type": "signal"},
+      {"name": "BOUT2",  "direction": "output", "type": "signal"},
+      {"name": "nSLEEP", "direction": "input",  "type": "signal"},
+      {"name": "nFAULT", "direction": "output", "type": "signal"}
+    ],
+    "operating_envelope": {
+      "vm_min": 2.7, "vm_max": 10.8,
+      "vcc_min": 2.7, "vcc_max": 5.5,
+      "iout_per_bridge_max": 1.5
+    },
+    "review_status": "verified_against_datasheet",
+    "needs_review": [
+      "override chip_meta when targeting a different H-bridge (L293, L298, TB6612, BTS7960 — pin tables differ)",
+      "decide whether to expose AISEN/BISEN as current-sense or tie directly to GND"
+    ]
+  }
+}

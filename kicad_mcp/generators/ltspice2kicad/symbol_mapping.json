@@ -1,0 +1,204 @@
+{
+  "mappings": [
+    {
+      "ltspice_symbol": "res",
+      "ltspice_aliases": ["res2"],
+      "kicad_symbol": "Device:R",
+      "kicad_footprint": "Resistor_SMD:R_0805_2012Metric",
+      "pin_map": {
+        "A": "1",
+        "B": "2"
+      },
+      "pin_spacing_lt": 64,
+      "pin_spacing_kicad": 5.08,
+      "mirror_semantic": "safe"
+    },
+    {
+      "ltspice_symbol": "cap",
+      "ltspice_aliases": ["cap2"],
+      "kicad_symbol": "Device:C",
+      "kicad_footprint": "Capacitor_SMD:C_0805_2012Metric",
+      "pin_map": {
+        "A": "1",
+        "B": "2"
+      },
+      "pin_spacing_lt": 64,
+      "pin_spacing_kicad": 5.08,
+      "mirror_semantic": "safe"
+    },
+    {
+      "ltspice_symbol": "polcap",
+      "ltspice_aliases": [],
+      "kicad_symbol": "Device:C_Polarized",
+      "kicad_footprint": "Capacitor_SMD:CP_Elec_5x5.3",
+      "pin_map": {
+        "A": "1",
+        "B": "2"
+      },
+      "pin_spacing_lt": 64,
+      "pin_spacing_kicad": 5.08,
+      "mirror_semantic": "safe"
+    },
+    {
+      "ltspice_symbol": "ind",
+      "ltspice_aliases": ["ind2"],
+      "kicad_symbol": "Device:L",
+      "kicad_footprint": "Inductor_SMD:L_0805_2012Metric",
+      "pin_map": {
+        "A": "1",
+        "B": "2"
+      },
+      "pin_spacing_lt": 64,
+      "pin_spacing_kicad": 5.08,
+      "mirror_semantic": "safe"
+    },
+    {
+      "ltspice_symbol": "diode",
+      "ltspice_aliases": ["schottky", "zener"],
+      "kicad_symbol": "Device:D",
+      "kicad_footprint": "Diode_SMD:D_SOD-323",
+      "pin_map": {
+        "+": "2",
+        "-": "1"
+      },
+      "pin_spacing_lt": 64,
+      "pin_spacing_kicad": 5.08,
+      "mirror_semantic": "safe"
+    },
+    {
+      "ltspice_symbol": "nmos",
+      "ltspice_aliases": ["nmos3"],
+      "kicad_symbol": "Device:Q_NMOS",
+      "kicad_footprint": "Package_TO_SOT_SMD:SOT-23",
+      "pin_map": {
+        "D": "D",
+        "G": "G",
+        "S": "S"
+      },
+      "explicit_nc_pins": [],
+      "pin_spacing_lt": 32,
+      "pin_spacing_kicad": 2.54,
+      "mirror_semantic": "restricted",
+      "pin_map_mirrored": {
+        "S": "D",
+        "G": "G",
+        "D": "S"
+      }
+    },
+    {
+      "ltspice_symbol": "pmos",
+      "ltspice_aliases": ["pmos3"],
+      "kicad_symbol": "Device:Q_PMOS",
+      "kicad_footprint": "Package_TO_SOT_SMD:SOT-23",
+      "pin_map": {
+        "D": "D",
+        "G": "G",
+        "S": "S"
+      },
+      "explicit_nc_pins": [],
+      "pin_spacing_lt": 32,
+      "pin_spacing_kicad": 2.54,
+      "mirror_semantic": "restricted",
+      "pin_map_mirrored": {
+        "S": "D",
+        "G": "G",
+        "D": "S"
+      }
+    },
+    {
+      "ltspice_symbol": "npn",
+      "ltspice_aliases": [],
+      "kicad_symbol": "Device:Q_NPN",
+      "kicad_footprint": "Package_TO_SOT_SMD:SOT-23",
+      "pin_map": {
+        "B": "B",
+        "C": "C",
+        "E": "E"
+      },
+      "pin_spacing_lt": 32,
+      "pin_spacing_kicad": 2.54,
+      "mirror_semantic": "restricted",
+      "pin_map_mirrored": {
+        "B": "B",
+        "E": "C",
+        "C": "E"
+      }
+    },
+    {
+      "ltspice_symbol": "pnp",
+      "ltspice_aliases": [],
+      "kicad_symbol": "Device:Q_PNP",
+      "kicad_footprint": "Package_TO_SOT_SMD:SOT-23",
+      "pin_map": {
+        "B": "B",
+        "C": "C",
+        "E": "E"
+      },
+      "pin_spacing_lt": 32,
+      "pin_spacing_kicad": 2.54,
+      "mirror_semantic": "restricted",
+      "pin_map_mirrored": {
+        "B": "B",
+        "E": "C",
+        "C": "E"
+      }
+    },
+    {
+      "ltspice_symbol": "voltage",
+      "ltspice_aliases": ["voltage2"],
+      "kicad_symbol": "Simulation_SPICE:V",
+      "kicad_footprint": "",
+      "pin_map": {
+        "+": "1",
+        "-": "2"
+      },
+      "pin_spacing_lt": 64,
+      "pin_spacing_kicad": 5.08,
+      "mirror_semantic": "safe"
+    },
+    {
+      "ltspice_symbol": "current",
+      "ltspice_aliases": ["current2"],
+      "kicad_symbol": "Simulation_SPICE:I",
+      "kicad_footprint": "",
+      "pin_map": {
+        "+": "1",
+        "-": "2"
+      },
+      "pin_spacing_lt": 64,
+      "pin_spacing_kicad": 5.08,
+      "mirror_semantic": "safe"
+    },
+    {
+      "ltspice_symbol": "LED",
+      "ltspice_aliases": [],
+      "kicad_symbol": "Device:LED",
+      "kicad_footprint": "LED_SMD:LED_0805_2012Metric",
+      "pin_map": {
+        "+": "1",
+        "-": "2"
+      },
+      "pin_spacing_lt": 64,
+      "pin_spacing_kicad": 5.08,
+      "mirror_semantic": "safe"
+    }
+  ],
+  "power_symbols": {
+    "0": "power:GND",
+    "GND": "power:GND",
+    "VCC": "power:VCC",
+    "VDD": "power:VDD",
+    "V+": "power:+5V",
+    "V-": "power:-5V",
+    "+5V": "power:+5V",
+    "-5V": "power:-5V",
+    "+3.3V": "power:+3V3",
+    "+12V": "power:+12V",
+    "-12V": "power:-12V"
+  },
+  "char_map": {
+    "u_prefix": "\u00b5",
+    "ohm_suffix": "\u03a9",
+    "squared": "\u00b2"
+  }
+}

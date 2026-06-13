@@ -1,0 +1,266 @@
+(session medium_8pin
+  (base_design medium_8pin)
+  (placement
+    (resolution um 10)
+    (component MountingHole:MountingHole_3.2mm_M3
+      (place MH1 1320000 -935000 front 0)
+      (place MH2 1650000 -935000 front 0)
+      (place MH3 1320000 -1165000 front 0)
+      (place MH4 1650000 -1165000 front 0)
+    )
+    (component "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
+      (place U1 1438600 -1054000 front 0)
+    )
+    (component Capacitor_SMD:C_0402_1005Metric
+      (place C1 1472200 -1031400 front 0)
+    )
+    (component Resistor_SMD:R_0402_1005Metric
+      (place R_SCL 1470800 -1079600 front 0)
+      (place R_SDA 1508100 -1093200 front 0)
+      (place R_LED 1501500 -1059600 front 0)
+    )
+    (component LED_SMD:LED_0805_2012Metric
+      (place D1 1426300 -1086000 front 0)
+    )
+    (component TestPoint:TestPoint_Pad_D2.0mm
+      (place J_VCC 1559500 -1015000 front 0)
+      (place J_GND 1387600 -1002200 front 0)
+    )
+  )
+  (was_is
+  )
+  (routes 
+    (resolution um 10)
+    (parser
+      (host_cad "KiCad's Pcbnew")
+      (host_version 10.0.1)
+    )
+    (library_out 
+      (padstack "Via[0-1]_450:200_um"
+        (shape
+          (circle F.Cu 4500 0 0)
+        )
+        (shape
+          (circle B.Cu 4500 0 0)
+        )
+        (attach off)
+      )
+      (padstack "Via[0-1]_800:400_um"
+        (shape
+          (circle F.Cu 8000 0 0)
+        )
+        (shape
+          (circle B.Cu 8000 0 0)
+        )
+        (attach off)
+      )
+      (padstack "Via[0-1]_450:200_um"
+        (shape
+          (circle F.Cu 4500 0 0)
+        )
+        (shape
+          (circle B.Cu 4500 0 0)
+        )
+        (attach off)
+      )
+    )
+    (network_out 
+      (net VCC
+        (wire
+          (path B.Cu 5000
+            1496400 -1079600
+            1496400 -1093200
+          )
+          (type protect)
+        )
+        (wire
+          (path F.Cu 1270
+            1512614 -1025711
+            1512614 -1059600
+          )
+        )
+        (wire
+          (path F.Cu 1270
+            1436159 -1033471
+            1443242 -1026388
+            1470378 -1026388
+            1471055 -1025711
+            1512614 -1025711
+          )
+        )
+        (wire
+          (path F.Cu 1270
+            1512614 -1025711
+            1523325 -1015000
+            1559500 -1015000
+          )
+        )
+        (wire
+          (path F.Cu 5000
+            1413850 -1034950
+            1436159 -1033471
+          )
+          (type protect)
+        )
+        (wire
+          (path F.Cu 5000
+            1436159 -1033471
+            1467400 -1031400
+          )
+          (type protect)
+        )
+        (wire
+          (path F.Cu 5000
+            1512614 -1059600
+            1559500 -1059600
+          )
+          (type protect)
+        )
+        (wire
+          (path F.Cu 5000
+            1496400 -1059600
+            1512614 -1059600
+          )
+          (type protect)
+        )
+        (wire
+          (path F.Cu 1270
+            1496400 -1079600
+            1512614 -1063386
+            1512614 -1059600
+          )
+        )
+        (via "Via[0-1]_800:400_um" 1559500 -1059600
+          (type protect)
+        )
+        (via "Via[0-1]_800:400_um" 1496400 -1093200
+          (type protect)
+        )
+        (via "Via[0-1]_800:400_um" 1496400 -1079600
+          (type protect)
+        )
+        (wire
+          (path B.Cu 5000
+            1559500 -1059600
+            1559500 -1015000
+          )
+          (type protect)
+        )
+        (wire
+          (path F.Cu 5000
+            1496400 -1093200
+            1503000 -1093200
+          )
+          (type protect)
+        )
+        (wire
+          (path F.Cu 5000
+            1465700 -1079600
+            1496400 -1079600
+          )
+          (type protect)
+        )
+        (wire
+          (path B.Cu 5000
+            1467400 -1031400
+            1465700 -1079600
+          )
+          (type protect)
+        )
+      )
+      (net SCL
+        (via "Via[0-1]_800:400_um" 1463350 -1079600
+          (type protect)
+        )
+        (wire
+          (path F.Cu 2500
+            1463350 -1079600
+            1475900 -1079600
+          )
+          (type protect)
+        )
+        (wire
+          (path B.Cu 2500
+            1463350 -1060350
+            1463350 -1079600
+          )
+          (type protect)
+        )
+      )
+      (net SDA
+        (wire
+          (path F.Cu 1270
+            1464396 -1093200
+            1462515 -1095081
+            1430944 -1095081
+            1428410 -1092547
+            1428410 -1058404
+            1433189 -1053625
+            1457375 -1053625
+            1463350 -1047650
+          )
+        )
+        (wire
+          (path F.Cu 2500
+            1464396 -1093200
+            1513200 -1093200
+          )
+          (type protect)
+        )
+        (wire
+          (path F.Cu 2500
+            1463350 -1093200
+            1464396 -1093200
+          )
+          (type protect)
+        )
+        (via "Via[0-1]_800:400_um" 1463350 -1093200
+          (type protect)
+        )
+        (wire
+          (path B.Cu 2500
+            1463350 -1047650
+            1463350 -1093200
+          )
+          (type protect)
+        )
+      )
+      (net LED_DRV
+        (wire
+          (path F.Cu 1270
+            1435675 -1086000
+            1435670 -1085995
+            1435670 -1059600
+          )
+        )
+        (via "Via[0-1]_800:400_um" 1435670 -1059600
+          (type protect)
+        )
+        (via "Via[0-1]_800:400_um" 1435670 -1047650
+          (type protect)
+        )
+        (wire
+          (path F.Cu 2500
+            1435670 -1059600
+            1506600 -1059600
+          )
+          (type protect)
+        )
+        (wire
+          (path B.Cu 2500
+            1435670 -1047650
+            1435670 -1059600
+          )
+          (type protect)
+        )
+        (wire
+          (path F.Cu 2500
+            1413850 -1047650
+            1435670 -1047650
+          )
+          (type protect)
+        )
+      )
+    )
+  )
+)

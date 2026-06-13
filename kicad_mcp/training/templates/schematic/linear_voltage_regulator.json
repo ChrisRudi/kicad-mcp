@@ -1,0 +1,87 @@
+{
+  "template_id": "linear_voltage_regulator",
+  "circuit_type": "power_supply",
+  "description": "Linear voltage regulator (7805/LDO) with input/output capacitors",
+  "source_schematics": ["050217-D", "040172-D", "DE2008070161"],
+  "source_count": 3,
+
+  "match_rules": {
+    "required_components": [
+      {"type": "linear_regulator", "match": ["7805", "7812", "7905", "LM78", "LM79", "LDO", "AMS1117", "MCP1700", "L78", "L79", "AP2112"]}
+    ],
+    "optional_components": ["input_cap", "output_cap", "diode_protection", "led_indicator"],
+    "min_confidence": 0.5
+  },
+
+  "placement": {
+    "regions": {
+      "input_connector": {"rx_range": [0.02, 0.12], "ry_range": [0.35, 0.55], "description": "Power input at left"},
+      "input_cap": {"rx_range": [0.12, 0.25], "ry_range": [0.35, 0.55], "description": "Input filter cap near regulator"},
+      "regulator": {"rx_range": [0.30, 0.50], "ry_range": [0.35, 0.55], "description": "Regulator IC centered"},
+      "output_cap": {"rx_range": [0.55, 0.70], "ry_range": [0.35, 0.55], "description": "Output filter cap after regulator"},
+      "output": {"rx_range": [0.75, 0.95], "ry_range": [0.35, 0.55], "description": "Output/load at right"}
+    },
+    "signal_flow": "left_to_right",
+    "component_rotation": {"R": 90, "C": 90}
+  },
+
+  "wiring_hint": "Power labels for Vin/Vout/GND. Linear signal chain: Vin → Cin → REG → Cout → Vout. All direct wires.",
+
+  "block_definition": {
+    "schema_version": "1.1",
+    "chip": "LDO_GENERIC",
+    "kicad_symbol": "Regulator_Linear:AMS1117-3.3",
+    "kicad_footprint": "Package_TO_SOT_SMD:SOT-223-3_TabPin2",
+    "pins": [
+      {"num": 1, "name": "GND", "type": "power_in"},
+      {"num": 2, "name": "VO",  "type": "power_out"},
+      {"num": 3, "name": "VI",  "type": "power_in"}
+    ],
+    "peripherals": [
+      {
+        "id": "C_IN", "role": "input_decoupling",
+        "between": ["VI", "GND"], "value": "10uF",
+        "polarity": "polarized", "anode": "VI", "cathode": "GND",
+        "kicad_symbol": "Device:CP_Small",
+        "kicad_footprint": "Capacitor_SMD:CP_Elec_4x5.4",
+        "specs": {"voltage_min": "16V", "esr_max": "0.5"},
+        "source": "Generic LDO datasheet stability section",
+        "required": true
+      },
+      {
+        "id": "C_IN_HF", "role": "input_decoupling",
+        "between": ["VI", "GND"], "value": "100nF",
+        "specs": {"type": "ceramic", "dielectric": "X7R"},
+        "required": false
+      },
+      {
+        "id": "C_OUT", "role": "output_decoupling",
+        "between": ["VO", "GND"], "value": "22uF",
+        "polarity": "polarized", "anode": "VO", "cathode": "GND",
+        "kicad_symbol": "Device:CP_Small",
+        "kicad_footprint": "Capacitor_SMD:CP_Elec_4x5.4",
+        "specs": {"voltage_min": "10V", "esr_min": "0.05", "esr_max": "0.5"},
+        "comment": "ESR floor required for stability with most LDOs",
+        "required": true
+      },
+      {
+        "id": "C_OUT_HF", "role": "output_decoupling",
+        "between": ["VO", "GND"], "value": "100nF",
+        "required": false
+      }
+    ],
+    "external_nets": [
+      {"name": "VI",  "direction": "input",  "type": "power"},
+      {"name": "VO",  "direction": "output", "type": "power"},
+      {"name": "GND", "direction": "passive","type": "ground"}
+    ],
+    "operating_envelope": {
+      "vi_typ": 5.0, "vo_typ": 3.3, "iout_typ": 0.5
+    },
+    "review_status": "verified_against_datasheet",
+    "needs_review": [
+      "override chip_meta with the actual LDO part-number, kicad_symbol, footprint and pin-table",
+      "verify capacitor ESR window against the chosen LDO datasheet (LP2950, MCP1700 etc. have different requirements)"
+    ]
+  }
+}

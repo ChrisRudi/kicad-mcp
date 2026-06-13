@@ -1,0 +1,132 @@
+{
+  "template_id": "ups_battery_backup",
+  "circuit_type": "power_management",
+  "description": "UPS/battery backup with charger, comparator monitoring, and relay switching",
+  "source_schematics": [
+    "DE2011070151",
+    "060076-D"
+  ],
+  "source_count": 2,
+  "match_rules": {
+    "required_components": [
+      {
+        "type": "comparator_or_supervisor",
+        "match": [
+          "LM393",
+          "LM339",
+          "comparator",
+          "supervisor",
+          "LM3900",
+          "LM2903"
+        ]
+      },
+      {
+        "type": "relay_or_switch",
+        "match": [
+          "relay",
+          "RE1",
+          "MOSFET",
+          "IRF"
+        ]
+      }
+    ],
+    "optional_components": [
+      "voltage_regulator",
+      "battery",
+      "led_indicator",
+      "inductor"
+    ],
+    "min_confidence": 0.5
+  },
+  "placement": {
+    "regions": {
+      "power_input": {
+        "rx_range": [
+          0.02,
+          0.15
+        ],
+        "ry_range": [
+          0.15,
+          0.4
+        ],
+        "description": "Mains/DC input connector top-left"
+      },
+      "charger": {
+        "rx_range": [
+          0.15,
+          0.35
+        ],
+        "ry_range": [
+          0.55,
+          0.8
+        ],
+        "description": "Battery charger circuit bottom-left"
+      },
+      "battery": {
+        "rx_range": [
+          0.02,
+          0.15
+        ],
+        "ry_range": [
+          0.7,
+          0.9
+        ],
+        "description": "Battery connector bottom-left"
+      },
+      "monitor": {
+        "rx_range": [
+          0.35,
+          0.55
+        ],
+        "ry_range": [
+          0.35,
+          0.65
+        ],
+        "description": "Voltage monitor/comparator center"
+      },
+      "switch": {
+        "rx_range": [
+          0.6,
+          0.75
+        ],
+        "ry_range": [
+          0.25,
+          0.5
+        ],
+        "description": "Relay/MOSFET switch center-right"
+      },
+      "output": {
+        "rx_range": [
+          0.8,
+          0.95
+        ],
+        "ry_range": [
+          0.25,
+          0.5
+        ],
+        "description": "Load output at right"
+      },
+      "indicators": {
+        "rx_range": [
+          0.55,
+          0.7
+        ],
+        "ry_range": [
+          0.1,
+          0.25
+        ],
+        "description": "Status LEDs top-center"
+      }
+    },
+    "signal_flow": "left_to_right",
+    "component_rotation": {
+      "R": 90,
+      "C": 90,
+      "D": 90
+    }
+  },
+  "wiring_hint": "Power labels for all rails. Signal paths direct wires. Battery and charger in lower half.",
+  "block_definition": null,
+  "block_definition_status": "stub",
+  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the ups_battery_backup pattern. See examples/circuit_block/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
+}

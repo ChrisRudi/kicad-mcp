@@ -1,0 +1,109 @@
+{
+  "template_id": "ir_sensor_logic",
+  "circuit_type": "sensor_logic",
+  "description": "IR sensor/photodetector with comparator/logic gate signal processing",
+  "source_schematics": [
+    "060086-2-D",
+    "050264-D"
+  ],
+  "source_count": 2,
+  "match_rules": {
+    "required_components": [
+      {
+        "type": "sensor_ir",
+        "match": [
+          "TSOP",
+          "IR",
+          "photo",
+          "SFH",
+          "BPW"
+        ]
+      },
+      {
+        "type": "comparator_or_gate",
+        "match": [
+          "LM393",
+          "LM339",
+          "4013",
+          "4093",
+          "74HC"
+        ]
+      }
+    ],
+    "optional_components": [
+      "transistor_driver",
+      "led",
+      "relay"
+    ],
+    "min_confidence": 0.6
+  },
+  "placement": {
+    "regions": {
+      "sensor": {
+        "rx_range": [
+          0.02,
+          0.15
+        ],
+        "ry_range": [
+          0.3,
+          0.7
+        ],
+        "description": "IR sensors at left edge"
+      },
+      "signal_conditioning": {
+        "rx_range": [
+          0.2,
+          0.4
+        ],
+        "ry_range": [
+          0.25,
+          0.55
+        ],
+        "description": "Comparators/gates center-left"
+      },
+      "logic": {
+        "rx_range": [
+          0.45,
+          0.65
+        ],
+        "ry_range": [
+          0.25,
+          0.55
+        ],
+        "description": "Logic processing center"
+      },
+      "driver": {
+        "rx_range": [
+          0.7,
+          0.85
+        ],
+        "ry_range": [
+          0.35,
+          0.6
+        ],
+        "description": "Output driver right"
+      },
+      "output": {
+        "rx_range": [
+          0.85,
+          0.95
+        ],
+        "ry_range": [
+          0.35,
+          0.6
+        ],
+        "description": "LED/relay at far right"
+      }
+    },
+    "signal_flow": "left_to_right",
+    "component_rotation": {
+      "R": 90,
+      "C": 90,
+      "D": 90
+    }
+  },
+  "wiring_hint": "Direct wires. Multiple sensors stacked vertically at left.",
+  "block_definition": null,
+  "block_definition_status": "stub",
+  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the ir_sensor_logic pattern. See examples/circuit_block/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
+}

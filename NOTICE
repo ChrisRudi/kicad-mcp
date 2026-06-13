@@ -1,0 +1,38 @@
+kicad-mcp
+Copyright (C) 2025 Lama Al Rajih
+Copyright (C) 2025-2026 KiCad MCP Contributors
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+
+
+Why GPL-3.0-or-later
+--------------------
+This software loads KiCad's `pcbnew` Python module in-process (for PCB
+geometry, connectivity and via analysis). `pcbnew` is part of KiCad and is
+licensed under GPL-3.0; combining with it in-process makes this a derivative
+work, so the project as a whole is distributed under GPL-3.0-or-later.
+
+The IPC paths (`kipy`) and `kicad-cli` invocations are arm's-length (separate
+process) and do not themselves impose the GPL, but the in-process `pcbnew`
+usage does, and it governs the combined work.
+
+
+Third-party components
+----------------------
+- Derived in part from "kicad-mcp" by Lama Al Rajih, originally under the MIT
+  License — see LICENSE.MIT. MIT is GPL-3.0-compatible.
+- Python runtime dependencies (mcp, fastmcp, pandas, pyyaml, defusedxml,
+  jsonschema, pdfplumber) are permissively licensed (MIT / BSD-3-Clause /
+  Apache-2.0 / PSF) and are installed by the user, not redistributed here.
+- KiCad and its `pcbnew` / `kicad-cli` / `kipy` components are provided by the
+  user's own KiCad installation and are not redistributed with this source.

@@ -1,0 +1,81 @@
+{
+  "template_id": "universal_placement_rules",
+  "description": "Universal placement rules extracted from 27 Elektor schematics (2005-2023)",
+  "source_count": 27,
+
+  "universal_rules": [
+    {
+      "rule": "signal_flow_left_to_right",
+      "confidence": 1.0,
+      "description": "100% of analyzed schematics use left-to-right signal flow",
+      "application": "Input connectors/sensors at left edge, output connectors/actuators at right edge"
+    },
+    {
+      "rule": "power_top_ground_bottom",
+      "confidence": 0.96,
+      "description": "96% use V+ at top, GND at bottom. Symmetric supplies use V+ top, GND center, V- bottom.",
+      "application": "Power rails as horizontal lines, positive higher, negative lower"
+    },
+    {
+      "rule": "main_ic_center_left",
+      "confidence": 0.85,
+      "description": "Main processing IC (timer, MCU, opamp) placed center-left, rx 0.25-0.45",
+      "application": "Place the most-connected IC at center-left, passives radiate outward"
+    },
+    {
+      "rule": "passives_near_connected_ic",
+      "confidence": 0.92,
+      "description": "Timing R/C placed directly adjacent to IC pins they connect to",
+      "application": "Bypass caps near VCC pin, timing R/C near oscillator pins, feedback R near FB pin"
+    },
+    {
+      "rule": "connectors_at_edges",
+      "confidence": 1.0,
+      "description": "All connectors placed at sheet edges — input left, output right, power top-left",
+      "application": "Never place connectors in the middle of the schematic"
+    },
+    {
+      "rule": "transistor_driver_right_of_ic",
+      "confidence": 0.88,
+      "description": "Transistor/MOSFET drivers between control IC and actuator, at rx 0.6-0.8",
+      "application": "Driver stage always to the RIGHT of the controlling IC"
+    },
+    {
+      "rule": "resistors_and_caps_vertical",
+      "confidence": 0.90,
+      "description": "R and C components oriented vertically (90 degrees) in 90% of cases",
+      "application": "Default rotation for R, C, L, D = 90 degrees"
+    },
+    {
+      "rule": "multi_unit_ic_stacked_vertically",
+      "confidence": 0.85,
+      "description": "Multi-unit ICs (quad opamp, dual timer) have units stacked vertically",
+      "application": "IC.A at top, IC.B below, IC.C below that, etc."
+    },
+    {
+      "rule": "feedback_wraps_below",
+      "confidence": 0.80,
+      "description": "Feedback paths from output wrap back to input via bottom of schematic",
+      "application": "Route feedback wires below the main signal path"
+    },
+    {
+      "rule": "two_related_circuits_stacked",
+      "confidence": 0.75,
+      "description": "When showing circuit variants or application circuits, stack vertically",
+      "application": "Primary circuit in top half, variant/application in bottom half"
+    }
+  ],
+
+  "component_placement_defaults": {
+    "connector_in": {"rx": 0.05, "ry": 0.50},
+    "connector_out": {"rx": 0.92, "ry": 0.50},
+    "connector_pwr": {"rx": 0.05, "ry": 0.80},
+    "main_ic": {"rx": 0.35, "ry": 0.50},
+    "driver_transistor": {"rx": 0.70, "ry": 0.50},
+    "power_regulator": {"rx": 0.15, "ry": 0.15},
+    "crystal": {"rx": 0.25, "ry": 0.75},
+    "bypass_cap": {"rx_offset_from_ic": 0.05, "ry_offset_from_ic": -0.10},
+    "led_indicator": {"rx": 0.85, "ry": 0.30},
+    "potentiometer": {"rx": 0.15, "ry": 0.65}
+  }
+}

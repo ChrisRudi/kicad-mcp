@@ -1,0 +1,2970 @@
+{
+  "_meta": {
+    "version": "1.1",
+    "kicad_version": "10.0.x",
+    "language_codes": [
+      "en",
+      "de"
+    ],
+    "_notes": "Curated subset of the most-asked KiCad-10 menu/shortcut actions. Source: KiCad 10.0 install (default keymap, no user override). Update when KiCad rebinds keys upstream.",
+    "total_actions": 145
+  },
+  "actions": [
+    {
+      "id": "common.file.new_project",
+      "editor": "all",
+      "shortcut_default": "Ctrl+N",
+      "menu_path_en": [
+        "File",
+        "New Project..."
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Neues Projekt..."
+      ],
+      "description_en": "Create a new KiCad project (kicad_pro + kicad_sch + kicad_pcb).",
+      "description_de": "Neues KiCad-Projekt anlegen.",
+      "keywords": [
+        "new",
+        "create",
+        "project",
+        "neu",
+        "anlegen"
+      ]
+    },
+    {
+      "id": "common.file.open_project",
+      "editor": "all",
+      "shortcut_default": "Ctrl+O",
+      "menu_path_en": [
+        "File",
+        "Open Project..."
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Projekt öffnen..."
+      ],
+      "description_en": "Open an existing .kicad_pro project.",
+      "description_de": "Existierendes Projekt öffnen.",
+      "keywords": [
+        "open",
+        "öffnen",
+        "load"
+      ]
+    },
+    {
+      "id": "common.file.save",
+      "editor": "all",
+      "shortcut_default": "Ctrl+S",
+      "menu_path_en": [
+        "File",
+        "Save"
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Speichern"
+      ],
+      "description_en": "Save the current document.",
+      "description_de": "Aktuelles Dokument speichern.",
+      "keywords": [
+        "save",
+        "speichern"
+      ]
+    },
+    {
+      "id": "common.file.save_as",
+      "editor": "all",
+      "shortcut_default": "Ctrl+Shift+S",
+      "menu_path_en": [
+        "File",
+        "Save As..."
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Speichern unter..."
+      ],
+      "description_en": "Save under a different name.",
+      "description_de": "Unter anderem Namen speichern.",
+      "keywords": [
+        "save as",
+        "speichern unter"
+      ]
+    },
+    {
+      "id": "common.file.revert",
+      "editor": "all",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Revert..."
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Wiederherstellen..."
+      ],
+      "description_en": "Discard in-memory changes and reload from disk.",
+      "description_de": "Speicher-Änderungen verwerfen und von Disk neu laden.",
+      "keywords": [
+        "revert",
+        "reload",
+        "neu laden",
+        "wiederherstellen"
+      ]
+    },
+    {
+      "id": "common.file.print",
+      "editor": "all",
+      "shortcut_default": "Ctrl+P",
+      "menu_path_en": [
+        "File",
+        "Print..."
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Drucken..."
+      ],
+      "description_en": "Print the current document.",
+      "description_de": "Aktuelles Dokument drucken.",
+      "keywords": [
+        "print",
+        "drucken"
+      ]
+    },
+    {
+      "id": "common.file.quit",
+      "editor": "all",
+      "shortcut_default": "Ctrl+Q",
+      "menu_path_en": [
+        "File",
+        "Quit"
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Beenden"
+      ],
+      "description_en": "Exit the editor.",
+      "description_de": "Editor schließen.",
+      "keywords": [
+        "quit",
+        "exit",
+        "close",
+        "beenden",
+        "schließen"
+      ]
+    },
+    {
+      "id": "common.edit.undo",
+      "editor": "all",
+      "shortcut_default": "Ctrl+Z",
+      "menu_path_en": [
+        "Edit",
+        "Undo"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Rückgängig"
+      ],
+      "description_en": "Undo last action.",
+      "description_de": "Letzte Aktion rückgängig.",
+      "keywords": [
+        "undo",
+        "rückgängig"
+      ]
+    },
+    {
+      "id": "common.edit.redo",
+      "editor": "all",
+      "shortcut_default": "Ctrl+Y",
+      "menu_path_en": [
+        "Edit",
+        "Redo"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Wiederherstellen"
+      ],
+      "description_en": "Redo last undone action.",
+      "description_de": "Letzte rückgängig gemachte Aktion wiederherstellen.",
+      "keywords": [
+        "redo",
+        "wiederherstellen"
+      ]
+    },
+    {
+      "id": "common.edit.cut",
+      "editor": "all",
+      "shortcut_default": "Ctrl+X",
+      "menu_path_en": [
+        "Edit",
+        "Cut"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Ausschneiden"
+      ],
+      "description_en": "Cut selection.",
+      "description_de": "Auswahl ausschneiden.",
+      "keywords": [
+        "cut",
+        "ausschneiden"
+      ]
+    },
+    {
+      "id": "common.edit.copy",
+      "editor": "all",
+      "shortcut_default": "Ctrl+C",
+      "menu_path_en": [
+        "Edit",
+        "Copy"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Kopieren"
+      ],
+      "description_en": "Copy selection.",
+      "description_de": "Auswahl kopieren.",
+      "keywords": [
+        "copy",
+        "kopieren"
+      ]
+    },
+    {
+      "id": "common.edit.paste",
+      "editor": "all",
+      "shortcut_default": "Ctrl+V",
+      "menu_path_en": [
+        "Edit",
+        "Paste"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Einfügen"
+      ],
+      "description_en": "Paste from clipboard.",
+      "description_de": "Aus Zwischenablage einfügen.",
+      "keywords": [
+        "paste",
+        "einfügen"
+      ]
+    },
+    {
+      "id": "common.edit.find",
+      "editor": "all",
+      "shortcut_default": "Ctrl+F",
+      "menu_path_en": [
+        "Edit",
+        "Find..."
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Suchen..."
+      ],
+      "description_en": "Find symbol/footprint/text.",
+      "description_de": "Symbol/Footprint/Text suchen.",
+      "keywords": [
+        "find",
+        "search",
+        "suchen"
+      ]
+    },
+    {
+      "id": "common.view.zoom_in",
+      "editor": "all",
+      "shortcut_default": "F1",
+      "menu_path_en": [
+        "View",
+        "Zoom In"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Vergrößern"
+      ],
+      "description_en": "Zoom in.",
+      "description_de": "Vergrößern.",
+      "keywords": [
+        "zoom in",
+        "vergrößern"
+      ]
+    },
+    {
+      "id": "common.view.zoom_out",
+      "editor": "all",
+      "shortcut_default": "F2",
+      "menu_path_en": [
+        "View",
+        "Zoom Out"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Verkleinern"
+      ],
+      "description_en": "Zoom out.",
+      "description_de": "Verkleinern.",
+      "keywords": [
+        "zoom out",
+        "verkleinern"
+      ]
+    },
+    {
+      "id": "common.view.zoom_fit",
+      "editor": "all",
+      "shortcut_default": "Home",
+      "menu_path_en": [
+        "View",
+        "Zoom to Fit"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Einpassen"
+      ],
+      "description_en": "Zoom to fit the entire drawing.",
+      "description_de": "Komplette Zeichnung einpassen.",
+      "keywords": [
+        "zoom fit",
+        "einpassen",
+        "alles zeigen"
+      ]
+    },
+    {
+      "id": "common.view.fullscreen",
+      "editor": "all",
+      "shortcut_default": "F11",
+      "menu_path_en": [
+        "View",
+        "Fullscreen"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Vollbild"
+      ],
+      "description_en": "Toggle fullscreen mode.",
+      "description_de": "Vollbild-Modus umschalten.",
+      "keywords": [
+        "fullscreen",
+        "vollbild"
+      ]
+    },
+    {
+      "id": "common.view.toggle_grid",
+      "editor": "all",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "View",
+        "Show Grid"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Raster anzeigen"
+      ],
+      "description_en": "Toggle grid display.",
+      "description_de": "Raster-Anzeige umschalten.",
+      "keywords": [
+        "show grid",
+        "raster",
+        "grid"
+      ]
+    },
+    {
+      "id": "common.preferences.grid_settings",
+      "editor": "all",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "Preferences",
+        "Preferences...",
+        "Common",
+        "Grid"
+      ],
+      "menu_path_de": [
+        "Einstellungen",
+        "Einstellungen...",
+        "Allgemein",
+        "Raster"
+      ],
+      "description_en": "Configure grid step values and display style.",
+      "description_de": "Raster-Schrittweiten und Anzeige-Stil konfigurieren.",
+      "keywords": [
+        "grid settings",
+        "rastereinstellungen",
+        "raster konfigurieren",
+        "grid step"
+      ]
+    },
+    {
+      "id": "common.preferences.preferences",
+      "editor": "all",
+      "shortcut_default": "Ctrl+,",
+      "menu_path_en": [
+        "Preferences",
+        "Preferences..."
+      ],
+      "menu_path_de": [
+        "Einstellungen",
+        "Einstellungen..."
+      ],
+      "description_en": "Open the preferences dialog.",
+      "description_de": "Einstellungen-Dialog öffnen.",
+      "keywords": [
+        "preferences",
+        "settings",
+        "einstellungen"
+      ]
+    },
+    {
+      "id": "common.preferences.hotkeys",
+      "editor": "all",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "Preferences",
+        "Preferences...",
+        "Common",
+        "Hotkeys"
+      ],
+      "menu_path_de": [
+        "Einstellungen",
+        "Einstellungen...",
+        "Allgemein",
+        "Tastenkürzel"
+      ],
+      "description_en": "View / edit keyboard shortcuts.",
+      "description_de": "Tastenkürzel ansehen / bearbeiten.",
+      "keywords": [
+        "hotkeys",
+        "shortcuts",
+        "tastenkürzel",
+        "bindings"
+      ]
+    },
+    {
+      "id": "common.help.about",
+      "editor": "all",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "Help",
+        "About KiCad"
+      ],
+      "menu_path_de": [
+        "Hilfe",
+        "Über KiCad"
+      ],
+      "description_en": "Show KiCad version + build info.",
+      "description_de": "KiCad-Version + Build-Info zeigen.",
+      "keywords": [
+        "about",
+        "version",
+        "über"
+      ]
+    },
+    {
+      "id": "sch.insert.symbol",
+      "editor": "schematic",
+      "shortcut_default": "A",
+      "menu_path_en": [
+        "Place",
+        "Add Symbol..."
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Symbol hinzufügen..."
+      ],
+      "description_en": "Add a schematic symbol from the library.",
+      "description_de": "Schaltplan-Symbol aus Bibliothek einfügen.",
+      "keywords": [
+        "add symbol",
+        "symbol einfügen",
+        "bauteil"
+      ]
+    },
+    {
+      "id": "sch.insert.wire",
+      "editor": "schematic",
+      "shortcut_default": "W",
+      "menu_path_en": [
+        "Place",
+        "Wire"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Verbindung"
+      ],
+      "description_en": "Draw a wire (signal connection).",
+      "description_de": "Verbindungs-Linie ziehen.",
+      "keywords": [
+        "wire",
+        "draw wire",
+        "verbindung"
+      ]
+    },
+    {
+      "id": "sch.insert.bus",
+      "editor": "schematic",
+      "shortcut_default": "B",
+      "menu_path_en": [
+        "Place",
+        "Bus"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Bus"
+      ],
+      "description_en": "Draw a bus (grouped wires).",
+      "description_de": "Bus zeichnen (gruppierte Verbindungen).",
+      "keywords": [
+        "bus"
+      ]
+    },
+    {
+      "id": "sch.insert.junction",
+      "editor": "schematic",
+      "shortcut_default": "J",
+      "menu_path_en": [
+        "Place",
+        "Junction"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Verbindungspunkt"
+      ],
+      "description_en": "Insert a wire junction.",
+      "description_de": "Verbindungspunkt einfügen.",
+      "keywords": [
+        "junction",
+        "verbindungspunkt"
+      ]
+    },
+    {
+      "id": "sch.insert.label",
+      "editor": "schematic",
+      "shortcut_default": "L",
+      "menu_path_en": [
+        "Place",
+        "Label"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Bezeichner"
+      ],
+      "description_en": "Place a local net label.",
+      "description_de": "Lokalen Net-Bezeichner platzieren.",
+      "keywords": [
+        "label",
+        "bezeichner",
+        "local label"
+      ]
+    },
+    {
+      "id": "sch.insert.global_label",
+      "editor": "schematic",
+      "shortcut_default": "Ctrl+L",
+      "menu_path_en": [
+        "Place",
+        "Global Label"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Globaler Bezeichner"
+      ],
+      "description_en": "Place a global net label (cross-sheet).",
+      "description_de": "Globalen Net-Bezeichner platzieren (sheet-übergreifend).",
+      "keywords": [
+        "global label",
+        "globaler bezeichner"
+      ]
+    },
+    {
+      "id": "sch.insert.power",
+      "editor": "schematic",
+      "shortcut_default": "P",
+      "menu_path_en": [
+        "Place",
+        "Power Port"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Stromsymbol"
+      ],
+      "description_en": "Place a power port (+5V, GND, ...).",
+      "description_de": "Stromsymbol platzieren (+5V, GND, ...).",
+      "keywords": [
+        "power",
+        "stromsymbol",
+        "gnd",
+        "vcc"
+      ]
+    },
+    {
+      "id": "sch.insert.sheet",
+      "editor": "schematic",
+      "shortcut_default": "S",
+      "menu_path_en": [
+        "Place",
+        "Hierarchical Sheet"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Hierarchische Seite"
+      ],
+      "description_en": "Place a hierarchical sub-sheet.",
+      "description_de": "Hierarchisches Sub-Sheet platzieren.",
+      "keywords": [
+        "sheet",
+        "hierarchical",
+        "subsheet"
+      ]
+    },
+    {
+      "id": "sch.tools.annotate",
+      "editor": "schematic",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "Tools",
+        "Annotate Schematic..."
+      ],
+      "menu_path_de": [
+        "Werkzeuge",
+        "Schaltplan annotieren..."
+      ],
+      "description_en": "Auto-assign reference designators.",
+      "description_de": "Referenz-Bezeichner automatisch vergeben.",
+      "keywords": [
+        "annotate",
+        "annotieren",
+        "references"
+      ]
+    },
+    {
+      "id": "sch.tools.erc",
+      "editor": "schematic",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "Inspect",
+        "Electrical Rules Checker"
+      ],
+      "menu_path_de": [
+        "Untersuchen",
+        "Elektrische Regelprüfung"
+      ],
+      "description_en": "Run electrical rules check (ERC).",
+      "description_de": "Elektrische Regelprüfung (ERC) starten.",
+      "keywords": [
+        "erc",
+        "electrical rules",
+        "regelprüfung"
+      ]
+    },
+    {
+      "id": "sch.tools.update_pcb",
+      "editor": "schematic",
+      "shortcut_default": "F8",
+      "menu_path_en": [
+        "Tools",
+        "Update PCB from Schematic..."
+      ],
+      "menu_path_de": [
+        "Werkzeuge",
+        "Platine aus Schaltplan aktualisieren..."
+      ],
+      "description_en": "Sync footprints + nets from schematic to PCB (F8).",
+      "description_de": "Footprints + Nets vom Schaltplan ins PCB übertragen (F8).",
+      "keywords": [
+        "update pcb",
+        "f8",
+        "sync",
+        "schaltplan zu pcb",
+        "schematic to pcb"
+      ]
+    },
+    {
+      "id": "sch.tools.bom",
+      "editor": "schematic",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "Tools",
+        "Generate Bill of Materials..."
+      ],
+      "menu_path_de": [
+        "Werkzeuge",
+        "Stückliste erzeugen..."
+      ],
+      "description_en": "Generate BOM (CSV/HTML).",
+      "description_de": "Stückliste erzeugen (CSV/HTML).",
+      "keywords": [
+        "bom",
+        "bill of materials",
+        "stückliste"
+      ]
+    },
+    {
+      "id": "pcb.tools.update_pcb",
+      "editor": "pcb",
+      "shortcut_default": "F8",
+      "menu_path_en": [
+        "Tools",
+        "Update PCB from Schematic..."
+      ],
+      "menu_path_de": [
+        "Werkzeuge",
+        "Platine aus Schaltplan aktualisieren..."
+      ],
+      "description_en": "Sync footprints + nets from schematic (F8).",
+      "description_de": "Footprints + Nets vom Schaltplan übertragen (F8).",
+      "keywords": [
+        "update pcb",
+        "f8",
+        "sync"
+      ]
+    },
+    {
+      "id": "pcb.tools.drc",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "Inspect",
+        "Design Rules Checker"
+      ],
+      "menu_path_de": [
+        "Untersuchen",
+        "Design-Regelprüfung"
+      ],
+      "description_en": "Run Design Rules Check (DRC).",
+      "description_de": "Design-Regelprüfung (DRC) starten.",
+      "keywords": [
+        "drc",
+        "design rules",
+        "designregeln"
+      ]
+    },
+    {
+      "id": "pcb.edit.fill_all_zones",
+      "editor": "pcb",
+      "shortcut_default": "B",
+      "menu_path_en": [
+        "Edit",
+        "Fill All Zones"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Alle Zonen füllen"
+      ],
+      "description_en": "Compute fill for all copper zones (B).",
+      "description_de": "Alle Kupfer-Zonen füllen (B).",
+      "keywords": [
+        "fill zones",
+        "zonen füllen",
+        "b key",
+        "polygon fill"
+      ]
+    },
+    {
+      "id": "pcb.edit.unfill_all_zones",
+      "editor": "pcb",
+      "shortcut_default": "Ctrl+B",
+      "menu_path_en": [
+        "Edit",
+        "Unfill All Zones"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Alle Zonen Füllung entfernen"
+      ],
+      "description_en": "Remove computed fill from all zones.",
+      "description_de": "Alle Zonen-Füllungen entfernen.",
+      "keywords": [
+        "unfill",
+        "füllung entfernen"
+      ]
+    },
+    {
+      "id": "pcb.route.track",
+      "editor": "pcb",
+      "shortcut_default": "X",
+      "menu_path_en": [
+        "Route",
+        "Route Single Track"
+      ],
+      "menu_path_de": [
+        "Leitungen",
+        "Einzelne Leitung verlegen"
+      ],
+      "description_en": "Route a single track from pad (X).",
+      "description_de": "Einzelne Leitung von Pad routen (X).",
+      "keywords": [
+        "route",
+        "track",
+        "leitung",
+        "x key"
+      ]
+    },
+    {
+      "id": "pcb.route.via",
+      "editor": "pcb",
+      "shortcut_default": "V",
+      "menu_path_en": [
+        "Route",
+        "Add Through Via"
+      ],
+      "menu_path_de": [
+        "Leitungen",
+        "Durchkontaktierung hinzufügen"
+      ],
+      "description_en": "Drop a via at cursor (V).",
+      "description_de": "Durchkontaktierung beim Cursor einfügen (V).",
+      "keywords": [
+        "via",
+        "durchkontaktierung",
+        "v key"
+      ]
+    },
+    {
+      "id": "pcb.edit.flip_to_back",
+      "editor": "pcb",
+      "shortcut_default": "F",
+      "menu_path_en": [
+        "Edit",
+        "Flip"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Spiegeln"
+      ],
+      "description_en": "Flip selected footprint to opposite layer (F).",
+      "description_de": "Ausgewähltes Footprint auf andere Seite spiegeln (F).",
+      "keywords": [
+        "flip",
+        "spiegeln",
+        "f key",
+        "to back"
+      ]
+    },
+    {
+      "id": "pcb.edit.rotate",
+      "editor": "pcb",
+      "shortcut_default": "R",
+      "menu_path_en": [
+        "Edit",
+        "Rotate"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Drehen"
+      ],
+      "description_en": "Rotate selection 90° CCW (R).",
+      "description_de": "Auswahl 90° gegen Uhrzeigersinn drehen (R).",
+      "keywords": [
+        "rotate",
+        "drehen",
+        "r key"
+      ]
+    },
+    {
+      "id": "pcb.edit.move",
+      "editor": "pcb",
+      "shortcut_default": "M",
+      "menu_path_en": [
+        "Edit",
+        "Move"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Verschieben"
+      ],
+      "description_en": "Move selection (M).",
+      "description_de": "Auswahl verschieben (M).",
+      "keywords": [
+        "move",
+        "verschieben",
+        "m key"
+      ]
+    },
+    {
+      "id": "pcb.edit.properties",
+      "editor": "pcb",
+      "shortcut_default": "E",
+      "menu_path_en": [
+        "Edit",
+        "Properties..."
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Eigenschaften..."
+      ],
+      "description_en": "Edit properties of selection (E).",
+      "description_de": "Eigenschaften der Auswahl bearbeiten (E).",
+      "keywords": [
+        "properties",
+        "eigenschaften",
+        "e key"
+      ]
+    },
+    {
+      "id": "pcb.view.3d_viewer",
+      "editor": "pcb",
+      "shortcut_default": "Alt+3",
+      "menu_path_en": [
+        "View",
+        "3D Viewer"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "3D-Betrachter"
+      ],
+      "description_en": "Open the 3D PCB viewer (Alt+3).",
+      "description_de": "3D-PCB-Betrachter öffnen (Alt+3).",
+      "keywords": [
+        "3d",
+        "viewer",
+        "betrachter"
+      ]
+    },
+    {
+      "id": "pcb.view.switch_layer_top",
+      "editor": "pcb",
+      "shortcut_default": "PgUp",
+      "menu_path_en": [
+        "View",
+        "Switch to Top Layer"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Zur Oberseite wechseln"
+      ],
+      "description_en": "Make F.Cu the active layer (PgUp).",
+      "description_de": "F.Cu zur aktiven Layer machen (PgUp).",
+      "keywords": [
+        "top layer",
+        "f.cu",
+        "oberseite",
+        "pgup"
+      ]
+    },
+    {
+      "id": "pcb.view.switch_layer_bottom",
+      "editor": "pcb",
+      "shortcut_default": "PgDn",
+      "menu_path_en": [
+        "View",
+        "Switch to Bottom Layer"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Zur Unterseite wechseln"
+      ],
+      "description_en": "Make B.Cu the active layer (PgDn).",
+      "description_de": "B.Cu zur aktiven Layer machen (PgDn).",
+      "keywords": [
+        "bottom layer",
+        "b.cu",
+        "unterseite",
+        "pgdn"
+      ]
+    },
+    {
+      "id": "pcb.file.export_gerbers",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Export",
+        "Gerbers (.gbr)..."
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Exportieren",
+        "Gerbers (.gbr)..."
+      ],
+      "description_en": "Export Gerber files for fabrication.",
+      "description_de": "Gerber-Dateien für Fertigung exportieren.",
+      "keywords": [
+        "gerber",
+        "export",
+        "fab",
+        "fertigung"
+      ]
+    },
+    {
+      "id": "pcb.file.export_drill",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Fabrication Outputs",
+        "Drill Files (.drl)..."
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Fertigungs-Ausgaben",
+        "Bohr-Dateien (.drl)..."
+      ],
+      "description_en": "Export drill files.",
+      "description_de": "Bohr-Dateien exportieren.",
+      "keywords": [
+        "drill",
+        "bohr",
+        ".drl"
+      ]
+    },
+    {
+      "id": "pcb.file.export_step",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Export",
+        "STEP / GLB..."
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Exportieren",
+        "STEP / GLB..."
+      ],
+      "description_en": "Export 3D model in STEP/GLB format.",
+      "description_de": "3D-Modell als STEP/GLB exportieren.",
+      "keywords": [
+        "step",
+        "glb",
+        "3d model"
+      ]
+    },
+    {
+      "id": "common.file.archive_project",
+      "editor": "all",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Archive Project..."
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Projekt archivieren..."
+      ],
+      "description_en": "Bundle the project into a single .zip archive.",
+      "description_de": "Projekt in ein .zip-Archiv packen.",
+      "keywords": [
+        "archive",
+        "zip",
+        "archivieren",
+        "backup"
+      ]
+    },
+    {
+      "id": "common.file.import_graphics",
+      "editor": "all",
+      "shortcut_default": "Ctrl+Shift+F",
+      "menu_path_en": [
+        "File",
+        "Import",
+        "Graphics..."
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Importieren",
+        "Grafik..."
+      ],
+      "description_en": "Import DXF/SVG/PNG graphics into the current document.",
+      "description_de": "DXF/SVG/PNG-Grafiken ins aktuelle Dokument importieren.",
+      "keywords": [
+        "import",
+        "dxf",
+        "svg",
+        "png",
+        "graphics",
+        "grafik"
+      ]
+    },
+    {
+      "id": "common.edit.find_replace",
+      "editor": "all",
+      "shortcut_default": "Ctrl+Alt+F",
+      "menu_path_en": [
+        "Edit",
+        "Find and Replace..."
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Suchen und Ersetzen..."
+      ],
+      "description_en": "Find text/refs and replace them.",
+      "description_de": "Text/Referenzen suchen und ersetzen.",
+      "keywords": [
+        "find replace",
+        "suchen ersetzen",
+        "rename"
+      ]
+    },
+    {
+      "id": "common.edit.duplicate",
+      "editor": "all",
+      "shortcut_default": "Ctrl+D",
+      "menu_path_en": [
+        "Edit",
+        "Duplicate"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Duplizieren"
+      ],
+      "description_en": "Duplicate the current selection.",
+      "description_de": "Aktuelle Auswahl duplizieren.",
+      "keywords": [
+        "duplicate",
+        "duplizieren",
+        "copy"
+      ]
+    },
+    {
+      "id": "common.edit.delete",
+      "editor": "all",
+      "shortcut_default": "Del",
+      "menu_path_en": [
+        "Edit",
+        "Delete"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Löschen"
+      ],
+      "description_en": "Delete the current selection.",
+      "description_de": "Aktuelle Auswahl löschen.",
+      "keywords": [
+        "delete",
+        "löschen",
+        "entf"
+      ]
+    },
+    {
+      "id": "common.edit.select_all",
+      "editor": "all",
+      "shortcut_default": "Ctrl+A",
+      "menu_path_en": [
+        "Edit",
+        "Select All"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Alle auswählen"
+      ],
+      "description_en": "Select everything in the document.",
+      "description_de": "Alles im Dokument auswählen.",
+      "keywords": [
+        "select all",
+        "alle auswählen"
+      ]
+    },
+    {
+      "id": "common.edit.measure",
+      "editor": "all",
+      "shortcut_default": "Ctrl+Shift+M",
+      "menu_path_en": [
+        "Inspect",
+        "Measure"
+      ],
+      "menu_path_de": [
+        "Inspizieren",
+        "Messen"
+      ],
+      "description_en": "Activate the measurement tool.",
+      "description_de": "Mess-Werkzeug aktivieren.",
+      "keywords": [
+        "measure",
+        "messen",
+        "ruler",
+        "lineal",
+        "distance"
+      ]
+    },
+    {
+      "id": "common.view.zoom_redraw",
+      "editor": "all",
+      "shortcut_default": "F5",
+      "menu_path_en": [
+        "View",
+        "Refresh"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Aktualisieren"
+      ],
+      "description_en": "Redraw the canvas.",
+      "description_de": "Zeichenfläche neu zeichnen.",
+      "keywords": [
+        "refresh",
+        "redraw",
+        "aktualisieren"
+      ]
+    },
+    {
+      "id": "common.view.zoom_selection",
+      "editor": "all",
+      "shortcut_default": "Ctrl+Home",
+      "menu_path_en": [
+        "View",
+        "Zoom to Objects"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Auf Objekte einpassen"
+      ],
+      "description_en": "Fit the current selection to view.",
+      "description_de": "Aktuelle Auswahl ins Bild einpassen.",
+      "keywords": [
+        "zoom selection",
+        "zoom objects",
+        "einpassen"
+      ]
+    },
+    {
+      "id": "common.view.toggle_units",
+      "editor": "all",
+      "shortcut_default": "Ctrl+U",
+      "menu_path_en": [
+        "View",
+        "Toggle Units"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Einheiten umschalten"
+      ],
+      "description_en": "Toggle between mm/inch/mils.",
+      "description_de": "Zwischen mm/Zoll/mil umschalten.",
+      "keywords": [
+        "units",
+        "einheiten",
+        "mm",
+        "mils",
+        "inch"
+      ]
+    },
+    {
+      "id": "common.view.high_contrast",
+      "editor": "all",
+      "shortcut_default": "H",
+      "menu_path_en": [
+        "View",
+        "High Contrast Mode"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Hoher Kontrast"
+      ],
+      "description_en": "Cycle high-contrast display modes.",
+      "description_de": "Hochkontrast-Anzeigemodus durchschalten.",
+      "keywords": [
+        "high contrast",
+        "hochkontrast",
+        "darken"
+      ]
+    },
+    {
+      "id": "common.grid.next",
+      "editor": "all",
+      "shortcut_default": "N",
+      "menu_path_en": [
+        "View",
+        "Grid",
+        "Next Grid"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Raster",
+        "Nächstes Raster"
+      ],
+      "description_en": "Switch to the next grid in the list.",
+      "description_de": "Zum nächsten Raster der Liste wechseln.",
+      "keywords": [
+        "grid",
+        "raster",
+        "next",
+        "nächstes"
+      ]
+    },
+    {
+      "id": "common.grid.prev",
+      "editor": "all",
+      "shortcut_default": "Shift+N",
+      "menu_path_en": [
+        "View",
+        "Grid",
+        "Previous Grid"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Raster",
+        "Vorheriges Raster"
+      ],
+      "description_en": "Switch to the previous grid in the list.",
+      "description_de": "Zum vorigen Raster der Liste wechseln.",
+      "keywords": [
+        "grid",
+        "raster",
+        "previous",
+        "vorheriges"
+      ]
+    },
+    {
+      "id": "common.grid.fast_cycle",
+      "editor": "all",
+      "shortcut_default": "Alt+4",
+      "menu_path_en": [
+        "View",
+        "Grid",
+        "Cycle Fast Grids"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Raster",
+        "Schnellraster durchschalten"
+      ],
+      "description_en": "Cycle between the fast grids (Alt+1, Alt+2).",
+      "description_de": "Zwischen Schnellrastern (Alt+1, Alt+2) durchschalten.",
+      "keywords": [
+        "fast grid",
+        "schnellraster"
+      ]
+    },
+    {
+      "id": "sch.file.export_netlist",
+      "editor": "schematic",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Export",
+        "Netlist..."
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Exportieren",
+        "Netzliste..."
+      ],
+      "description_en": "Export the netlist (KiCad sexpr / Cadstar / OrcadPCB2 / Spice / Allegro).",
+      "description_de": "Netzliste exportieren (KiCad sexpr / Cadstar / OrcadPCB2 / Spice / Allegro).",
+      "keywords": [
+        "netlist",
+        "netzliste",
+        "export",
+        "spice"
+      ]
+    },
+    {
+      "id": "sch.file.export_drawing_to_pdf",
+      "editor": "schematic",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Plot..."
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Plotten..."
+      ],
+      "description_en": "Plot schematic to PDF / SVG / DXF / Postscript / HPGL.",
+      "description_de": "Schaltplan als PDF / SVG / DXF / Postscript / HPGL plotten.",
+      "keywords": [
+        "plot",
+        "pdf",
+        "svg",
+        "dxf",
+        "schematic export"
+      ]
+    },
+    {
+      "id": "sch.file.export_symbols",
+      "editor": "schematic",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Export",
+        "Symbols to New Library..."
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Exportieren",
+        "Symbole in neue Bibliothek..."
+      ],
+      "description_en": "Export all symbols of the sheet into a library file.",
+      "description_de": "Alle Symbole des Schaltplans in eine Bibliothek exportieren.",
+      "keywords": [
+        "export symbols",
+        "symbole exportieren",
+        "library"
+      ]
+    },
+    {
+      "id": "sch.place.no_connect",
+      "editor": "schematic",
+      "shortcut_default": "Q",
+      "menu_path_en": [
+        "Place",
+        "No Connection Flag"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Nicht-verbunden-Flag"
+      ],
+      "description_en": "Place a no-connect cross on an unused pin.",
+      "description_de": "Nicht-verbunden-Kreuz auf ungenutzten Pin setzen.",
+      "keywords": [
+        "no connect",
+        "nc",
+        "nicht verbunden",
+        "ungenutzt"
+      ]
+    },
+    {
+      "id": "sch.place.bus_entry",
+      "editor": "schematic",
+      "shortcut_default": "Z",
+      "menu_path_en": [
+        "Place",
+        "Bus Entry"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Bus-Anschluss"
+      ],
+      "description_en": "Place a wire-to-bus entry.",
+      "description_de": "Wire-zu-Bus-Anschluss platzieren.",
+      "keywords": [
+        "bus entry",
+        "bus anschluss"
+      ]
+    },
+    {
+      "id": "sch.place.hierarchical_label",
+      "editor": "schematic",
+      "shortcut_default": "H",
+      "menu_path_en": [
+        "Place",
+        "Hierarchical Label"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Hierarchisches Label"
+      ],
+      "description_en": "Place a hierarchical label (sub-sheet I/O).",
+      "description_de": "Hierarchisches Label platzieren (Sub-Sheet-I/O).",
+      "keywords": [
+        "hierarchical label",
+        "hierarchisches label",
+        "sub sheet"
+      ]
+    },
+    {
+      "id": "sch.place.text",
+      "editor": "schematic",
+      "shortcut_default": "T",
+      "menu_path_en": [
+        "Place",
+        "Text"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Text"
+      ],
+      "description_en": "Place a free-text annotation.",
+      "description_de": "Freie Textnotiz platzieren.",
+      "keywords": [
+        "text",
+        "annotation",
+        "notiz"
+      ]
+    },
+    {
+      "id": "sch.place.image",
+      "editor": "schematic",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "Place",
+        "Image"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Bild"
+      ],
+      "description_en": "Place an image on the schematic.",
+      "description_de": "Bild auf dem Schaltplan platzieren.",
+      "keywords": [
+        "image",
+        "bild",
+        "logo"
+      ]
+    },
+    {
+      "id": "sch.nav.show_hierarchy",
+      "editor": "schematic",
+      "shortcut_default": "Ctrl+H",
+      "menu_path_en": [
+        "View",
+        "Show Hierarchy Navigator"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Hierarchie-Navigator anzeigen"
+      ],
+      "description_en": "Open the hierarchical sheet navigator panel.",
+      "description_de": "Hierarchie-Navigator-Panel öffnen.",
+      "keywords": [
+        "hierarchy",
+        "navigator",
+        "hierarchie"
+      ]
+    },
+    {
+      "id": "sch.nav.next_sheet",
+      "editor": "schematic",
+      "shortcut_default": "PgDn",
+      "menu_path_en": [
+        "View",
+        "Next Sheet"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Nächstes Blatt"
+      ],
+      "description_en": "Jump to the next sub-sheet.",
+      "description_de": "Zum nächsten Sub-Blatt springen.",
+      "keywords": [
+        "next sheet",
+        "nächstes blatt",
+        "pgdn"
+      ]
+    },
+    {
+      "id": "sch.nav.prev_sheet",
+      "editor": "schematic",
+      "shortcut_default": "PgUp",
+      "menu_path_en": [
+        "View",
+        "Previous Sheet"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Vorheriges Blatt"
+      ],
+      "description_en": "Jump to the previous sub-sheet.",
+      "description_de": "Zum vorigen Sub-Blatt springen.",
+      "keywords": [
+        "previous sheet",
+        "vorheriges blatt",
+        "pgup"
+      ]
+    },
+    {
+      "id": "sch.nav.leave_sheet",
+      "editor": "schematic",
+      "shortcut_default": "Alt+Back",
+      "menu_path_en": [
+        "View",
+        "Leave Sheet"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Blatt verlassen"
+      ],
+      "description_en": "Go up one level in the sheet hierarchy.",
+      "description_de": "Eine Ebene in der Blatt-Hierarchie nach oben.",
+      "keywords": [
+        "leave sheet",
+        "blatt verlassen",
+        "up hierarchy"
+      ]
+    },
+    {
+      "id": "sch.nav.up_hierarchy",
+      "editor": "schematic",
+      "shortcut_default": "Alt+Up",
+      "menu_path_en": [
+        "View",
+        "Up in Hierarchy"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Hierarchie hoch"
+      ],
+      "description_en": "Move one level up in the hierarchy.",
+      "description_de": "Eine Ebene in der Hierarchie nach oben gehen.",
+      "keywords": [
+        "up hierarchy",
+        "hierarchie hoch"
+      ]
+    },
+    {
+      "id": "sch.edit.properties",
+      "editor": "schematic",
+      "shortcut_default": "E",
+      "menu_path_en": [
+        "Edit",
+        "Properties"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Eigenschaften"
+      ],
+      "description_en": "Open properties dialog of the selected item.",
+      "description_de": "Eigenschafts-Dialog des ausgewählten Items öffnen.",
+      "keywords": [
+        "properties",
+        "eigenschaften",
+        "edit"
+      ]
+    },
+    {
+      "id": "sch.edit.move",
+      "editor": "schematic",
+      "shortcut_default": "M",
+      "menu_path_en": [
+        "Edit",
+        "Move"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Verschieben"
+      ],
+      "description_en": "Move the selected item (no wire-drag).",
+      "description_de": "Ausgewähltes Item verschieben (ohne Wire-Drag).",
+      "keywords": [
+        "move",
+        "verschieben"
+      ]
+    },
+    {
+      "id": "sch.edit.drag",
+      "editor": "schematic",
+      "shortcut_default": "G",
+      "menu_path_en": [
+        "Edit",
+        "Drag"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Ziehen"
+      ],
+      "description_en": "Drag the selected item (with wire-keep).",
+      "description_de": "Ausgewähltes Item ziehen (Wires bleiben verbunden).",
+      "keywords": [
+        "drag",
+        "ziehen",
+        "wire keep"
+      ]
+    },
+    {
+      "id": "sch.edit.rotate_ccw",
+      "editor": "schematic",
+      "shortcut_default": "R",
+      "menu_path_en": [
+        "Edit",
+        "Rotate CCW"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Drehen CCW"
+      ],
+      "description_en": "Rotate counter-clockwise (R).",
+      "description_de": "Gegen Uhrzeigersinn drehen (R).",
+      "keywords": [
+        "rotate",
+        "drehen",
+        "ccw"
+      ]
+    },
+    {
+      "id": "sch.edit.rotate_cw",
+      "editor": "schematic",
+      "shortcut_default": "Shift+R",
+      "menu_path_en": [
+        "Edit",
+        "Rotate CW"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Drehen CW"
+      ],
+      "description_en": "Rotate clockwise (Shift+R).",
+      "description_de": "Im Uhrzeigersinn drehen (Shift+R).",
+      "keywords": [
+        "rotate cw",
+        "drehen cw"
+      ]
+    },
+    {
+      "id": "sch.edit.mirror_x",
+      "editor": "schematic",
+      "shortcut_default": "X",
+      "menu_path_en": [
+        "Edit",
+        "Mirror Horizontally"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Horizontal spiegeln"
+      ],
+      "description_en": "Mirror horizontally (X).",
+      "description_de": "Horizontal spiegeln (X).",
+      "keywords": [
+        "mirror x",
+        "spiegeln horizontal"
+      ]
+    },
+    {
+      "id": "sch.edit.mirror_y",
+      "editor": "schematic",
+      "shortcut_default": "Y",
+      "menu_path_en": [
+        "Edit",
+        "Mirror Vertically"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Vertikal spiegeln"
+      ],
+      "description_en": "Mirror vertically (Y).",
+      "description_de": "Vertikal spiegeln (Y).",
+      "keywords": [
+        "mirror y",
+        "spiegeln vertikal"
+      ]
+    },
+    {
+      "id": "sch.edit.edit_value",
+      "editor": "schematic",
+      "shortcut_default": "V",
+      "menu_path_en": [
+        "Edit",
+        "Edit Value"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Wert ändern"
+      ],
+      "description_en": "Edit the Value field of the selected symbol.",
+      "description_de": "Wert-Feld des ausgewählten Symbols editieren.",
+      "keywords": [
+        "edit value",
+        "wert",
+        "value"
+      ]
+    },
+    {
+      "id": "sch.edit.edit_reference",
+      "editor": "schematic",
+      "shortcut_default": "U",
+      "menu_path_en": [
+        "Edit",
+        "Edit Reference"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Referenz ändern"
+      ],
+      "description_en": "Edit the Reference field (e.g. R5 → R10).",
+      "description_de": "Referenz-Feld editieren (z.B. R5 → R10).",
+      "keywords": [
+        "edit reference",
+        "referenz",
+        "ref"
+      ]
+    },
+    {
+      "id": "sch.edit.edit_footprint",
+      "editor": "schematic",
+      "shortcut_default": "F",
+      "menu_path_en": [
+        "Edit",
+        "Edit Footprint"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Footprint ändern"
+      ],
+      "description_en": "Assign / change the footprint of the symbol.",
+      "description_de": "Footprint des Symbols zuweisen / ändern.",
+      "keywords": [
+        "edit footprint",
+        "footprint zuweisen"
+      ]
+    },
+    {
+      "id": "sch.edit.swap",
+      "editor": "schematic",
+      "shortcut_default": "Alt+S",
+      "menu_path_en": [
+        "Edit",
+        "Swap"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Tauschen"
+      ],
+      "description_en": "Swap position of two selected items.",
+      "description_de": "Position zweier ausgewählter Items tauschen.",
+      "keywords": [
+        "swap",
+        "tauschen"
+      ]
+    },
+    {
+      "id": "sch.edit.autoplace_fields",
+      "editor": "schematic",
+      "shortcut_default": "O",
+      "menu_path_en": [
+        "Edit",
+        "Autoplace Fields"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Felder auto-platzieren"
+      ],
+      "description_en": "Automatically place symbol fields (Reference, Value).",
+      "description_de": "Symbol-Felder (Referenz, Wert) automatisch platzieren.",
+      "keywords": [
+        "autoplace fields",
+        "felder automatisch"
+      ]
+    },
+    {
+      "id": "sch.tools.symbol_to_lib",
+      "editor": "schematic",
+      "shortcut_default": "Ctrl+Shift+E",
+      "menu_path_en": [
+        "Tools",
+        "Edit Library Symbol with Symbol Editor"
+      ],
+      "menu_path_de": [
+        "Werkzeuge",
+        "Bibliotheks-Symbol mit Symbol-Editor öffnen"
+      ],
+      "description_en": "Open the library symbol of the selected instance in Symbol Editor.",
+      "description_de": "Bibliotheks-Symbol des ausgewählten Symbols im Symbol-Editor öffnen.",
+      "keywords": [
+        "library symbol",
+        "lib symbol",
+        "symbol editor"
+      ]
+    },
+    {
+      "id": "sch.tools.symbol_fields_editor",
+      "editor": "schematic",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "Tools",
+        "Edit Symbol Fields..."
+      ],
+      "menu_path_de": [
+        "Werkzeuge",
+        "Symbol-Felder bearbeiten..."
+      ],
+      "description_en": "Open the spreadsheet-style symbol fields editor.",
+      "description_de": "Symbol-Felder-Editor (Tabellenansicht) öffnen.",
+      "keywords": [
+        "symbol fields",
+        "felder editor",
+        "spreadsheet"
+      ]
+    },
+    {
+      "id": "sch.tools.update_sch_from_pcb",
+      "editor": "schematic",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "Tools",
+        "Update Schematic from PCB..."
+      ],
+      "menu_path_de": [
+        "Werkzeuge",
+        "Schaltplan aus PCB aktualisieren..."
+      ],
+      "description_en": "Sync schematic with changes made in the PCB editor.",
+      "description_de": "Schaltplan mit Änderungen aus dem PCB-Editor synchronisieren.",
+      "keywords": [
+        "update schematic from pcb",
+        "back-annotation"
+      ]
+    },
+    {
+      "id": "sch.tools.assign_footprints",
+      "editor": "schematic",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "Tools",
+        "Assign Footprints..."
+      ],
+      "menu_path_de": [
+        "Werkzeuge",
+        "Footprints zuweisen..."
+      ],
+      "description_en": "Open the footprint-assignment dialog (CvPcb).",
+      "description_de": "Footprint-Zuweisungs-Dialog (CvPcb) öffnen.",
+      "keywords": [
+        "assign footprints",
+        "footprints zuweisen",
+        "cvpcb"
+      ]
+    },
+    {
+      "id": "sch.setup.schematic_setup",
+      "editor": "schematic",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Schematic Setup..."
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Schaltplan-Einstellungen..."
+      ],
+      "description_en": "Open the schematic setup dialog (formatting, field templates, ERC).",
+      "description_de": "Schaltplan-Setup öffnen (Formatierung, Feldvorlagen, ERC).",
+      "keywords": [
+        "schematic setup",
+        "schaltplan setup",
+        "formatting"
+      ]
+    },
+    {
+      "id": "pcb.place.footprint",
+      "editor": "pcb",
+      "shortcut_default": "A",
+      "menu_path_en": [
+        "Place",
+        "Add Footprint"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Footprint hinzufügen"
+      ],
+      "description_en": "Place a footprint from a library.",
+      "description_de": "Footprint aus Bibliothek platzieren.",
+      "keywords": [
+        "place footprint",
+        "footprint hinzufügen",
+        "add fp"
+      ]
+    },
+    {
+      "id": "pcb.place.text",
+      "editor": "pcb",
+      "shortcut_default": "Ctrl+Shift+T",
+      "menu_path_en": [
+        "Place",
+        "Text"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Text"
+      ],
+      "description_en": "Place a text on the PCB.",
+      "description_de": "Text auf der Platine platzieren.",
+      "keywords": [
+        "place text",
+        "text platzieren"
+      ]
+    },
+    {
+      "id": "pcb.place.zone",
+      "editor": "pcb",
+      "shortcut_default": "Ctrl+Shift+Z",
+      "menu_path_en": [
+        "Place",
+        "Zone"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Zone"
+      ],
+      "description_en": "Place a Cu pour zone.",
+      "description_de": "Kupferfläche / Zone platzieren.",
+      "keywords": [
+        "place zone",
+        "kupferfläche",
+        "pour"
+      ]
+    },
+    {
+      "id": "pcb.place.zone_cutout",
+      "editor": "pcb",
+      "shortcut_default": "Shift+C",
+      "menu_path_en": [
+        "Place",
+        "Zone Cutout"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Zonen-Ausschnitt"
+      ],
+      "description_en": "Cut a hole into an existing zone.",
+      "description_de": "Loch in bestehende Zone schneiden.",
+      "keywords": [
+        "zone cutout",
+        "zonen ausschnitt"
+      ]
+    },
+    {
+      "id": "pcb.place.rule_area",
+      "editor": "pcb",
+      "shortcut_default": "Ctrl+Shift+K",
+      "menu_path_en": [
+        "Place",
+        "Rule Area"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Regel-Bereich"
+      ],
+      "description_en": "Place a keepout / rule area.",
+      "description_de": "Keepout / Regel-Bereich platzieren.",
+      "keywords": [
+        "rule area",
+        "keepout",
+        "regel bereich"
+      ]
+    },
+    {
+      "id": "pcb.place.dimension_orthogonal",
+      "editor": "pcb",
+      "shortcut_default": "Ctrl+Shift+H",
+      "menu_path_en": [
+        "Place",
+        "Dimension",
+        "Orthogonal"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Bemaßung",
+        "Orthogonal"
+      ],
+      "description_en": "Place an orthogonal dimension line.",
+      "description_de": "Orthogonale Bemaßungslinie platzieren.",
+      "keywords": [
+        "dimension",
+        "bemaßung",
+        "orthogonal"
+      ]
+    },
+    {
+      "id": "pcb.place.arc",
+      "editor": "pcb",
+      "shortcut_default": "Ctrl+Shift+A",
+      "menu_path_en": [
+        "Place",
+        "Arc"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Bogen"
+      ],
+      "description_en": "Draw an arc segment.",
+      "description_de": "Bogensegment zeichnen.",
+      "keywords": [
+        "arc",
+        "bogen",
+        "circle segment"
+      ]
+    },
+    {
+      "id": "pcb.place.line",
+      "editor": "pcb",
+      "shortcut_default": "Ctrl+Shift+L",
+      "menu_path_en": [
+        "Place",
+        "Line"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Linie"
+      ],
+      "description_en": "Draw a graphic line.",
+      "description_de": "Grafische Linie zeichnen.",
+      "keywords": [
+        "line",
+        "linie",
+        "graphic"
+      ]
+    },
+    {
+      "id": "pcb.place.circle",
+      "editor": "pcb",
+      "shortcut_default": "Ctrl+Shift+C",
+      "menu_path_en": [
+        "Place",
+        "Circle"
+      ],
+      "menu_path_de": [
+        "Platzieren",
+        "Kreis"
+      ],
+      "description_en": "Draw a graphic circle.",
+      "description_de": "Grafischen Kreis zeichnen.",
+      "keywords": [
+        "circle",
+        "kreis"
+      ]
+    },
+    {
+      "id": "pcb.route.diff_pair",
+      "editor": "pcb",
+      "shortcut_default": "6",
+      "menu_path_en": [
+        "Route",
+        "Differential Pair"
+      ],
+      "menu_path_de": [
+        "Routen",
+        "Differential-Paar"
+      ],
+      "description_en": "Route a differential pair.",
+      "description_de": "Differential-Paar routen.",
+      "keywords": [
+        "diff pair",
+        "differential",
+        "differential paar"
+      ]
+    },
+    {
+      "id": "pcb.route.length_tuner_single",
+      "editor": "pcb",
+      "shortcut_default": "7",
+      "menu_path_en": [
+        "Route",
+        "Tune Track Length"
+      ],
+      "menu_path_de": [
+        "Routen",
+        "Track-Länge abstimmen"
+      ],
+      "description_en": "Tune length of a single track.",
+      "description_de": "Länge einer einzelnen Leiterbahn abstimmen.",
+      "keywords": [
+        "length tuner",
+        "length tune",
+        "längenabstimmung"
+      ]
+    },
+    {
+      "id": "pcb.route.length_tuner_diff",
+      "editor": "pcb",
+      "shortcut_default": "8",
+      "menu_path_en": [
+        "Route",
+        "Tune Differential Pair Length"
+      ],
+      "menu_path_de": [
+        "Routen",
+        "Differential-Paar-Länge abstimmen"
+      ],
+      "description_en": "Tune length of a differential pair.",
+      "description_de": "Länge eines Differential-Paars abstimmen.",
+      "keywords": [
+        "length tuner diff",
+        "diff pair length"
+      ]
+    },
+    {
+      "id": "pcb.route.length_tuner_skew",
+      "editor": "pcb",
+      "shortcut_default": "9",
+      "menu_path_en": [
+        "Route",
+        "Tune Differential Pair Skew"
+      ],
+      "menu_path_de": [
+        "Routen",
+        "Differential-Paar-Versatz abstimmen"
+      ],
+      "description_en": "Tune skew of a differential pair.",
+      "description_de": "Versatz eines Differential-Paars abstimmen.",
+      "keywords": [
+        "skew tuner",
+        "differential skew",
+        "versatz"
+      ]
+    },
+    {
+      "id": "pcb.route.track_width_inc",
+      "editor": "pcb",
+      "shortcut_default": "W",
+      "menu_path_en": [
+        "Route",
+        "Increase Track Width"
+      ],
+      "menu_path_de": [
+        "Routen",
+        "Leiterbahnbreite erhöhen"
+      ],
+      "description_en": "Switch to the next-larger track width.",
+      "description_de": "Zur nächstgrößeren Leiterbahnbreite wechseln.",
+      "keywords": [
+        "track width",
+        "breite",
+        "width"
+      ]
+    },
+    {
+      "id": "pcb.route.track_width_dec",
+      "editor": "pcb",
+      "shortcut_default": "Shift+W",
+      "menu_path_en": [
+        "Route",
+        "Decrease Track Width"
+      ],
+      "menu_path_de": [
+        "Routen",
+        "Leiterbahnbreite verringern"
+      ],
+      "description_en": "Switch to the next-smaller track width.",
+      "description_de": "Zur nächstkleineren Leiterbahnbreite wechseln.",
+      "keywords": [
+        "track width",
+        "breite",
+        "width",
+        "decrease"
+      ]
+    },
+    {
+      "id": "pcb.route.via_size_inc",
+      "editor": "pcb",
+      "shortcut_default": "'",
+      "menu_path_en": [
+        "Route",
+        "Increase Via Size"
+      ],
+      "menu_path_de": [
+        "Routen",
+        "Via-Größe erhöhen"
+      ],
+      "description_en": "Switch to the next-larger via size.",
+      "description_de": "Zur nächstgrößeren Via-Größe wechseln.",
+      "keywords": [
+        "via size",
+        "via größe"
+      ]
+    },
+    {
+      "id": "pcb.route.posture",
+      "editor": "pcb",
+      "shortcut_default": "/",
+      "menu_path_en": [
+        "Route",
+        "Switch Posture"
+      ],
+      "menu_path_de": [
+        "Routen",
+        "Posture wechseln"
+      ],
+      "description_en": "Toggle 45° corner direction while routing.",
+      "description_de": "45°-Winkel-Richtung während des Routings umschalten.",
+      "keywords": [
+        "posture",
+        "switch posture",
+        "45 degree"
+      ]
+    },
+    {
+      "id": "pcb.route.drag_45",
+      "editor": "pcb",
+      "shortcut_default": "D",
+      "menu_path_en": [
+        "Edit",
+        "Drag (45° preserve)"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Ziehen (45° beibehalten)"
+      ],
+      "description_en": "Drag tracks while preserving 45° angles.",
+      "description_de": "Tracks ziehen, 45°-Winkel beibehalten.",
+      "keywords": [
+        "drag 45",
+        "ziehen 45"
+      ]
+    },
+    {
+      "id": "pcb.route.drag_free",
+      "editor": "pcb",
+      "shortcut_default": "G",
+      "menu_path_en": [
+        "Edit",
+        "Drag (free angle)"
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Ziehen (frei)"
+      ],
+      "description_en": "Drag tracks with free-angle routing.",
+      "description_de": "Tracks mit freier Winkel-Routing ziehen.",
+      "keywords": [
+        "drag free",
+        "ziehen frei"
+      ]
+    },
+    {
+      "id": "pcb.setup.board_setup",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Board Setup..."
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Board-Setup..."
+      ],
+      "description_en": "Open the master board setup dialog (Stackup, Net Classes, Constraints).",
+      "description_de": "Board-Setup-Hauptdialog öffnen (Lagenaufbau, Netzklassen, Designregeln).",
+      "keywords": [
+        "board setup",
+        "platinen setup",
+        "stackup",
+        "net classes",
+        "constraints"
+      ]
+    },
+    {
+      "id": "pcb.setup.net_classes",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Board Setup...",
+        "Net Classes"
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Board-Setup...",
+        "Netzklassen"
+      ],
+      "description_en": "Configure net-class assignments (track widths, clearances).",
+      "description_de": "Netzklassen-Zuweisungen konfigurieren (Leiterbahnbreite, Abstände).",
+      "keywords": [
+        "net classes",
+        "netzklassen",
+        "rules",
+        "regelsatz"
+      ]
+    },
+    {
+      "id": "pcb.setup.constraints",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Board Setup...",
+        "Design Rules",
+        "Constraints"
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Board-Setup...",
+        "Designregeln",
+        "Designvorgaben"
+      ],
+      "description_en": "Configure DRC constraints (min track, min hole, copper-to-edge).",
+      "description_de": "DRC-Designvorgaben konfigurieren (min. Leiterbahn, min. Bohrung, Cu-zu-Rand).",
+      "keywords": [
+        "constraints",
+        "design rules",
+        "designregeln",
+        "drc"
+      ]
+    },
+    {
+      "id": "pcb.setup.stackup",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Board Setup...",
+        "Board Stackup",
+        "Physical Stackup"
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Board-Setup...",
+        "Lagenaufbau",
+        "Physikalischer Lagenaufbau"
+      ],
+      "description_en": "Configure the PCB layer stackup (dielectric thicknesses, copper weights).",
+      "description_de": "PCB-Lagenaufbau konfigurieren (Dielektrikum-Dicken, Cu-Gewichte).",
+      "keywords": [
+        "stackup",
+        "lagenaufbau",
+        "layer thickness"
+      ]
+    },
+    {
+      "id": "pcb.setup.layers",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Board Setup...",
+        "Board Editor Layers"
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Board-Setup...",
+        "Board-Editor-Layer"
+      ],
+      "description_en": "Configure enabled layers + their names/colors.",
+      "description_de": "Aktivierte Layer + Namen/Farben konfigurieren.",
+      "keywords": [
+        "layer setup",
+        "layer namen",
+        "board layers"
+      ]
+    },
+    {
+      "id": "pcb.setup.solder_mask",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Board Setup...",
+        "Solder Mask/Paste"
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Board-Setup...",
+        "Lötstopplack/Lötpaste"
+      ],
+      "description_en": "Configure solder-mask and paste-mask expansion defaults.",
+      "description_de": "Lötstopplack- und Lötpasten-Expansion-Defaults konfigurieren.",
+      "keywords": [
+        "solder mask",
+        "lötstopplack",
+        "paste mask",
+        "lötpaste"
+      ]
+    },
+    {
+      "id": "pcb.setup.text_drawing",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Board Setup...",
+        "Text & Graphics",
+        "Defaults"
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Board-Setup...",
+        "Text & Grafik",
+        "Standardwerte"
+      ],
+      "description_en": "Configure default text size, line thickness, dimension format.",
+      "description_de": "Standard-Textgröße, Linienstärke, Bemaßungsformat konfigurieren.",
+      "keywords": [
+        "text defaults",
+        "text standard",
+        "drawing defaults"
+      ]
+    },
+    {
+      "id": "pcb.tools.update_sch_from_pcb",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "Tools",
+        "Update Schematic from PCB..."
+      ],
+      "menu_path_de": [
+        "Werkzeuge",
+        "Schaltplan aus PCB aktualisieren..."
+      ],
+      "description_en": "Back-sync changes from PCB to schematic.",
+      "description_de": "Änderungen vom PCB zurück in den Schaltplan synchronisieren.",
+      "keywords": [
+        "update schematic from pcb",
+        "back-annotation",
+        "rückannotation"
+      ]
+    },
+    {
+      "id": "pcb.tools.cleanup_tracks_vias",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "Tools",
+        "Cleanup Tracks & Vias..."
+      ],
+      "menu_path_de": [
+        "Werkzeuge",
+        "Leiterbahnen & Vias aufräumen..."
+      ],
+      "description_en": "Remove redundant/overlapping tracks and unconnected vias.",
+      "description_de": "Redundante/überlappende Leiterbahnen und nicht-verbundene Vias entfernen.",
+      "keywords": [
+        "cleanup tracks",
+        "tracks aufräumen",
+        "redundant"
+      ]
+    },
+    {
+      "id": "pcb.tools.global_deletions",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "Edit",
+        "Global Deletions..."
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Globales Löschen..."
+      ],
+      "description_en": "Delete tracks/vias/zones globally by filter.",
+      "description_de": "Tracks/Vias/Zonen global per Filter löschen.",
+      "keywords": [
+        "global deletions",
+        "globales löschen",
+        "delete all"
+      ]
+    },
+    {
+      "id": "pcb.tools.position_file",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Fabrication Outputs",
+        "Component Placement (.pos, .gbr)..."
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Fertigungs-Ausgaben",
+        "Bauteil-Position (.pos, .gbr)..."
+      ],
+      "description_en": "Export component position file for pick-and-place.",
+      "description_de": "Bauteil-Positions-Datei für Pick-and-Place exportieren.",
+      "keywords": [
+        "position file",
+        "pos file",
+        "pick place",
+        "bauteil position"
+      ]
+    },
+    {
+      "id": "pcb.tools.fab_outputs",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Fabrication Outputs"
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Fertigungs-Ausgaben"
+      ],
+      "description_en": "Submenu with all fabrication output exports.",
+      "description_de": "Untermenü mit allen Fertigungs-Ausgabe-Exports.",
+      "keywords": [
+        "fab outputs",
+        "fertigung",
+        "manufacturing"
+      ]
+    },
+    {
+      "id": "pcb.tools.swap_layers",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "Edit",
+        "Swap Layers..."
+      ],
+      "menu_path_de": [
+        "Bearbeiten",
+        "Layer tauschen..."
+      ],
+      "description_en": "Swap items between two copper layers.",
+      "description_de": "Items zwischen zwei Cu-Layern tauschen.",
+      "keywords": [
+        "swap layers",
+        "layer tauschen"
+      ]
+    },
+    {
+      "id": "pcb.inspect.net_inspector",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "Inspect",
+        "Net Inspector"
+      ],
+      "menu_path_de": [
+        "Inspizieren",
+        "Netz-Inspektor"
+      ],
+      "description_en": "Show the net inspector (length, vias, layers per net).",
+      "description_de": "Netz-Inspektor zeigen (Länge, Vias, Layer pro Netz).",
+      "keywords": [
+        "net inspector",
+        "netz inspektor",
+        "trace length"
+      ]
+    },
+    {
+      "id": "pcb.inspect.show_net_navigator",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "View",
+        "Show Net Navigator"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Netz-Navigator anzeigen"
+      ],
+      "description_en": "Open the net navigator panel.",
+      "description_de": "Netz-Navigator-Panel öffnen.",
+      "keywords": [
+        "net navigator",
+        "netz navigator"
+      ]
+    },
+    {
+      "id": "pcb.inspect.highlight_net",
+      "editor": "pcb",
+      "shortcut_default": "`",
+      "menu_path_en": [
+        "Inspect",
+        "Highlight Net"
+      ],
+      "menu_path_de": [
+        "Inspizieren",
+        "Netz hervorheben"
+      ],
+      "description_en": "Highlight the selected net in colour.",
+      "description_de": "Ausgewähltes Netz farblich hervorheben.",
+      "keywords": [
+        "highlight net",
+        "netz hervorheben"
+      ]
+    },
+    {
+      "id": "pcb.inspect.clear_highlight",
+      "editor": "pcb",
+      "shortcut_default": "~",
+      "menu_path_en": [
+        "Inspect",
+        "Clear Net Highlight"
+      ],
+      "menu_path_de": [
+        "Inspizieren",
+        "Netz-Hervorhebung löschen"
+      ],
+      "description_en": "Clear all net highlights.",
+      "description_de": "Alle Netz-Hervorhebungen entfernen.",
+      "keywords": [
+        "clear highlight",
+        "hervorhebung löschen"
+      ]
+    },
+    {
+      "id": "pcb.view.layer_toggle",
+      "editor": "pcb",
+      "shortcut_default": "V",
+      "menu_path_en": [
+        "View",
+        "Switch Layer / Add Via"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Layer wechseln / Via hinzufügen"
+      ],
+      "description_en": "Switch active layer (places via if routing).",
+      "description_de": "Aktive Layer wechseln (setzt Via beim Routen).",
+      "keywords": [
+        "layer toggle",
+        "switch layer",
+        "via",
+        "layer wechseln"
+      ]
+    },
+    {
+      "id": "pcb.view.layer_alpha_inc",
+      "editor": "pcb",
+      "shortcut_default": "}",
+      "menu_path_en": [
+        "View",
+        "Increase Layer Opacity"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Layer-Deckkraft erhöhen"
+      ],
+      "description_en": "Increase opacity of the active layer.",
+      "description_de": "Deckkraft der aktiven Layer erhöhen.",
+      "keywords": [
+        "layer alpha",
+        "deckkraft",
+        "opacity"
+      ]
+    },
+    {
+      "id": "pcb.view.layer_alpha_dec",
+      "editor": "pcb",
+      "shortcut_default": "{",
+      "menu_path_en": [
+        "View",
+        "Decrease Layer Opacity"
+      ],
+      "menu_path_de": [
+        "Ansicht",
+        "Layer-Deckkraft verringern"
+      ],
+      "description_en": "Decrease opacity of the active layer.",
+      "description_de": "Deckkraft der aktiven Layer verringern.",
+      "keywords": [
+        "layer alpha",
+        "deckkraft",
+        "opacity"
+      ]
+    },
+    {
+      "id": "pcb.file.plot_pdf",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Plot...",
+        "Output Format: PDF"
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Plotten...",
+        "Ausgabeformat: PDF"
+      ],
+      "description_en": "Plot the PCB to PDF.",
+      "description_de": "PCB als PDF plotten.",
+      "keywords": [
+        "plot pdf",
+        "pdf export",
+        "pdf"
+      ]
+    },
+    {
+      "id": "pcb.file.plot_svg",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Export",
+        "SVG..."
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Exportieren",
+        "SVG..."
+      ],
+      "description_en": "Plot the PCB to SVG.",
+      "description_de": "PCB als SVG plotten.",
+      "keywords": [
+        "plot svg",
+        "svg export"
+      ]
+    },
+    {
+      "id": "pcb.file.plot_dxf",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Plot...",
+        "Output Format: DXF"
+      ],
+      "menu_path_de": [
+        "Datei",
+        "Plotten...",
+        "Ausgabeformat: DXF"
+      ],
+      "description_en": "Plot the PCB to DXF.",
+      "description_de": "PCB als DXF plotten.",
+      "keywords": [
+        "plot dxf",
+        "dxf export"
+      ]
+    },
+    {
+      "id": "pcb.file.archive_3d_models",
+      "editor": "pcb",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "File",
+        "Archive 3D Models"
+      ],
+      "menu_path_de": [
+        "Datei",
+        "3D-Modelle archivieren"
+      ],
+      "description_en": "Embed 3D models into the PCB file (portability).",
+      "description_de": "3D-Modelle ins PCB-File einbetten (Portabilität).",
+      "keywords": [
+        "archive 3d",
+        "3d modelle archivieren",
+        "embed"
+      ]
+    },
+    {
+      "id": "kicad.proj.edit_symbol_library",
+      "editor": "all",
+      "shortcut_default": "Ctrl+L",
+      "menu_path_en": [
+        "Tools",
+        "Edit Symbol Library"
+      ],
+      "menu_path_de": [
+        "Werkzeuge",
+        "Symbol-Bibliothek bearbeiten"
+      ],
+      "description_en": "Open the symbol library editor.",
+      "description_de": "Symbol-Bibliotheks-Editor öffnen.",
+      "keywords": [
+        "symbol library",
+        "symbol bibliothek",
+        "editor"
+      ]
+    },
+    {
+      "id": "kicad.proj.edit_footprints",
+      "editor": "all",
+      "shortcut_default": "Ctrl+F",
+      "menu_path_en": [
+        "Tools",
+        "Edit Footprints"
+      ],
+      "menu_path_de": [
+        "Werkzeuge",
+        "Footprints bearbeiten"
+      ],
+      "description_en": "Open the footprint editor.",
+      "description_de": "Footprint-Editor öffnen.",
+      "keywords": [
+        "footprint editor",
+        "footprint bearbeiten"
+      ]
+    },
+    {
+      "id": "kicad.proj.view_gerbers",
+      "editor": "all",
+      "shortcut_default": "Ctrl+G",
+      "menu_path_en": [
+        "Tools",
+        "Open Gerber Viewer"
+      ],
+      "menu_path_de": [
+        "Werkzeuge",
+        "Gerber-Viewer öffnen"
+      ],
+      "description_en": "Open the Gerber Viewer (GerbView).",
+      "description_de": "Gerber-Viewer (GerbView) öffnen.",
+      "keywords": [
+        "gerber viewer",
+        "gerbview"
+      ]
+    },
+    {
+      "id": "kicad.proj.pcb_calculator",
+      "editor": "all",
+      "shortcut_default": "",
+      "menu_path_en": [
+        "Tools",
+        "PCB Calculator"
+      ],
+      "menu_path_de": [
+        "Werkzeuge",
+        "PCB-Rechner"
+      ],
+      "description_en": "Open the PCB calculator (trace width, electric, R-divider).",
+      "description_de": "PCB-Rechner öffnen (Leiterbahnbreite, Elektrik, R-Teiler).",
+      "keywords": [
+        "pcb calculator",
+        "rechner",
+        "trace width",
+        "wizards"
+      ]
+    },
+    {
+      "id": "kicad.proj.plugin_manager",
+      "editor": "all",
+      "shortcut_default": "Ctrl+M",
+      "menu_path_en": [
+        "Tools",
+        "Plugin and Content Manager"
+      ],
+      "menu_path_de": [
+        "Werkzeuge",
+        "Plugin- und Inhaltsverwaltung"
+      ],
+      "description_en": "Manage installed plugins and content packs.",
+      "description_de": "Plugin- und Content-Verwaltung öffnen.",
+      "keywords": [
+        "plugin manager",
+        "content manager",
+        "plugin",
+        "pcm"
+      ]
+    },
+    {
+      "id": "pcb.view3d.flip_view",
+      "editor": "pcb",
+      "shortcut_default": "F",
+      "menu_path_en": [
+        "3D Viewer",
+        "View",
+        "Flip Board"
+      ],
+      "menu_path_de": [
+        "3D-Betrachter",
+        "Ansicht",
+        "Platine wenden"
+      ],
+      "description_en": "Flip the PCB top/bottom in the 3D view.",
+      "description_de": "PCB in der 3D-Ansicht wenden (Top/Bottom).",
+      "keywords": [
+        "flip board",
+        "3d flip",
+        "platine wenden"
+      ]
+    },
+    {
+      "id": "pcb.view3d.attribute_smd",
+      "editor": "pcb",
+      "shortcut_default": "S",
+      "menu_path_en": [
+        "3D Viewer",
+        "View",
+        "Show SMD"
+      ],
+      "menu_path_de": [
+        "3D-Betrachter",
+        "Ansicht",
+        "SMD anzeigen"
+      ],
+      "description_en": "Toggle SMD components in 3D viewer.",
+      "description_de": "SMD-Bauteile im 3D-Betrachter ein/aus.",
+      "keywords": [
+        "smd 3d",
+        "smd anzeigen"
+      ]
+    },
+    {
+      "id": "pcb.view3d.attribute_tht",
+      "editor": "pcb",
+      "shortcut_default": "T",
+      "menu_path_en": [
+        "3D Viewer",
+        "View",
+        "Show THT"
+      ],
+      "menu_path_de": [
+        "3D-Betrachter",
+        "Ansicht",
+        "THT anzeigen"
+      ],
+      "description_en": "Toggle THT components in 3D viewer.",
+      "description_de": "THT-Bauteile im 3D-Betrachter ein/aus.",
+      "keywords": [
+        "tht 3d",
+        "tht anzeigen",
+        "through hole"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "template_id": "smps_buck_converter",
+  "circuit_type": "power_supply",
+  "description": "Step-down switching regulator with inductor, diode, and filter capacitors",
+  "source_schematics": ["040428-D", "040449-D"],
+  "source_count": 2,
+
+  "match_rules": {
+    "required_components": [
+      {"type": "switching_regulator", "match": ["LM2575", "LM2596", "TPS54", "UCC38", "MC34063", "buck"]},
+      {"type": "inductor", "count_min": 1},
+      {"type": "diode_schottky", "count_min": 1}
+    ],
+    "optional_components": ["mosfet_switch", "feedback_resistors", "compensation_network"],
+    "min_confidence": 0.7
+  },
+
+  "placement": {
+    "regions": {
+      "input_cap": {"rx_range": [0.05, 0.20], "ry_range": [0.30, 0.50], "description": "Input filter capacitor at left"},
+      "regulator_ic": {"rx_range": [0.25, 0.45], "ry_range": [0.35, 0.55], "description": "PWM controller IC center-left"},
+      "switch_mosfet": {"rx_range": [0.50, 0.65], "ry_range": [0.45, 0.65], "description": "MOSFET switch right of IC (if external)"},
+      "inductor": {"rx_range": [0.55, 0.75], "ry_range": [0.10, 0.25], "description": "Inductor at top, between switch and output"},
+      "catch_diode": {"rx_range": [0.55, 0.70], "ry_range": [0.35, 0.55], "description": "Schottky diode below inductor"},
+      "output_cap": {"rx_range": [0.75, 0.90], "ry_range": [0.30, 0.50], "description": "Output filter capacitor at right"},
+      "feedback": {"rx_range": [0.60, 0.75], "ry_range": [0.60, 0.80], "description": "Feedback resistor divider below output"},
+      "compensation": {"rx_range": [0.15, 0.30], "ry_range": [0.60, 0.80], "description": "Compensation network below IC"},
+      "load": {"rx_range": [0.85, 0.95], "ry_range": [0.35, 0.65], "description": "Load (LEDs, etc) at far right"}
+    },
+    "signal_flow": "left_to_right",
+    "power_flow": "Vin(left) → IC → L(top) → D(center) → Vout(right)",
+    "component_rotation": {
+      "R": 90, "C": 90, "L": 0, "D": 90
+    }
+  },
+
+  "wiring_hint": "Input/output voltage labels. Power loop (IC→FET→L→D) routed as short as possible. Feedback direct wire.",
+
+  "block_definition": {
+    "schema_version": "1.1",
+    "chip": "BUCK_GENERIC",
+    "kicad_symbol": "Regulator_Switching:TPS54202",
+    "kicad_footprint": "Package_SO:SOIC-8-1EP_3.9x4.9mm_P1.27mm_EP2.41x3.3mm",
+    "pins": [
+      {"num": 1, "name": "BOOT","type": "passive"},
+      {"num": 2, "name": "VIN", "type": "power_in"},
+      {"num": 3, "name": "EN",  "type": "input"},
+      {"num": 4, "name": "FB",  "type": "input"},
+      {"num": 5, "name": "GND", "type": "power_in"},
+      {"num": 6, "name": "SW",  "type": "output"},
+      {"num": 7, "name": "GND", "type": "power_in"},
+      {"num": 8, "name": "GND", "type": "power_in"}
+    ],
+    "peripherals": [
+      {
+        "id": "C_VIN", "role": "input_decoupling",
+        "between": ["VIN", "GND"], "value": "10uF",
+        "specs": {"type": "ceramic", "dielectric": "X7R", "voltage_min": "25V"},
+        "kicad_footprint": "Capacitor_SMD:C_0805_2012Metric",
+        "placement_hint": "as close as possible to VIN pin",
+        "source": "Generic buck-converter app schematic",
+        "required": true
+      },
+      {
+        "id": "C_BOOT", "role": "bootstrap",
+        "between": ["BOOT", "SW"], "value": "100nF",
+        "source": "Bootstrap-charge-pump capacitor",
+        "required": true
+      },
+      {
+        "id": "L1", "role": "inductor",
+        "between": [{"pin": "SW"}, {"net": "VOUT"}], "value": "4.7uH",
+        "value_formula": {
+          "expr": "(Vin_max * D * (1-D)) / (fsw * dI_L)",
+          "inputs": {"Vin_max": "operating_envelope.vin_max", "D": 0.275, "fsw": 500000.0, "dI_L": 0.4}
+        },
+        "specs": {"saturation_current_min": "Iout * 1.5"},
+        "kicad_footprint": "Inductor_SMD:L_Sumida_CDRH3D11-NP-Series",
+        "source": "Buck inductor sizing",
+        "required": true
+      },
+      {
+        "id": "C_OUT", "role": "output_decoupling",
+        "between": [{"net": "VOUT"}, "GND"], "value": "22uF",
+        "specs": {"type": "ceramic", "dielectric": "X7R", "voltage_min": "10V"},
+        "kicad_footprint": "Capacitor_SMD:C_0805_2012Metric",
+        "required": true
+      },
+      {
+        "id": "R_FB_TOP", "role": "feedback_divider_top",
+        "between": [{"net": "VOUT"}, "FB"], "value": "100k",
+        "value_formula": "R_top = R_bot * (Vout / Vref - 1)",
+        "required": true
+      },
+      {
+        "id": "R_FB_BOT", "role": "feedback_divider_bottom",
+        "between": ["FB", "GND"], "value": "22.1k",
+        "comment": "default for Vout = 3.3V with Vref = 0.6V",
+        "required": true
+      },
+      {
+        "id": "R_EN_PD", "role": "enable_pulldown",
+        "between": ["EN", "GND"], "value": "100k",
+        "comment": "pulls EN low when MCU not driving",
+        "required": false
+      }
+    ],
+    "external_nets": [
+      {"name": "VIN",  "direction": "input",  "type": "power"},
+      {"name": "VOUT", "direction": "output", "type": "power"},
+      {"name": "GND",  "direction": "passive","type": "ground"},
+      {"name": "EN",   "direction": "input",  "type": "signal"}
+    ],
+    "operating_envelope": {
+      "vin_min": 4.5, "vin_max": 28.0, "vout": 3.3,
+      "iout_max": 2.0, "fsw_typ": 500000
+    },
+    "review_status": "verified_against_datasheet",
+    "needs_review": [
+      "override chip_meta with the actual buck-IC part-number + kicad_symbol",
+      "recompute R_FB_TOP/R_FB_BOT for target Vout via the value_formula",
+      "verify L_sat against operating_envelope.iout_max"
+    ]
+  }
+}

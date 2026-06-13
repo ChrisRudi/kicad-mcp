@@ -1,0 +1,107 @@
+{
+  "template_id": "opamp_signal_chain",
+  "circuit_type": "analog_signal_processing",
+  "description": "Opamp-based signal chain (comparator, filter, amplifier, voltage reference)",
+  "source_schematics": [
+    "040148-D",
+    "040230-D",
+    "040432-D",
+    "040221-D"
+  ],
+  "source_count": 4,
+  "match_rules": {
+    "required_components": [
+      {
+        "type": "opamp_or_comparator",
+        "match": [
+          "LM393",
+          "LM339",
+          "LM358",
+          "TL07",
+          "MCP60",
+          "OPA",
+          "opamp",
+          "comparator"
+        ]
+      }
+    ],
+    "optional_components": [
+      "voltage_reference",
+      "potentiometer",
+      "relay",
+      "led"
+    ],
+    "min_confidence": 0.5
+  },
+  "placement": {
+    "regions": {
+      "reference_input": {
+        "rx_range": [
+          0.05,
+          0.25
+        ],
+        "ry_range": [
+          0.3,
+          0.7
+        ],
+        "description": "Voltage divider / reference at left"
+      },
+      "opamp": {
+        "rx_range": [
+          0.35,
+          0.55
+        ],
+        "ry_range": [
+          0.35,
+          0.6
+        ],
+        "description": "Opamp/comparator in center"
+      },
+      "feedback_network": {
+        "rx_range": [
+          0.35,
+          0.55
+        ],
+        "ry_range": [
+          0.15,
+          0.3
+        ],
+        "description": "Feedback resistors above opamp"
+      },
+      "output_stage": {
+        "rx_range": [
+          0.65,
+          0.85
+        ],
+        "ry_range": [
+          0.35,
+          0.6
+        ],
+        "description": "Output stage (transistor, relay) at right"
+      },
+      "filter_network": {
+        "rx_range": [
+          0.2,
+          0.4
+        ],
+        "ry_range": [
+          0.6,
+          0.8
+        ],
+        "description": "Input filter/coupling below signal path"
+      },
+      "multi_unit_stacked": {
+        "description": "If dual/quad opamp: units stacked vertically (IC.A above IC.B)"
+      }
+    },
+    "signal_flow": "left_to_right",
+    "component_rotation": {
+      "R": 90,
+      "C": 90
+    }
+  },
+  "wiring_hint": "Vin/power labeled. Feedback paths direct wires. Dual opamp units stacked vertically.",
+  "block_definition": null,
+  "block_definition_status": "stub",
+  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the opamp_signal_chain pattern. See examples/circuit_block/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
+}

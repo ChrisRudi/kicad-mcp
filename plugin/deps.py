@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Check / install the bundled kicad-mcp server's RUNTIME dependencies.
+
+The server imports ``fastmcp`` / ``mcp`` / ``pandas`` / ``yaml`` / ``defusedxml``
+/ ``jsonschema`` — none of which ship in KiCad's bundled Python. We probe them
+fast with ``importlib.util.find_spec`` in a subprocess (KiCad's Python), and
+install into a **plugin-local target dir** (``<plugin>/_deps``) that goes onto
+``PYTHONPATH`` explicitly. ``pip --user`` turned out fragile under KiCad's
+bundled Python ("Installation klappt, Server startet trotzdem nicht"): the
+user-site dir is shared with other CPython installs (version clashes) and is
+not guaranteed on sys.path in every embed configuration. A dir the plugin OWNS
+and wires up itself removes that whole failure class — and needs no admin.
+
+Pure logic (command builders + an injectable runner); unit-testable headless.
+"""
+
+from __future__ import annotations
+
+import os
+import subprocess
+from typing import Optional
+
+from .claude_bridge import hidden_console_kwargs
+
+# Import names to probe (note: pyyaml imports as ``yaml``).
+IMPORT_NAMES = ["fastmcp", "mcp", "pandas", "yaml", "defusedxml", "jsonschema"]
+# pip specs to install (no brackets -> no cross-shell quoting headaches;
+# fastmcp pulls mcp transitively, mcp listed too to be safe).
+PIP_SPECS = ["fastmcp", "mcp", "pandas", "pyyaml", "defusedxml", "jsonschema"]
+
+PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
+
+_CHECK_CODE = (
+    "import importlib.util,sys;"
+    f"req={IMPORT_NAMES!r};"
+    "miss=[m for m in req if importlib.util.find_spec(m) is None];"
+    "print(','.join(miss));"
+    "sys.exit(1 if miss else 0)"
+)
+
+
+def default_target_dir() -> str:
+    """Where the plugin installs the server deps (``<plugin>/_deps``)."""
+    return os.path.join(PLUGIN_DIR, "_deps")
+
+
+def active_deps_dir() -> Optional[str]:
+    """The plugin-local deps dir if it exists, else None (rely on site dirs —
+    keeps earlier ``pip --user`` installs working)."""
+    d = default_target_dir()
+    return d if os.path.isdir(d) else None
+
+
+def build_check_cmd(kicad_py: str) -> list:
+    return [kicad_py, "-c", _CHECK_CODE]
+
+
+def check_deps(kicad_py: Optional[str], _run=subprocess.run,
+               deps_dir: Optional[str] = None) -> dict:
+    """Return ``{ok, missing, error}`` — which runtime deps KiCad's Python lacks.
+
+    Probes with the plugin-local deps dir on PYTHONPATH (exactly how the MCP
+    server will run). Fast (find_spec, no full import). Never raises.
+    """
+    out = {"ok": False, "missing": [], "error": ""}
+    if not kicad_py:
+        out["error"] = "KiCad-Python nicht gefunden"
+        return out
+    env = dict(os.environ)
+    deps_dir = active_deps_dir() if deps_dir is None else deps_dir
+    if deps_dir:
+        env["PYTHONPATH"] = deps_dir
+    try:
+        proc = _run(build_check_cmd(kicad_py), capture_output=True, text=True,
+                    timeout=30, check=False, env=env,
+                    **hidden_console_kwargs())
+    except Exception as exc:
+        out["error"] = str(exc)
+        return out
+    miss = [m for m in (proc.stdout or "").strip().split(",") if m]
+    out["missing"] = miss
+    out["ok"] = getattr(proc, "returncode", 1) == 0 and not miss
+    return out
+
+
+def pip_install_commands(kicad_py: str, target: Optional[str] = None) -> list:
+    """The command lines for a visible terminal (see plugin.terminal):
+    install into the plugin-local ``--target`` dir (no admin, no user-site).
+
+    Self-diagnosing: shows which Python runs, bootstraps pip via ensurepip
+    when the bundle ships without it, and VERIFIES after the install that
+    every module actually imports from the target dir — so "Installation
+    klappt scheinbar" and "Server startet" can't diverge silently anymore.
+    """
+    target = target or default_target_dir()
+    pkgs = " ".join(PIP_SPECS)
+    q = f'"{kicad_py}"'
+    verify = (
+        f"import sys;sys.path.insert(0,r'{target}');"
+        f"import {','.join(IMPORT_NAMES)};"
+        "print('OK - alle MCP-Module importierbar')"
+    )
+    return [
+        f"echo Python: {kicad_py}",
+        f"echo Ziel-Ordner (_deps): {target}",
+        f"{q} --version",
+        # Some bundles ship without pip -> bootstrap it (no admin needed).
+        f"{q} -m pip --version || {q} -m ensurepip --user",
+        f'{q} -m pip install --upgrade --target "{target}" {pkgs}',
+        f'{q} -c "{verify}"',
+    ]

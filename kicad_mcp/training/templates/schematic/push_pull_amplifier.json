@@ -1,0 +1,117 @@
+{
+  "template_id": "push_pull_amplifier",
+  "circuit_type": "audio_amplifier",
+  "description": "Complementary push-pull amplifier with NPN/PNP symmetry",
+  "source_schematics": [
+    "030397-D",
+    "040060-D",
+    "030310-D"
+  ],
+  "source_count": 3,
+  "match_rules": {
+    "required_components": [
+      {
+        "type": "transistor_npn",
+        "count_min": 1
+      },
+      {
+        "type": "transistor_pnp",
+        "count_min": 1
+      }
+    ],
+    "optional_components": [
+      "coupling_cap",
+      "bias_diode",
+      "feedback_resistor",
+      "emitter_resistor"
+    ],
+    "topology_hint": "NPN and PNP in complementary pair, sharing same signal path",
+    "min_confidence": 0.6
+  },
+  "placement": {
+    "regions": {
+      "input": {
+        "rx_range": [
+          0.02,
+          0.15
+        ],
+        "ry_range": [
+          0.4,
+          0.6
+        ],
+        "description": "Input coupling cap at left edge, center height"
+      },
+      "npn_upper": {
+        "rx_range": [
+          0.3,
+          0.6
+        ],
+        "ry_range": [
+          0.15,
+          0.4
+        ],
+        "description": "NPN transistors in upper half (closer to V+)"
+      },
+      "pnp_lower": {
+        "rx_range": [
+          0.3,
+          0.6
+        ],
+        "ry_range": [
+          0.6,
+          0.85
+        ],
+        "description": "PNP transistors in lower half (closer to V-)"
+      },
+      "bias_chain": {
+        "rx_range": [
+          0.35,
+          0.5
+        ],
+        "ry_range": [
+          0.4,
+          0.6
+        ],
+        "description": "Bias resistors/diodes in center between NPN and PNP"
+      },
+      "output": {
+        "rx_range": [
+          0.7,
+          0.95
+        ],
+        "ry_range": [
+          0.4,
+          0.6
+        ],
+        "description": "Output taken from center rail"
+      },
+      "feedback": {
+        "rx_range": [
+          0.6,
+          0.8
+        ],
+        "ry_range": [
+          0.75,
+          0.9
+        ],
+        "description": "Feedback path wraps back from output, below circuit"
+      }
+    },
+    "signal_flow": "left_to_right",
+    "symmetry": "vertical_mirror_around_center",
+    "power_rails": {
+      "v_plus": "top_horizontal",
+      "gnd": "center_horizontal",
+      "v_minus": "bottom_horizontal"
+    },
+    "component_rotation": {
+      "R": 90,
+      "C": 0,
+      "D": 90
+    }
+  },
+  "wiring_hint": "Power rails V+/V-/GND labeled. All signal paths direct wires. Mirror symmetry top/bottom.",
+  "block_definition": null,
+  "block_definition_status": "stub",
+  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the push_pull_amplifier pattern. See examples/circuit_block/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
+}

@@ -1,0 +1,105 @@
+{
+  "schema_version": "1.1",
+  "chip": "AMS1117-3.3",
+  "manufacturer": "Advanced Monolithic Systems",
+  "datasheet_url": "http://www.advanced-monolithic.com/pdf/ds1117.pdf",
+  "datasheet_revision": "AMS1117-1.6",
+  "datasheet_date": "2009-09",
+
+  "package": "SOT-223-3",
+  "kicad_symbol": "Regulator_Linear:AMS1117-3.3",
+  "kicad_footprint": "Package_TO_SOT_SMD:SOT-223-3_TabPin2",
+
+  "pins": [
+    {"num": 1, "name": "GND", "type": "power_in",  "function": "Ground"},
+    {"num": 2, "name": "VO",  "type": "power_out", "function": "Regulated 3.3V output (and tab)"},
+    {"num": 3, "name": "VI",  "type": "power_in",  "function": "Unregulated input"}
+  ],
+
+  "peripherals": [
+    {
+      "id": "C_IN",
+      "role": "input_decoupling",
+      "between": ["VI", "GND"],
+      "value": "10uF",
+      "polarity": "polarized",
+      "anode": "VI",
+      "cathode": "GND",
+      "specs": {"type": "tantalum_or_alu", "voltage_min": "16V", "esr_max": "0.5"},
+      "kicad_symbol": "Device:CP_Small",
+      "kicad_footprint": "Capacitor_SMD:CP_Elec_4x5.4",
+      "placement_hint": "within 5 mm of VI pin",
+      "source": "DS p.4 'Stability'",
+      "required": true
+    },
+    {
+      "id": "C_IN_HF",
+      "role": "input_decoupling",
+      "between": ["VI", "GND"],
+      "value": "100nF",
+      "specs": {"type": "ceramic", "dielectric": "X7R"},
+      "source": "DS p.4 (good practice HF bypass)",
+      "required": false
+    },
+    {
+      "id": "C_OUT",
+      "role": "output_decoupling",
+      "between": ["VO", "GND"],
+      "value": "22uF",
+      "polarity": "polarized",
+      "anode": "VO",
+      "cathode": "GND",
+      "specs": {"type": "tantalum_or_alu", "voltage_min": "10V", "esr_min": "0.05", "esr_max": "0.5"},
+      "kicad_symbol": "Device:CP_Small",
+      "kicad_footprint": "Capacitor_SMD:CP_Elec_4x5.4",
+      "comment": "AMS1117 needs minimum ESR for stability — pure ceramic alone is not safe",
+      "source": "DS p.4 'Stability'",
+      "required": true
+    },
+    {
+      "id": "C_OUT_HF",
+      "role": "output_decoupling",
+      "between": ["VO", "GND"],
+      "value": "100nF",
+      "specs": {"type": "ceramic", "dielectric": "X7R"},
+      "source": "good-practice HF bypass",
+      "required": false
+    }
+  ],
+
+  "external_nets": [
+    {"name": "VI",  "direction": "input",  "type": "power"},
+    {"name": "VO",  "direction": "output", "type": "power", "net_class": "power_1A"},
+    {"name": "GND", "direction": "passive","type": "ground"}
+  ],
+
+  "operating_envelope": {
+    "vi_min": 4.7,
+    "vi_max": 15.0,
+    "vo": 3.3,
+    "iout_max": 1.0,
+    "dropout_typ": 1.1,
+    "tj_max": 125
+  },
+
+  "power_pins_use_kicad_power_symbols": true,
+  "sheet_scope": "root",
+
+  "placement": {
+    "x_mm": 100.0,
+    "y_mm": 80.0,
+    "rotation_deg": 0,
+    "side": "F.Cu"
+  },
+
+  "section_frame": {
+    "title": "Power: AMS1117-3.3 LDO",
+    "x_mm": 80.0,
+    "y_mm": 60.0,
+    "w_mm": 60.0,
+    "h_mm": 50.0
+  },
+
+  "review_status": "verified_against_datasheet",
+  "needs_review": []
+}

@@ -1,0 +1,66 @@
+{
+  "template_id": "elektor_wiring_rules_v1",
+  "source": "27 Elektor schematics (2005-2023)",
+  "source_count": 27,
+
+  "label_vs_wire": {
+    "always_label": [
+      "power_nets",
+      "ground_nets",
+      "inter_ic_bus_signals",
+      "mcu_port_pins_when_many"
+    ],
+    "always_wire": [
+      "passive_to_adjacent_ic_pin",
+      "bypass_cap_to_power_pin",
+      "series_component_chains",
+      "feedback_paths",
+      "transistor_bias_networks",
+      "rc_timing_to_ic"
+    ],
+    "context_rules": [
+      {
+        "rule": "Simple circuits (<=10 components): no labels needed, wire everything directly",
+        "evidence": "040221-D, DE2010070162, 191207-02 — zero labels, all direct wires",
+        "threshold_components": 10
+      },
+      {
+        "rule": "MCU systems with many pins: use labels for port connections to avoid clutter",
+        "evidence": "040218-D, DE2008070161, DE2008070201, DE2010070081 — heavy label use for MCU pins",
+        "threshold_mcu_pins": 20
+      },
+      {
+        "rule": "Medium circuits (10-25 components): labels only for power nets, everything else direct",
+        "evidence": "024016-D, 030172-D, 040058-D, 040449-D — 85% of analyzed circuits",
+        "threshold_components_min": 10,
+        "threshold_components_max": 25
+      },
+      {
+        "rule": "Complex multi-IC systems: label all inter-IC connections, wire only intra-block",
+        "evidence": "DE2010070081 (DSP radio) — SDA/SCL/MOSI/MISO all labeled",
+        "threshold_ics": 3
+      }
+    ],
+    "distance_threshold_mm": 90,
+    "summary": "85% of Elektor schematics use direct wires as dominant connection method. Labels average 3.1 per schematic, almost exclusively for power rails. Only MCU-heavy designs use labels extensively."
+  },
+
+  "wire_routing": {
+    "style": "orthogonal",
+    "corner_type": "90_degree",
+    "avoid_4way_junctions": true,
+    "prefer_horizontal_for_signals": true,
+    "prefer_vertical_for_power_rails": true,
+    "junction_dots_always": true,
+    "bus_used": false,
+    "notes": "No Elektor schematic in our sample used bus notation. All used individual wires or labels."
+  },
+
+  "power_conventions": {
+    "positive_rail_top": true,
+    "ground_bottom": true,
+    "negative_rail_below_ground": true,
+    "symmetric_supply_ground_center": true,
+    "power_labels_common": ["+5V", "+9V", "+12V", "GND", "V+", "V-", "+Ub", "+VCC"]
+  }
+}
