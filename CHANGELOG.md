@@ -8,6 +8,15 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed
+- **`ipc_get_selection` fängt den „KiCad is busy"-Bug ab (Task C).** Die GUI-Selektion auf
+  Sprachtrigger („aktuelle Auswahl", „was ist hier selektiert") wird schon mit
+  Refdes/Typ/Layer/Position (mm) und „Nichts selektiert"-Note zurückgegeben — neu ist, dass
+  der bekannte kipy-Bug (Einzelselektion mancher Primitive → „KiCad is busy and cannot
+  respond") jetzt über den zentralen Retry/Backoff aus Task A (`ipc_session.call_with_retry`)
+  abgefangen statt als Fehler durchgereicht wird; nach erschöpften Versuchen klare Meldung.
+  Signatur unverändert. Headless getestet.
+
 ### Added
 - **Markup→Kupfer-Tool `ipc_markup_to_tracks` (Task B).** Der User skizziert Routing als
   einfache Grafik-Linien/Arcs auf einem Markup-Layer (Default `User.9`); das Tool liest die

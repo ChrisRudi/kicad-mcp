@@ -207,6 +207,42 @@ class TestGetSelection:
         assert t["start_mm"] == [0.0, 0.0] and t["end_mm"] == [5.0, 0.0]
         assert t["width_mm"] == 0.5
 
+    def test_busy_bug_is_retried_then_succeeds(self, server, patch_board,
+                                               monkeypatch):
+        # The "KiCad is busy and cannot respond" single-primitive bug must be
+        # retried (Task A) instead of surfacing as a failure.
+        from kicad_mcp.utils import ipc_session
+        monkeypatch.setattr(ipc_session.time, "sleep", lambda *_a, **_k: None)
+        board = FakeBoard(footprints=[_fp("R1", "1k", "u1", 1.0, 2.0)])
+        board._selection = board.get_footprints()
+        calls = {"n": 0}
+        real = board.get_selection
+
+        def _flaky():
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise RuntimeError("KiCad is busy and cannot respond")
+            return real()
+
+        board.get_selection = _flaky
+        patch_board(board)
+        r = _call(server, "ipc_get_selection")
+        assert r["success"] and r["count"] == 1 and calls["n"] == 2
+
+    def test_busy_exhausted_returns_clear_error(self, server, patch_board,
+                                                monkeypatch):
+        from kicad_mcp.utils import ipc_session
+        monkeypatch.setattr(ipc_session.time, "sleep", lambda *_a, **_k: None)
+        board = FakeBoard()
+
+        def _always_busy():
+            raise RuntimeError("KiCad is busy and cannot respond")
+
+        board.get_selection = _always_busy
+        patch_board(board)
+        r = _call(server, "ipc_get_selection")
+        assert r["success"] is False and "after retries" in r["error"]
+
 
 class TestInspectItem:
     def test_find_by_reference(self, server, patch_board):
