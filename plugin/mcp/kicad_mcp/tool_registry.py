@@ -47,6 +47,7 @@ from kicad_mcp.tools.connectivity_tools import register_connectivity_tools
 from kicad_mcp.tools.via_promote_tools import register_via_promote_tools
 from kicad_mcp.tools.ipc_live_tools import register_ipc_live_tools
 from kicad_mcp.tools.ipc_interact_tools import register_ipc_interact_tools
+from kicad_mcp.tools.ipc_markup_tools import register_ipc_markup_tools
 from kicad_mcp.tools.pcb_session_tools import register_pcb_session_tools
 from kicad_mcp.tools.pcb_render_tools import register_pcb_render_tools
 from kicad_mcp.tools.generation_tools import register_generation_tools
@@ -101,6 +102,7 @@ TOOL_REGISTRARS: list[Registrar] = [
     register_via_promote_tools,
     register_ipc_live_tools,
     register_ipc_interact_tools,
+    register_ipc_markup_tools,
     register_pcb_session_tools,
     register_pcb_render_tools,
     register_generation_tools,

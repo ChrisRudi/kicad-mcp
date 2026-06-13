@@ -9,6 +9,15 @@ the first tag ships.
 ## [Unreleased]
 
 ### Added
+- **Markup→Kupfer-Tool `ipc_markup_to_tracks` (Task B).** Der User skizziert Routing als
+  einfache Grafik-Linien/Arcs auf einem Markup-Layer (Default `User.9`); das Tool liest die
+  Geometrie live über IPC und legt äquivalente Kupfer-**Tracks** (Track/ArcTrack) auf einen
+  Ziel-Kupferlayer. Quell-/Ziellayer + Breite (mm) sind Parameter (nichts hardcoded außer
+  dem `User.9`-Default), die erzeugten Tracks sind **netlos**. Geschlossene Polygone/Kreise
+  werden bewusst übersprungen (Zonen = separater Schritt). Alles in einem
+  `begin_commit`/`push_commit` → **ein** Undo-Schritt; Koordinaten bleiben durchgängig nm
+  (int), einzige Konversion ist `width_mm` an der Eingabe-Grenze; `dry_run` zählt nur.
+  Tool-Count 165 → 166. Headless getestet (`tests/test_ipc_markup_tools.py`).
 - **Zentraler IPC-Session-Layer (`utils/ipc_session.py`) — Connection-Robustheit + Speed
   (Task A).** Behebt „MCP nicht verbunden (failed)" auf großen Boards und die Per-Call-
   Reconnect-Latenz. (1) **Wiederverwendeter Client:** `get_client()` hält prozessweit eine
