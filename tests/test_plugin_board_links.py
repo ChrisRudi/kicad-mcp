@@ -88,15 +88,26 @@ def _fp(ref):
 
 
 class _FakeBoard:
-    def __init__(self, refs=(), nets=(), net_items=None):
+    def __init__(self, refs=(), nets=(), net_items=None, layers=()):
         self._fps = [_fp(r) for r in refs]
         self._nets = [SimpleNamespace(name=n) for n in nets]
         self._net_items = net_items or {}
+        self._layers = list(layers)  # BoardLayer enum ints
         self.selection = None
         self.cleared = False
+        self.active_layer = None
 
     def get_footprints(self):
         return list(self._fps)
+
+    def get_enabled_layers(self):
+        return list(self._layers)
+
+    def set_active_layer(self, enum_int):
+        self.active_layer = enum_int
+
+    def get_layer_name(self, enum_int):
+        return f"name-of-{enum_int}"
 
     def get_nets(self):
         return list(self._nets)
@@ -121,16 +132,43 @@ class _FakeClient:
 
 
 class TestBoardTargets:
-    def test_collects_refs_and_nets(self):
-        board = _FakeBoard(refs=["R1", "U2"], nets=["GND", "VCC"])
-        refs, nets = board_links.board_targets(board)
+    def test_collects_refs_nets_and_layers(self):
+        # 3, 34 → F.Cu, B.Cu via the real BoardLayer enum
+        board = _FakeBoard(refs=["R1", "U2"], nets=["GND", "VCC"],
+                           layers=[3, 34])
+        refs, nets, layers = board_links.board_targets(board)
         assert refs == {"R1", "U2"} and nets == {"GND", "VCC"}
+        assert layers == {"F.Cu", "B.Cu"}
 
     def test_survives_partial_failures(self):
         board = _FakeBoard(refs=["R1"], nets=["GND"])
         board.get_nets = lambda: (_ for _ in ()).throw(RuntimeError("x"))
-        refs, nets = board_links.board_targets(board)
-        assert refs == {"R1"} and nets == set()
+        refs, nets, layers = board_links.board_targets(board)
+        assert refs == {"R1"} and nets == set() and layers == set()
+
+
+class TestLayerLinks:
+    def test_tokenize_links_known_layer(self):
+        segs = board_links.tokenize("Route auf F.Cu, nicht B.Cu",
+                                    known_refs=set(), known_layers={"F.Cu"})
+        assert ("F.Cu", ("layer", "F.Cu")) in segs
+        plain = "".join(c for c, t in segs if t is None)
+        assert "B.Cu" in plain  # not a known layer → stays plain
+
+    def test_enum_canonical_round_trip(self):
+        assert board_links._enum_to_canonical(3) == "F.Cu"
+        assert board_links._canonical_to_enum("F.Cu") == 3
+        assert board_links._canonical_to_enum("User.9") == 61
+
+    def test_set_active_layer_calls_kipy(self):
+        board = _FakeBoard(layers=[3])
+        gui = board_links.set_active_layer(board, "F.Cu")
+        assert board.active_layer == 3 and gui == "name-of-3"
+
+    def test_set_active_layer_unresolvable(self):
+        board = _FakeBoard()
+        assert board_links.set_active_layer(board, "Nope.99") is None
+        assert board.active_layer is None
 
 
 class TestSelect:

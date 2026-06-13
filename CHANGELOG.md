@@ -8,6 +8,17 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added
+- **Plugin v0.2.21: Layer-Namen im Chat sind klickbar (Task D).** Erwähnt Claude einen
+  Layer (`F.Cu`, `In1.Cu`, `User.9`, …), wird er im Panel zum Link; ein Klick setzt den
+  **aktiven Layer** im PCB-Editor (`board.set_active_layer`, verifiziert in kipy 10). Client/
+  Renderer ist das wx-Chat-Panel des Plugins (kein Markdown/HTML), daher dieselbe Mechanik
+  wie Refs/Netze/Koordinaten: verlinkt werden nur Layer, die wirklich am Board **aktiviert**
+  sind (`get_enabled_layers` → kanonischer Name via `BoardLayer`-Enum), kein Fehltreffer.
+  Reine Tokenizer-/Resolver-Logik in `plugin/board_links.py` (`set_active_layer`,
+  `_enum_to_canonical`/`_canonical_to_enum`), headless getestet. `board_targets` liefert nun
+  zusätzlich die Layer-Menge (3-Tupel).
+
 ### Changed
 - **`ipc_get_selection` fängt den „KiCad is busy"-Bug ab (Task C).** Die GUI-Selektion auf
   Sprachtrigger („aktuelle Auswahl", „was ist hier selektiert") wird schon mit

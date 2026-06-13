@@ -64,17 +64,29 @@ def _coord_matches(text) -> list[tuple]:
     return out
 
 
-def tokenize(text: str, known_refs, known_nets=()) -> list[tuple]:
+def _layer_matches(text, layer_set) -> list[tuple]:
+    rx = _link_regex(layer_set)
+    if rx is None:
+        return []
+    return [(m.start(), m.end(), ("layer", m.group(0)))
+            for m in rx.finditer(text)]
+
+
+def tokenize(text: str, known_refs, known_nets=(), known_layers=()) -> list[tuple]:
     """Split ``text`` into ``(chunk, target)`` segments.
 
     ``target`` is ``None`` for plain text, or a clickable target:
-    ``("ref", "R12")`` / ``("net", "GND")`` (only for tokens that exist on the
-    board — refs win ties) or ``("coord", (x_mm, y_mm))`` for a printed
-    coordinate pair. Coordinate links need no board data.
+    ``("ref", "R12")`` / ``("net", "GND")`` / ``("layer", "F.Cu")`` (only for
+    tokens that exist on the board — refs win ties over nets, layers are kept
+    separate) or ``("coord", (x_mm, y_mm))`` for a printed coordinate pair.
+    Coordinate links need no board data.
     """
     ref_set = {str(r) for r in (known_refs or []) if str(r)}
     net_set = {str(n) for n in (known_nets or []) if str(n)}
-    matches = _ref_net_matches(text, ref_set, net_set) + _coord_matches(text)
+    layer_set = {str(l) for l in (known_layers or []) if str(l)} - ref_set - net_set
+    matches = (_ref_net_matches(text, ref_set, net_set)
+               + _layer_matches(text, layer_set)
+               + _coord_matches(text))
     if not matches:
         return [(text, None)] if text else []
     matches.sort(key=lambda m: m[0])
@@ -115,10 +127,37 @@ def connect():
     return client, client.get_board()
 
 
-def board_targets(board: Any) -> tuple[set, set]:
-    """The sets of footprint references and net names on the live board."""
+def _enum_to_canonical(enum_int: int) -> Optional[str]:
+    """BoardLayer enum int → canonical name (3 → "F.Cu"), or None."""
+    try:
+        from kipy.proto.board.board_types_pb2 import (  # type: ignore  # pylint: disable=no-name-in-module
+            BoardLayer,
+        )
+        name = BoardLayer.Name(int(enum_int))  # "BL_F_Cu"
+    except Exception:
+        return None
+    if name.startswith("BL_"):
+        return name[3:].replace("_", ".")
+    return None
+
+
+def _canonical_to_enum(name: str) -> Optional[int]:
+    """Canonical layer name ("F.Cu") → BoardLayer enum int, or None."""
+    try:
+        from kipy.proto.board.board_types_pb2 import (  # type: ignore  # pylint: disable=no-name-in-module
+            BoardLayer,
+        )
+        return BoardLayer.Value("BL_" + str(name).replace(".", "_"))
+    except Exception:
+        return None
+
+
+def board_targets(board: Any) -> tuple[set, set, set]:
+    """The sets of (footprint references, net names, enabled layer names) on
+    the live board — used to linkify only tokens that really exist."""
     refs: set = set()
     nets: set = set()
+    layers: set = set()
     try:
         for fp in board.get_footprints():
             r = _ref_of(fp)
@@ -133,7 +172,14 @@ def board_targets(board: Any) -> tuple[set, set]:
                 nets.add(name)
     except Exception:
         pass
-    return refs, nets
+    try:
+        for enum_int in board.get_enabled_layers():
+            canonical = _enum_to_canonical(enum_int)
+            if canonical:
+                layers.add(canonical)
+    except Exception:
+        pass
+    return refs, nets, layers
 
 
 def _zoom_to_selection(client: Any) -> None:
@@ -184,6 +230,20 @@ def select_coord(client: Any, board: Any, x_mm: float, y_mm: float,
             _zoom_to_selection(client)
         return best_d
     return None
+
+
+def set_active_layer(board: Any, layer_name: str) -> Optional[str]:
+    """Make ``layer_name`` the active layer in the editor; returns its GUI
+    name on success, or None if the name doesn't resolve. Verified kipy API:
+    ``set_active_layer(int)`` + ``get_layer_name(int)``."""
+    enum_int = _canonical_to_enum(layer_name)
+    if enum_int is None:
+        return None
+    board.set_active_layer(enum_int)
+    try:
+        return board.get_layer_name(enum_int) or layer_name
+    except Exception:
+        return layer_name
 
 
 def select(client: Any, board: Any, kind: str, value: str,

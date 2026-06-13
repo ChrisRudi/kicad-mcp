@@ -47,6 +47,7 @@ class ClaudeChatPanel(wx.Panel):
         # Board elements named in replies become clickable: char-range → target.
         self._refs: set = set()
         self._nets: set = set()
+        self._layers: set = set()
         self._links: list = []  # (start, end, kind, value)
 
         self.SetBackgroundColour(wx.Colour(theme.BACKGROUND))
@@ -136,13 +137,14 @@ class ClaudeChatPanel(wx.Panel):
         self._write(text + "\n\n", style["text_color"])
 
     def _append_claude(self, text: str) -> None:
-        """Claude reply with board references/nets rendered as clickable links
-        (orange + underlined); clicking selects + zooms them in the editor."""
+        """Claude reply with board references / nets / layers rendered as
+        clickable links (orange + underlined); clicking selects+zooms an
+        element or sets the active layer in the editor."""
         from . import board_links
         style = theme.style_for("claude")
         self._write(style["prefix"], style["prefix_color"], bold=True)
         for chunk, target in board_links.tokenize(text + "\n\n", self._refs,
-                                                   self._nets):
+                                                   self._nets, self._layers):
             if target is None:
                 self._write(chunk, style["text_color"])
                 continue
@@ -214,12 +216,14 @@ class ClaudeChatPanel(wx.Panel):
             claude_cmd=self._plan.claude_cmd,
             on_status=lambda s: wx.CallAfter(self._on_activity, s),
         )
-        # Refresh the board's refs/nets so this reply can be linkified (best
-        # effort; an unreachable editor just means no links this turn).
+        # Refresh the board's refs/nets/layers so this reply can be linkified
+        # (best effort; an unreachable editor just means no links this turn).
         try:
             from . import board_links
             _client, board = board_links.connect()
-            result["_refs"], result["_nets"] = board_links.board_targets(board)
+            refs, nets, layers = board_links.board_targets(board)
+            result["_refs"], result["_nets"], result["_layers"] = (
+                refs, nets, layers)
         except Exception:
             pass
         wx.CallAfter(self._on_reply, result)
@@ -230,6 +234,7 @@ class ClaudeChatPanel(wx.Panel):
         if result.get("_refs") is not None:
             self._refs = result["_refs"]
             self._nets = result.get("_nets") or set()
+            self._layers = result.get("_layers") or set()
         mcp_status = result.get("mcp_status") or ""
         if mcp_status.startswith("failed"):
             self._append(
@@ -272,6 +277,10 @@ class ClaudeChatPanel(wx.Panel):
                 msg = (f"({x}, {y}): nächstes Element {dist:.1f} mm entfernt "
                        "markiert" if dist is not None
                        else f"({x}, {y}): kein Element in der Nähe")
+            elif kind == "layer":
+                gui = board_links.set_active_layer(board, value)
+                msg = (f"Aktiver Layer → {gui}" if gui
+                       else f"{value}: Layer nicht auflösbar")
             else:
                 count = board_links.select(client, board, kind, value)
                 msg = (f"{value}: {count} Element(e) markiert"
