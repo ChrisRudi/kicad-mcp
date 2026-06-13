@@ -8,6 +8,17 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed
+- **Plugin v0.2.20: kein verwaister Claude/MCP-Prozess mehr, wenn KiCad geschlossen wird.**
+  `claude -p` (+ sein MCP-Kindprozess) wird aus KiCad heraus gestartet; unter Windows
+  beendet das Schließen von KiCad die Kindprozesse **nicht** automatisch — bei einem
+  KiCad-Schluss *während* einer laufenden Anfrage konnten sie verwaisen. Jetzt wird jeder
+  laufende Turn registriert (`claude_bridge._register`) und beim Schließen des Chat-Panels
+  sowie via `atexit` beim KiCad-Beenden **inklusive Kindprozessen** abgeräumt
+  (`terminate_all` → `_kill_tree`: Windows `taskkill /F /T`, POSIX `killpg` dank
+  `start_new_session`). Zwischen den Anfragen war ohnehin nichts offen — `claude -p` ist ein
+  Einmal-Aufruf, der seinen MCP-Server beim Beenden mitnimmt.
+
 ### Added
 - **Disk-Write-Guard fürs gemeinsame Arbeiten (Plugin v0.2.19).** Beim gleichzeitigen
   Arbeiten (du in KiCad, der Agent über MCP) blockiert der Server jetzt Direkt-Patches auf

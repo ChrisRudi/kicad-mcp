@@ -18,6 +18,7 @@ testable headless.
 
 from __future__ import annotations
 
+import atexit
 import json
 import os
 import queue
@@ -157,6 +158,72 @@ def extract_text(ev: dict) -> str:
                    if isinstance(b, dict) and b.get("type") == "text")
 
 
+# -- child-process lifecycle ---------------------------------------------------
+# The claude child (and its MCP grandchild) are spawned from inside KiCad. If
+# KiCad closes mid-turn, Windows does NOT auto-kill them — they'd orphan. We
+# track every live turn and tear the whole tree down on panel-close / KiCad
+# exit (atexit), so nothing survives KiCad.
+
+_LIVE_LOCK = threading.Lock()
+_LIVE: set = set()
+
+
+def _register(proc) -> None:
+    with _LIVE_LOCK:
+        _LIVE.add(proc)
+
+
+def _unregister(proc) -> None:
+    with _LIVE_LOCK:
+        _LIVE.discard(proc)
+
+
+def _kill_tree(proc) -> None:
+    """Kill ``proc`` AND its children (the MCP server is claude's child)."""
+    if proc is None:
+        return
+    poll = getattr(proc, "poll", None)
+    if callable(poll) and poll() is not None:
+        return  # already exited
+    try:
+        if os.name == "nt":
+            # /T kills the whole tree (claude + python MCP), /F forces it.
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                timeout=10, check=False, stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL, **hidden_console_kwargs(),
+            )
+        else:
+            import signal
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            except Exception:
+                proc.terminate()
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
+
+def terminate_all() -> int:
+    """Kill every in-flight claude turn + its MCP child. Returns how many.
+
+    Called on chat-panel close and (via atexit) on KiCad shutdown, so neither
+    claude nor the MCP server outlive KiCad. Idempotent and safe to call with
+    nothing running.
+    """
+    with _LIVE_LOCK:
+        procs = list(_LIVE)
+        _LIVE.clear()
+    for proc in procs:
+        _kill_tree(proc)
+    return len(procs)
+
+
+atexit.register(terminate_all)
+
+
 # -- the turn ------------------------------------------------------------------
 
 def _pump(stream, q: "queue.Queue") -> None:
@@ -204,12 +271,25 @@ def ask(
             cmd, cwd=project_dir, stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, encoding="utf-8", errors="replace", env=env,
+            # POSIX: own session/group so _kill_tree can killpg the MCP child;
+            # on Windows this is a no-op (the tree is killed via taskkill /T).
+            start_new_session=True,
             **hidden_console_kwargs(),
         )
     except Exception as exc:
         out["error"] = f"Start fehlgeschlagen: {exc}"
         return out
 
+    _register(proc)  # tracked so KiCad-close / atexit can tear the tree down
+    try:
+        return _run_turn(proc, out, idle_timeout, max_seconds, on_status)
+    finally:
+        _unregister(proc)
+
+
+def _run_turn(proc, out, idle_timeout, max_seconds, on_status):
+    """Drive one started turn to completion (split out so ``ask`` can wrap it
+    in register/unregister)."""
     q: "queue.Queue" = queue.Queue()
     threading.Thread(target=_pump, args=(proc.stdout, q), daemon=True).start()
 

@@ -35,17 +35,24 @@ class _FakeStdout:
 
 
 class _FakeProc:
-    def __init__(self, lines, rc=0, stderr=""):
+    def __init__(self, lines, rc=0, stderr="", pid=4321):
         self.stdout = _FakeStdout(lines)
         self.stderr = type("E", (), {"read": staticmethod(lambda: stderr)})()
         self.returncode = rc
+        self.pid = pid
         self.killed = False
+        self._exited = False
 
     def wait(self, timeout=None):
+        self._exited = True
         return self.returncode
+
+    def poll(self):
+        return self.returncode if self._exited else None
 
     def kill(self):
         self.killed = True
+        self._exited = True
 
 
 def _popen_for(proc, capture=None):
@@ -212,6 +219,49 @@ class TestHiddenConsole:
 
     def test_posix_needs_nothing(self):
         assert claude_bridge.hidden_console_kwargs("posix") == {}
+
+
+class TestChildLifecycle:
+    """claude + its MCP child must never outlive a closed chat / closed KiCad."""
+
+    def test_turn_unregisters_on_completion(self, monkeypatch):
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        claude_bridge.terminate_all()  # clean slate
+        claude_bridge.ask("x", "/proj", "/m.json",
+                          _popen=_popen_for(_FakeProc([_RESULT])))
+        # a finished turn leaves nothing tracked
+        assert claude_bridge.terminate_all() == 0
+
+    def test_inflight_proc_is_tracked_and_killed(self, monkeypatch):
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        claude_bridge.terminate_all()
+        killed = {}
+        monkeypatch.setattr(claude_bridge, "_kill_tree",
+                            lambda p: killed.setdefault("p", p))
+        # a proc that never streams EOF would block ask; simulate by
+        # registering directly (unit-test terminate_all in isolation)
+        proc = _FakeProc([])
+        claude_bridge._register(proc)
+        assert claude_bridge.terminate_all() == 1
+        assert killed["p"] is proc
+        # registry cleared afterwards
+        assert claude_bridge.terminate_all() == 0
+
+    def test_kill_tree_skips_exited(self, monkeypatch):
+        called = {"run": False}
+        monkeypatch.setattr(claude_bridge.subprocess, "run",
+                            lambda *a, **k: called.update(run=True))
+        proc = _FakeProc([])
+        proc.kill()  # mark exited
+        claude_bridge._kill_tree(proc)
+        assert called["run"] is False  # no taskkill on an already-dead proc
+
+    def test_start_new_session_requested(self, monkeypatch):
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        seen = {}
+        claude_bridge.ask("x", "/proj", "/m.json",
+                          _popen=_popen_for(_FakeProc([_RESULT]), seen))
+        assert seen.get("start_new_session") is True
 
 
 # --- mcp_config --------------------------------------------------------------

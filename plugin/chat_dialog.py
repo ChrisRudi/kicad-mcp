@@ -182,6 +182,12 @@ class ClaudeChatPanel(wx.Panel):
 
     def _on_destroy(self, evt) -> None:
         self._spinner.Stop()  # never let the timer outlive the window
+        # Kill any in-flight claude turn + its MCP child so nothing survives a
+        # closed chat / closed KiCad (atexit is the additional safety net).
+        try:
+            claude_bridge.terminate_all()
+        except Exception:
+            pass
         evt.Skip()
 
     # -- send flow ----------------------------------------------------------
