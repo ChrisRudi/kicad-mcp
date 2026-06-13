@@ -524,10 +524,15 @@ def register_ipc_interact_tools(mcp) -> None:
             _, board = _connect_kicad()
         except RuntimeError as exc:
             return {"success": False, "error": str(exc)}
+        # Single-primitive selection can hit the kipy "KiCad is busy and cannot
+        # respond" bug — retry it via the central session layer (Task A).
+        from kicad_mcp.utils import ipc_session
         try:
-            sel = board.get_selection()
+            sel = ipc_session.call_with_retry(
+                board.get_selection, "get_selection")
         except Exception as exc:
-            return {"success": False, "error": f"get_selection failed: {exc}"}
+            return {"success": False,
+                    "error": f"get_selection failed (after retries): {exc}"}
         items = [_serialize_item(board, it) for it in (sel or [])]
         if not items:
             return {
