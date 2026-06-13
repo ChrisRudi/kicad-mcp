@@ -97,6 +97,13 @@ Eeschema-IPC kann **kein** Save/Revert/RunAction (Tracking: KiCad #2077) → Liv
 (Save/Revert/Tracks/Vias/Zonen). SWIG `pcbnew` ist deprecated → IPC/Text-Patcher sind die
 strategische Antwort.
 
+**Über IPC nicht möglich (kein Workaround, nicht implementieren):**
+- **Live-Mausposition / Statusleisten-X/Y** wird nicht exponiert; kein Push/Event für Maus
+  oder Selektion (alles Polling). Ersatz für „worauf zeige ich" = **GUI-Selektion**
+  (`ipc_get_selection`).
+- **3D-Viewer** hat keine API (keine Selektion/Steuerung).
+- **Keine Schematic-API** in KiCad 10 (nur PCB-Editor).
+
 ## Performance
 
 Auf gesynchten Disks (OneDrive/Dropbox) dominiert der **I/O** — der kalte Erst-Read
