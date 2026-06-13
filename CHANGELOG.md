@@ -9,6 +9,16 @@ the first tag ships.
 ## [Unreleased]
 
 ### Added
+- **Plugin v0.2.22: Stopp-Knopf, Claude-Optionen, Tool-Calls im Chat.** Drei Chat-UX-
+  Lücken geschlossen: (1) **Stopp** — während Claude denkt (Eingabe gesperrt) erscheint statt
+  „Senden" ein roter „Stopp"-Knopf, der den laufenden Turn samt MCP-Kindprozess sofort killt
+  (`claude_bridge.stop`); Ergebnis „⏹ Abgebrochen". (2) **Claude-Code-Switches** — ein
+  Optionen-Feld („⚑ …, z. B. `--model sonnet`") wird shlex-geparst und an jeden Turn-Befehl
+  angehängt (`build_command(extra_args=…)`). (3) **Tool-Calls sichtbar** — jeder gestreamte
+  Tool-Aufruf erscheint live als gedimmte `⚙ <name>`-Zeile im Verlauf (neue `tool_names()`
+  + `on_tool`-Callback), nicht mehr nur in der Statuszeile. `ask()` reicht zusätzlich den
+  Live-Prozess via `on_proc` an das Panel (für Stopp). Headless getestet
+  (`tests/test_plugin_bridge.py`).
 - **Plugin v0.2.21: Layer-Namen im Chat sind klickbar (Task D).** Erwähnt Claude einen
   Layer (`F.Cu`, `In1.Cu`, `User.9`, …), wird er im Panel zum Link; ein Klick setzt den
   **aktiven Layer** im PCB-Editor (`board.set_active_layer`, verifiziert in kipy 10). Client/

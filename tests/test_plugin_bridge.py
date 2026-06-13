@@ -78,6 +78,17 @@ class TestBuildCommand:
         assert "--verbose" in cmd
         assert "--resume" not in cmd                 # first turn, no session
 
+    def test_extra_args_appended(self):
+        # raw Claude switches (e.g. --model) are appended to the turn command
+        cmd = claude_bridge.build_command(
+            ["claude"], "x", "/m.json", session_id=None,
+            extra_args=["--model", "sonnet"])
+        assert cmd[-2:] == ["--model", "sonnet"]
+
+    def test_no_extra_args_by_default(self):
+        cmd = claude_bridge.build_command(["claude"], "x", "/m.json", None)
+        assert "--model" not in cmd
+
     def test_file_mutation_tools_forbidden(self):
         # Claude must not text-edit project files itself (KiCad nags about
         # external edits; geometry patching is the MCP server's job).
@@ -116,6 +127,12 @@ class TestStreamParsing:
         ev = claude_bridge.parse_stream_event(_TEXT)
         assert claude_bridge.extract_text(ev) == "42 Vias"
 
+    def test_tool_names_short(self):
+        ev = claude_bridge.parse_stream_event(_TOOL)
+        assert claude_bridge.tool_names(ev) == ["list_pcb_footprints"]
+        assert claude_bridge.tool_names(
+            claude_bridge.parse_stream_event(_TEXT)) == []
+
 
 # --- ask (streaming turn) -------------------------------------------------
 
@@ -130,6 +147,23 @@ class TestAsk:
         assert r["ok"] and r["text"] == "42 Vias" and r["session_id"] == "S1"
         assert r["mcp_status"] == "connected"
         assert any("list_pcb_footprints" in s for s in statuses)
+
+    def test_on_tool_and_on_proc_callbacks(self, monkeypatch):
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        tools, procs = [], []
+        proc = _FakeProc([_INIT_OK, _TOOL, _TEXT, _RESULT])
+        claude_bridge.ask("x", "/proj", "/m.json", on_tool=tools.append,
+                          on_proc=procs.append, _popen=_popen_for(proc))
+        assert tools == ["list_pcb_footprints"]  # streamed tool call surfaced
+        assert procs == [proc]                    # live process handed back
+
+    def test_extra_args_forwarded_to_command(self, monkeypatch):
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        seen = {}
+        claude_bridge.ask("x", "/proj", "/m.json",
+                          extra_args=["--model", "sonnet"],
+                          _popen=_popen_for(_FakeProc([_RESULT]), seen))
+        assert seen["cmd"][-2:] == ["--model", "sonnet"]
 
     def test_failed_mcp_is_reported(self, monkeypatch):
         monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
@@ -246,6 +280,21 @@ class TestChildLifecycle:
         assert killed["p"] is proc
         # registry cleared afterwards
         assert claude_bridge.terminate_all() == 0
+
+    def test_stop_kills_one_and_untracks(self, monkeypatch):
+        # the Stopp button path: kill THIS turn's tree + drop it from tracking
+        claude_bridge.terminate_all()
+        killed = {}
+        monkeypatch.setattr(claude_bridge, "_kill_tree",
+                            lambda p: killed.setdefault("p", p))
+        proc = _FakeProc([])
+        claude_bridge._register(proc)
+        claude_bridge.stop(proc)
+        assert killed["p"] is proc
+        assert claude_bridge.terminate_all() == 0  # already untracked
+
+    def test_stop_none_is_safe(self):
+        claude_bridge.stop(None)  # no raise
 
     def test_kill_tree_skips_exited(self, monkeypatch):
         called = {"run": False}

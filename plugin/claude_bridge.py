@@ -79,8 +79,13 @@ def build_command(
     prompt: str,
     mcp_config_path: str,
     session_id: Optional[str],
+    extra_args: Optional[list[str]] = None,
 ) -> list[str]:
-    """Build the ``claude`` argv for one chat turn (stream-json output)."""
+    """Build the ``claude`` argv for one chat turn (stream-json output).
+
+    ``extra_args`` are raw Claude Code CLI switches the user supplied (e.g.
+    ``["--model", "sonnet"]``); appended last so they can extend the turn.
+    """
     cmd = list(claude) + [
         "-p", prompt,
         "--mcp-config", mcp_config_path,
@@ -92,6 +97,8 @@ def build_command(
     ]
     if session_id:
         cmd += ["--resume", session_id]   # continue the same conversation
+    if extra_args:
+        cmd += list(extra_args)
     return cmd
 
 
@@ -158,6 +165,17 @@ def extract_text(ev: dict) -> str:
                    if isinstance(b, dict) and b.get("type") == "text")
 
 
+def tool_names(ev: dict) -> list[str]:
+    """Short names of every tool the assistant invokes in this event
+    (``mcp__kicad-mcp__list_pcb_footprints`` → ``list_pcb_footprints``)."""
+    if ev.get("type") != "assistant":
+        return []
+    blocks = (ev.get("message") or {}).get("content") or []
+    return [_tool_short_name(b.get("name", ""))
+            for b in blocks
+            if isinstance(b, dict) and b.get("type") == "tool_use"]
+
+
 # -- child-process lifecycle ---------------------------------------------------
 # The claude child (and its MCP grandchild) are spawned from inside KiCad. If
 # KiCad closes mid-turn, Windows does NOT auto-kill them — they'd orphan. We
@@ -221,6 +239,15 @@ def terminate_all() -> int:
     return len(procs)
 
 
+def stop(proc) -> None:
+    """Stop ONE in-flight turn (the user pressed Stopp): kill its tree +
+    untrack it. The worker's ``ask`` then returns as the stream ends."""
+    if proc is None:
+        return
+    _kill_tree(proc)
+    _unregister(proc)
+
+
 atexit.register(terminate_all)
 
 
@@ -243,15 +270,21 @@ def ask(
     idle_timeout: float = IDLE_TIMEOUT_S,
     max_seconds: float = MAX_TURN_S,
     claude_cmd: Optional[list[str]] = None,
+    extra_args: Optional[list[str]] = None,
     on_status: Optional[Callable[[str], None]] = None,
+    on_tool: Optional[Callable[[str], None]] = None,
+    on_proc: Optional[Callable[[Any], None]] = None,
     _popen=subprocess.Popen,
 ) -> dict[str, Any]:
-    """Run one chat turn, streaming progress via ``on_status(text)``.
+    """Run one chat turn, streaming progress via ``on_status(text)`` and each
+    tool call via ``on_tool(name)``.
 
     Returns ``{ok, text, session_id, error, mcp_status}``. The turn is only
     aborted when claude is SILENT for ``idle_timeout`` seconds (or exceeds the
     ``max_seconds`` safety cap) — a working turn streams events continuously,
-    so honest long board work survives. ``_popen`` is injectable for tests.
+    so honest long board work survives. ``extra_args`` are raw Claude CLI
+    switches; ``on_proc(proc)`` hands the live process to the caller so a
+    Stopp button can kill it. ``_popen`` is injectable for tests.
     """
     out: dict[str, Any] = {"ok": False, "text": "", "session_id": session_id,
                            "error": "", "mcp_status": ""}
@@ -260,7 +293,7 @@ def ask(
         out["error"] = ("Claude Code (claude) nicht gefunden. Installiere "
                         "Claude Code und melde dich einmal an (claude login).")
         return out
-    cmd = build_command(claude, prompt, mcp_config_path, session_id)
+    cmd = build_command(claude, prompt, mcp_config_path, session_id, extra_args)
     env = dict(os.environ)
     # A cold KiCad-Python start (165 tools, synced disks) can exceed claude's
     # default MCP startup timeout — and a too-slow server is dropped SILENTLY
@@ -281,13 +314,19 @@ def ask(
         return out
 
     _register(proc)  # tracked so KiCad-close / atexit can tear the tree down
+    if on_proc:
+        try:
+            on_proc(proc)  # hand the live process to the caller (Stopp button)
+        except Exception:
+            pass
     try:
-        return _run_turn(proc, out, idle_timeout, max_seconds, on_status)
+        return _run_turn(proc, out, idle_timeout, max_seconds, on_status,
+                         on_tool)
     finally:
         _unregister(proc)
 
 
-def _run_turn(proc, out, idle_timeout, max_seconds, on_status):
+def _run_turn(proc, out, idle_timeout, max_seconds, on_status, on_tool=None):
     """Drive one started turn to completion (split out so ``ask`` can wrap it
     in register/unregister)."""
     q: "queue.Queue" = queue.Queue()
@@ -327,6 +366,12 @@ def _run_turn(proc, out, idle_timeout, max_seconds, on_status):
                 on_status(desc)
             except Exception:
                 pass
+        if on_tool:
+            for name in tool_names(ev):
+                try:
+                    on_tool(name)
+                except Exception:
+                    pass
         if ev.get("type") == "assistant":
             t = extract_text(ev)
             if t:
