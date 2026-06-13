@@ -17,12 +17,21 @@ Two layers:
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Any, Optional
 
 # Chars that may sit inside a designator/net token; used in the link lookarounds
 # so "R1" never matches inside "R12" or "DR1" or a net like "R1_OUT".
 _BOUNDARY = r"[\w/.+\-]"
+
+# A coordinate pair Claude/the MCP prints, e.g. "(120.5, 84.0)" or
+# "(120.5 mm, 84 mm)". Parentheses-required keeps it false-positive-free
+# (bare "1, 2" in prose must NOT linkify). Group 1/2 are the mm numbers.
+_NUM = r"-?\d+(?:\.\d+)?"
+_COORD_RE = re.compile(
+    rf"\(\s*({_NUM})\s*(?:mm)?\s*,\s*({_NUM})\s*(?:mm)?\s*\)"
+)
 
 
 def _link_regex(tokens) -> Optional["re.Pattern"]:
@@ -35,28 +44,49 @@ def _link_regex(tokens) -> Optional["re.Pattern"]:
     return re.compile(rf"(?<!{_BOUNDARY})(?:{alts})(?!{_BOUNDARY})")
 
 
+def _ref_net_matches(text, ref_set, net_set) -> list[tuple]:
+    rx = _link_regex(ref_set | net_set)
+    if rx is None:
+        return []
+    out = []
+    for m in rx.finditer(text):
+        tok = m.group(0)
+        kind = "ref" if tok in ref_set else "net"
+        out.append((m.start(), m.end(), (kind, tok)))
+    return out
+
+
+def _coord_matches(text) -> list[tuple]:
+    out = []
+    for m in _COORD_RE.finditer(text):
+        xy = (float(m.group(1)), float(m.group(2)))
+        out.append((m.start(), m.end(), ("coord", xy)))
+    return out
+
+
 def tokenize(text: str, known_refs, known_nets=()) -> list[tuple]:
     """Split ``text`` into ``(chunk, target)`` segments.
 
-    ``target`` is ``None`` for plain text, or ``("ref", "R12")`` /
-    ``("net", "GND")`` for a clickable token. Only tokens present in
-    ``known_refs`` / ``known_nets`` become links (refs win ties), so every
-    link maps to a real board element.
+    ``target`` is ``None`` for plain text, or a clickable target:
+    ``("ref", "R12")`` / ``("net", "GND")`` (only for tokens that exist on the
+    board — refs win ties) or ``("coord", (x_mm, y_mm))`` for a printed
+    coordinate pair. Coordinate links need no board data.
     """
     ref_set = {str(r) for r in (known_refs or []) if str(r)}
     net_set = {str(n) for n in (known_nets or []) if str(n)}
-    rx = _link_regex(ref_set | net_set)
-    if rx is None:
+    matches = _ref_net_matches(text, ref_set, net_set) + _coord_matches(text)
+    if not matches:
         return [(text, None)] if text else []
+    matches.sort(key=lambda m: m[0])
     segs: list[tuple] = []
     pos = 0
-    for m in rx.finditer(text):
-        if m.start() > pos:
-            segs.append((text[pos:m.start()], None))
-        tok = m.group(0)
-        kind = "ref" if tok in ref_set else "net"
-        segs.append((tok, (kind, tok)))
-        pos = m.end()
+    for start, end, target in matches:
+        if start < pos:
+            continue  # overlapping match (coord vs ref) — keep the first
+        if start > pos:
+            segs.append((text[pos:start], None))
+        segs.append((text[start:end], target))
+        pos = end
     if pos < len(text):
         segs.append((text[pos:], None))
     return segs
@@ -113,6 +143,47 @@ def _zoom_to_selection(client: Any) -> None:
             return
         except Exception:
             continue
+
+
+def _item_xy_mm(item: Any) -> Optional[tuple]:
+    pos = getattr(item, "position", None)
+    x, y = getattr(pos, "x", None), getattr(pos, "y", None)
+    if x is None or y is None:
+        return None
+    return (x / 1_000_000, y / 1_000_000)
+
+
+def select_coord(client: Any, board: Any, x_mm: float, y_mm: float,
+                 radius_mm: float = 8.0, zoom: bool = True) -> Optional[float]:
+    """Navigate to a printed coordinate by selecting the nearest board element
+    (footprint/via/pad) and zooming to it. Returns the distance in mm to that
+    element, or None if nothing is within ``radius_mm`` (KiCad has no
+    "center on point" API, so an anchor element is how we get the view there).
+    """
+    best = None
+    best_d: Optional[float] = None
+    for getter in ("get_footprints", "get_vias", "get_pads"):
+        fn = getattr(board, getter, None)
+        if fn is None:
+            continue
+        try:
+            items = fn()
+        except Exception:
+            continue
+        for it in items:
+            xy = _item_xy_mm(it)
+            if xy is None:
+                continue
+            d = math.hypot(xy[0] - x_mm, xy[1] - y_mm)
+            if best_d is None or d < best_d:
+                best_d, best = d, it
+    board.clear_selection()
+    if best is not None and best_d is not None and best_d <= radius_mm:
+        board.add_to_selection([best])
+        if zoom:
+            _zoom_to_selection(client)
+        return best_d
+    return None
 
 
 def select(client: Any, board: Any, kind: str, value: str,

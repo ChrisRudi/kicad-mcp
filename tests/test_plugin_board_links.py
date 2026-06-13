@@ -51,6 +51,35 @@ class TestTokenize:
             ("nix hier", None)]
 
 
+class TestCoordinateLinks:
+    def test_parenthesized_pair_links(self):
+        segs = board_links.tokenize("Via bei (120.5, 84.0) liegt frei",
+                                    known_refs=set())
+        assert ("(120.5, 84.0)", ("coord", (120.5, 84.0))) in segs
+        assert "".join(c for c, _ in segs) == "Via bei (120.5, 84.0) liegt frei"
+
+    def test_mm_units_and_negative(self):
+        segs = board_links.tokenize("Ecke (-3.2 mm, 10 mm)", known_refs=set())
+        coord = next(t for _, t in segs if t)
+        assert coord == ("coord", (-3.2, 10.0))
+
+    def test_bare_comma_in_prose_not_linked(self):
+        # no parentheses -> not a coordinate (avoids false positives)
+        segs = board_links.tokenize("erst R1, dann R2", known_refs=set())
+        assert all(t is None for _, t in segs)
+
+    def test_coords_need_no_board_data(self):
+        segs = board_links.tokenize("Punkt (5, 6)", known_refs=set(),
+                                    known_nets=set())
+        kinds = [kind for _, t in segs if t for (kind, _v) in [t]]
+        assert "coord" in kinds
+
+    def test_refs_and_coords_together(self):
+        segs = board_links.tokenize("R5 sitzt bei (40, 30)", known_refs={"R5"})
+        kinds = [kind for _, t in segs if t for (kind, _v) in [t]]
+        assert kinds == ["ref", "coord"]
+
+
 # -- kipy side with fakes -----------------------------------------------------
 
 def _fp(ref):
@@ -145,3 +174,57 @@ class TestSelect:
         client = SimpleNamespace(run_action=_run)
         board_links.select(client, board, "ref", "R1")
         assert calls == list(board_links._ZOOM_ACTIONS)
+
+
+def _pos_item(x_mm, y_mm):
+    return SimpleNamespace(position=SimpleNamespace(
+        x=int(x_mm * 1_000_000), y=int(y_mm * 1_000_000)))
+
+
+class _CoordBoard:
+    def __init__(self, footprints=(), vias=(), pads=()):
+        self._fps, self._vias, self._pads = footprints, vias, pads
+        self.selection = None
+        self.cleared = False
+
+    def get_footprints(self):
+        return list(self._fps)
+
+    def get_vias(self):
+        return list(self._vias)
+
+    def get_pads(self):
+        return list(self._pads)
+
+    def clear_selection(self):
+        self.cleared = True
+
+    def add_to_selection(self, items):
+        self.selection = list(items)
+
+
+class TestSelectCoord:
+    def test_picks_nearest_element_and_zooms(self):
+        far = _pos_item(0, 0)
+        near = _pos_item(50.2, 30.1)
+        board = _CoordBoard(footprints=[far], vias=[near])
+        client = _FakeClient()
+        d = board_links.select_coord(client, board, 50.0, 30.0)
+        assert d is not None and d < 0.5
+        assert board.selection == [near] and client.actions
+
+    def test_nothing_within_radius_returns_none(self):
+        board = _CoordBoard(footprints=[_pos_item(0, 0)])
+        client = _FakeClient()
+        d = board_links.select_coord(client, board, 200.0, 200.0,
+                                     radius_mm=5.0)
+        assert d is None and board.cleared
+        assert board.selection is None and not client.actions
+
+    def test_radius_boundary(self):
+        board = _CoordBoard(vias=[_pos_item(3.0, 4.0)])  # 5 mm from origin
+        client = _FakeClient()
+        assert board_links.select_coord(client, board, 0.0, 0.0,
+                                        radius_mm=5.0) is not None
+        assert board_links.select_coord(client, board, 0.0, 0.0,
+                                        radius_mm=4.9) is None

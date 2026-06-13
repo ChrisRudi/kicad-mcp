@@ -9,6 +9,14 @@ the first tag ships.
 ## [Unreleased]
 
 ### Added
+- **Plugin v0.2.18: auch Koordinaten im Chat sind anklickbar.** Gibt Claude eine Stelle als
+  Koordinatenpaar an (`(120.5, 84.0)`, auch mit `mm` / negativ), wird das im Panel zum Link;
+  ein Klick **selektiert das nächstgelegene Board-Element (Footprint/Via/Pad) an dieser
+  Stelle und zoomt darauf** (KiCad hat keine „Ansicht auf Punkt zentrieren"-API, deshalb
+  dient das nächste Element als Anker; Treffer nur innerhalb 8 mm, sonst Statusmeldung
+  „kein Element in der Nähe"). Nur Paare in Klammern werden verlinkt (kein Fehltreffer bei
+  Kommas im Fließtext). Erkennung + Anker-Suche rein in `plugin/board_links.py`
+  (`select_coord`), headless getestet.
 - **Plugin v0.2.17: anklickbare Board-Elemente im Chat (Cross-Probe).** Footprint-
   Referenzen (`R12`, `U8`) und Netznamen (`GND`), die Claude in einer Antwort nennt,
   werden im Panel als orange unterstrichene Links dargestellt; ein Klick **selektiert das

@@ -256,13 +256,20 @@ class ClaudeChatPanel(wx.Panel):
         threading.Thread(target=self._select_worker, args=(kind, value),
                          daemon=True).start()
 
-    def _select_worker(self, kind: str, value: str) -> None:
+    def _select_worker(self, kind: str, value) -> None:
         from . import board_links
         try:
             client, board = board_links.connect()
-            count = board_links.select(client, board, kind, value)
-            msg = (f"{value}: {count} Element(e) markiert"
-                   if count else f"{value}: nichts gefunden")
+            if kind == "coord":
+                x, y = value
+                dist = board_links.select_coord(client, board, x, y)
+                msg = (f"({x}, {y}): nächstes Element {dist:.1f} mm entfernt "
+                       "markiert" if dist is not None
+                       else f"({x}, {y}): kein Element in der Nähe")
+            else:
+                count = board_links.select(client, board, kind, value)
+                msg = (f"{value}: {count} Element(e) markiert"
+                       if count else f"{value}: nichts gefunden")
         except Exception as exc:
             msg = f"Auswahl fehlgeschlagen: {exc}"
         wx.CallAfter(self._flash_status, msg)
