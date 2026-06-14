@@ -85,10 +85,14 @@ def collect(mcp_root: str, project_dir: str, _run=subprocess.run) -> str:
     add("--- MCP-Server-Probe (Start exakt wie durch Claude) ---")
     add(f"PYTHONPATH: {pythonpath}")
     res = server_probe.probe_server(py, mcp_root)
+    secs = res.get("seconds", 0.0)
     if res.get("ok"):
-        add("Ergebnis: OK — Server antwortet auf MCP-initialize.")
+        add(f"Ergebnis: OK — initialize + tools/list (167) in {secs}s.")
+        add(f"  (Claude-Start-Timeout: {mcp_config.MCP_STARTUP_TIMEOUT_MS}ms. "
+            "Ist diese Zeit beim 1. Mal viel höher = Kaltstart-/Defender-"
+            "Problem → _deps- und mcp-Ordner in Defender ausschließen.)")
     else:
-        add("Ergebnis: FEHLER")
+        add(f"Ergebnis: FEHLER (nach {secs}s)")
         add(f"Fehler: {res.get('error', '')}")
         full = (res.get("stderr") or "").strip()
         if full:

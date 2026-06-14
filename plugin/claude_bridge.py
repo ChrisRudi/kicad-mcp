@@ -348,10 +348,13 @@ def ask(
         return out
     cmd = build_command(claude, prompt, mcp_config_path, session_id, extra_args)
     env = dict(os.environ)
-    # A cold KiCad-Python start (165 tools, synced disks) can exceed claude's
-    # default MCP startup timeout — and a too-slow server is dropped SILENTLY
-    # (chat without board tools). Generous headroom, user override wins.
-    env.setdefault("MCP_TIMEOUT", "120000")  # ms
+    # The FIRST cold start (167 tools + pandas/numpy out of a freshly-written
+    # _deps, with Windows Defender scanning each new .pyd) can blow past
+    # claude's 30 s MCP-startup default — the server is then dropped SILENTLY
+    # ("failed: kicad-mcp", chat without board tools). 5 min headroom gets past
+    # the one-time cold start; warm starts are unaffected. User override wins.
+    env.setdefault("MCP_TIMEOUT", "300000")  # ms — matches the config timeout
+    env.setdefault("PYTHONUNBUFFERED", "1")
     try:
         proc = _popen(
             cmd, cwd=project_dir, stdin=subprocess.DEVNULL,

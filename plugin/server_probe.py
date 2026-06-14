@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import time
 from typing import Any, Optional
 
 from . import deps, mcp_config
@@ -35,14 +36,19 @@ def _popen_kwargs() -> dict:
 
 def init_request() -> str:
     """One MCP ``initialize`` JSON-RPC line, as a stdio client would send."""
-    return json.dumps({
-        "jsonrpc": "2.0", "id": 1, "method": "initialize",
-        "params": {
-            "protocolVersion": "2024-11-05",
-            "capabilities": {},
-            "clientInfo": {"name": "kicad-claude-plugin", "version": "probe"},
-        },
-    }) + "\n"
+    # The FULL handshake claude actually performs: initialize, then tools/list.
+    # tools/list runs in the SAME startup-timeout window, so a probe that only
+    # tested initialize was too lenient (it passed while claude could still
+    # time out enumerating 167 tools).
+    msgs = [
+        {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+         "params": {"protocolVersion": "2024-11-05", "capabilities": {},
+                    "clientInfo": {"name": "kicad-claude-plugin",
+                                   "version": "probe"}}},
+        {"jsonrpc": "2.0", "method": "notifications/initialized"},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+    ]
+    return "".join(json.dumps(m) + "\n" for m in msgs)
 
 
 def build_probe_cmd(kicad_py: str, mcp_root: str,
@@ -64,6 +70,11 @@ def is_handshake_reply(stdout: str) -> bool:
     return '"serverInfo"' in (stdout or "")
 
 
+def tools_listed(stdout: str) -> bool:
+    """Did the server answer ``tools/list``? (a tools array came back)."""
+    return '"tools"' in (stdout or "")
+
+
 def probe_server(kicad_py: Optional[str], mcp_root: str,
                  timeout: float = PROBE_TIMEOUT,
                  _popen: Any = subprocess.Popen,
@@ -74,7 +85,7 @@ def probe_server(kicad_py: Optional[str], mcp_root: str,
     the one-click dependency install is the right fix. Never raises.
     """
     out = {"ok": False, "error": "", "missing_dep": False,
-           "missing_root": False, "stderr": ""}
+           "missing_root": False, "stderr": "", "seconds": 0.0}
     if not kicad_py:
         out["error"] = "KiCad-Python nicht gefunden"
         return out
@@ -95,24 +106,35 @@ def probe_server(kicad_py: Optional[str], mcp_root: str,
         deps_dir = deps.active_deps_dir()
     # belt-and-suspenders only — the bootstrap sets sys.path in-process
     env["PYTHONPATH"] = mcp_root + (os.pathsep + deps_dir if deps_dir else "")
+    t0 = time.perf_counter()
     try:
         proc = _popen(build_probe_cmd(kicad_py, mcp_root, deps_dir),
                       stdin=subprocess.PIPE,
                       stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                       text=True, env=env, **_popen_kwargs())
         try:
-            # closing stdin after the request makes a healthy server exit
+            # closing stdin after the requests makes a healthy server exit
             stdout, stderr = proc.communicate(init_request(), timeout=timeout)
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.communicate()
-            out["error"] = f"Server antwortet nicht (> {int(timeout)}s)"
+            out["seconds"] = round(time.perf_counter() - t0, 1)
+            out["error"] = (f"Server antwortet nicht (> {int(timeout)}s) — "
+                            "Kaltstart zu langsam.")
             return out
     except Exception as exc:
         out["error"] = str(exc)
         return out
-    if is_handshake_reply(stdout):
+    out["seconds"] = round(time.perf_counter() - t0, 1)
+    # Both initialize AND tools/list must complete (claude waits for both in the
+    # one startup-timeout window). The elapsed time is what claude experiences.
+    if is_handshake_reply(stdout) and tools_listed(stdout):
         out["ok"] = True
+        return out
+    if is_handshake_reply(stdout) and not tools_listed(stdout):
+        out["error"] = (f"initialize ok, aber tools/list kam nicht "
+                        f"({out['seconds']}s) — Tool-Enumeration zu langsam.")
+        out["stderr"] = stderr or ""
         return out
     rc = getattr(proc, "returncode", None)
     tail = error_tail(stderr or stdout) or f"Kein MCP-Handshake (exit {rc})"

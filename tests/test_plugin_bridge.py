@@ -254,7 +254,7 @@ class TestAsk:
         seen = {}
         claude_bridge.ask("x", "/proj", "/m.json",
                           _popen=_popen_for(_FakeProc([_RESULT]), seen))
-        assert seen["env"]["MCP_TIMEOUT"] == "120000"
+        assert seen["env"]["MCP_TIMEOUT"] == "300000"
 
     def test_ask_respects_user_mcp_timeout(self, monkeypatch):
         monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
