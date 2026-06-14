@@ -268,16 +268,18 @@ class ClaudeChatPanel(wx.Panel):
             on_tool=lambda n: wx.CallAfter(self._on_tool, n),
             on_proc=lambda p: wx.CallAfter(self._on_proc, p),
         )
-        # Refresh the board's refs/nets/layers so this reply can be linkified
-        # (best effort; an unreachable editor just means no links this turn).
+        # Refresh the board's refs/nets/layers so this reply can be linkified.
+        # Capture (don't swallow) any failure so the real reason is VISIBLE —
+        # the links silently breaking was undiagnosable before.
         try:
             from . import board_links
             _client, board = board_links.connect()
             refs, nets, layers = board_links.board_targets(board)
             result["_refs"], result["_nets"], result["_layers"] = (
                 refs, nets, layers)
-        except Exception:
-            pass
+            result["_link_counts"] = (len(refs), len(nets), len(layers))
+        except Exception as exc:
+            result["_link_error"] = f"{type(exc).__name__}: {exc}"
         wx.CallAfter(self._on_reply, result)
 
     def _on_proc(self, proc) -> None:
@@ -302,6 +304,13 @@ class ClaudeChatPanel(wx.Panel):
             self._refs = result["_refs"]
             self._nets = result.get("_nets") or set()
             self._layers = result.get("_layers") or set()
+        # Make the link-data state VISIBLE so "no links" is diagnosable.
+        if result.get("_link_error"):
+            self._write("  ⓘ Links aus: " + result["_link_error"] + "\n",
+                        theme.DIM)
+        elif result.get("_link_counts") == (0, 0, 0):
+            self._write("  ⓘ Links: 0 Refs/Netze/Layer vom Board gelesen "
+                        "(Board leer oder kein Zugriff).\n", theme.DIM)
         mcp_status = result.get("mcp_status") or ""
         if mcp_status.startswith("failed"):
             self._append(

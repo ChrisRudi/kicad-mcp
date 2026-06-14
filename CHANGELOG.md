@@ -8,6 +8,15 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed
+- **Plugin v0.2.27: Link-Fehler werden sichtbar (Diagnose der „keine Links"-Regression).**
+  Das Holen von Refs/Netzen/Layern fürs Linkifizieren wurde bei Fehler von einem
+  `except: pass` **stillschweigend verschluckt** — „keine Links" war so nicht
+  diagnostizierbar. Jetzt zeigt das Panel den echten Grund als dezente Zeile
+  („ⓘ Links aus: <Fehler>") bzw. „0 Refs/Netze/Layer gelesen", wenn die Verbindung klappt
+  aber nichts zurückkommt. Render-/Klick-Logik ist seit 0.2.21 unverändert, Link-Logik
+  getestet — der Fehler liegt in der Laufzeit-Verbindung zu KiCad und war bisher unsichtbar.
+
 ### Fixed
 - **Plugin v0.2.26: Chat-Links (Refs/Netze/Pins/Layer/Koordinaten) wieder funktionsfähig —
   Nebeneffekt des MCP-Fixes behoben.** Die Links waren nie im Code kaputt, aber
