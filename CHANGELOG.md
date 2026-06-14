@@ -9,6 +9,14 @@ the first tag ships.
 ## [Unreleased]
 
 ### Added
+- **Plugin v0.2.23: Bauteil-Pins im Chat klickbar (`U1B.33`).** Die Klick-Mechanik
+  (Refs/Netze/Layer/Koordinaten) deckt jetzt auch **Pins** ab: nennt Claude `U1B.33`
+  (Footprint U1B, Pin 33), wird das ein Link; ein Klick **selektiert + zoomt den Pad** im
+  Editor (Auswahl über die Pad-Board-ID via `fp.definition.pads`, Position egal). Verlinkt
+  nur, wenn die Referenz wirklich am Board existiert; der `<ref>.<pin>`-Span hat Vorrang vor
+  dem bloßen Ref-Link (kein „U1B" + „.33"-Zerfall). Auch alphanumerische Pin-Namen (`J3.A1`).
+  Reine Tokenizer-/Select-Logik in `plugin/board_links.py` (`_pin_matches`, `select_pin`),
+  headless getestet.
 - **Plugin v0.2.22: Stopp-Knopf, Claude-Optionen, Tool-Calls im Chat.** Drei Chat-UX-
   Lücken geschlossen: (1) **Stopp** — während Claude denkt (Eingabe gesperrt) erscheint statt
   „Senden" ein roter „Stopp"-Knopf, der den laufenden Turn samt MCP-Kindprozess sofort killt

@@ -72,19 +72,34 @@ def _layer_matches(text, layer_set) -> list[tuple]:
             for m in rx.finditer(text)]
 
 
+def _pin_matches(text, ref_set) -> list[tuple]:
+    """Match ``<ref>.<pin>`` (e.g. ``U1B.33`` = footprint U1B, pin 33) where
+    ``<ref>`` is a known board reference. Target ``("pin", (ref, pin))``."""
+    refs = sorted({r for r in ref_set if r}, key=len, reverse=True)
+    if not refs:
+        return []
+    alts = "|".join(re.escape(r) for r in refs)
+    rx = re.compile(
+        rf"(?<!{_BOUNDARY})({alts})\.([A-Za-z0-9]+)(?!{_BOUNDARY})")
+    return [(m.start(), m.end(), ("pin", (m.group(1), m.group(2))))
+            for m in rx.finditer(text)]
+
+
 def tokenize(text: str, known_refs, known_nets=(), known_layers=()) -> list[tuple]:
     """Split ``text`` into ``(chunk, target)`` segments.
 
     ``target`` is ``None`` for plain text, or a clickable target:
-    ``("ref", "R12")`` / ``("net", "GND")`` / ``("layer", "F.Cu")`` (only for
-    tokens that exist on the board — refs win ties over nets, layers are kept
-    separate) or ``("coord", (x_mm, y_mm))`` for a printed coordinate pair.
-    Coordinate links need no board data.
+    ``("ref", "R12")`` / ``("net", "GND")`` / ``("layer", "F.Cu")`` /
+    ``("pin", (ref, pin))`` for ``U1B.33`` (only for refs that exist on the
+    board — refs win ties over nets, pins take a ``<ref>.<pin>`` span before a
+    bare ref would) or ``("coord", (x_mm, y_mm))`` for a printed coordinate
+    pair. Coordinate links need no board data.
     """
     ref_set = {str(r) for r in (known_refs or []) if str(r)}
     net_set = {str(n) for n in (known_nets or []) if str(n)}
     layer_set = {str(l) for l in (known_layers or []) if str(l)} - ref_set - net_set
-    matches = (_ref_net_matches(text, ref_set, net_set)
+    matches = (_pin_matches(text, ref_set)
+               + _ref_net_matches(text, ref_set, net_set)
                + _layer_matches(text, layer_set)
                + _coord_matches(text))
     if not matches:
@@ -244,6 +259,34 @@ def set_active_layer(board: Any, layer_name: str) -> Optional[str]:
         return board.get_layer_name(enum_int) or layer_name
     except Exception:
         return layer_name
+
+
+def _pads_of(footprint: Any) -> list:
+    """The pads of a placed footprint (``definition.pads``; each has a board
+    ``id`` so it is directly selectable)."""
+    try:
+        return list(footprint.definition.pads)
+    except Exception:
+        return []
+
+
+def select_pin(client: Any, board: Any, ref: str, pin: str,
+               zoom: bool = True) -> int:
+    """Select+zoom the pad ``pin`` of footprint ``ref`` (e.g. U1B, "33").
+    Returns 1 if the pad was found, else 0. Selection is by the pad's board
+    id, so its local/board position never matters."""
+    fp = next((f for f in board.get_footprints() if _ref_of(f) == ref), None)
+    board.clear_selection()
+    if fp is None:
+        return 0
+    target = next((p for p in _pads_of(fp)
+                   if str(getattr(p, "number", "")) == str(pin)), None)
+    if target is None:
+        return 0
+    board.add_to_selection([target])
+    if zoom:
+        _zoom_to_selection(client)
+    return 1
 
 
 def select(client: Any, board: Any, kind: str, value: str,
