@@ -26,6 +26,7 @@ bindings, so they are usable in batch / CI pipelines and free of the
 
 from __future__ import annotations
 
+import json
 import math
 import os
 import re
@@ -901,7 +902,11 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
         from the coil-pad to clear a neighbouring IC's exposed-pad
         footprint, or when a fan-out into a different layer happens
         mid-trace. Use this instead of stitching together a segment
-        plus a `with_via` call with dummy endpoints.
+        plus a `with_via` call with dummy endpoints. For more than one via
+        use ``add_vias_to_pcb`` (one read+write for the whole tranche).
+
+        Rendert nicht. Für visuelle Kontrolle ``pcb_render`` separat nach
+        Abschluss aller Mutationen — nicht pro Via.
 
         Args:
             pcb_path: Path to a ``.kicad_pcb``.
@@ -956,6 +961,80 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
                 fh.write(new_text)
             put_text(pcb_path, new_text)
         return {"dry_run": dry_run, **result}
+
+    @mcp.tool()
+    def add_vias_to_pcb(
+        pcb_path: str,
+        vias: list[dict[str, Any]] | str,
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        """Insert MANY vias into a ``.kicad_pcb`` in ONE read+write round.
+
+        The batch variant of ``add_via_to_pcb`` — use this whenever you place
+        more than one via (e.g. a 24-via GND stitch) so the whole tranche is a
+        single file open/write instead of N calls. Atomic: if any via spec is
+        invalid, nothing is written and the failing index is reported.
+
+        Rendert nicht. Für visuelle Kontrolle ``pcb_render`` separat NACH
+        Abschluss aller Mutationen aufrufen — nicht pro Via. Connectivity prüft
+        man danach einmal mit ``check_connectivity``, nicht pro Via.
+
+        Args:
+            pcb_path: Path to a ``.kicad_pcb``.
+            vias: List of via specs (or a JSON string of that list). Each spec:
+                ``{x_mm, y_mm, net_name, layer_pair?, size_mm?, drill_mm?}`` —
+                same fields as ``add_via_to_pcb`` (``layer_pair`` default
+                through-via F.Cu/B.Cu; ``size_mm`` 0.6; ``drill_mm`` 0.3).
+            dry_run: If True, validate + report every via but write nothing.
+
+        Returns:
+            Effect echo so no read-back is needed: ``{success, count}`` (vias
+            placed), ``vias`` (per-via result list: at/net_id/net_name/
+            layer_pair), ``dry_run``. On a bad spec: ``{success: False,
+            error, failed_index}`` and the file is untouched.
+        """
+        pcb_path = to_local_path(pcb_path)
+        if not os.path.isfile(pcb_path):
+            return {"success": False, "error": f"PCB not found: {pcb_path}"}
+        if isinstance(vias, str):
+            try:
+                vias = json.loads(vias)
+            except Exception as exc:
+                return {"success": False,
+                        "error": f"vias is not valid JSON: {exc}"}
+        if not isinstance(vias, list) or not vias:
+            return {"success": False,
+                    "error": "vias must be a non-empty list of via specs"}
+
+        text = get_text(pcb_path)
+        placed: list[dict[str, Any]] = []
+        for i, spec in enumerate(vias):
+            if not isinstance(spec, dict):
+                return {"success": False, "failed_index": i,
+                        "error": f"via #{i} is not an object"}
+            try:
+                text, result = add_via_to_pcb_text(
+                    text,
+                    spec.get("x_mm"), spec.get("y_mm"),
+                    spec.get("net_name", ""),
+                    layer_pair=spec.get("layer_pair"),
+                    size_mm=spec.get("size_mm", 0.6),
+                    drill_mm=spec.get("drill_mm", 0.3),
+                )
+            except Exception as exc:
+                return {"success": False, "failed_index": i,
+                        "error": f"via #{i} failed: {exc}"}
+            if not result.get("success"):
+                return {"success": False, "failed_index": i,
+                        "error": result.get("error", f"via #{i} failed")}
+            placed.append(result)
+
+        if not dry_run:
+            with open(pcb_path, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            put_text(pcb_path, text)
+        return {"success": True, "count": len(placed), "vias": placed,
+                "dry_run": dry_run}
 
     @mcp.tool()
     def add_zone_pour_to_pcb(

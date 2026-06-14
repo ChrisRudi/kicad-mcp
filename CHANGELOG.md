@@ -9,6 +9,14 @@ the first tag ships.
 ## [Unreleased]
 
 ### Added
+- **Batch-Tool `add_vias_to_pcb` (gegen Toolcall-Explosion, Prio 3).** Setzt N Vias in EINEM
+  Read+Write statt N Einzel-Calls — der dokumentierte 24-Via-Fall. Atomar (ungültige Spec →
+  nichts geschrieben, `failed_index` gemeldet), nimmt Liste oder JSON-String, `dry_run`.
+  **Effekt-Echo** im Result (`count` + Per-Via-Liste), damit kein Rücklesen nötig ist; die
+  Description sagt explizit „Rendert nicht — `pcb_render` separat nach Abschluss". `add_via_to_pcb`
+  verweist jetzt auf die Batch-Variante und trägt denselben Render-Hinweis. „set_properties" ist
+  bereits durch `bulk_set_property` abgedeckt, Moves laufen über `pcb_batch` — daher keine
+  redundanten Plural-Tools. Tool-Count 166 → 167. Headless getestet.
 - **Plugin v0.2.23: Bauteil-Pins im Chat klickbar (`U1B.33`).** Die Klick-Mechanik
   (Refs/Netze/Layer/Koordinaten) deckt jetzt auch **Pins** ab: nennt Claude `U1B.33`
   (Footprint U1B, Pin 33), wird das ein Link; ein Klick **selektiert + zoomt den Pad** im
