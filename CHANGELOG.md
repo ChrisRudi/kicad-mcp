@@ -8,6 +8,21 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed
+- **Plugin v0.2.24 (neu durchdacht): die entgleiste Session an der Wurzel gefixt.** Vier
+  Ursachen konsolidiert behoben: (1) **Tool-Sperre war wirkungslos** — `--disallowedTools`
+  bekam einen komma-verketteten String, der **kein** Tool matcht; daher liefen
+  `Write`/`PowerShell` trotzdem. Jetzt **ein Tool-Name pro argv-Wert**, plus `PowerShell`
+  (Windows-Shell ohne Git-for-Windows). Deny wirkt auch unter
+  `--dangerously-skip-permissions`. (2) **Agent-Regeln erreichten den Agenten nie** —
+  `claude -p` lädt CLAUDE.md aus dem cwd (Board-Ordner), nicht aus dem Repo; Kernregeln
+  jetzt per `--append-system-prompt` pro Turn, inkl. der entscheidenden Regel „fehlen die
+  MCP-Tools: in einem Satz sagen und aufhören — nicht raten/per Shell behelfen". (3)
+  **Runaway-Bremse** `--max-turns` (Default 80, `KICAD_MCP_MAX_TURNS`, 0 = aus). (4) **Limit
+  graziös** — wird das Schritt-Limit erreicht, kommt eine klare Meldung („Schritt-Limit (80)
+  erreicht …") statt eines kryptischen Fehlers. (Ersetzt den vorherigen, hastigen v0.2.24,
+  der zuvor per Revert zurückgenommen wurde.) Headless getestet.
+
 ### Added
 - **Batch-Tool `add_vias_to_pcb` (gegen Toolcall-Explosion, Prio 3).** Setzt N Vias in EINEM
   Read+Write statt N Einzel-Calls — der dokumentierte 24-Via-Fall. Atomar (ungültige Spec →

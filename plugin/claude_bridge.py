@@ -65,13 +65,61 @@ def hidden_console_kwargs(os_name: str = os.name) -> dict[str, Any]:
     return {}
 
 
-# Claude must NEVER text-edit project files itself: without (or even with)
-# the MCP it would otherwise "helpfully" patch .kicad_pcb/.kicad_sch/.kicad_pro
-# directly — KiCad sees external edits on open documents and nags about
-# unsaved changes; and hand-patched geometry is exactly what the MCP server
-# exists to prevent. Mutations go through MCP tools only; reading stays
-# allowed (Read/Grep/Glob are useful and harmless).
-FORBIDDEN_BUILTIN_TOOLS = "Bash,Edit,Write,MultiEdit,NotebookEdit"
+# Claude must NEVER text-edit project files or run a shell itself: it would
+# otherwise patch .kicad_pcb/.kicad_sch directly or shell out — KiCad nags about
+# external edits on open documents, and hand-patched geometry is exactly what
+# the MCP server exists to prevent. Board changes go through MCP tools only;
+# reading stays allowed (Read/Grep/Glob are useful and harmless).
+#
+# Two correctness facts the earlier version got wrong and burned a whole
+# session on:
+#  * ``--disallowedTools`` takes ONE tool name per argv value (space-separated
+#    items). A single comma-joined string ("Bash,Edit,…") matches NOTHING and
+#    blocks nothing — that is how Write/PowerShell slipped through.
+#  * On Windows the shell tool is ``PowerShell`` when Git-for-Windows is absent
+#    and ``Bash`` when present — deny BOTH.
+# Deny rules are enforced even under --dangerously-skip-permissions (deny has
+# the highest precedence), so this list is the real security boundary.
+FORBIDDEN_BUILTIN_TOOLS = [
+    "Bash", "PowerShell", "Edit", "Write", "MultiEdit", "NotebookEdit",
+]
+
+# ``claude -p`` loads CLAUDE.md from its cwd (the user's board folder), NOT from
+# this repo — so the project's anti-toolcall-explosion rules never reach the
+# agent. Inject the essentials per turn via --append-system-prompt. The "no
+# tools → say so, don't guess/flail" rule is what stops a dropped MCP from
+# turning into a 30-minute runaway.
+BEHAVIOR_SYSTEM_PROMPT = (
+    "Du arbeitest an einem offenen KiCad-PCB ausschließlich über die "
+    "kicad-mcp-Tools. Strikte Regeln: "
+    "(1) Board-Änderungen NUR über MCP-Tools — niemals Datei-Schreiben oder "
+    "Shell. "
+    "(2) Fehlen die MCP/Board-Tools (kein 'mcp__'-Tool verfügbar), sage das "
+    "in EINEM Satz und höre auf — nicht raten, nicht behelfsweise per Shell/"
+    "Datei arbeiten. "
+    "(3) pcb_render ist der teuerste Call: nie nach einer Einzelmutation, nur "
+    "am Abschluss aller Mutationen oder auf ausdrückliche Aufforderung. "
+    "(4) Korrektheit per check_connectivity prüfen, NICHT per Render; lies das "
+    "Ergebnis eines Mutations-Tools statt den State zurückzulesen. "
+    "(5) Gleichartige Mutationen bündeln (z. B. add_vias_to_pcb statt N× "
+    "add_via_to_pcb), dann EINMAL füllen und EINMAL verifizieren. "
+    "(6) Kein Fortschritt nach wenigen Versuchen? Abbrechen und kurz "
+    "berichten/fragen — kein Probieren über Dutzende Calls."
+)
+
+# Hard cap on agentic turns so a stuck task can't loop for the whole idle
+# budget (the failed session ran ~60 calls to the 30-min wall). Generous by
+# default (real board work needs many turns); override via env, 0 = off.
+_MAX_TURNS_ENV = "KICAD_MCP_MAX_TURNS"
+DEFAULT_MAX_TURNS = 80
+
+
+def max_turns() -> int:
+    """Agentic-turn cap (``KICAD_MCP_MAX_TURNS`` or the default; 0 = off)."""
+    raw = os.environ.get(_MAX_TURNS_ENV, "").strip()
+    if raw.isdigit():
+        return int(raw)
+    return DEFAULT_MAX_TURNS
 
 
 def build_command(
@@ -91,10 +139,15 @@ def build_command(
         "--mcp-config", mcp_config_path,
         "--strict-mcp-config",            # ONLY the bundled kicad-mcp
         "--dangerously-skip-permissions",  # headless: no TTY to approve tools
-        "--disallowedTools", FORBIDDEN_BUILTIN_TOOLS,
+        # one tool name PER value (NOT comma-joined) — see the constant's note
+        "--disallowedTools", *FORBIDDEN_BUILTIN_TOOLS,
+        "--append-system-prompt", BEHAVIOR_SYSTEM_PROMPT,
         "--output-format", "stream-json",
         "--verbose",                      # claude requires it for stream-json
     ]
+    turns = max_turns()
+    if turns > 0:
+        cmd += ["--max-turns", str(turns)]
     if session_id:
         cmd += ["--resume", session_id]   # continue the same conversation
     if extra_args:
@@ -392,9 +445,17 @@ def _run_turn(proc, out, idle_timeout, max_seconds, on_status, on_tool=None):
             out["text"] = result_ev["result"]
         elif texts:
             out["text"] = "\n".join(texts)
-        if result_ev.get("subtype", "success") != "success" and not out["text"]:
-            out["error"] = result_ev.get("error") or str(result_ev.get(
-                "subtype"))
+        subtype = result_ev.get("subtype", "success")
+        if "max_turns" in str(subtype):  # --max-turns hit → friendly message
+            limit = max_turns()
+            note = (f"⏹ Schritt-Limit ({limit}) erreicht — die Aufgabe brauchte "
+                    "zu viele Tool-Calls. Verkleinere sie, oder erhöhe "
+                    "KICAD_MCP_MAX_TURNS (0 = aus).")
+            out["text"] = (out["text"] + "\n\n" + note) if out["text"] else note
+            out["ok"] = True
+            return out
+        if subtype != "success" and not out["text"]:
+            out["error"] = result_ev.get("error") or str(subtype)
             return out
         out["ok"] = True
         return out
