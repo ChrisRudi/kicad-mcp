@@ -8,20 +8,6 @@ the first tag ships.
 
 ## [Unreleased]
 
-### Fixed
-- **Plugin v0.2.24: drei Bugs hinter einer entgleisten Session behoben.** (1) **Tool-Sperre
-  war wirkungslos:** `--disallowedTools` bekam einen komma-verketteten String
-  (`"Bash,Edit,Write,…"`), der **kein** Tool matcht — daher liefen `Write`/`PowerShell`
-  trotzdem. Jetzt **ein Tool-Name pro argv-Wert**, und `PowerShell` ergänzt (Windows-Shell
-  ohne Git-for-Windows). Deny wirkt laut Doku auch unter
-  `--dangerously-skip-permissions`. (2) **Agent-Regeln erreichten den Agenten nie:**
-  `claude -p` lädt CLAUDE.md aus dem cwd (Board-Ordner), nicht aus dem Repo — die
-  Anti-Toolcall-Explosion-Regeln werden jetzt per `--append-system-prompt` pro Turn
-  injiziert (Render nur am Schluss, check_connectivity statt Render, bündeln, bei
-  Stillstand abbrechen). (3) **Runaway-Bremse:** `--max-turns` (Default 80, via
-  `KICAD_MCP_MAX_TURNS` konfigurierbar, 0 = aus) verhindert das 30-Minuten-Flailing.
-  Headless getestet.
-
 ### Added
 - **Batch-Tool `add_vias_to_pcb` (gegen Toolcall-Explosion, Prio 3).** Setzt N Vias in EINEM
   Read+Write statt N Einzel-Calls — der dokumentierte 24-Via-Fall. Atomar (ungültige Spec →

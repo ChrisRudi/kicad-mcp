@@ -65,52 +65,13 @@ def hidden_console_kwargs(os_name: str = os.name) -> dict[str, Any]:
     return {}
 
 
-# Claude must NEVER text-edit project files or run a shell itself: without (or
-# even with) the MCP it would otherwise "helpfully" patch .kicad_pcb/.kicad_sch
-# directly or shell out — KiCad sees external edits on open documents and nags
-# about unsaved changes, and hand-patched geometry is exactly what the MCP
-# server exists to prevent. Mutations go through MCP tools only; reading stays
+# Claude must NEVER text-edit project files itself: without (or even with)
+# the MCP it would otherwise "helpfully" patch .kicad_pcb/.kicad_sch/.kicad_pro
+# directly — KiCad sees external edits on open documents and nags about
+# unsaved changes; and hand-patched geometry is exactly what the MCP server
+# exists to prevent. Mutations go through MCP tools only; reading stays
 # allowed (Read/Grep/Glob are useful and harmless).
-#
-# IMPORTANT: ``--disallowedTools`` takes one tool name PER value (space-
-# separated argv items), NOT a single comma-joined string — a comma-joined
-# value matches nothing and blocks nothing. On Windows the shell tool is
-# ``PowerShell`` when Git-for-Windows is absent, ``Bash`` when present — deny
-# both. Deny rules are enforced even under --dangerously-skip-permissions.
-FORBIDDEN_BUILTIN_TOOLS = [
-    "Bash", "PowerShell", "Edit", "Write", "MultiEdit", "NotebookEdit",
-]
-
-# The behaviour rules (kicad-mcp CLAUDE.md) are NOT loaded by ``claude -p``
-# because its cwd is the user's board folder, not our repo. Inject the core
-# anti-toolcall-explosion rules per turn via --append-system-prompt.
-BEHAVIOR_SYSTEM_PROMPT = (
-    "Du arbeitest an einem offenen KiCad-PCB ausschließlich über die "
-    "kicad-mcp-Tools. Regeln (strikt): "
-    "(1) Board-Änderungen NUR über MCP-Tools — niemals über Datei-Schreiben "
-    "oder Shell. "
-    "(2) pcb_render ist der teuerste Call: nie nach einer Einzelmutation, nur "
-    "am Abschluss aller Mutationen oder auf ausdrückliche Aufforderung. "
-    "(3) Korrektheit per check_connectivity prüfen, NICHT per Render; lies das "
-    "Ergebnis eines Mutations-Tools, statt den State zurückzulesen. "
-    "(4) Gleichartige Mutationen bündeln (z. B. add_vias_to_pcb statt N× "
-    "add_via_to_pcb), dann EINMAL füllen und EINMAL verifizieren. "
-    "(5) Wenn nach einigen Versuchen kein Fortschritt: abbrechen und kurz "
-    "berichten/fragen — kein endloses Probieren über Dutzende Calls."
-)
-
-# Hard cap on agentic turns so a stuck task can't loop for the whole idle
-# budget. Generous by default (real board work needs many turns); override via
-# env. 0/empty = no cap.
-_MAX_TURNS_ENV = "KICAD_MCP_MAX_TURNS"
-DEFAULT_MAX_TURNS = 80
-
-
-def _max_turns() -> int:
-    raw = os.environ.get(_MAX_TURNS_ENV, "").strip()
-    if raw.isdigit():
-        return int(raw)
-    return DEFAULT_MAX_TURNS
+FORBIDDEN_BUILTIN_TOOLS = "Bash,Edit,Write,MultiEdit,NotebookEdit"
 
 
 def build_command(
@@ -130,15 +91,10 @@ def build_command(
         "--mcp-config", mcp_config_path,
         "--strict-mcp-config",            # ONLY the bundled kicad-mcp
         "--dangerously-skip-permissions",  # headless: no TTY to approve tools
-        # one tool name per value (NOT comma-joined) — see the constant's note
-        "--disallowedTools", *FORBIDDEN_BUILTIN_TOOLS,
-        "--append-system-prompt", BEHAVIOR_SYSTEM_PROMPT,
+        "--disallowedTools", FORBIDDEN_BUILTIN_TOOLS,
         "--output-format", "stream-json",
         "--verbose",                      # claude requires it for stream-json
     ]
-    turns = _max_turns()
-    if turns > 0:
-        cmd += ["--max-turns", str(turns)]
     if session_id:
         cmd += ["--resume", session_id]   # continue the same conversation
     if extra_args:
