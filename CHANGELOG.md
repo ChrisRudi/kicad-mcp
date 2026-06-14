@@ -9,6 +9,16 @@ the first tag ships.
 ## [Unreleased]
 
 ### Fixed
+- **Plugin v0.2.26: Chat-Links (Refs/Netze/Pins/Layer/Koordinaten) wieder funktionsfähig —
+  Nebeneffekt des MCP-Fixes behoben.** Die Links waren nie im Code kaputt, aber
+  `board_links.connect()` verband sich mit kipys **2-s-Default-Timeout und ohne Retry**.
+  Solange der MCP „failed" war, hatte das Panel KiCads IPC für sich allein → Links gingen.
+  Seit der MCP korrekt verbunden ist, belegt der Server die IPC-Leitung, und die zweite
+  Verbindung des Panels lief in „KiCad is busy"/Timeout → stillschweigend verschluckt →
+  keine Links. Fix: `connect()` nutzt jetzt **15 s Timeout**, und alle Live-kipy-Aufrufe
+  (`board_targets` + alle `select_*`/`set_active_layer`) laufen über einen neuen
+  **`call()`-Busy-Retry** (exponentieller Backoff) — genau wie der Server-Session-Layer aus
+  Task A, nur plugin-seitig. Headless getestet (Busy-then-success).
 - **Plugin v0.2.25: „MCP nicht verbunden (failed)" — Ursache gefunden + behoben.** Die
   Diagnose bewies: der Server startet sauber (initialize + tools/list mit 167 Tools in ~2 s
   warm). Der Fehler ist ein **Kaltstart-Timeout-Rennen**: Claudes MCP-Start-Timeout ist

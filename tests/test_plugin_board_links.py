@@ -8,7 +8,57 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from plugin import board_links
+
+
+class TestBusyRetry:
+    """Once the MCP server holds KiCad's IPC, the panel's cross-probe calls hit
+    'KiCad is busy'. They must retry, not silently drop every link."""
+
+    def test_call_retries_busy_then_succeeds(self, monkeypatch):
+        monkeypatch.setattr(board_links.time, "sleep", lambda *_a: None)
+        calls = {"n": 0}
+
+        def _flaky():
+            calls["n"] += 1
+            if calls["n"] < 3:
+                raise RuntimeError("KiCad is busy and cannot respond")
+            return "ok"
+
+        assert board_links.call(_flaky) == "ok" and calls["n"] == 3
+
+    def test_call_reraises_non_busy_immediately(self, monkeypatch):
+        monkeypatch.setattr(board_links.time, "sleep", lambda *_a: None)
+        calls = {"n": 0}
+
+        def _boom():
+            calls["n"] += 1
+            raise ValueError("kaputt")  # NB: must not contain 'busy'
+
+        with pytest.raises(ValueError):
+            board_links.call(_boom)
+        assert calls["n"] == 1  # no retry on a non-busy error
+
+    def test_board_targets_survives_transient_busy(self, monkeypatch):
+        monkeypatch.setattr(board_links.time, "sleep", lambda *_a: None)
+        state = {"n": 0}
+        fps = [SimpleNamespace(reference_field=SimpleNamespace(
+            text=SimpleNamespace(value="R1")))]
+
+        def _busy_once():
+            state["n"] += 1
+            if state["n"] == 1:
+                raise RuntimeError("KiCad is busy")
+            return fps
+
+        board = SimpleNamespace(
+            get_footprints=_busy_once,
+            get_nets=lambda: [],
+            get_enabled_layers=lambda: [])
+        refs, _nets, _layers = board_links.board_targets(board)
+        assert refs == {"R1"}  # retried, link survived
 
 
 # -- pure: tokenize -----------------------------------------------------------
