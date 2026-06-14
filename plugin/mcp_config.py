@@ -105,13 +105,25 @@ def server_bootstrap_code(mcp_root: str, deps_dir: Optional[str] = None) -> str:
             "from kicad_mcp.server import main; main()")
 
 
+# Generous startup timeout for the stdio MCP server. Claude Code's default is
+# only 30 s; the FIRST cold start on Windows is much slower — importing
+# pandas/numpy/pywin32 + 167 tools out of the freshly-written _deps folder,
+# with Windows Defender scanning each new .pyd. That one-time scan can blow
+# past 30 s (or even 120 s) and makes claude mark the server "failed". A large
+# cap gets past the cold start; warm starts are unaffected. Set both the env
+# var (claude_bridge) AND this per-server config field.
+MCP_STARTUP_TIMEOUT_MS = 300000  # 5 min (Claude Code config max is 600000)
+
+
 def build_mcp_config(mcp_root: str, python_exe: str,
                      deps_dir: Optional[str] = None) -> dict:
     """Return the Claude-Code MCP config dict for the kicad-mcp stdio server.
 
     ``deps_dir`` (default: the plugin-local ``_deps`` dir, if present) joins
     ``mcp_root`` on the in-process sys.path bootstrap; PYTHONPATH is set too,
-    but only as belt-and-suspenders for pythons that do honor it.
+    but only as belt-and-suspenders for pythons that do honor it. A generous
+    per-server ``timeout`` survives the slow first cold start (see the
+    constant); ``PYTHONUNBUFFERED`` keeps the stdio JSON-RPC stream prompt.
     """
     if deps_dir is None:
         deps_dir = deps.active_deps_dir()
@@ -122,7 +134,8 @@ def build_mcp_config(mcp_root: str, python_exe: str,
                 "type": "stdio",
                 "command": python_exe,
                 "args": ["-c", server_bootstrap_code(mcp_root, deps_dir)],
-                "env": {"PYTHONPATH": pythonpath},
+                "env": {"PYTHONPATH": pythonpath, "PYTHONUNBUFFERED": "1"},
+                "timeout": MCP_STARTUP_TIMEOUT_MS,
             }
         }
     }

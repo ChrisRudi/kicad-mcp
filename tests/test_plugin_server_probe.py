@@ -16,8 +16,11 @@ import pytest
 
 from plugin import server_probe
 
-_OK_REPLY = ('{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":'
-             '"2024-11-05","serverInfo":{"name":"KiCad","version":"x"}}}')
+# Full handshake reply: initialize (serverInfo) AND tools/list (tools array).
+_OK_REPLY = (
+    '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05",'
+    '"serverInfo":{"name":"KiCad","version":"x"}}}\n'
+    '{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"x"}]}}')
 
 
 class _FakeProc:
@@ -60,8 +63,19 @@ class TestProbeServer:
         res = server_probe.probe_server("/k/py", root,
                                         _popen=_popen_for(proc))
         assert res["ok"] is True and res["error"] == ""
-        req = json.loads(proc.sent)
-        assert req["method"] == "initialize"  # real MCP handshake sent
+        assert "seconds" in res  # elapsed time reported
+        # the full handshake is sent: initialize, then tools/list
+        sent_methods = [json.loads(line)["method"] for line in
+                        proc.sent.splitlines() if line.strip()]
+        assert sent_methods[0] == "initialize" and "tools/list" in sent_methods
+
+    def test_initialize_ok_but_tools_list_slow_is_error(self, root):
+        # initialize answered, tools/list did NOT — claude would time out here
+        init_only = ('{"jsonrpc":"2.0","id":1,"result":{"serverInfo":'
+                     '{"name":"KiCad"}}}')
+        res = server_probe.probe_server(
+            "/k/py", root, _popen=_popen_for(_FakeProc(stdout=init_only)))
+        assert res["ok"] is False and "tools/list" in res["error"]
 
     def test_launches_like_claude_does(self, root):
         seen = {}

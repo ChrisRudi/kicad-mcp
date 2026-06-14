@@ -9,6 +9,18 @@ the first tag ships.
 ## [Unreleased]
 
 ### Fixed
+- **Plugin v0.2.25: „MCP nicht verbunden (failed)" — Ursache gefunden + behoben.** Die
+  Diagnose bewies: der Server startet sauber (initialize + tools/list mit 167 Tools in ~2 s
+  warm). Der Fehler ist ein **Kaltstart-Timeout-Rennen**: Claudes MCP-Start-Timeout ist
+  default nur 30 s, und der allererste Start auf Windows (pandas/numpy/pywin32 + 167 Tools
+  aus dem frisch geschriebenen `_deps`, jede `.pyd` von Windows Defender gescannt) kann das
+  überschreiten → der Server wird still als „failed" verworfen. Fix: Timeout großzügig auf
+  **300000 ms** angehoben — auf BEIDEN Wegen (`MCP_TIMEOUT`-Env in `claude_bridge` UND das
+  per-Server-`timeout`-Feld in der MCP-Config), plus `PYTHONUNBUFFERED=1`. Die Server-Probe
+  testet jetzt auch **tools/list** (lief im selben Timeout-Fenster, wurde bisher nicht
+  geprüft → Probe war zu nachsichtig) und **misst die Zeit**; die Diagnose zeigt sie an und
+  weist bei langem Kaltstart auf den Defender-Ausschluss von `_deps`/`mcp` hin. Headless
+  getestet.
 - **Plugin v0.2.24 (neu durchdacht): die entgleiste Session an der Wurzel gefixt.** Vier
   Ursachen konsolidiert behoben: (1) **Tool-Sperre war wirkungslos** — `--disallowedTools`
   bekam einen komma-verketteten String, der **kein** Tool matcht; daher liefen
