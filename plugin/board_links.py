@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import math
 import re
+import time
 from typing import Any, Optional
 
 # Chars that may sit inside a designator/net token; used in the link lookarounds
@@ -135,11 +136,46 @@ def _ref_of(footprint: Any) -> Optional[str]:
     return val or None
 
 
+_CONNECT_TIMEOUT_MS = 15000   # default kipy 2000 ms is too short under load
+_BUSY_RETRIES = 5
+_BUSY_BACKOFF_S = 0.2
+
+
+def _is_busy(exc: BaseException) -> bool:
+    return "busy" in str(exc).lower()
+
+
+def call(fn, retries: int = _BUSY_RETRIES):
+    """Run one kipy call, retrying "KiCad is busy" with exponential backoff.
+
+    KiCad serialises its whole API on one thread, so once the MCP server is
+    connected the editor is often momentarily busy when the chat panel asks
+    for refs/nets to build its links. "busy" is a fast rejection, not a real
+    error — back off and retry instead of silently dropping every link.
+    """
+    last: Optional[BaseException] = None
+    for i in range(retries):
+        try:
+            return fn()
+        except Exception as exc:  # noqa: BLE001 - classified + re-raised below
+            last = exc
+            if _is_busy(exc) and i < retries - 1:
+                time.sleep(_BUSY_BACKOFF_S * (2 ** i))
+                continue
+            raise
+    assert last is not None
+    raise last
+
+
 def connect():
-    """Open a fresh IPC client; returns ``(client, board)`` or raises."""
+    """Open an IPC client (generous timeout); returns ``(client, board)``.
+
+    The 15 s timeout + busy-retry survive contention with the now-connected
+    MCP server — the 2 s default silently failed every cross-probe link.
+    """
     from kipy import KiCad  # lazy: only inside KiCad
-    client = KiCad()
-    return client, client.get_board()
+    client = KiCad(timeout_ms=_CONNECT_TIMEOUT_MS)
+    return client, call(client.get_board)
 
 
 def _enum_to_canonical(enum_int: int) -> Optional[str]:
@@ -174,21 +210,21 @@ def board_targets(board: Any) -> tuple[set, set, set]:
     nets: set = set()
     layers: set = set()
     try:
-        for fp in board.get_footprints():
+        for fp in call(board.get_footprints):
             r = _ref_of(fp)
             if r:
                 refs.add(r)
     except Exception:
         pass
     try:
-        for n in board.get_nets():
+        for n in call(board.get_nets):
             name = (getattr(n, "name", "") or "").strip()
             if name:
                 nets.add(name)
     except Exception:
         pass
     try:
-        for enum_int in board.get_enabled_layers():
+        for enum_int in call(board.get_enabled_layers):
             canonical = _enum_to_canonical(enum_int)
             if canonical:
                 layers.add(canonical)
@@ -228,7 +264,7 @@ def select_coord(client: Any, board: Any, x_mm: float, y_mm: float,
         if fn is None:
             continue
         try:
-            items = fn()
+            items = call(fn)
         except Exception:
             continue
         for it in items:
@@ -238,9 +274,9 @@ def select_coord(client: Any, board: Any, x_mm: float, y_mm: float,
             d = math.hypot(xy[0] - x_mm, xy[1] - y_mm)
             if best_d is None or d < best_d:
                 best_d, best = d, it
-    board.clear_selection()
+    call(board.clear_selection)
     if best is not None and best_d is not None and best_d <= radius_mm:
-        board.add_to_selection([best])
+        call(lambda: board.add_to_selection([best]))
         if zoom:
             _zoom_to_selection(client)
         return best_d
@@ -254,9 +290,9 @@ def set_active_layer(board: Any, layer_name: str) -> Optional[str]:
     enum_int = _canonical_to_enum(layer_name)
     if enum_int is None:
         return None
-    board.set_active_layer(enum_int)
+    call(lambda: board.set_active_layer(enum_int))
     try:
-        return board.get_layer_name(enum_int) or layer_name
+        return call(lambda: board.get_layer_name(enum_int)) or layer_name
     except Exception:
         return layer_name
 
@@ -275,15 +311,16 @@ def select_pin(client: Any, board: Any, ref: str, pin: str,
     """Select+zoom the pad ``pin`` of footprint ``ref`` (e.g. U1B, "33").
     Returns 1 if the pad was found, else 0. Selection is by the pad's board
     id, so its local/board position never matters."""
-    fp = next((f for f in board.get_footprints() if _ref_of(f) == ref), None)
-    board.clear_selection()
+    fp = next((f for f in call(board.get_footprints) if _ref_of(f) == ref),
+              None)
+    call(board.clear_selection)
     if fp is None:
         return 0
     target = next((p for p in _pads_of(fp)
                    if str(getattr(p, "number", "")) == str(pin)), None)
     if target is None:
         return 0
-    board.add_to_selection([target])
+    call(lambda: board.add_to_selection([target]))
     if zoom:
         _zoom_to_selection(client)
     return 1
@@ -299,17 +336,17 @@ def select(client: Any, board: Any, kind: str, value: str,
     """
     matched: list = []
     if kind == "ref":
-        for fp in board.get_footprints():
+        for fp in call(board.get_footprints):
             if _ref_of(fp) == value:
                 matched.append(fp)
     elif kind == "net":
-        net = next((n for n in board.get_nets()
+        net = next((n for n in call(board.get_nets)
                     if (getattr(n, "name", "") or "") == value), None)
         if net is not None:
-            matched = list(board.get_items_by_net(net))
-    board.clear_selection()
+            matched = list(call(lambda: board.get_items_by_net(net)))
+    call(board.clear_selection)
     if matched:
-        board.add_to_selection(matched)
+        call(lambda: board.add_to_selection(matched))
         if zoom:
             _zoom_to_selection(client)
     return len(matched)
