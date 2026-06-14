@@ -389,6 +389,64 @@ def string_pcb_path(tmp_path):
     return str(p)
 
 
+class TestAddViasBatch:
+    def test_batch_places_all_in_one_write_with_count(
+        self, mcp_with_geometry, string_pcb_path,
+    ):
+        out = _call(
+            mcp_with_geometry, "add_vias_to_pcb",
+            pcb_path=string_pcb_path,
+            vias=[
+                {"x_mm": 10.0, "y_mm": 5.0, "net_name": "GND"},
+                {"x_mm": 11.0, "y_mm": 5.0, "net_name": "GND"},
+                {"x_mm": 12.0, "y_mm": 5.0, "net_name": "GND"},
+            ],
+        )
+        assert out["success"] is True
+        assert out["count"] == 3 and len(out["vias"]) == 3   # effect echo
+        text = Path(string_pcb_path).read_text(encoding="utf-8")
+        assert text.count("(via") == 3                       # all written once
+
+    def test_accepts_json_string(self, mcp_with_geometry, string_pcb_path):
+        out = _call(
+            mcp_with_geometry, "add_vias_to_pcb",
+            pcb_path=string_pcb_path,
+            vias='[{"x_mm": 9.0, "y_mm": 4.0, "net_name": "GND"}]',
+        )
+        assert out["success"] and out["count"] == 1
+
+    def test_dry_run_writes_nothing(self, mcp_with_geometry, string_pcb_path):
+        before = Path(string_pcb_path).read_text(encoding="utf-8")
+        out = _call(
+            mcp_with_geometry, "add_vias_to_pcb",
+            pcb_path=string_pcb_path,
+            vias=[{"x_mm": 10.0, "y_mm": 5.0, "net_name": "GND"}],
+            dry_run=True,
+        )
+        assert out["success"] and out["count"] == 1 and out["dry_run"]
+        assert Path(string_pcb_path).read_text(encoding="utf-8") == before
+
+    def test_bad_spec_is_atomic(self, mcp_with_geometry, string_pcb_path):
+        before = Path(string_pcb_path).read_text(encoding="utf-8")
+        out = _call(
+            mcp_with_geometry, "add_vias_to_pcb",
+            pcb_path=string_pcb_path,
+            vias=[
+                {"x_mm": 10.0, "y_mm": 5.0, "net_name": "GND"},
+                {"x_mm": 11.0, "y_mm": 5.0, "net_name": "GND",
+                 "layer_pair": ["F.Cu"]},  # invalid: needs two layers
+            ],
+        )
+        assert out["success"] is False and out["failed_index"] == 1
+        # nothing written — fully atomic
+        assert Path(string_pcb_path).read_text(encoding="utf-8") == before
+
+    def test_empty_list_rejected(self, mcp_with_geometry, string_pcb_path):
+        out = _call(mcp_with_geometry, "add_vias_to_pcb",
+                    pcb_path=string_pcb_path, vias=[])
+        assert out["success"] is False and "non-empty" in out["error"]
+
+
 class TestStringFormPcb:
     def test_via_on_string_pcb_writes_named_tag(
         self, mcp_with_geometry, string_pcb_path,
