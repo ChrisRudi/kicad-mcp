@@ -90,13 +90,36 @@ class TestBuildCommand:
         assert "--model" not in cmd
 
     def test_file_mutation_tools_forbidden(self):
-        # Claude must not text-edit project files itself (KiCad nags about
-        # external edits; geometry patching is the MCP server's job).
+        # Each tool must be a SEPARATE value after --disallowedTools (a single
+        # comma-joined string matches nothing). Windows shell = PowerShell.
         cmd = claude_bridge.build_command(
             ["claude"], "x", "/m.json", session_id=None)
-        forbidden = cmd[cmd.index("--disallowedTools") + 1]
-        for tool in ("Edit", "Write", "Bash"):
-            assert tool in forbidden
+        i = cmd.index("--disallowedTools")
+        for tool in ("Bash", "PowerShell", "Edit", "Write", "MultiEdit",
+                     "NotebookEdit"):
+            assert tool in cmd, f"{tool} not denied"
+        # values follow the flag as individual argv items, not one CSV string
+        assert cmd[i + 1] == "Bash" and "," not in cmd[i + 1]
+
+    def test_behavior_system_prompt_injected(self):
+        # CLAUDE.md isn't loaded (cwd = board folder) → inject rules per turn
+        cmd = claude_bridge.build_command(["claude"], "x", "/m.json", None)
+        sp = cmd[cmd.index("--append-system-prompt") + 1]
+        assert "check_connectivity" in sp and "pcb_render" in sp
+
+    def test_max_turns_default_and_override(self, monkeypatch):
+        monkeypatch.delenv("KICAD_MCP_MAX_TURNS", raising=False)
+        cmd = claude_bridge.build_command(["claude"], "x", "/m.json", None)
+        assert cmd[cmd.index("--max-turns") + 1] == str(
+            claude_bridge.DEFAULT_MAX_TURNS)
+        monkeypatch.setenv("KICAD_MCP_MAX_TURNS", "10")
+        cmd = claude_bridge.build_command(["claude"], "x", "/m.json", None)
+        assert cmd[cmd.index("--max-turns") + 1] == "10"
+
+    def test_max_turns_off_when_zero(self, monkeypatch):
+        monkeypatch.setenv("KICAD_MCP_MAX_TURNS", "0")
+        cmd = claude_bridge.build_command(["claude"], "x", "/m.json", None)
+        assert "--max-turns" not in cmd
 
     def test_resume_added_when_session(self):
         cmd = claude_bridge.build_command(
