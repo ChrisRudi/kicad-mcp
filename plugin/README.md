@@ -40,7 +40,18 @@ Schritt 1+2 macht der **Einrichtungs-Check** beim ersten Klick mit Ein-Klick-
 Knöpfen (Installieren / Anmelden) so weit wie möglich selbst.
 
 ## Plugin installieren
-Kopiere den `plugin/`-Ordner in KiCads Plugin-Verzeichnis und benenne ihn z. B.
+
+**Ein-Klick (empfohlen):** Skript aus dem Repo-Root ausführen — es holt das Plugin
+(git oder ZIP-Fallback) und kopiert es an die richtige Stelle:
+
+- **Windows:** `install_plugin.bat` herunterladen, Doppelklick (optional KiCad-Version als
+  Argument, Default `10.0`).
+- **Linux/macOS:**
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/ChrisRudi/kicad-mcp/main/install_plugin.sh | bash
+  ```
+
+**Manuell:** Kopiere den `plugin/`-Ordner in KiCads Plugin-Verzeichnis und benenne ihn
 `claude_kicad`:
 - Windows: `%APPDATA%\kicad\10.0\scripting\plugins\claude_kicad\`
 - Linux: `~/.local/share/kicad/10.0/scripting/plugins/claude_kicad/`
