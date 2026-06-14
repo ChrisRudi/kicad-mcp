@@ -90,13 +90,34 @@ class TestBuildCommand:
         assert "--model" not in cmd
 
     def test_file_mutation_tools_forbidden(self):
-        # Claude must not text-edit project files itself (KiCad nags about
-        # external edits; geometry patching is the MCP server's job).
+        # Each tool must be its OWN argv value after --disallowedTools — a
+        # single comma-joined string matches nothing. Windows shell=PowerShell.
         cmd = claude_bridge.build_command(
             ["claude"], "x", "/m.json", session_id=None)
-        forbidden = cmd[cmd.index("--disallowedTools") + 1]
-        for tool in ("Edit", "Write", "Bash"):
-            assert tool in forbidden
+        i = cmd.index("--disallowedTools")
+        for tool in ("Bash", "PowerShell", "Edit", "Write", "MultiEdit",
+                     "NotebookEdit"):
+            assert tool in cmd, f"{tool} not denied"
+        assert cmd[i + 1] == "Bash" and "," not in cmd[i + 1]
+
+    def test_behavior_system_prompt_injected(self):
+        # CLAUDE.md isn't loaded (cwd = board folder) → rules injected per turn
+        cmd = claude_bridge.build_command(["claude"], "x", "/m.json", None)
+        sp = cmd[cmd.index("--append-system-prompt") + 1]
+        assert "check_connectivity" in sp and "pcb_render" in sp
+        assert "mcp__" in sp  # the "no MCP tools → say so, don't flail" rule
+
+    def test_max_turns_default_override_and_off(self, monkeypatch):
+        monkeypatch.delenv("KICAD_MCP_MAX_TURNS", raising=False)
+        cmd = claude_bridge.build_command(["claude"], "x", "/m.json", None)
+        assert cmd[cmd.index("--max-turns") + 1] == str(
+            claude_bridge.DEFAULT_MAX_TURNS)
+        monkeypatch.setenv("KICAD_MCP_MAX_TURNS", "10")
+        cmd = claude_bridge.build_command(["claude"], "x", "/m.json", None)
+        assert cmd[cmd.index("--max-turns") + 1] == "10"
+        monkeypatch.setenv("KICAD_MCP_MAX_TURNS", "0")
+        assert "--max-turns" not in claude_bridge.build_command(
+            ["claude"], "x", "/m.json", None)
 
     def test_resume_added_when_session(self):
         cmd = claude_bridge.build_command(
@@ -172,6 +193,16 @@ class TestAsk:
                               _popen=_popen_for(proc))
         assert r["ok"] is True
         assert r["mcp_status"].startswith("failed")
+
+    def test_max_turns_hit_gives_friendly_note(self, monkeypatch):
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        limit_ev = _ev(type="result", subtype="error_max_turns",
+                       session_id="S1")
+        proc = _FakeProc([_INIT_OK, _TOOL, limit_ev])
+        r = claude_bridge.ask("x", "/proj", "/m.json",
+                              _popen=_popen_for(proc))
+        # surfaced as ok with a clear note, NOT a cryptic error
+        assert r["ok"] is True and "Limit" in r["text"]
 
     def test_claude_missing(self, monkeypatch):
         monkeypatch.setattr(claude_bridge, "find_claude", lambda: None)
