@@ -46,6 +46,31 @@ class TestTokenize:
         linked = {v for _, t in segs if t for (_k, v) in [t]}
         assert linked == {"R5", "U10", "GND"}
 
+
+class TestPinLinks:
+    def test_pin_token_links_to_ref_and_pin(self):
+        segs = board_links.tokenize("Pin U1B.33 ist heiß",
+                                    known_refs={"U1B"})
+        assert ("U1B.33", ("pin", ("U1B", "33"))) in segs
+        assert "".join(c for c, _ in segs) == "Pin U1B.33 ist heiß"
+
+    def test_pin_takes_precedence_over_bare_ref(self):
+        # the whole U1B.33 must be ONE pin link, not a ref "U1B" + ".33"
+        segs = board_links.tokenize("U1B.33", known_refs={"U1B"})
+        assert segs == [("U1B.33", ("pin", ("U1B", "33")))]
+
+    def test_bare_ref_still_links_without_pin(self):
+        segs = board_links.tokenize("U1B treiben", known_refs={"U1B"})
+        assert ("U1B", ("ref", "U1B")) in segs
+
+    def test_alpha_pin_names(self):
+        segs = board_links.tokenize("J3.A1 prüfen", known_refs={"J3"})
+        assert ("J3.A1", ("pin", ("J3", "A1"))) in segs
+
+    def test_unknown_ref_pin_not_linked(self):
+        segs = board_links.tokenize("X9.7 nicht am Board", known_refs={"U1"})
+        assert all(t is None for _, t in segs)
+
     def test_empty_targets_is_all_plain(self):
         assert board_links.tokenize("nix hier", known_refs=set()) == [
             ("nix hier", None)]
@@ -82,9 +107,47 @@ class TestCoordinateLinks:
 
 # -- kipy side with fakes -----------------------------------------------------
 
-def _fp(ref):
+def _fp(ref, pads=()):
+    pad_objs = [SimpleNamespace(number=n, id=f"{ref}-{n}") for n in pads]
     return SimpleNamespace(
-        reference_field=SimpleNamespace(text=SimpleNamespace(value=ref)))
+        reference_field=SimpleNamespace(text=SimpleNamespace(value=ref)),
+        definition=SimpleNamespace(pads=pad_objs))
+
+
+class _PinBoard:
+    def __init__(self, footprints):
+        self._fps = footprints
+        self.selection = None
+        self.cleared = False
+
+    def get_footprints(self):
+        return list(self._fps)
+
+    def clear_selection(self):
+        self.cleared = True
+
+    def add_to_selection(self, items):
+        self.selection = list(items)
+
+
+class TestSelectPin:
+    def test_selects_matching_pad_and_zooms(self):
+        board = _PinBoard([_fp("U1B", pads=["1", "33", "GND"])])
+        client = _FakeClient()
+        n = board_links.select_pin(client, board, "U1B", "33")
+        assert n == 1 and board.cleared
+        assert board.selection[0].id == "U1B-33" and client.actions
+
+    def test_unknown_pin_selects_nothing(self):
+        board = _PinBoard([_fp("U1B", pads=["1", "2"])])
+        client = _FakeClient()
+        assert board_links.select_pin(client, board, "U1B", "99") == 0
+        assert board.selection is None and not client.actions
+
+    def test_unknown_ref(self):
+        board = _PinBoard([_fp("U1B", pads=["1"])])
+        client = _FakeClient()
+        assert board_links.select_pin(client, board, "X9", "1") == 0
 
 
 class _FakeBoard:

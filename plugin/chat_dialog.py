@@ -348,6 +348,11 @@ class ClaudeChatPanel(wx.Panel):
                 gui = board_links.set_active_layer(board, value)
                 msg = (f"Aktiver Layer → {gui}" if gui
                        else f"{value}: Layer nicht auflösbar")
+            elif kind == "pin":
+                ref, pin = value
+                n = board_links.select_pin(client, board, ref, pin)
+                msg = (f"{ref}.{pin}: Pad markiert" if n
+                       else f"{ref}.{pin}: Pad nicht gefunden")
             else:
                 count = board_links.select(client, board, kind, value)
                 msg = (f"{value}: {count} Element(e) markiert"
