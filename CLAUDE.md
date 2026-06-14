@@ -9,6 +9,46 @@ Dies ist ein GPL-3.0-or-later-Fork des MIT-Projekts
 [lamaalrajih/kicad-mcp](https://github.com/lamaalrajih/kicad-mcp) — Begründung in
 `NOTICE`, Original-MIT-Notice in `LICENSE.MIT`.
 
+## Agent-Verhalten — gegen Toolcall-Explosion (Pflicht beim PCB-Editieren)
+
+Grundproblem: Single-Op-Tools + Verify-nach-jeder-Mutation = I/O in Schleife. Eine
+24-Via-Platzierung darf nicht 40+ Calls erzeugen. Ursache ist nicht das Platzieren, sondern
+Render + State-Rücklesen nach **jeder** Einzelmutation.
+
+**Render:** `pcb_render` ist der teuerste Call — **nie** nach einer Einzelmutation. Nur am
+Abschluss aller Mutationen, an gesetzten Meilensteinen, oder auf direkte Aufforderung. Beim
+iterativen Platzieren (Vias/Bauteile/Tracks) zwischendrin kein Render; erst wenn die ganze
+Tranche steht.
+
+**Verify:** Korrektheit = Connectivity/Zählwert prüfen, **nicht** rendern (`check_connectivity`
+ist billig, `pcb_render` nicht). Mutations-Tools, die ihren Effekt selbst zurückgeben (neue
+Cluster-/Netz-/DRC-Zahl), brauchen **kein** separates `check_connectivity` danach — Result
+lesen statt nachfragen. Kein Re-`Read` des Board-/Netlist-States nach einer Mutation; der
+State ist im Adapter-Cache.
+
+**Batch vor Einzeln:** Mehrere gleichartige Mutationen (N Vias, N Moves) → Batch-Tool wenn
+vorhanden (`add_vias_to_pcb` statt N× `add_via_to_pcb`), sonst Einzel-Calls bündeln, dann
+*einmal* füllen, *einmal* verifizieren. Verify-Granularität: pro Tranche (6–8) oder am Ende,
+nicht pro Element.
+
+**Loop-Vorlage Via-Platzierung:** (1) alle Vias der Tranche setzen, (2) einmal füllen,
+(3) einmal `check_connectivity` (Cluster-Zahl gegen Erwartung), (4) Render erst am Schluss
+aller Tranchen.
+
+### Tool-Design-Regeln (nur beim Arbeiten am MCP-Code, nicht beim PCB-Editieren)
+
+- **Effekt-Echo in Mutations-Results:** Jedes Mutations-Tool gibt den relevanten Effekt direkt
+  zurück (was geändert, neuer Zählwert: Cluster/Netze/DRC). Ziel: kein Rücklesen nötig → killt
+  die Read-back-Hälfte des Loops. Kein Input-Signatur-Wechsel — nur das Result erweitern.
+- **Batch-Varianten:** Operationen, die selten allein vorkommen, brauchen ein Plural-Tool
+  (`add_vias_to_pcb`, `move_components`, `set_properties`). Das Plural-Tool erzwingt Batch
+  strukturell (es gibt keinen Per-Element-Call). Nur die 3–4 nachweislich oft geschleiften
+  Operationen batchen, nicht alle Tools.
+- **Tool-Descriptions steuern Verhalten:** In Mutations-Tools rein: „Rendert nicht. Für
+  visuelle Kontrolle `pcb_render` separat nach Abschluss aller Mutationen." Descriptions
+  wirken stärker als dieser File (sie werden im Moment der Tool-Wahl gelesen) — Regel und
+  Description müssen konsistent sein.
+
 ## Architektur — Schichten
 
 | Schicht | Modul | Funktion |
