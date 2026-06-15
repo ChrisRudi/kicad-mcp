@@ -27,6 +27,23 @@ class TestBuildBat:
         assert "\r\n" in terminal.build_bat(["echo hi"])
 
 
+class TestWriteTempBat:
+    def test_non_ascii_path_survives_as_utf8(self, tmp_path, monkeypatch):
+        # the bug: a username like "üser" (ü) must NOT become "Sch?ler" —
+        # "?" is an invalid Windows path char → pip's makedirs fails.
+        cmd = r'pip install --target "C:\Users\üser\plugins\x\_deps"'
+        bat = terminal.build_bat([cmd])
+        path = terminal._write_temp_bat(bat)
+        try:
+            raw = open(path, "rb").read()
+            assert "üser".encode("utf-8") in raw   # written as UTF-8
+            assert b"Sch?ler" not in raw               # NOT ascii-replaced
+            assert b"chcp 65001" in raw                # bat declares UTF-8
+        finally:
+            import os as _os
+            _os.remove(path)
+
+
 class TestOpenTerminal:
     def test_windows_launches_bat_not_inline(self, monkeypatch):
         monkeypatch.setattr(terminal.os, "name", "nt")
