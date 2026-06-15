@@ -37,8 +37,11 @@ def build_bat(commands, title="", cwd=None) -> str:
 
 
 def _write_temp_bat(text: str) -> str:
+    # UTF-8 (no BOM) to match the batch's own `chcp 65001` — an ASCII write
+    # would replace non-ASCII path chars (e.g. ü in C:\Users\Schüler) with "?",
+    # an INVALID Windows path char → pip's makedirs fails (WinError 123).
     fd, path = tempfile.mkstemp(suffix=".bat", prefix="kicad_claude_")
-    with os.fdopen(fd, "w", encoding="ascii", errors="replace") as fh:
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
         fh.write(text)
     return path
 

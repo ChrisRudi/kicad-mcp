@@ -8,6 +8,16 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed
+- **Plugin v0.2.28: Deps-Installation scheitert bei Umlaut im Windows-Benutzernamen.** Bei
+  einem Benutzer wie „Schüler" wurde der `_deps`-Zielpfad `C:\Users\Schüler\…` zu
+  `C:\Users\Sch?ler\…` verstümmelt (`?` = ungültiges Windows-Pfadzeichen) → pip-`makedirs`
+  bricht mit `WinError 123` ab. Ursache war **nicht** cmd.exe, sondern unser eigenes
+  Schreiben der Batch-Datei mit `encoding="ascii", errors="replace"` (`terminal.py`), das
+  jedes Nicht-ASCII-Zeichen durch `?` ersetzte — obwohl die Batch oben bereits `chcp 65001`
+  (UTF-8) deklariert. Fix: Batch wird jetzt **als UTF-8 (ohne BOM)** geschrieben, passend zu
+  `chcp 65001`. Headless getestet (Umlaut-Pfad überlebt).
+
 ### Added
 - **KiCad-PCM-Paket: „Aus Datei installieren" möglich (`make_pcm_zip.py`).** GitHubs
   automatische Repo-ZIP ist KEIN gültiges KiCad-Add-on (sie verpackt das ganze Repo in
