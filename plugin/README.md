@@ -41,7 +41,19 @@ Knöpfen (Installieren / Anmelden) so weit wie möglich selbst.
 
 ## Plugin installieren
 
-**Ein-Klick (empfohlen):** Skript aus dem Repo-Root ausführen — es holt das Plugin
+**KiCad-PCM (Aus Datei installieren):** Eine **PCM-konforme ZIP** (NICHT die GitHub-Repo-ZIP
+— die hat das falsche Layout) bauen und in KiCad einspielen:
+
+```bash
+python make_pcm_zip.py        # erzeugt dist/claude_kicad-<version>-pcm.zip
+```
+Dann in KiCad: **Plugin and Content Manager → Aus Datei installieren…** → die ZIP wählen.
+(Bei Releases hängt die GitHub-Action `pcm-zip` diese ZIP automatisch als Asset an — dann
+einfach von der Release-Seite laden.) Danach Claude-Button anklicken; das Einrichtungs-Panel
+macht den Rest. Hinweis: KiCads PCM erwartet als Add-on-ZIP genau dieses Layout
+(`metadata.json` an der Wurzel + `plugins/` + `resources/`), das die Repo-ZIP nicht hat.
+
+**Ein-Klick-Skript:** Skript aus dem Repo-Root ausführen — es holt das Plugin
 (git oder ZIP-Fallback) und kopiert es an die richtige Stelle:
 
 - **Windows:** `install_plugin.bat` herunterladen, Doppelklick (optional KiCad-Version als
