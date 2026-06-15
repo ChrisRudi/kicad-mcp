@@ -9,6 +9,14 @@ the first tag ships.
 ## [Unreleased]
 
 ### Added
+- **KiCad-PCM-Paket: „Aus Datei installieren" möglich (`make_pcm_zip.py`).** GitHubs
+  automatische Repo-ZIP ist KEIN gültiges KiCad-Add-on (sie verpackt das ganze Repo in
+  einen `<repo>-<branch>/`-Ordner). Das neue Skript baut die **PCM-konforme** ZIP
+  (`metadata.json` an der Wurzel + `plugins/` mit dem Plugin **inkl. gebündeltem
+  mcp/-Server** + `resources/icon.png`), die KiCads Plugin and Content Manager über „Aus
+  Datei installieren…" akzeptiert. Version automatisch aus `plugin/version.py`; eine
+  GitHub-Action (`.github/workflows/pcm-zip.yml`) baut die ZIP bei jedem Release und hängt
+  sie als Asset an. README um den PCM-Weg ergänzt.
 - **Footprint-Resync-Tools (3 neue MCP-Tools, headless GUI-F8-Äquivalent, Branch
   `feat/footprint-resync`).** Behebt Footprint-Defekte ohne die SWIG-Flip-Bugs:
   `normalize_footprint_libid` (bare lib_id `"NAME"`→`"Lib:NAME"` aus dem Schaltplan,

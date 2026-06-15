@@ -47,3 +47,4 @@ plugin/mcp/**/.cache/
 plugin/**/*.pyc
 /plugin.zip
 plugin/_deps/
+dist/
