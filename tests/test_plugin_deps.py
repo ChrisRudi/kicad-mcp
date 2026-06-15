@@ -38,6 +38,27 @@ class TestCheckDeps:
         assert cmd[0] == "/k/py" and cmd[1] == "-c"
         assert "find_spec" in cmd[2] and "fastmcp" in cmd[2]
 
+    def test_check_cmd_injects_deps_dir_into_syspath(self):
+        # KiCad's Python ignores PYTHONPATH -> the probe must put _deps on
+        # sys.path IN-PROCESS, else it reports installed deps as missing.
+        cmd = deps.build_check_cmd("/k/py", deps_dir="/plug/_deps")
+        assert "sys.path[:0]=['/plug/_deps']" in cmd[2]
+        assert cmd[2].index("sys.path[:0]") < cmd[2].index("find_spec")
+
+    def test_check_cmd_no_injection_without_deps_dir(self):
+        # legacy pip --user installs: no _deps dir -> rely on default sys.path
+        assert "sys.path[:0]" not in deps.build_check_cmd("/k/py")[2]
+
+    def test_check_passes_deps_dir_to_probe_code(self):
+        seen = {}
+
+        def _run(cmd, **kw):
+            seen["code"] = cmd[2]
+            return SimpleNamespace(stdout="", stderr="", returncode=0)
+
+        deps.check_deps("/k/py", _run=_run, deps_dir="/plug/_deps")
+        assert "sys.path[:0]=['/plug/_deps']" in seen["code"]
+
 
 class TestPipInstallCommands:
     def test_installs_into_plugin_target_dir(self):

@@ -30,13 +30,27 @@ PIP_SPECS = ["fastmcp", "mcp", "pandas", "pyyaml", "defusedxml", "jsonschema"]
 
 PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
 
-_CHECK_CODE = (
-    "import importlib.util,sys;"
-    f"req={IMPORT_NAMES!r};"
-    "miss=[m for m in req if importlib.util.find_spec(m) is None];"
-    "print(','.join(miss));"
-    "sys.exit(1 if miss else 0)"
-)
+def _check_code(deps_dir: Optional[str] = None) -> str:
+    """The ``-c`` probe: inject ``deps_dir`` into ``sys.path`` IN-PROCESS, then
+    ``find_spec`` each module.
+
+    KiCad's bundled Python IGNORES the ``PYTHONPATH`` env var (isolated
+    ``._pth`` build) — so a probe that only set PYTHONPATH found nothing even
+    when ``_deps`` was fully populated, and the panel reported the deps as
+    "fehlt" right after a successful install (then re-installed in a loop).
+    In-process ``sys.path`` insertion is the same mechanism the server actually
+    starts with (``mcp_config.server_bootstrap_code``), so the check now agrees
+    with reality.
+    """
+    inject = f"sys.path[:0]=[{deps_dir!r}];" if deps_dir else ""
+    return (
+        "import importlib.util,sys;"
+        f"{inject}"
+        f"req={IMPORT_NAMES!r};"
+        "miss=[m for m in req if importlib.util.find_spec(m) is None];"
+        "print(','.join(miss));"
+        "sys.exit(1 if miss else 0)"
+    )
 
 
 # Name of the env var that carries the (possibly non-ASCII) target dir into the
@@ -58,16 +72,17 @@ def active_deps_dir() -> Optional[str]:
     return d if os.path.isdir(d) else None
 
 
-def build_check_cmd(kicad_py: str) -> list:
-    return [kicad_py, "-c", _CHECK_CODE]
+def build_check_cmd(kicad_py: str, deps_dir: Optional[str] = None) -> list:
+    return [kicad_py, "-c", _check_code(deps_dir)]
 
 
 def check_deps(kicad_py: Optional[str], _run=subprocess.run,
                deps_dir: Optional[str] = None) -> dict:
     """Return ``{ok, missing, error}`` — which runtime deps KiCad's Python lacks.
 
-    Probes with the plugin-local deps dir on PYTHONPATH (exactly how the MCP
-    server will run). Fast (find_spec, no full import). Never raises.
+    Probes with the plugin-local deps dir injected into ``sys.path`` IN-PROCESS
+    (exactly how the MCP server starts) — NOT via PYTHONPATH, which KiCad's
+    bundled Python ignores. Fast (find_spec, no full import). Never raises.
     """
     out = {"ok": False, "missing": [], "error": ""}
     if not kicad_py:
@@ -76,10 +91,12 @@ def check_deps(kicad_py: Optional[str], _run=subprocess.run,
     env = dict(os.environ)
     deps_dir = active_deps_dir() if deps_dir is None else deps_dir
     if deps_dir:
+        # belt-and-suspenders for pythons that DO honor it; the real path
+        # injection happens in-process via build_check_cmd(deps_dir).
         env["PYTHONPATH"] = deps_dir
     try:
-        proc = _run(build_check_cmd(kicad_py), capture_output=True, text=True,
-                    timeout=30, check=False, env=env,
+        proc = _run(build_check_cmd(kicad_py, deps_dir), capture_output=True,
+                    text=True, timeout=30, check=False, env=env,
                     **hidden_console_kwargs())
     except Exception as exc:
         out["error"] = str(exc)

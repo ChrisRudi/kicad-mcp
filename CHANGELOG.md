@@ -9,6 +9,17 @@ the first tag ships.
 ## [Unreleased]
 
 ### Fixed
+- **Plugin v0.2.30: Installierte MCP-Abhängigkeiten wurden nach erfolgreicher Installation
+  als „fehlt" gemeldet (Endlos-Neuinstallation).** Symptom: `_deps` voll befüllt, Server-Probe
+  `OK (167 Tools)`, aber die Checkliste blieb rot → der Nutzer installierte immer wieder neu.
+  Ursache: `deps.check_deps` legte den `_deps`-Ordner nur über die Env-Variable `PYTHONPATH`
+  auf den Suchpfad — KiCads gebündeltes Python **ignoriert PYTHONPATH** (isolierter
+  `._pth`-Build). Der `find_spec`-Probe lief also ohne `_deps` auf `sys.path` und meldete alle
+  Module als fehlend. Der Rest des Codes (Server-Start, Install-Verifikation, `start_mcp.bat`)
+  injiziert `sys.path` längst **in-process**; nur die Check-Probe tat es nicht. Fix:
+  `build_check_cmd(kicad_py, deps_dir)` injiziert `sys.path[:0]=[deps_dir]` im `-c`-Code —
+  identisch zu `mcp_config.server_bootstrap_code`, sodass der Check mit dem realen Server-Start
+  übereinstimmt. Headless getestet (`test_plugin_deps.py`).
 - **Plugin v0.2.29: Umlaut-Pfad-Fix endgültig (Benutzername „Schüler") — Pfad reist jetzt
   über die Environment-Variable, nicht über den Batch-Text.** Trotz v0.2.28 (UTF-8-Batch +
   `chcp 65001`) brach die Deps-Installation weiter mit `C:\Users\Sch?ler\…` →
