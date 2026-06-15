@@ -175,7 +175,8 @@ class SetupDialog(wx.Dialog):
             return
         try:
             terminal.open_terminal(deps.pip_install_commands(py),
-                                   "MCP-Abhaengigkeiten installieren")
+                                   "MCP-Abhaengigkeiten installieren",
+                                   env=deps.pip_install_env())
             wx.MessageBox(
                 "Installation läuft im Terminal — in den Plugin-Ordner "
                 "(pip --target, kein Admin). Wenn 'Fertig' erscheint, hier "

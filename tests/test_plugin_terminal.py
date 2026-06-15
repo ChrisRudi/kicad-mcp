@@ -15,7 +15,9 @@ class TestBuildBat:
                                  title="T", cwd=r"C:\proj")
         assert "@echo off" in bat
         assert "title T" in bat
-        assert 'cd /d "C:\\proj"' in bat
+        # cwd rides %KICAD_MCP_CWD% (env), NOT inlined -> non-ASCII paths survive
+        assert 'cd /d "%KICAD_MCP_CWD%"' in bat
+        assert r"C:\proj" not in bat  # literal path must not leak into the .bat
         assert 'powershell -Command "irm x | iex"' in bat  # quotes/pipe intact
         assert bat.rstrip().endswith("pause")
 
@@ -51,7 +53,7 @@ class TestOpenTerminal:
         terminal.open_terminal(
             ['powershell -Command "irm x | iex"'], title="Install",
             _writer=lambda text: (seen.update(text=text), r"C:\tmp\x.bat")[1],
-            _popen=lambda argv: seen.update(argv=argv) or "proc")
+            _popen=lambda argv, **kw: seen.update(argv=argv) or "proc")
         # the complex command goes into the .bat, NOT the argv
         assert "irm x | iex" in seen["text"]
         assert seen["argv"] == ["cmd.exe", "/c", "start", "Install", r"C:\tmp\x.bat"]
@@ -61,6 +63,24 @@ class TestOpenTerminal:
         monkeypatch.setattr(terminal.os, "name", "posix")
         seen = {}
         terminal.open_terminal(["do-thing"], cwd="/proj",
-                               _popen=lambda argv: seen.update(argv=argv))
+                               _popen=lambda argv, **kw: seen.update(argv=argv))
         assert seen["argv"][0] == "bash" and seen["argv"][1] == "-lc"
         assert 'cd "/proj"' in seen["argv"][2] and "do-thing" in seen["argv"][2]
+
+    def test_windows_passes_cwd_and_env_via_child_environment(self, monkeypatch):
+        # The non-ASCII cwd/target must reach the child as env (UTF-16), never
+        # inlined into the .bat text (where cmd.exe's codepage would fold ü->?).
+        monkeypatch.setattr(terminal.os, "name", "nt")
+        seen = {}
+        terminal.open_terminal(
+            ['pip install --target "%KICAD_MCP_DEPS%"'], title="Install",
+            cwd=r"C:\Users\üser\proj",
+            env={"KICAD_MCP_DEPS": r"C:\Users\üser\plug\_deps"},
+            _writer=lambda text: (seen.update(text=text), r"C:\tmp\x.bat")[1],
+            _popen=lambda argv, **kw: seen.update(argv=argv, env=kw.get("env")))
+        # cwd + deps dir travel in the environment, with the real (ü) value
+        assert seen["env"]["KICAD_MCP_CWD"] == r"C:\Users\üser\proj"
+        assert seen["env"]["KICAD_MCP_DEPS"] == r"C:\Users\üser\plug\_deps"
+        # ...and NOT as literal text in the launched .bat
+        assert "üser" not in seen["text"]
+        assert "%KICAD_MCP_CWD%" in seen["text"]

@@ -9,6 +9,18 @@ the first tag ships.
 ## [Unreleased]
 
 ### Fixed
+- **Plugin v0.2.29: Umlaut-Pfad-Fix endgültig (Benutzername „üser") — Pfad reist jetzt
+  über die Environment-Variable, nicht über den Batch-Text.** Trotz v0.2.28 (UTF-8-Batch +
+  `chcp 65001`) brach die Deps-Installation weiter mit `C:\Users\Sch?ler\…` →
+  `WinError 123` ab: `chcp 65001` macht cmd.exe **nicht** zuverlässig dazu, ein im
+  Batch-Text stehendes `ü` korrekt an den Kindprozess (pip) durchzureichen — es wird beim
+  Parsen über die Konsolen-Codepage zu `?` gefaltet. Robuster Fix: Der (möglicherweise
+  nicht-ASCII-)Zielpfad steht **nicht mehr als Literal im `.bat`**, sondern wird über die
+  Umgebungsvariable `%KICAD_MCP_DEPS%` getragen (Windows übergibt den Environment-Block als
+  UTF-16 → codepage-immun) und im Batch nur referenziert; das Arbeitsverzeichnis ebenso über
+  `%KICAD_MCP_CWD%`. Der Batch-Text bleibt reines ASCII. POSIX nutzt unverändert den
+  Literal-Pfad (UTF-8-Shell, keine Verstümmelung). Headless getestet
+  (`test_plugin_terminal.py`, `test_plugin_deps.py`).
 - **Plugin v0.2.28: Deps-Installation scheitert bei Umlaut im Windows-Benutzernamen.** Bei
   einem Benutzer wie „üser" wurde der `_deps`-Zielpfad `C:\Users\üser\…` zu
   `C:\Users\Sch?ler\…` verstümmelt (`?` = ungültiges Windows-Pfadzeichen) → pip-`makedirs`
