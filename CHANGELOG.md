@@ -8,6 +8,19 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added
+- **Footprint-Resync-Tools (3 neue MCP-Tools, headless GUI-F8-Äquivalent, Branch
+  `feat/footprint-resync`).** Behebt Footprint-Defekte ohne die SWIG-Flip-Bugs:
+  `normalize_footprint_libid` (bare lib_id `"NAME"`→`"Lib:NAME"` aus dem Schaltplan,
+  reiner Text-Patch, idempotent + Namens-Guard), `refresh_pinfunctions` (stale Pad-
+  `(pinfunction …)` aus den Symbol-Pinnamen, Text-Patch, beide Net-Token-Formen, keine
+  Geometrie/Netze) und `replace_footprint_canonical` (Footprint-Ersatz flip-/placement-
+  korrekt über echte pcbnew-Engine im Subprozess; Pad-Drift-Gate <1 µm vor dem Commit,
+  `SaveBoard`=Voll-Rewrite → dry_run-Default + Board-offen-Guard + fp-lib-table-Auflösung).
+  Gemeinsamer `utils/sch_inspect.py`-Parser (ref→Footprint, ref→Pin-Namen). Tool-Count
+  167 → 170. Headless getestet (`tests/test_footprint_resync.py`); pcbnew-Swap ist
+  KiCad-only.
+
 ### Changed
 - **Plugin v0.2.27: Link-Fehler werden sichtbar (Diagnose der „keine Links"-Regression).**
   Das Holen von Refs/Netzen/Layern fürs Linkifizieren wurde bei Fehler von einem
