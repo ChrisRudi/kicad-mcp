@@ -75,7 +75,9 @@ def _metadata(version: str, install_size: int) -> dict:
         "type": "plugin",
         "author": {"name": "ChrisRudi",
                    "contact": {"web": HOMEPAGE}},
-        "license": "GPL-3.0-or-later",
+        # PCM's license field is a FIXED enum — NOT SPDX. "GPL-3.0-or-later"
+        # is rejected ("no valid metadata.json"); the allowed value is "GPL-3.0".
+        "license": "GPL-3.0",
         "resources": {"homepage": HOMEPAGE},
         "versions": [
             {
