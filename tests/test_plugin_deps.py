@@ -71,6 +71,28 @@ class TestPipInstallCommands:
         assert all("[" not in s for s in deps.PIP_SPECS)
         assert "pyyaml" in deps.PIP_SPECS  # imports as yaml
 
+    def test_windows_references_target_via_env_var_not_literal(self, monkeypatch):
+        # On Windows the non-ASCII target (C:\Users\Schüler\...\_deps) must ride
+        # %KICAD_MCP_DEPS% (env, UTF-16) — inlining it lets cmd.exe fold ü->? and
+        # pip's makedirs dies with WinError 123. So the literal must NOT appear.
+        monkeypatch.setattr(deps.os, "name", "nt")
+        target = r"C:\Users\Schüler\plug\_deps"
+        cmds = deps.pip_install_commands(r"C:\KiCad\python.exe", target=target)
+        install = next(c for c in cmds if "pip install" in c)
+        assert '--target "%KICAD_MCP_DEPS%"' in install
+        assert all("Schüler" not in c for c in cmds)  # literal path never inlined
+        verify = cmds[-1]
+        assert "sys.path.insert(0,r'%KICAD_MCP_DEPS%')" in verify
+
+
+class TestPipInstallEnv:
+    def test_carries_target_with_real_value(self):
+        env = deps.pip_install_env(r"C:\Users\Schüler\plug\_deps")
+        assert env[deps.DEPS_ENV_VAR] == r"C:\Users\Schüler\plug\_deps"
+
+    def test_defaults_to_plugin_target_dir(self):
+        assert deps.pip_install_env()[deps.DEPS_ENV_VAR] == deps.default_target_dir()
+
 
 class TestDepsDir:
     def test_default_target_is_inside_plugin(self):

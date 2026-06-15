@@ -39,6 +39,13 @@ _CHECK_CODE = (
 )
 
 
+# Name of the env var that carries the (possibly non-ASCII) target dir into the
+# install terminal. On Windows the .bat references it as %KICAD_MCP_DEPS% instead
+# of inlining the path, so a username like "Schüler" can't be folded to "?" by
+# cmd.exe's codepage (-> WinError 123). See plugin.terminal module docstring.
+DEPS_ENV_VAR = "KICAD_MCP_DEPS"
+
+
 def default_target_dir() -> str:
     """Where the plugin installs the server deps (``<plugin>/_deps``)."""
     return os.path.join(PLUGIN_DIR, "_deps")
@@ -83,6 +90,17 @@ def check_deps(kicad_py: Optional[str], _run=subprocess.run,
     return out
 
 
+def pip_install_env(target: Optional[str] = None) -> dict:
+    """The env vars to hand ``terminal.open_terminal(env=...)`` so the install
+    terminal can resolve the target dir without inlining it into the .bat.
+
+    Pairs with ``pip_install_commands``: on Windows those commands reference
+    ``%KICAD_MCP_DEPS%`` (this var), which Windows passes UTF-16 to the child —
+    immune to the codepage folding that turns ``Schüler`` into ``Sch?ler``.
+    """
+    return {DEPS_ENV_VAR: target or default_target_dir()}
+
+
 def pip_install_commands(kicad_py: str, target: Optional[str] = None) -> list:
     """The command lines for a visible terminal (see plugin.terminal):
     install into the plugin-local ``--target`` dir (no admin, no user-site).
@@ -91,21 +109,28 @@ def pip_install_commands(kicad_py: str, target: Optional[str] = None) -> list:
     when the bundle ships without it, and VERIFIES after the install that
     every module actually imports from the target dir — so "Installation
     klappt scheinbar" and "Server startet" can't diverge silently anymore.
+
+    On Windows the target dir is referenced through ``%KICAD_MCP_DEPS%`` (set
+    via ``pip_install_env``) rather than inlined, so a non-ASCII path survives
+    cmd.exe's codepage; POSIX shells handle UTF-8 paths directly, so there the
+    literal is used. Either way the caller MUST pass ``env=pip_install_env()``.
     """
     target = target or default_target_dir()
+    # Windows: reference the env var (uncorruptible). POSIX: literal is safe.
+    ref = f"%{DEPS_ENV_VAR}%" if os.name == "nt" else target
     pkgs = " ".join(PIP_SPECS)
     q = f'"{kicad_py}"'
     verify = (
-        f"import sys;sys.path.insert(0,r'{target}');"
+        f"import sys;sys.path.insert(0,r'{ref}');"
         f"import {','.join(IMPORT_NAMES)};"
         "print('OK - alle MCP-Module importierbar')"
     )
     return [
         f"echo Python: {kicad_py}",
-        f"echo Ziel-Ordner (_deps): {target}",
+        f"echo Ziel-Ordner (_deps): {ref}",
         f"{q} --version",
         # Some bundles ship without pip -> bootstrap it (no admin needed).
         f"{q} -m pip --version || {q} -m ensurepip --user",
-        f'{q} -m pip install --upgrade --target "{target}" {pkgs}',
+        f'{q} -m pip install --upgrade --target "{ref}" {pkgs}',
         f'{q} -c "{verify}"',
     ]
