@@ -52,6 +52,54 @@ def via_signature(x: int, y: int, diameter: int, drill: int, net: str,
             str(via_type) if via_type is not None else "")
 
 
+# --- optimistic concurrency (compare-and-swap) ------------------------------
+
+
+def _sig_eq(a, b) -> bool:
+    """Equality of two footprint signatures, tolerant of JSON int/float drift —
+    a sig round-trips the MCP boundary as a list, so ``90`` may come back where
+    ``90.0`` went out. Falls back to plain list equality for other shapes."""
+    if a is None or b is None:
+        return a is b
+    a, b = list(a), list(b)
+    if len(a) != len(b):
+        return False
+    try:  # footprint sig: (x_nm, y_nm, orient_deg, layer)
+        return (int(a[0]) == int(b[0]) and int(a[1]) == int(b[1])
+                and round(float(a[2]), 3) == round(float(b[2]), 3)
+                and a[3] == b[3])
+    except (TypeError, ValueError, IndexError):
+        return a == b
+
+
+def cas_conflict(current_sig, baseline_sig, pending_rec=None) -> bool:
+    """Decide whether writing an item would CLOBBER a concurrent USER edit —
+    the optimistic-concurrency gate for live collaboration.
+
+    KiCad exposes no item lock, so before a live write the agent compares the
+    item's signature now against the signature its plan was based on:
+
+    current_sig:  the item's signature read live, right before the write.
+    baseline_sig: the signature the agent planned against (e.g. captured at the
+                  dry-run step), or None when no baseline is known — then there
+                  is nothing to conflict with and this returns False.
+    pending_rec:  the agent's own last self-write record for this item (or
+                  None). If the live state equals the agent's own pending
+                  write, the difference is the agent's, not the user's.
+
+    Returns True only when a baseline exists, the live signature differs from
+    it, and that difference is not the agent's own self-write — i.e. the user
+    moved it since the plan, so the write must be refused, not applied.
+    """
+    if baseline_sig is None:
+        return False
+    if _sig_eq(current_sig, baseline_sig):
+        return False
+    if pending_rec is not None and _sig_eq(current_sig, pending_rec.get("sig")):
+        return False
+    return True
+
+
 # --- diff -------------------------------------------------------------------
 
 
