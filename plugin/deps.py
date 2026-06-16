@@ -22,11 +22,17 @@ from typing import Optional
 
 from .claude_bridge import hidden_console_kwargs
 
-# Import names to probe (note: pyyaml imports as ``yaml``).
-IMPORT_NAMES = ["fastmcp", "mcp", "pandas", "yaml", "defusedxml", "jsonschema"]
+# Import names to probe (note: pyyaml imports as ``yaml``, kicad-python as
+# ``kipy``). kipy is the KiCad IPC client — NOT bundled with KiCad (separate
+# PyPI package ``kicad-python``), so without it the live cross-probe/selection
+# AND the chat-link board refresh fail with ``ModuleNotFoundError: kipy``.
+IMPORT_NAMES = ["fastmcp", "mcp", "pandas", "yaml", "defusedxml", "jsonschema",
+                "kipy"]
 # pip specs to install (no brackets -> no cross-shell quoting headaches;
-# fastmcp pulls mcp transitively, mcp listed too to be safe).
-PIP_SPECS = ["fastmcp", "mcp", "pandas", "pyyaml", "defusedxml", "jsonschema"]
+# fastmcp pulls mcp transitively, mcp listed too to be safe). kicad-python pulls
+# protobuf + pynng (the IPC transport) transitively.
+PIP_SPECS = ["fastmcp", "mcp", "pandas", "pyyaml", "defusedxml", "jsonschema",
+             "kicad-python"]
 
 PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
 

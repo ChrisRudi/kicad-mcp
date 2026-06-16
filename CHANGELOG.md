@@ -8,6 +8,31 @@ the first tag ships.
 
 ## [Unreleased]
 
+## [0.3.3] — 2026-06-16
+
+### Fixed
+- **`ModuleNotFoundError: No module named 'kipy'` — die eigentliche Wurzel von
+  „nichts ist orange" + fehlgeschlagener Live-Auswahl.** Die `ⓘ`-Diagnose
+  (v0.3.1) hat es zutage gefördert: Es waren NICHT mehrere KiCad-Instanzen,
+  sondern `kipy` war schlicht nicht installiert. `kipy` (PyPI: `kicad-python`,
+  zieht `protobuf` + `pynng`) ist NICHT in KiCad gebündelt und wurde fälschlich
+  als „von KiCad bereitgestellt" angenommen — fehlt es, scheitern der gesamte
+  Live-IPC-Pfad (`board_links.connect()`, `ipc_select_items`, alle `ipc_*`) und
+  die Chat-Links. Fix in drei Teilen:
+  - `deps.IMPORT_NAMES` += `kipy`, `deps.PIP_SPECS` += `kicad-python` → der
+    bewährte `pip install --target _deps`-Installer (umlaut-/Program-Files-fest
+    aus v0.2.28–37) zieht kipy jetzt mit; die Deps-Prüfung erkennt es als
+    Pflicht-Dependency.
+  - `plugin/__init__._inject_local_deps()` legt `_deps` auch im **GUI-Plugin**
+    auf `sys.path` (bisher injizierte nur der MCP-Server) — sonst fände
+    `board_links` das frisch installierte kipy nicht (KiCads Python ignoriert
+    `PYTHONPATH`).
+  - `_discover_board_path()` fällt auf den ersten `*.kicad_pcb` im run-cwd
+    zurück, wenn `GetFileName()` leer ist, damit der Disk-Link-Fallback (v0.3.2)
+    immer eine Datei hat.
+  Nach Update + Deps-Installation funktionieren Links (orange) UND die
+  nicht-destruktive Editor-Auswahl wieder.
+
 ## [0.3.2] — 2026-06-16
 
 ### Fixed
