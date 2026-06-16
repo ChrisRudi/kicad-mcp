@@ -205,12 +205,18 @@ def connect():
         return client, call(client.get_board)
     except Exception as exc:
         if any(m in str(exc).lower() for m in _NO_BOARD_MARKERS):
+            # Same raw error ("no handler for GetOpenDocuments") fires for BOTH
+            # multiple KiCad instances on one socket AND a kipy↔KiCad version
+            # mismatch — so append the raw cause; you can't tell them apart from
+            # the friendly text alone.
             raise BoardUnavailable(
                 "Kein eindeutiges Board über die KiCad-API erreichbar — meist "
                 "laufen MEHRERE KiCad-Instanzen (Projektmanager + zweiter "
                 "Editor, oder ein Rest-Prozess) auf einem Socket. Schließe "
                 "zusätzliche KiCad-Fenster, sodass genau EIN Board im "
-                "PCB-Editor offen ist."
+                "PCB-Editor offen ist. Falls nur EIN Fenster offen ist, passt "
+                "die kipy-Version evtl. nicht zu KiCad. [Technisch: "
+                f"{type(exc).__name__}: {exc}]"
             ) from exc
         raise
 

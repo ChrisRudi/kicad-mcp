@@ -8,6 +8,19 @@ the first tag ships.
 
 ## [Unreleased]
 
+## [0.3.5] — 2026-06-16
+
+### Fixed
+- **`BoardUnavailable` zeigt jetzt den rohen Fehler.** Klick auf einen Link →
+  „Kein eindeutiges Board über die KiCad-API erreichbar" (kipy lädt also, der
+  Deps-Fix v0.3.3 griff). Derselbe Roh-Fehler („no handler for
+  GetOpenDocuments") entsteht bei ZWEI verschiedenen Ursachen — mehrere
+  KiCad-Instanzen auf einem IPC-Socket ODER eine kipy↔KiCad-Versionsdiskrepanz
+  (Install zog ungepinntes `kicad-python` = neueste; CLAUDE.md nennt für
+  KiCad 10.0 kipy 0.7.1). Die Meldung hängt jetzt den technischen Roh-Fehler an
+  (`[Technisch: …]`) und nennt beide Ursachen, damit unterscheidbar ist, ob ein
+  zweites Fenster zu schließen ist oder die kipy-Version anzupassen.
+
 ## [0.3.4] — 2026-06-16
 
 ### Fixed
