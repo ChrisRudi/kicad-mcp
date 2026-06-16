@@ -8,6 +8,18 @@ the first tag ships.
 
 ## [Unreleased]
 
+## [0.3.4] — 2026-06-16
+
+### Fixed
+- **Disk-Fallback verschluckte den Live-IPC-Fehlergrund.** Wenn der Disk-Parser
+  die Links rettete (v0.3.2), löschte `_worker` das `_link_error` — die
+  `ⓘ`-Zeile sagte nur „aus Datei", aber nicht WARUM Live-IPC (und damit der
+  Klick) ausfiel. Jetzt bleibt der Grund erhalten (`_link_live_error`) und steht
+  in der Statuszeile: `… aus Datei — Klick inaktiv (Live-IPC: <Grund>)`. So ist
+  ablesbar, ob kipy noch fehlt (`No module named 'kipy'` → Deps-Installation
+  nachholen) oder ob kipy lädt, aber die KiCad-API/das Board nicht erreichbar
+  ist (anderer Fix).
+
 ## [0.3.3] — 2026-06-16
 
 ### Fixed
