@@ -42,6 +42,9 @@ class ClaudeChatPanel(wx.Panel):
         # argv for this machine (native Windows, native Linux, or WSL-bridge).
         self._plan = plan
         self._on_open_setup = on_open_setup  # reopen Einrichtung/Update panel
+        # Path of the .kicad_pcb open in this pcbnew instance — used as the disk
+        # fallback for linkification when live IPC can't resolve the board.
+        self._pcb_path = self._discover_board_path()
         self._session_id = None
         self._busy = False
         self._proc = None       # live claude process of the running turn
@@ -279,13 +282,14 @@ class ClaudeChatPanel(wx.Panel):
         # Refresh the board's refs/nets/layers so this reply can be linkified.
         # Capture (don't swallow) any failure so the real reason is VISIBLE —
         # the links silently breaking was undiagnosable before.
+        from . import board_links
         try:
-            from . import board_links
             _client, board = board_links.connect()
             refs, nets, layers = board_links.board_targets(board)
             result["_refs"], result["_nets"], result["_layers"] = (
                 refs, nets, layers)
             result["_link_counts"] = (len(refs), len(nets), len(layers))
+            result["_link_source"] = "live"
         except Exception as exc:
             # BoardUnavailable already carries a user-facing, actionable message
             # (multiple KiCad instances / no board) — show it verbatim; prefix
@@ -293,7 +297,32 @@ class ClaudeChatPanel(wx.Panel):
             result["_link_error"] = (
                 str(exc) if type(exc).__name__ == "BoardUnavailable"
                 else f"{type(exc).__name__}: {exc}")
+        # Disk fallback: live IPC failed OR returned nothing, but the .kicad_pcb
+        # the chat is about is on disk (the same file the MCP server reads). Parse
+        # refs/nets/layers from it so links still RENDER even when the live API
+        # can't resolve the board (the classic multi-instance case). Clicks still
+        # need live IPC, but the answer stops looking link-dead.
+        if not result.get("_refs") and self._pcb_path:
+            refs, nets, layers = board_links.board_targets_from_file(self._pcb_path)
+            if refs or nets or layers:
+                result["_refs"], result["_nets"], result["_layers"] = (
+                    refs, nets, layers)
+                result["_link_counts"] = (len(refs), len(nets), len(layers))
+                result["_link_source"] = "disk"
+                result.pop("_link_error", None)  # recovered — not a fatal error
         wx.CallAfter(self._on_reply, result)
+
+    @staticmethod
+    def _discover_board_path() -> str:
+        """Path of the .kicad_pcb open in this pcbnew instance, for the disk
+        fallback. Lazy + guarded so this module stays importable headless (the
+        pure-logic tests import it without pcbnew/wx)."""
+        try:
+            import pcbnew  # only importable inside KiCad
+            board = pcbnew.GetBoard()
+            return board.GetFileName() if board else ""
+        except Exception:
+            return ""
 
     def _on_proc(self, proc) -> None:
         """The bridge handed us the live process — store it for the Stopp button."""
@@ -354,15 +383,21 @@ class ClaudeChatPanel(wx.Panel):
             self._write("  ⓘ Links: 0 Refs/Netze/Layer vom Board gelesen "
                         "(Board leer oder kein Zugriff).\n", theme.DIM)
             return
+        # Whether the data came from the live editor (clicks work) or the disk
+        # fallback (links render, clicks need live IPC) — say so, since a disk
+        # source means the live API couldn't resolve the board.
+        src = result.get("_link_source")
+        origin = ("aus Datei — Live-IPC nicht verfügbar, Klick ggf. inaktiv"
+                  if src == "disk" else "vom Board")
         if rendered == 0:
             self._write(
-                f"  ⓘ Links: {r} Refs / {n} Netze / {ly} Layer vom Board "
+                f"  ⓘ Links: {r} Refs / {n} Netze / {ly} Layer {origin} "
                 "gelesen, aber 0 im Antworttext erkannt (Token-Format?).\n",
                 theme.DIM)
             return
         self._write(
-            f"  ⓘ Links: {rendered} im Reply klickbar · {r} Refs / {n} Netze / "
-            f"{ly} Layer vom Board.\n", theme.DIM)
+            f"  ⓘ Links: {rendered} im Reply · {r} Refs / {n} Netze / "
+            f"{ly} Layer {origin}.\n", theme.DIM)
 
     # -- board cross-probe (clickable elements) -----------------------------
 

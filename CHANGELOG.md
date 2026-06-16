@@ -8,6 +8,26 @@ the first tag ships.
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-06-16
+
+### Fixed
+- **Chat-Links erscheinen jetzt auch, wenn Live-IPC das Board nicht auflösen
+  kann — Disk-Fallback.** Symptom: Antworten nannten Bauteile (`R_GATE_PD1`,
+  `R_FAULT1` …), aber NICHTS war orange/klickbar. Ursache: Der MCP-Server liest
+  das Board (er erzeugt die Tabelle), aber der separate kipy-Client des
+  Chat-Panels (`board_links.connect()`) ging leer aus — klassisch bei mehreren
+  KiCad-Instanzen auf einem IPC-Socket (`BoardUnavailable`), wodurch
+  `self._refs/_nets/_layers` leer blieben und `tokenize` (headless als korrekt
+  verifiziert) nichts zu matchen hatte. Fix: Neue
+  `board_links.board_targets_from_file()` parst Footprint-Refs, Netznamen und
+  Layer direkt aus der `.kicad_pcb` (derselben Datei, die auch der MCP-Server
+  liest). Das Chat-Panel erfasst den offenen Board-Pfad beim Start
+  (`_discover_board_path()` via `pcbnew.GetBoard().GetFileName()`) und fällt im
+  `_worker` auf den Disk-Parser zurück, wenn Live-IPC fehlschlägt ODER 0
+  Elemente liefert. Links RENDERN damit immer; die `ⓘ`-Statuszeile weist
+  „aus Datei — Live-IPC nicht verfügbar" aus (Klick braucht weiter Live-IPC).
+  4 neue Headless-Tests.
+
 ## [0.3.1] — 2026-06-16
 
 ### Fixed

@@ -270,6 +270,55 @@ def board_targets(board: Any) -> tuple[set, set, set]:
     return refs, nets, layers
 
 
+# -- disk fallback (no kipy, no GUI) ------------------------------------------
+
+# Footprint reference, both KiCad-10 s-expr (`(property "Reference" "R12" …)`)
+# and the legacy `(fp_text reference R12 …)` form.
+_RE_REF_PROP = re.compile(r'\(property\s+"Reference"\s+"([^"]+)"')
+_RE_REF_FPTEXT = re.compile(r'\(fp_text\s+reference\s+"?([^"\s)]+)')
+# Net declarations: `(net 5 "GND")` or unquoted `(net 5 GND)`; net 0 / "" skip.
+_RE_NET_Q = re.compile(r'\(net\s+\d+\s+"([^"]*)"\s*\)')
+_RE_NET_U = re.compile(r'\(net\s+\d+\s+([^\s")]+)\s*\)')
+# Board layer table rows: `(0 "F.Cu" signal)` — digit-first distinguishes them
+# from footprint `(layers "F.Cu" …)` (names only) and `(net …)` entries.
+_RE_LAYER = re.compile(r'\(\d+\s+"([^"]+)"\s+\w+')
+
+
+def board_targets_from_file(path: str) -> tuple[set, set, set]:
+    """Disk fallback for :func:`board_targets`: parse footprint references, net
+    names and layer names straight from the ``.kicad_pcb`` TEXT.
+
+    Use this when the live IPC client can't resolve the board (the classic case
+    is several KiCad instances on one socket → ``BoardUnavailable``) but the file
+    the chat is about sits right there on disk — the very file the MCP server
+    reads. Best-effort and forgiving: any read error yields empty sets so the
+    caller degrades gracefully instead of crashing the reply. Linkifies the
+    chat; the click-to-select path still needs live IPC.
+    """
+    refs: set = set()
+    nets: set = set()
+    layers: set = set()
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            text = fh.read()
+    except Exception:
+        return refs, nets, layers
+    for m in _RE_REF_PROP.finditer(text):
+        refs.add(m.group(1))
+    for m in _RE_REF_FPTEXT.finditer(text):
+        refs.add(m.group(1))
+    refs = {r for r in refs if r and r not in ("~", "REF**")}
+    for m in _RE_NET_Q.finditer(text):
+        if m.group(1):
+            nets.add(m.group(1))
+    for m in _RE_NET_U.finditer(text):
+        nets.add(m.group(1))
+    nets.discard("")
+    for m in _RE_LAYER.finditer(text):
+        layers.add(m.group(1))
+    return refs, nets, layers
+
+
 def _zoom_to_selection(client: Any) -> None:
     for action in _ZOOM_ACTIONS:
         try:
