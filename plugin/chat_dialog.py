@@ -279,7 +279,12 @@ class ClaudeChatPanel(wx.Panel):
                 refs, nets, layers)
             result["_link_counts"] = (len(refs), len(nets), len(layers))
         except Exception as exc:
-            result["_link_error"] = f"{type(exc).__name__}: {exc}"
+            # BoardUnavailable already carries a user-facing, actionable message
+            # (multiple KiCad instances / no board) — show it verbatim; prefix
+            # the type only for unexpected failures so they stay debuggable.
+            result["_link_error"] = (
+                str(exc) if type(exc).__name__ == "BoardUnavailable"
+                else f"{type(exc).__name__}: {exc}")
         wx.CallAfter(self._on_reply, result)
 
     def _on_proc(self, proc) -> None:

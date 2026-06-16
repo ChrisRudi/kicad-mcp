@@ -54,6 +54,9 @@ from mcp.server.fastmcp import FastMCP
 # Central IPC timeout (Env KICAD_MCP_IPC_TIMEOUT_MS, default 15000 ms) — every
 # inline KiCad(timeout_ms=_ipc_timeout_ms()) below is constructed with it instead of kipy's 2000 ms.
 from kicad_mcp.utils.ipc_session import timeout_ms as _ipc_timeout_ms
+# Optimistic-concurrency primitives shared with the live layer (live collab):
+# refuse to clobber a footprint the user moved since the agent planned the move.
+from kicad_mcp.tools.ipc_live_diff import cas_conflict, fp_signature
 
 
 # ---------------------------------------------------------------------------
@@ -1674,6 +1677,8 @@ def register_ipc_tools(mcp: FastMCP) -> None:
         dy_mm: float = 0.0,
         angle_deg: Optional[float] = None,
         delta_angle_deg: float = 0.0,
+        dry_run: bool = False,
+        expect_sig: Optional[list] = None,
     ) -> dict[str, Any]:
         """Live-translate / rotate a footprint in the running KiCad PCB
         editor — visible **immediately**, no F5, no dialog.
@@ -1698,8 +1703,24 @@ def register_ipc_tools(mcp: FastMCP) -> None:
         At least one of position or angle must be supplied (otherwise the
         call is a no-op and rejected).
 
+        Live-collaboration safety (compare-and-swap): KiCad has no item lock,
+        so pass ``dry_run=True`` first to read the footprint's current ``sig``
+        (its plan baseline), then confirm the move with ``expect_sig=sig``. If
+        the footprint changed since (the user moved it) and it is not the
+        agent's own write, the move is REFUSED
+        (``{success: False, conflict: True, who: "user", ...}``) rather than
+        clobbering the user. Without ``expect_sig`` the move applies as before.
+
+        Args:
+            dry_run: if True, report before/after pose + ``sig`` WITHOUT
+                writing (the plan half of a confirm gate).
+            expect_sig: the ``sig`` from a prior dry_run; the write is refused
+                if the live signature no longer matches it.
+
         Returns ``{success, ref, before:{x_mm,y_mm,angle_deg},
-        after:{x_mm,y_mm,angle_deg}}`` for trivial diff inspection.
+        after:{x_mm,y_mm,angle_deg}, sig}`` (``sig`` = the footprint signature
+        after the change, or current pose under ``dry_run``); on a user clash
+        ``{success: False, conflict: True, who, baseline_sig, current_sig}``.
         """
         if (
             x_mm is None
@@ -1734,6 +1755,18 @@ def register_ipc_tools(mcp: FastMCP) -> None:
             "angle_deg": fp.orientation.degrees,
         }
 
+        # Compare-and-swap: refuse to clobber a concurrent user move.
+        cur_sig = fp_signature(fp.position.x, fp.position.y,
+                               fp.orientation.degrees, fp.layer)
+        if expect_sig is not None and cas_conflict(cur_sig, expect_sig, None):
+            return {
+                "success": False, "conflict": True, "who": "user", "ref": ref,
+                "baseline_sig": list(expect_sig), "current_sig": list(cur_sig),
+                "error": (f"{ref} wurde seit deinem Plan im Editor geaendert "
+                          "(vermutlich vom User) — NICHT verschoben. Pose per "
+                          "dry_run neu lesen und neu planen."),
+            }
+
         # Compute new pose.
         new_x_mm = (
             float(x_mm) if x_mm is not None else before["x_mm"]
@@ -1747,6 +1780,14 @@ def register_ipc_tools(mcp: FastMCP) -> None:
             else before["angle_deg"]
         ) + float(delta_angle_deg)
         new_angle = ((new_angle % 360.0) + 360.0) % 360.0
+
+        if dry_run:
+            return {
+                "success": True, "dry_run": True, "ref": ref, "before": before,
+                "after": {"x_mm": new_x_mm, "y_mm": new_y_mm,
+                          "angle_deg": new_angle},
+                "sig": list(cur_sig),
+            }
 
         try:
             fp.position = Vector2.from_xy_mm(new_x_mm, new_y_mm)
@@ -1764,12 +1805,16 @@ def register_ipc_tools(mcp: FastMCP) -> None:
             "y_mm": fp2.position.y / 1_000_000.0 if fp2 else new_y_mm,
             "angle_deg": fp2.orientation.degrees if fp2 else new_angle,
         }
+        new_sig = (fp_signature(fp2.position.x, fp2.position.y,
+                                fp2.orientation.degrees, fp2.layer)
+                   if fp2 else cur_sig)
         return _attach_auto_open(
             {
                 "success": True,
                 "ref": ref,
                 "before": before,
                 "after": after,
+                "sig": list(new_sig),
             }
         )
 
