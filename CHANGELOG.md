@@ -8,6 +8,22 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added
+- **v0.2.33: Live-Kollaboration — Compare-and-Swap gegen Clobber von
+  User-Edits.** Bei offenem Board ist KiCads In-Memory-Modell die einzige
+  Wahrheit (Disk-Patches sind geblockt → nur KiCad schreibt die Datei, kein
+  Zwei-Prozess-Race). Offen blieb der Modell-Race: Agent-IPC-Move vs. paralleler
+  User-Drag am selben Footprint (per-Item last-write-wins). `live_move_footprint`
+  bekommt jetzt optimistic concurrency: `dry_run` liefert die `sig` des Ziels;
+  beim realen Write wird gegen diese Baseline (Param `expect_sig`, sonst der
+  letzte Live-Snapshot) re-geprüft — hat der User das Footprint seit dem Plan
+  bewegt (und ist es kein Agent-Self-Write), wird der Write VERWEIGERT
+  (`{success: False, conflict: True, who: "user", baseline_sig, current_sig}`)
+  statt zu überschreiben. Reine, getestete Entscheidungsfunktion
+  `ipc_live_diff.cas_conflict` (+ `_sig_eq`, JSON-int/float-tolerant);
+  `agent:`-Commits bleiben als Undo-Netz, der User besitzt Ctrl+S. Neuer Test
+  `TestCasConflict` (kein/unverändert/User-bewegt/Self-Write/JSON-Drift).
+
 ### Fixed
 - **Plugin v0.2.32: Chat-Links — die echte „kein Link"-Ursache ist eine
   KiCad-MEHRFACHINSTANZ, nicht board_links.** Gegen das laufende KiCad 10.0.1 +
