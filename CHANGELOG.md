@@ -8,6 +8,14 @@ the first tag ships.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-06-16 — Stabilitäts-Meilenstein
+
+Sammelt die v0.2.28–v0.2.37-Arbeit zu einem getaggten Release: umlaut-feste
+Installer, robuste Deps-Injektion unter KiCads gebündeltem Python, LF-sichere
+`.bat`-Skripte, Live-Kollaboration (CAS auf `ipc_set_footprint_pose` /
+`live_move_footprint`) und die Chat-Link-Diagnose. Alles unten Gelistete ist
+Teil dieses Releases.
+
 ### Fixed
 - **v0.2.37: `ModuleNotFoundError: No module named 'pywintypes'` beim
   Deps-Verify/Serverstart behoben.** `mcp` 1.27 importiert beim Laden hart
