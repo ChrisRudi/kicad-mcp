@@ -9,6 +9,17 @@ the first tag ships.
 ## [Unreleased]
 
 ### Fixed
+- **v0.2.36: `install_plugin.bat` / `start_mcp.bat` brachen mit `"." kann
+  syntaktisch … nicht verarbeitet werden` — Ursache waren LF-Zeilenenden, NICHT
+  der Umlaut.** GitHubs Source-ZIP wendet `.gitattributes eol=crlf` nicht an und
+  liefert die `.bat` mit dem Repo-Blob = **LF**; cmd.exe ver-parst LF-`.bat` bei
+  mehrzeiligen `(…)`-Blöcken und `for`-Schleifen (empirisch verifiziert:
+  Einzelzeilen-`if`/`goto`/`set` laufen unter LF, `for /d` und Block-`(…)`
+  brechen). Beide Skripte auf **reine Einzelzeilen-Konstrukte** umgeschrieben
+  (Flow über `goto`/Labels; ZIP-Ordner deterministisch `kicad-mcp-<branch>`
+  statt `for /d`; `kicad-cli`-Pfad via Substring-Ersetzung statt `for`). Unter
+  echtem cmd.exe mit LF + Umlaut-Pfad end-to-end getestet (Plugin-Copy läuft
+  durch, kein Syntaxfehler). Der umlaut-sichere `$env:WORK`-Download bleibt.
 - **v0.2.35: Standalone-Installer scheitern nicht mehr bei Umlaut-Usernamen
   (`C:\Users\Schüler\…`).** Dieselbe Wurzel wie die Plugin-Deps-Fixes v0.2.28–31:
   `install.ps1` nutzte `pip install --user -e <repo>` — `--user` ist unter
