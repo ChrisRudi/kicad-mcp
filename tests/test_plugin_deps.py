@@ -115,6 +115,39 @@ class TestPipInstallEnv:
         assert deps.pip_install_env()[deps.DEPS_ENV_VAR] == deps.default_target_dir()
 
 
+class TestArgvBuilders:
+    # The Umlaut fix: these run via subprocess DIRECTLY (argv list, no shell),
+    # so a non-ASCII --target (C:\Users\üser\…) reaches CreateProcessW as
+    # proper unicode instead of being code-page-mangled to "?" (WinError 123).
+    def test_pip_install_argv_is_a_list_no_shell_quoting(self):
+        umlaut = r"C:\Users\üser\plugins\x\_deps"
+        argv = deps.pip_install_argv(r"C:\KiCad\python.exe", target=umlaut)
+        assert isinstance(argv, list)
+        assert argv[0] == r"C:\KiCad\python.exe"
+        assert argv[1:5] == ["-m", "pip", "install", "--upgrade"]
+        # the target is its OWN element, raw (no quotes, no "?" replacement)
+        assert "--target" in argv
+        assert argv[argv.index("--target") + 1] == umlaut
+        assert "ü" in argv[argv.index("--target") + 1]
+        for spec in deps.PIP_SPECS:
+            assert spec in argv
+
+    def test_pip_install_argv_defaults_to_plugin_dir(self):
+        argv = deps.pip_install_argv("/k/py")
+        assert argv[argv.index("--target") + 1] == deps.default_target_dir()
+
+    def test_verify_import_argv_embeds_path_via_repr(self):
+        umlaut = r"C:\Users\üser\_deps"
+        argv = deps.verify_import_argv("/k/py", target=umlaut)
+        assert argv[0] == "/k/py" and argv[1] == "-c"
+        code = argv[2]
+        # repr produces a valid Python string literal -> unicode-safe, and the
+        # backslashes are escaped so the path can't break the literal.
+        assert repr(umlaut) in code
+        for name in deps.IMPORT_NAMES:
+            assert name in code
+
+
 class TestDepsDir:
     def test_default_target_is_inside_plugin(self):
         d = deps.default_target_dir()

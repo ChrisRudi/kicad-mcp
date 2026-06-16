@@ -9,6 +9,17 @@ the first tag ships.
 ## [Unreleased]
 
 ### Fixed
+- **Plugin v0.2.31: Deps-Installation läuft jetzt ganz ohne cmd/Batch (direkter
+  Subprozess) — der robusteste Umlaut-Fix.** Der Env-Variablen-Weg aus v0.2.29
+  funktioniert, hängt aber weiter an cmd.exe. Sauberer: `_install_deps` ruft pip nun
+  als argv-**Liste** direkt über `subprocess.Popen` (kein Shell-String, kein `.bat`)
+  — Windows reicht den Unicode-Pfad über `CreateProcessW` unverfälscht durch, sodass
+  ein `ü` strukturell nicht mehr gefaltet werden kann. Die Ausgabe streamt live in
+  einen Plugin-Dialog (`CREATE_NO_WINDOW`, kein blitzendes Konsolenfenster), inkl.
+  abschließender Import-Verifikation. Neue Helfer `deps.pip_install_argv` /
+  `deps.verify_import_argv` (headless getestet). Der terminal-basierte Pfad
+  (`pip_install_commands` + `pip_install_env`, `%KICAD_MCP_DEPS%`) bleibt als Legacy
+  bestehen.
 - **Plugin v0.2.30: Installierte MCP-Abhängigkeiten wurden nach erfolgreicher Installation
   als „fehlt" gemeldet (Endlos-Neuinstallation).** Symptom: `_deps` voll befüllt, Server-Probe
   `OK (167 Tools)`, aber die Checkliste blieb rot → der Nutzer installierte immer wieder neu.
@@ -35,11 +46,9 @@ the first tag ships.
 - **Plugin v0.2.28: Deps-Installation scheitert bei Umlaut im Windows-Benutzernamen.** Bei
   einem Benutzer wie „üser" wurde der `_deps`-Zielpfad `C:\Users\üser\…` zu
   `C:\Users\Sch?ler\…` verstümmelt (`?` = ungültiges Windows-Pfadzeichen) → pip-`makedirs`
-  bricht mit `WinError 123` ab. Ursache war **nicht** cmd.exe, sondern unser eigenes
-  Schreiben der Batch-Datei mit `encoding="ascii", errors="replace"` (`terminal.py`), das
-  jedes Nicht-ASCII-Zeichen durch `?` ersetzte — obwohl die Batch oben bereits `chcp 65001`
-  (UTF-8) deklariert. Fix: Batch wird jetzt **als UTF-8 (ohne BOM)** geschrieben, passend zu
-  `chcp 65001`. Headless getestet (Umlaut-Pfad überlebt).
+  bricht mit `WinError 123` ab. Erster Anlauf: Batch als **UTF-8 (ohne BOM)** schreiben statt
+  `ascii`/`errors="replace"` — verbesserte das Schreiben, der cmd-Round-Trip mangelte den
+  Pfad aber weiterhin (siehe v0.2.29 für die endgültige Lösung).
 
 ### Added
 - **KiCad-PCM-Paket: „Aus Datei installieren" möglich (`make_pcm_zip.py`).** GitHubs

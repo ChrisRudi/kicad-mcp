@@ -173,18 +173,87 @@ class SetupDialog(wx.Dialog):
             wx.MessageBox("KiCad-Python (mit kipy) nicht gefunden.",
                           "Abhängigkeiten", wx.OK | wx.ICON_WARNING)
             return
-        try:
-            terminal.open_terminal(deps.pip_install_commands(py),
-                                   "MCP-Abhaengigkeiten installieren",
-                                   env=deps.pip_install_env())
-            wx.MessageBox(
-                "Installation läuft im Terminal — in den Plugin-Ordner "
-                "(pip --target, kein Admin). Wenn 'Fertig' erscheint, hier "
-                "auf 'Erneut prüfen'.",
-                "MCP-Abhängigkeiten", wx.OK | wx.ICON_INFORMATION)
-        except Exception as exc:
-            wx.MessageBox(f"Konnte die Installation nicht starten:\n{exc}",
-                          "MCP-Abhängigkeiten", wx.OK | wx.ICON_ERROR)
+        target = deps.default_target_dir()
+        # Run pip DIRECTLY (argv list, no cmd/batch): a cmd.exe/batch round-trip
+        # mangles a non-ASCII --target path (e.g. C:\Users\üser) to "?" →
+        # WinError 123. CreateProcessW passes the unicode argv intact. Output
+        # streams live into a dialog so the long install stays visible.
+        steps = [("Installiere MCP-Abhängigkeiten …",
+                  deps.pip_install_argv(py, target)),
+                 ("Prüfe Importe …", deps.verify_import_argv(py, target))]
+        self._run_streamed_install(
+            "MCP-Abhängigkeiten installieren", target, steps)
+
+    def _run_streamed_install(self, title, target, steps) -> None:
+        """Run a sequence of (label, argv) steps via direct subprocess in a
+        worker thread, streaming combined stdout/stderr into a live dialog.
+        No shell — argv goes straight to CreateProcessW so Umlaut paths survive.
+        """
+        import subprocess
+        import threading
+
+        from .claude_bridge import hidden_console_kwargs
+
+        dlg = wx.Dialog(self, title=title, size=(760, 480),
+                        style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        panel = wx.Panel(dlg)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        out = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY
+                          | wx.TE_DONTWRAP)
+        out.SetFont(wx.Font(9, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL,
+                            wx.FONTWEIGHT_NORMAL))
+        sizer.Add(out, 1, wx.EXPAND | wx.ALL, 8)
+        foot = wx.BoxSizer(wx.HORIZONTAL)
+        close_btn = wx.Button(panel, wx.ID_CLOSE, label="Schließen")
+        close_btn.Enable(False)
+        close_btn.Bind(wx.EVT_BUTTON, lambda e: dlg.EndModal(wx.ID_CLOSE))
+        foot.AddStretchSpacer()
+        foot.Add(close_btn, 0)
+        sizer.Add(foot, 0, wx.EXPAND | wx.ALL, 8)
+        panel.SetSizer(sizer)
+
+        def emit(line: str) -> None:
+            wx.CallAfter(out.AppendText, line)
+
+        def worker():
+            emit(f"Ziel-Ordner (_deps): {target}\n\n")
+            ok = True
+            for label, argv in steps:
+                emit(f"$ {label}\n")
+                try:
+                    os.makedirs(target, exist_ok=True)
+                    proc = subprocess.Popen(  # noqa: S603
+                        argv, stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT, text=True,
+                        encoding="utf-8", errors="replace",
+                        **hidden_console_kwargs())
+                    for line in proc.stdout:
+                        emit(line)
+                    rc = proc.wait()
+                except Exception as exc:
+                    emit(f"\n[Fehler] {exc}\n")
+                    ok = False
+                    break
+                if rc != 0:
+                    emit(f"\n[Abbruch] Schritt endete mit Code {rc}.\n")
+                    ok = False
+                    break
+                emit("\n")
+            if ok:
+                emit("\n============================================\n"
+                     "Fertig. Dieses Fenster schließen und im Plugin auf "
+                     "'Erneut prüfen'.\n"
+                     "============================================\n")
+            else:
+                emit("\n============================================\n"
+                     "Installation NICHT abgeschlossen — Meldung oben prüfen.\n"
+                     "============================================\n")
+            wx.CallAfter(close_btn.Enable, True)
+
+        threading.Thread(target=worker, daemon=True).start()
+        dlg.ShowModal()
+        dlg.Destroy()
+        self._render()
 
     def _enable_ipc(self) -> None:
         res = ipc_setup.ensure_ipc_enabled(self._common_path)
