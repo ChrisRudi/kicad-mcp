@@ -379,3 +379,52 @@ class TestSelectCoord:
                                         radius_mm=5.0) is not None
         assert board_links.select_coord(client, board, 0.0, 0.0,
                                         radius_mm=4.9) is None
+
+
+class TestConnectDiagnostics:
+    """connect() must turn the multi-instance API state (KiCad reachable but
+    GetOpenDocuments unhandled because two instances share the socket) into an
+    actionable BoardUnavailable — that is what makes the chat's 'ⓘ Links aus: …'
+    line tell the user to close the extra KiCad instead of showing a raw
+    ApiError. Reproduced live against KiCad 10.0.1; here driven with a fake
+    kipy so it stays headless."""
+
+    @staticmethod
+    def _fake_kipy(get_board):
+        import types
+        mod = types.ModuleType("kipy")
+        mod.KiCad = lambda timeout_ms=0: SimpleNamespace(get_board=get_board)
+        return mod
+
+    def test_multi_instance_raises_actionable(self, monkeypatch):
+        import sys
+
+        def _no_handler():
+            raise RuntimeError(
+                "KiCad returned error: no handler available for request of "
+                "type kiapi.common.commands.GetOpenDocuments")
+
+        monkeypatch.setitem(sys.modules, "kipy", self._fake_kipy(_no_handler))
+        monkeypatch.setattr(board_links.time, "sleep", lambda *_a: None)
+        with pytest.raises(board_links.BoardUnavailable) as ei:
+            board_links.connect()
+        assert "Instanz" in str(ei.value)  # actionable, user-facing text
+
+    def test_unexpected_error_is_not_wrapped(self, monkeypatch):
+        import sys
+
+        def _other():
+            raise ValueError("etwas ganz anderes")  # no board marker
+
+        monkeypatch.setitem(sys.modules, "kipy", self._fake_kipy(_other))
+        monkeypatch.setattr(board_links.time, "sleep", lambda *_a: None)
+        with pytest.raises(ValueError):
+            board_links.connect()
+
+    def test_success_returns_client_and_board(self, monkeypatch):
+        import sys
+        sentinel = object()
+        monkeypatch.setitem(sys.modules, "kipy",
+                            self._fake_kipy(lambda: sentinel))
+        client, board = board_links.connect()
+        assert board is sentinel and client is not None
