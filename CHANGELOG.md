@@ -8,6 +8,18 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed
+- **v0.2.35: Standalone-Installer scheitern nicht mehr bei Umlaut-Usernamen
+  (`C:\Users\Schüler\…`).** Dieselbe Wurzel wie die Plugin-Deps-Fixes v0.2.28–31:
+  `install.ps1` nutzte `pip install --user -e <repo>` — `--user` ist unter
+  KiCads gebündeltem Python fragil, und der Pfad kippt. Fix: Installation in ein
+  lokales `<repo>\_deps` via `pip install --upgrade --target` als **argv** (PS
+  `&` → CreateProcessW, Unicode-sicher) mit `-X utf8`; `main.py` injiziert dieses
+  `_deps` in `sys.path` (KiCad-Python ignoriert `PYTHONPATH`), additiv/no-op wenn
+  abwesend. `install.ps1` setzt zudem die Konsole auf UTF-8. `install_plugin.bat`:
+  der ü-behaftete Temp-Pfad wird im PowerShell-Download nicht mehr inline
+  (`%WORK%`) sondern über `$env:WORK` gelesen (UTF-16 statt cmd-OEM-Codepage).
+
 ### Added
 - **v0.2.34: CAS-Rollout auf `ipc_set_footprint_pose` (ipc-Layer).** Derselbe
   optimistic-concurrency-Schutz wie bei `live_move_footprint`, jetzt auch im

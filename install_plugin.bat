@@ -41,8 +41,12 @@ if %ERRORLEVEL%==0 (
     echo git-Clone nicht moeglich - versuche ZIP-Download ...
 )
 
+REM %WORK% holds the user-temp path (C:\Users\Schueler\... with an umlaut).
+REM Inlining it into the -Command string would route it through cmd's OEM
+REM codepage and fold the umlaut to "?"; instead PowerShell reads it from the
+REM inherited environment ($env:WORK), which Windows passes as UTF-16.
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "try { Invoke-WebRequest -Uri '%REPO%/archive/refs/heads/%BRANCH%.zip' -OutFile '%WORK%\repo.zip' -UseBasicParsing; Expand-Archive -Path '%WORK%\repo.zip' -DestinationPath '%WORK%\unz' -Force; exit 0 } catch { exit 1 }"
+  "try { $w=$env:WORK; Invoke-WebRequest -Uri '%REPO%/archive/refs/heads/%BRANCH%.zip' -OutFile (Join-Path $w 'repo.zip') -UseBasicParsing; Expand-Archive -Path (Join-Path $w 'repo.zip') -DestinationPath (Join-Path $w 'unz') -Force; exit 0 } catch { exit 1 }"
 if not exist "%WORK%\unz" (
     echo.
     echo FEHLER: Download fehlgeschlagen. Internet/Proxy pruefen oder Repo als

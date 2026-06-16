@@ -5,6 +5,13 @@
 
 $ErrorActionPreference = "Stop"
 
+# UTF-8 console so a non-ASCII install path (C:\Users\Schüler\…) prints and
+# round-trips cleanly through the pip log instead of becoming "Sch?ler".
+try {
+    [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+    $OutputEncoding = [System.Text.UTF8Encoding]::new()
+} catch {}
+
 $ScriptDir = Split-Path -Parent $PSCommandPath
 $Launcher  = Join-Path $ScriptDir "start_mcp.bat"
 
@@ -27,16 +34,22 @@ if (-not $KicadPy) {
 }
 Write-Host "   OK: $KicadPy"
 
-# --- 2. Install Python deps into KiCad's Python (editable, --user) ---
-Write-Host ">> Installing Python dependencies into KiCad's Python (--user)..."
-$pipLog = Join-Path $env:TEMP "kicad-mcp-pip.log"
-& $KicadPy -m pip install --user --upgrade -e $ScriptDir *> $pipLog
+# --- 2. Install server + deps into a local _deps dir (umlaut-safe) ---
+# NOT `pip --user` (fragile under KiCad's bundled Python) and NOT a cmd/batch
+# round-trip (folds a non-ASCII path to "Sch?ler"). PowerShell's & passes the
+# args to python via CreateProcessW (Unicode-safe); `-X utf8` forces UTF-8
+# mode. Deps land in <repo>\_deps, which main.py injects into sys.path (KiCad's
+# Python ignores PYTHONPATH), so no env-var dance and no user-site .pth.
+Write-Host ">> Installing server + dependencies into _deps (UTF-8, no --user)..."
+$DepsDir = Join-Path $ScriptDir "_deps"
+$pipLog  = Join-Path $env:TEMP "kicad-mcp-pip.log"
+& $KicadPy -X utf8 -m pip install --upgrade --target $DepsDir $ScriptDir *> $pipLog
 if ($LASTEXITCODE -ne 0) {
     Write-Host "   FEHLER beim pip-install. Siehe $pipLog" -ForegroundColor Red
     Get-Content $pipLog -Tail 20
     exit 1
 }
-Write-Host "   OK"
+Write-Host "   OK ($DepsDir)"
 
 # --- 3. Register with Claude Code ---
 $claudeCmd = Get-Command claude -ErrorAction SilentlyContinue
