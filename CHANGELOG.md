@@ -9,6 +9,18 @@ the first tag ships.
 ## [Unreleased]
 
 ### Added
+- **v0.2.34: CAS-Rollout auf `ipc_set_footprint_pose` (ipc-Layer).** Derselbe
+  optimistic-concurrency-Schutz wie bei `live_move_footprint`, jetzt auch im
+  `ipc_*`-Layer für den Footprint-Pose-Mutator: `dry_run=True` liefert die
+  aktuelle `sig`, der reale Write wird mit `expect_sig` gegen diese Baseline
+  geprüft und bei einer zwischenzeitlichen User-Bewegung verweigert
+  (`{success: False, conflict: True, who: "user", baseline_sig, current_sig}`)
+  statt zu überschreiben; jeder Erfolg gibt die neue `sig` zurück. Nutzt die
+  geteilte reine Engine `cas_conflict`/`fp_signature`. **Noch offen (bewusst
+  nicht überhastet):** die Multi-Item-UUID-Mutatoren `ipc_move_items` /
+  `ipc_set_track_width` / `ipc_remove_items` brauchen eine `expect_sigs`-Map
+  (uuid→sig) + generische Per-Typ-Signatur (fp/track/via/shape/text) — nächster
+  Schritt, da gemischt-typig und nicht rein unit-testbar.
 - **v0.2.33: Live-Kollaboration — Compare-and-Swap gegen Clobber von
   User-Edits.** Bei offenem Board ist KiCads In-Memory-Modell die einzige
   Wahrheit (Disk-Patches sind geblockt → nur KiCad schreibt die Datei, kein
