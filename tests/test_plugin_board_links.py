@@ -61,6 +61,57 @@ class TestBusyRetry:
         assert refs == {"R1"}  # retried, link survived
 
 
+# -- disk fallback (no kipy) --------------------------------------------------
+
+class TestBoardTargetsFromFile:
+    """When live IPC can't resolve the board (multi-instance), the panel parses
+    refs/nets/layers straight from the .kicad_pcb so links still render."""
+
+    _PCB = (
+        '(kicad_pcb (version 20240108)\n'
+        '  (layers\n'
+        '    (0 "F.Cu" signal)\n'
+        '    (31 "B.Cu" signal)\n'
+        '    (37 "F.SilkS" user)\n'
+        '  )\n'
+        '  (net 0 "")\n'
+        '  (net 1 "GND")\n'
+        '  (net 2 "+3V3")\n'
+        '  (net 3 VCC)\n'
+        '  (footprint "R_0402"\n'
+        '    (property "Reference" "R_GATE_PD1" (at 0 0))\n'
+        '    (pad "1" smd (net 1 "GND"))\n'
+        '  )\n'
+        '  (footprint "R_0402"\n'
+        '    (property "Reference" "R_FAULT1" (at 1 1))\n'
+        '  )\n'
+        ')\n'
+    )
+
+    def test_parses_refs_nets_layers(self, tmp_path):
+        p = tmp_path / "board.kicad_pcb"
+        p.write_text(self._PCB, encoding="utf-8")
+        refs, nets, layers = board_links.board_targets_from_file(str(p))
+        assert refs == {"R_GATE_PD1", "R_FAULT1"}
+        assert {"GND", "+3V3", "VCC"} <= nets and "" not in nets
+        assert {"F.Cu", "B.Cu", "F.SilkS"} <= layers
+
+    def test_missing_file_yields_empty(self):
+        assert board_links.board_targets_from_file("/nope/x.kicad_pcb") == (
+            set(), set(), set())
+
+    def test_fallback_output_linkifies(self, tmp_path):
+        p = tmp_path / "b.kicad_pcb"
+        p.write_text(self._PCB, encoding="utf-8")
+        refs, nets, layers = board_links.board_targets_from_file(str(p))
+        segs = board_links.tokenize("| R_GATE_PD1 | 100k | auf F.Cu, Netz GND |",
+                                    refs, nets, layers)
+        links = {t for _c, t in segs if t}
+        assert ("ref", "R_GATE_PD1") in links
+        assert ("net", "GND") in links
+        assert ("layer", "F.Cu") in links
+
+
 # -- pure: tokenize -----------------------------------------------------------
 
 class TestTokenize:
