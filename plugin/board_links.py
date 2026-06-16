@@ -167,15 +167,52 @@ def call(fn, retries: int = _BUSY_RETRIES):
     raise last
 
 
+class BoardUnavailable(RuntimeError):
+    """connect() failed in a way the USER can fix — almost always several KiCad
+    instances sharing one IPC socket (project manager + a standalone editor, or
+    a leftover process), which makes ``GetOpenDocuments`` unhandled so no board
+    resolves. Carries an actionable, already-user-facing message so the chat
+    panel's "ⓘ Links aus: …" line says what to do instead of a raw ApiError.
+
+    Verified live against KiCad 10.0.1: with two ``kicad.exe`` on the bus,
+    ``get_board()`` raises ``ApiError(... no handler available for ...
+    GetOpenDocuments)`` and every cross-probe link silently vanishes; with a
+    single instance the exact same code returns refs/nets/layers/pins fine."""
+
+
+# Substrings (lowercased) in the kipy/KiCad error that mean "the API is
+# reachable but no single board resolves" — the multi-instance signature. NOT
+# "busy"/"not ready" (those are transient and handled by call()'s retry).
+_NO_BOARD_MARKERS = ("getopendocuments", "no handler", "no open document",
+                     "not a board")
+
+
 def connect():
     """Open an IPC client (generous timeout); returns ``(client, board)``.
 
     The 15 s timeout + busy-retry survive contention with the now-connected
     MCP server — the 2 s default silently failed every cross-probe link.
+
+    Raises :class:`BoardUnavailable` (actionable message) when the API is
+    reachable but no board resolves — the hallmark of multiple KiCad instances
+    on one socket. That breaks every link and the only fix is the user closing
+    the extra instance, so we surface it clearly instead of leaking a cryptic
+    ApiError into the diagnostic line.
     """
     from kipy import KiCad  # lazy: only inside KiCad
     client = KiCad(timeout_ms=_CONNECT_TIMEOUT_MS)
-    return client, call(client.get_board)
+    try:
+        return client, call(client.get_board)
+    except Exception as exc:
+        if any(m in str(exc).lower() for m in _NO_BOARD_MARKERS):
+            raise BoardUnavailable(
+                "Kein eindeutiges Board über die KiCad-API erreichbar — meist "
+                "laufen MEHRERE KiCad-Instanzen (Projektmanager + zweiter "
+                "Editor, oder ein Rest-Prozess) auf einem Socket. Schließe "
+                "zusätzliche KiCad-Fenster, sodass genau EIN Board im "
+                "PCB-Editor offen ist."
+            ) from exc
+        raise
 
 
 def _enum_to_canonical(enum_int: int) -> Optional[str]:

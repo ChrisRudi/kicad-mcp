@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from kicad_mcp.tools.ipc_live_diff import (  # noqa: E402
     attribute,
+    cas_conflict,
     diff_snapshots,
     fp_signature,
     make_record,
@@ -145,6 +146,36 @@ def test_summary_pluralization_and_verbs():
     d = diff_snapshots(old, new)
     s = summarize_user(d, old, new, 0, 0)
     assert "re-routed 2 tracks" in s
+
+
+class TestCasConflict:
+    """Optimistic-concurrency gate for live collaboration: a write is refused
+    ONLY when the user moved the item since the agent planned the move."""
+
+    def test_no_baseline_never_conflicts(self):
+        sig = fp_signature(1 * _MM, 2 * _MM, 0.0, 4)
+        assert cas_conflict(sig, None) is False
+
+    def test_unchanged_since_plan_is_safe(self):
+        sig = fp_signature(1 * _MM, 2 * _MM, 90.0, 4)
+        assert cas_conflict(sig, list(sig)) is False
+
+    def test_user_moved_it_conflicts(self):
+        baseline = fp_signature(1 * _MM, 2 * _MM, 0.0, 4)
+        live = fp_signature(5 * _MM, 2 * _MM, 0.0, 4)  # user dragged it away
+        assert cas_conflict(live, list(baseline)) is True
+
+    def test_agent_self_write_is_not_a_conflict(self):
+        baseline = fp_signature(1 * _MM, 2 * _MM, 0.0, 4)
+        live = fp_signature(5 * _MM, 2 * _MM, 0.0, 4)
+        pending = make_record("footprint", live)  # the agent's own last write
+        assert cas_conflict(live, list(baseline), pending) is False
+
+    def test_json_int_float_drift_is_tolerated(self):
+        # baseline orientation left as 90.0, comes back over MCP as int 90
+        live = fp_signature(1 * _MM, 2 * _MM, 90.0, 4)
+        baseline = [1 * _MM, 2 * _MM, 90, 4]
+        assert cas_conflict(live, baseline) is False
 
 
 if __name__ == "__main__":

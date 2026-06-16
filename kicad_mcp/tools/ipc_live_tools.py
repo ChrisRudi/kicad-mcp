@@ -23,6 +23,7 @@ from mcp.server.fastmcp import FastMCP
 
 from kicad_mcp.tools.ipc_live_diff import (
     attribute,
+    cas_conflict,
     diff_snapshots,
     fp_signature,
     make_record,
@@ -379,7 +380,8 @@ def register_ipc_live_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def live_move_footprint(reference: str, x_mm: float, y_mm: float,
-                            dry_run: bool = True) -> dict[str, Any]:
+                            dry_run: bool = True,
+                            expect_sig: list | None = None) -> dict[str, Any]:
         """Move a footprint in the LIVE editor (visible immediately).
 
         Use this when KiCad is open and the move should appear at once in
@@ -391,16 +393,32 @@ def register_ipc_live_tools(mcp: FastMCP) -> None:
         History entry, and self-write-masked (the new position is recorded in
         the pending set so the next diff does NOT report it as a user edit).
 
+        Live-collaboration safety (compare-and-swap): a real write is REFUSED
+        when the footprint changed since the agent planned the move — i.e. the
+        user moved it concurrently — so the agent never silently clobbers a
+        user edit (KiCad has no item lock). The plan baseline comes from
+        ``expect_sig`` if given, else from the last live snapshot
+        (``live_get_state`` / ``live_diff_since_last``). Every result carries
+        the current ``sig``; the intended flow is dry_run -> read ``sig`` ->
+        confirm with ``expect_sig=sig``. On a clash the tool returns
+        ``{success: False, conflict: True, who: "user", ...}`` instead of
+        writing — re-read with ``live_get_state`` and re-plan.
+
         Args:
             reference: footprint reference designator (e.g. "U3").
             x_mm, y_mm: target position in millimetres (board coordinates).
             dry_run: if True (default), report old->new position + affected
                 nets WITHOUT writing. This is also the mechanical half of a
-                later human-in-the-loop confirm gate.
+                human-in-the-loop confirm gate.
+            expect_sig: the footprint signature the move was planned against
+                (the ``sig`` from a prior dry_run). When set, the write is
+                refused if the live signature no longer matches it and the
+                change is not the agent's own.
 
         Returns:
-            ``{success, dry_run, reference, old_mm, new_mm, nets, wrote,
-            committed}`` or ``{success: False, error}``.
+            ``{success, dry_run, reference, old_mm, new_mm, nets, sig, wrote,
+            committed}``, ``{success: False, conflict: True, who, baseline_sig,
+            current_sig, ...}`` on a user clash, or ``{success: False, error}``.
         """
         if not dry_run and _read_only():
             return {"success": False, "read_only": True,
@@ -411,7 +429,7 @@ def register_ipc_live_tools(mcp: FastMCP) -> None:
             k = _kicad()
             board = _retry(lambda: _board(k), "get_board")
             target = None
-            for fp in _retry(lambda: board.get_footprints(), "read footprints"):
+            for fp in _retry(board.get_footprints, "read footprints"):
                 ref = getattr(getattr(fp, "reference_field", None), "text", None)
                 if ref is not None and getattr(ref, "value", None) == reference:
                     target = fp
@@ -424,10 +442,27 @@ def register_ipc_live_tools(mcp: FastMCP) -> None:
             new_y = int(round(y_mm * 1_000_000))
             pads = getattr(getattr(target, "definition", None), "pads", None) or []
             nets = sorted({_net_name(p.net) for p in pads if _net_name(p.net)})
+            cur_sig = fp_signature(old.x, old.y, _angle_deg(target.orientation),
+                                   target.layer)
             if dry_run:
                 return {"success": True, "dry_run": True, "reference": reference,
                         "old_mm": old_mm, "new_mm": [x_mm, y_mm], "nets": nets,
-                        "wrote": False, "committed": False}
+                        "sig": list(cur_sig), "wrote": False, "committed": False}
+
+            # Compare-and-swap: never clobber a concurrent user edit. Baseline
+            # is the agent's plan signature (expect_sig) or the last snapshot.
+            kiid = _kiid(target)
+            baseline = (tuple(expect_sig) if expect_sig is not None
+                        else (_STATE["snapshot"].get(kiid) or {}).get("sig"))
+            if cas_conflict(cur_sig, baseline, _STATE["pending"].get(kiid)):
+                return {"success": False, "conflict": True, "who": "user",
+                        "reference": reference, "wrote": False,
+                        "baseline_sig": list(baseline),
+                        "current_sig": list(cur_sig),
+                        "error": (f"{reference} wurde seit deinem Plan im Editor "
+                                  "geaendert (vermutlich vom User) — NICHT "
+                                  "ueberschrieben. Mit live_get_state neu lesen "
+                                  "und neu planen.")}
 
             def _write():
                 target.position = Vector2.from_xy(new_x, new_y)
@@ -454,7 +489,8 @@ def register_ipc_live_tools(mcp: FastMCP) -> None:
                 _STATE["snapshot"][_kiid(target)] = new_rec
             return {"success": True, "dry_run": False, "reference": reference,
                     "old_mm": old_mm, "new_mm": [x_mm, y_mm], "nets": nets,
-                    "wrote": True, "committed": committed}
+                    "sig": list(new_rec["sig"]), "wrote": True,
+                    "committed": committed}
         except Exception as exc:  # noqa: BLE001
             return {"success": False, "error": f"live_move_footprint: {exc}"}
 

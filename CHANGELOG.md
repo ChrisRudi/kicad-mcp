@@ -8,7 +8,49 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added
+- **v0.2.34: CAS-Rollout auf `ipc_set_footprint_pose` (ipc-Layer).** Derselbe
+  optimistic-concurrency-Schutz wie bei `live_move_footprint`, jetzt auch im
+  `ipc_*`-Layer für den Footprint-Pose-Mutator: `dry_run=True` liefert die
+  aktuelle `sig`, der reale Write wird mit `expect_sig` gegen diese Baseline
+  geprüft und bei einer zwischenzeitlichen User-Bewegung verweigert
+  (`{success: False, conflict: True, who: "user", baseline_sig, current_sig}`)
+  statt zu überschreiben; jeder Erfolg gibt die neue `sig` zurück. Nutzt die
+  geteilte reine Engine `cas_conflict`/`fp_signature`. **Noch offen (bewusst
+  nicht überhastet):** die Multi-Item-UUID-Mutatoren `ipc_move_items` /
+  `ipc_set_track_width` / `ipc_remove_items` brauchen eine `expect_sigs`-Map
+  (uuid→sig) + generische Per-Typ-Signatur (fp/track/via/shape/text) — nächster
+  Schritt, da gemischt-typig und nicht rein unit-testbar.
+- **v0.2.33: Live-Kollaboration — Compare-and-Swap gegen Clobber von
+  User-Edits.** Bei offenem Board ist KiCads In-Memory-Modell die einzige
+  Wahrheit (Disk-Patches sind geblockt → nur KiCad schreibt die Datei, kein
+  Zwei-Prozess-Race). Offen blieb der Modell-Race: Agent-IPC-Move vs. paralleler
+  User-Drag am selben Footprint (per-Item last-write-wins). `live_move_footprint`
+  bekommt jetzt optimistic concurrency: `dry_run` liefert die `sig` des Ziels;
+  beim realen Write wird gegen diese Baseline (Param `expect_sig`, sonst der
+  letzte Live-Snapshot) re-geprüft — hat der User das Footprint seit dem Plan
+  bewegt (und ist es kein Agent-Self-Write), wird der Write VERWEIGERT
+  (`{success: False, conflict: True, who: "user", baseline_sig, current_sig}`)
+  statt zu überschreiben. Reine, getestete Entscheidungsfunktion
+  `ipc_live_diff.cas_conflict` (+ `_sig_eq`, JSON-int/float-tolerant);
+  `agent:`-Commits bleiben als Undo-Netz, der User besitzt Ctrl+S. Neuer Test
+  `TestCasConflict` (kein/unverändert/User-bewegt/Self-Write/JSON-Drift).
+
 ### Fixed
+- **Plugin v0.2.32: Chat-Links — die echte „kein Link"-Ursache ist eine
+  KiCad-MEHRFACHINSTANZ, nicht board_links.** Gegen das laufende KiCad 10.0.1 +
+  kipy 0.7.1 verifiziert: `board_links.py` ist korrekt — `board_targets`
+  liefert refs/nets/layers voll, `select_pin U1B.33` selektiert (definition-pads
+  tragen echte Board-KIIDs), `tokenize` linkt alle Typen, und parallele
+  kipy-Clients (MCP + Panel) stören sich nicht. Der reproduzierte Ausfall:
+  laufen ZWEI KiCad-Instanzen auf einem IPC-Socket, ist `GetOpenDocuments`
+  ohne Handler → `connect()` warf einen kryptischen `ApiError` → „ⓘ Links aus:
+  …" ohne Handlungsanweisung → gar kein Link. Fix: `connect()` erkennt diesen
+  Zustand und wirft `BoardUnavailable` mit klarer Anweisung („zusätzliche
+  KiCad-Fenster schließen, genau EIN Board offen"), die der Chat verbatim
+  anzeigt. Die Unit-Mocks decken sich nachweislich mit der realen kipy-API
+  (deshalb waren sie „grün"); neuer Test `TestConnectDiagnostics` sichert die
+  Diagnose ab.
 - **Plugin v0.2.31: Deps-Installation läuft jetzt ganz ohne cmd/Batch (direkter
   Subprozess) — der robusteste Umlaut-Fix.** Der Env-Variablen-Weg aus v0.2.29
   funktioniert, hängt aber weiter an cmd.exe. Sauberer: `_install_deps` ruft pip nun
