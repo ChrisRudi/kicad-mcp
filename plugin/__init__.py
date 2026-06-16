@@ -10,6 +10,32 @@ importable OUTSIDE KiCad (no ``pcbnew``) so the pure-logic modules
 from .version import __version__  # noqa: F401  (package version, used by GUI)
 
 
+def _inject_local_deps() -> None:
+    """Put the plugin-local ``_deps`` dir on ``sys.path`` so the GUI plugin
+    (chat panel, ``board_links`` → ``kipy``) imports the SAME bundled deps the
+    MCP server uses. KiCad's bundled Python lacks ``kipy`` (it's the separate
+    ``kicad-python`` PyPI package) and ignores ``PYTHONPATH`` (isolated build),
+    so without this in-process insertion the live IPC cross-probe/selection and
+    the chat-link board refresh fail with ``ModuleNotFoundError: kipy`` even
+    after the deps were installed into ``_deps``. Idempotent + dir-guarded → a
+    no-op when ``_deps`` is absent (rely on site dirs / a KiCad that ships kipy).
+    """
+    import os
+    import sys
+    base = os.path.dirname(os.path.abspath(__file__))
+    deps = os.path.join(base, "_deps")
+    if not os.path.isdir(deps):
+        return
+    # _deps first, then pywin32's .pth dirs (no-op off Windows / without pywin32).
+    for entry in (os.path.join(deps, "win32", "lib"),
+                  os.path.join(deps, "win32"), deps):
+        if os.path.isdir(entry) and entry not in sys.path:
+            sys.path.insert(0, entry)
+
+
+_inject_local_deps()
+
+
 def _register_if_in_kicad_gui() -> bool:
     """Register the toolbar button — but ONLY inside the running pcbnew GUI.
 

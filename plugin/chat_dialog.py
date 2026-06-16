@@ -13,6 +13,7 @@ monospace, Claude-orange bullets, pulsing spinner) comes from
 
 from __future__ import annotations
 
+import os
 import shlex
 import threading
 
@@ -312,15 +313,25 @@ class ClaudeChatPanel(wx.Panel):
                 result.pop("_link_error", None)  # recovered — not a fatal error
         wx.CallAfter(self._on_reply, result)
 
-    @staticmethod
-    def _discover_board_path() -> str:
+    def _discover_board_path(self) -> str:
         """Path of the .kicad_pcb open in this pcbnew instance, for the disk
         fallback. Lazy + guarded so this module stays importable headless (the
-        pure-logic tests import it without pcbnew/wx)."""
+        pure-logic tests import it without pcbnew/wx). Falls back to the first
+        ``.kicad_pcb`` in the run cwd when ``GetFileName()`` is empty (e.g. a
+        never-saved board), so the link fallback still has a file to parse."""
         try:
             import pcbnew  # only importable inside KiCad
             board = pcbnew.GetBoard()
-            return board.GetFileName() if board else ""
+            path = board.GetFileName() if board else ""
+            if path and os.path.isfile(path):
+                return path
+        except Exception:
+            pass
+        try:
+            import glob
+            cwd = getattr(self._plan, "run_cwd", "") or ""
+            hits = sorted(glob.glob(os.path.join(cwd, "*.kicad_pcb")))
+            return hits[0] if hits else ""
         except Exception:
             return ""
 
