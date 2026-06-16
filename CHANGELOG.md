@@ -9,6 +9,18 @@ the first tag ships.
 ## [Unreleased]
 
 ### Fixed
+- **v0.2.37: `ModuleNotFoundError: No module named 'pywintypes'` beim
+  Deps-Verify/Serverstart behoben.** `mcp` 1.27 importiert beim Laden hart
+  `pywintypes` (aus pywin32). `pip install --target _deps mcp` zieht pywin32
+  zwar mit, aber dessen `.pth` (das `win32`/`win32\lib` auf den Pfad legt und
+  die `pywin32_system32`-DLL-Dir via `os.add_dll_directory` registriert) wird
+  unter `--target` **nie ausgeführt** → `import pywintypes` scheitert, obwohl
+  pywin32 da ist. Fix: an JEDER Deps-Injektion (`deps.verify_import_argv`,
+  `_check_code`, `pip_install_commands`, `mcp_config.server_bootstrap_code`,
+  Standalone-`main.py`) den `.pth` nachbilden — neue Helfer
+  `deps.pywin32_path_entries` + `deps.pywin32_dll_setup_code` (alles
+  isdir/hasattr-guarded → no-op auf Nicht-Windows). End-to-end gegen ein
+  isoliertes `--target`-Dir verifiziert (`import mcp` inkl. pywintypes → OK).
 - **v0.2.36: `install_plugin.bat` / `start_mcp.bat` brachen mit `"." kann
   syntaktisch … nicht verarbeitet werden` — Ursache waren LF-Zeilenenden, NICHT
   der Umlaut.** GitHubs Source-ZIP wendet `.gitattributes eol=crlf` nicht an und

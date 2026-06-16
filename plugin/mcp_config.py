@@ -99,10 +99,12 @@ def server_bootstrap_code(mcp_root: str, deps_dir: Optional[str] = None) -> str:
     verification and ``start_mcp.bat``'s script launch, both proven working
     on the affected machine.
     """
-    paths = [mcp_root] + ([deps_dir] if deps_dir else [])
+    paths = ([mcp_root] + ([deps_dir] if deps_dir else [])
+             + deps.pywin32_path_entries(deps_dir))
     entries = ", ".join(repr(p) for p in paths)
     return (f"import sys; sys.path[:0] = [{entries}]; "
-            "from kicad_mcp.server import main; main()")
+            + deps.pywin32_dll_setup_code(deps_dir)
+            + "from kicad_mcp.server import main; main()")
 
 
 # Generous startup timeout for the stdio MCP server. Claude Code's default is

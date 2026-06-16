@@ -42,7 +42,8 @@ def _check_code(deps_dir: Optional[str] = None) -> str:
     starts with (``mcp_config.server_bootstrap_code``), so the check now agrees
     with reality.
     """
-    inject = f"sys.path[:0]=[{deps_dir!r}];" if deps_dir else ""
+    inject = (f"sys.path[:0]={[deps_dir] + pywin32_path_entries(deps_dir)!r};"
+              if deps_dir else "")
     return (
         "import importlib.util,sys;"
         f"{inject}"
@@ -70,6 +71,33 @@ def active_deps_dir() -> Optional[str]:
     keeps earlier ``pip --user`` installs working)."""
     d = default_target_dir()
     return d if os.path.isdir(d) else None
+
+
+def pywin32_path_entries(deps_dir: Optional[str]) -> list:
+    """sys.path dirs that pywin32's ``.pth`` would add (``win32``,
+    ``win32/lib``). A ``pip install --target`` never executes that ``.pth``, so
+    without these dirs (and the DLL dir from ``pywin32_dll_setup_code``) mcp's
+    eager ``import pywintypes`` fails with ``ModuleNotFoundError`` even though
+    pywin32 IS installed in ``_deps``. No-op for a falsy dir."""
+    if not deps_dir:
+        return []
+    return [os.path.join(deps_dir, "win32"),
+            os.path.join(deps_dir, "win32", "lib")]
+
+
+def pywin32_dll_setup_code(deps_dir: Optional[str]) -> str:
+    """A Python statement (for the ``-c`` bootstraps) registering pywin32's
+    ``pywin32_system32`` DLL dir via ``os.add_dll_directory`` — what
+    ``pywin32_bootstrap`` (invoked from the ``.pth``) normally does so
+    ``pywintypes311.dll`` loads. No-op when the dir/API is absent (non-Windows,
+    or a deps dir without pywin32). The path is embedded via ``repr`` so a
+    non-ASCII ``_deps`` (``C:\\Users\\üser\\…``) stays a valid literal."""
+    if not deps_dir:
+        return ""
+    w = os.path.join(deps_dir, "pywin32_system32")
+    return (f"import os as _o; _w={w!r}; "
+            "_o.path.isdir(_w) and hasattr(_o, 'add_dll_directory') "
+            "and _o.add_dll_directory(_w); ")
 
 
 def build_check_cmd(kicad_py: str, deps_dir: Optional[str] = None) -> list:
@@ -142,7 +170,12 @@ def pip_install_commands(kicad_py: str, target: Optional[str] = None) -> list:
     pkgs = " ".join(PIP_SPECS)
     q = f'"{kicad_py}"'
     verify = (
-        f"import sys;sys.path.insert(0,r'{ref}');"
+        "import sys,os;"
+        f"sys.path[:0]=[r'{ref}',os.path.join(r'{ref}','win32'),"
+        f"os.path.join(r'{ref}','win32','lib')];"
+        f"_w=os.path.join(r'{ref}','pywin32_system32');"
+        "os.path.isdir(_w) and hasattr(os,'add_dll_directory') "
+        "and os.add_dll_directory(_w);"
         f"import {','.join(IMPORT_NAMES)};"
         "print('OK - alle MCP-Module importierbar')"
     )
@@ -175,7 +208,9 @@ def verify_import_argv(kicad_py: str, target: Optional[str] = None) -> list:
     catches "install said success but imports still fail". Unicode-safe: the
     path is embedded via ``repr`` (a valid Python string literal)."""
     target = target or default_target_dir()
-    code = ("import sys; sys.path.insert(0, " + repr(target) + "); "
-            "import " + ", ".join(IMPORT_NAMES) + "; "
+    paths = [target] + pywin32_path_entries(target)
+    code = ("import sys; sys.path[:0] = " + repr(paths) + "; "
+            + pywin32_dll_setup_code(target)
+            + "import " + ", ".join(IMPORT_NAMES) + "; "
             "print('OK - alle MCP-Module importierbar')")
     return [kicad_py, "-c", code]
