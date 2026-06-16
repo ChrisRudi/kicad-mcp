@@ -8,6 +8,22 @@ the first tag ships.
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-06-16
+
+### Fixed
+- **Chat-Link-Status ist jetzt IMMER sichtbar — „nichts ist orange" ist nicht
+  mehr undiagnostizierbar.** Bisher war die `ⓘ`-Diagnose nur im Fehler- und im
+  0-gelesen-Fall sichtbar; bei „Board liefert Daten, aber im Reply matcht
+  nichts" UND auf dem Erfolgspfad blieb sie stumm — man konnte nicht
+  unterscheiden, ob die Links fehlen, weil (a) die Board-Verbindung scheiterte,
+  (b) das Board 0 Refs/Netze/Layer lieferte, (c) Daten da waren, aber kein Token
+  im Antworttext matchte, oder (d) alles ok ist. Neuer Helfer
+  `_write_link_status()` druckt pro Antwort GENAU eine dimm-graue Zeile, die den
+  Fall benennt (inkl. `N im Reply klickbar · r Refs / n Netze / ly Layer`).
+  `tokenize` selbst ist headless verifiziert korrekt (Refs/Netze/Layer/Pins/
+  Koordinaten) — die Ursache von „nichts orange" liegt also im Board-Refresh,
+  und diese Zeile macht sie auf einen Blick lesbar.
+
 ## [0.3.0] — 2026-06-16 — Stabilitäts-Meilenstein
 
 Sammelt die v0.2.28–v0.2.37-Arbeit zu einem getaggten Release: umlaut-feste

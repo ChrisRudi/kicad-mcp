@@ -317,13 +317,6 @@ class ClaudeChatPanel(wx.Panel):
             self._refs = result["_refs"]
             self._nets = result.get("_nets") or set()
             self._layers = result.get("_layers") or set()
-        # Make the link-data state VISIBLE so "no links" is diagnosable.
-        if result.get("_link_error"):
-            self._write("  ⓘ Links aus: " + result["_link_error"] + "\n",
-                        theme.DIM)
-        elif result.get("_link_counts") == (0, 0, 0):
-            self._write("  ⓘ Links: 0 Refs/Netze/Layer vom Board gelesen "
-                        "(Board leer oder kein Zugriff).\n", theme.DIM)
         mcp_status = result.get("mcp_status") or ""
         if mcp_status.startswith("failed"):
             self._append(
@@ -334,23 +327,42 @@ class ClaudeChatPanel(wx.Panel):
         if result.get("ok"):
             self._session_id = result.get("session_id") or self._session_id
             rendered = self._append_claude(result.get("text") or "(keine Antwort)")
-            # Board data was available (refs/nets/layers read, counts > 0) yet
-            # NOTHING in this reply linkified — previously silent and the exact
-            # "Links da, aber nicht klickbar"-Symptom. Surface it so the cause
-            # (token-format mismatch vs. empty refs) is visible at a glance.
-            counts = result.get("_link_counts")
-            if (rendered == 0 and not result.get("_link_error")
-                    and counts and counts != (0, 0, 0)):
-                r, n, ly = counts
-                self._write(
-                    f"  ⓘ Links: {r} Refs / {n} Netze / {ly} Layer vom Board "
-                    "gelesen, aber 0 im Antworttext erkannt (keine Treffer "
-                    "im Reply).\n",
-                    theme.DIM)
+            self._write_link_status(result, rendered)
         else:
             self._append("error", result.get("error") or "unbekannt")
         self._set_busy(False)
         self._in.SetFocus()
+
+    def _write_link_status(self, result: dict, rendered: int) -> None:
+        """One always-on dim line that makes the cross-probe link state a FACT,
+        not a guess: did the board hand us refs/nets/layers, and did THIS reply
+        actually linkify any? Every path prints exactly one line so "nichts ist
+        orange" is never undiagnosable — the user can read the cause straight off
+        (connection error vs. empty board vs. data present but 0 tokens matched
+        vs. all good)."""
+        if result.get("_link_error"):
+            self._write("  ⓘ Links aus: " + result["_link_error"] + "\n",
+                        theme.DIM)
+            return
+        counts = result.get("_link_counts")
+        if counts is None:
+            self._write("  ⓘ Links: Board-Status unbekannt (kein Board-Refresh "
+                        "gelaufen).\n", theme.DIM)
+            return
+        r, n, ly = counts
+        if counts == (0, 0, 0):
+            self._write("  ⓘ Links: 0 Refs/Netze/Layer vom Board gelesen "
+                        "(Board leer oder kein Zugriff).\n", theme.DIM)
+            return
+        if rendered == 0:
+            self._write(
+                f"  ⓘ Links: {r} Refs / {n} Netze / {ly} Layer vom Board "
+                "gelesen, aber 0 im Antworttext erkannt (Token-Format?).\n",
+                theme.DIM)
+            return
+        self._write(
+            f"  ⓘ Links: {rendered} im Reply klickbar · {r} Refs / {n} Netze / "
+            f"{ly} Layer vom Board.\n", theme.DIM)
 
     # -- board cross-probe (clickable elements) -----------------------------
 
