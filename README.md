@@ -263,6 +263,28 @@ If KiCad 10 isn't found, the installer stops with a clear error. Set
 `KICAD_PYTHON_PATH` to the absolute path of `python.exe` inside your
 KiCad `bin/` directory as a workaround.
 
+### Optional: in-KiCad chat plugin (PCM "Install from File")
+
+Besides the MCP server (for external clients), this repo ships a **KiCad
+action plugin** — a toolbar button in the PCB editor that opens a docked
+"Claude für KiCad" chat panel wired to a bundled copy of this server, so each
+message runs one headless Claude turn against the **currently open board**.
+
+Install it through KiCad's Plugin and Content Manager — **do not** use GitHub's
+auto-generated repo ZIP (it wraps everything in a `<repo>-<branch>/` folder and
+PCM rejects it). Use the purpose-built PCM archive instead:
+
+1. Get `claude_kicad-<version>-pcm.zip`:
+   - **download** it from the latest [GitHub Release](https://github.com/ChrisRudi/kicad-mcp/releases) (attached automatically), **or**
+   - **build** it yourself: `python make_pcm_zip.py` → writes `dist/claude_kicad-<version>-pcm.zip` (pure stdlib, no KiCad needed).
+2. In KiCad: **Plugin and Content Manager → Install from File…** → pick the zip.
+3. Restart KiCad. A new toolbar button appears in the PCB editor; click it to
+   open the chat. On first run the panel's setup checklist installs the
+   server's Python dependencies and helps you sign in to Claude Code.
+
+The chat needs the [Claude Code CLI](https://claude.ai/code) on your system and
+KiCad's IPC API enabled (the setup checklist offers a one-click fix for both).
+
 ### Configure other MCP clients
 
 The installer prints ready-to-paste JSON snippets for Claude Desktop,
