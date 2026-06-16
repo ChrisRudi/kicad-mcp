@@ -127,10 +127,14 @@ def pip_install_commands(kicad_py: str, target: Optional[str] = None) -> list:
     every module actually imports from the target dir — so "Installation
     klappt scheinbar" and "Server startet" can't diverge silently anymore.
 
-    On Windows the target dir is referenced through ``%KICAD_MCP_DEPS%`` (set
-    via ``pip_install_env``) rather than inlined, so a non-ASCII path survives
-    cmd.exe's codepage; POSIX shells handle UTF-8 paths directly, so there the
-    literal is used. Either way the caller MUST pass ``env=pip_install_env()``.
+    NOTE: prefer ``pip_install_argv`` + ``verify_import_argv`` (run directly via
+    subprocess, no shell at all) — that is the path the setup dialog uses now and
+    sidesteps the codepage problem entirely. This terminal-based variant is kept
+    as a legacy fallback; on Windows it references the target through
+    ``%KICAD_MCP_DEPS%`` (set via ``pip_install_env``) rather than inlining it, so
+    a non-ASCII path survives cmd.exe's codepage; POSIX shells handle UTF-8 paths
+    directly, so there the literal is used. The caller MUST pass
+    ``env=pip_install_env()``.
     """
     target = target or default_target_dir()
     # Windows: reference the env var (uncorruptible). POSIX: literal is safe.
@@ -151,3 +155,27 @@ def pip_install_commands(kicad_py: str, target: Optional[str] = None) -> list:
         f'{q} -m pip install --upgrade --target "{ref}" {pkgs}',
         f'{q} -c "{verify}"',
     ]
+
+
+def pip_install_argv(kicad_py: str, target: Optional[str] = None) -> list:
+    """The pip-install command as an argv LIST (NOT a shell string).
+
+    Run directly via ``subprocess`` so a non-ASCII ``--target`` path (e.g.
+    ``C:\\Users\\Schüler\\…\\_deps``) is passed to pip as proper unicode via
+    Windows' CreateProcessW — a cmd.exe/batch round-trip mangles the ``ü`` to
+    ``?`` (an invalid path char → ``WinError 123``).
+    """
+    target = target or default_target_dir()
+    return [kicad_py, "-m", "pip", "install", "--upgrade",
+            "--target", target, *PIP_SPECS]
+
+
+def verify_import_argv(kicad_py: str, target: Optional[str] = None) -> list:
+    """argv that imports every MCP dep from ``target`` and prints an OK line —
+    catches "install said success but imports still fail". Unicode-safe: the
+    path is embedded via ``repr`` (a valid Python string literal)."""
+    target = target or default_target_dir()
+    code = ("import sys; sys.path.insert(0, " + repr(target) + "); "
+            "import " + ", ".join(IMPORT_NAMES) + "; "
+            "print('OK - alle MCP-Module importierbar')")
+    return [kicad_py, "-c", code]
