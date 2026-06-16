@@ -19,9 +19,20 @@ import tempfile
 # non-ASCII path like C:\Users\Schüler\… intact). Inject that dir here so the
 # imports below resolve without any env-var/PYTHONPATH dance. No-op when the
 # dir is absent (e.g. a classic site-packages install), so this is additive.
+#
+# pywin32 (a Windows dep of mcp) ships a .pth that adds win32/win32-lib to the
+# path and registers its pywin32_system32 DLL dir; a `pip install --target`
+# never executes that .pth, so mcp's eager `import pywintypes` would fail.
+# Replicate it here. All guarded by isdir/hasattr -> no-op on non-Windows.
 _deps_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_deps")
-if os.path.isdir(_deps_dir) and _deps_dir not in sys.path:
-    sys.path.insert(0, _deps_dir)
+if os.path.isdir(_deps_dir):
+    _deps_entries = [_deps_dir, os.path.join(_deps_dir, "win32"),
+                     os.path.join(_deps_dir, "win32", "lib")]
+    sys.path[:0] = [p for p in _deps_entries
+                    if os.path.isdir(p) and p not in sys.path]
+    _pywin32_dll = os.path.join(_deps_dir, "pywin32_system32")
+    if os.path.isdir(_pywin32_dll) and hasattr(os, "add_dll_directory"):
+        os.add_dll_directory(_pywin32_dll)
 
 # --- Setup Logging ---
 # Prefer ~/.kicad-mcp/logs/ (deterministic, easy to find). Fall back to tempdir

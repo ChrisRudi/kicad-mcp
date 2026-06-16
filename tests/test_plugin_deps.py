@@ -42,7 +42,7 @@ class TestCheckDeps:
         # KiCad's Python ignores PYTHONPATH -> the probe must put _deps on
         # sys.path IN-PROCESS, else it reports installed deps as missing.
         cmd = deps.build_check_cmd("/k/py", deps_dir="/plug/_deps")
-        assert "sys.path[:0]=['/plug/_deps']" in cmd[2]
+        assert "sys.path[:0]=[" in cmd[2] and "'/plug/_deps'" in cmd[2]
         assert cmd[2].index("sys.path[:0]") < cmd[2].index("find_spec")
 
     def test_check_cmd_no_injection_without_deps_dir(self):
@@ -57,7 +57,7 @@ class TestCheckDeps:
             return SimpleNamespace(stdout="", stderr="", returncode=0)
 
         deps.check_deps("/k/py", _run=_run, deps_dir="/plug/_deps")
-        assert "sys.path[:0]=['/plug/_deps']" in seen["code"]
+        assert "sys.path[:0]=[" in seen["code"] and "'/plug/_deps'" in seen["code"]
 
 
 class TestPipInstallCommands:
@@ -79,7 +79,11 @@ class TestPipInstallCommands:
     def test_verifies_imports_after_install(self):
         cmds = deps.pip_install_commands("/k/py", target="/plug/_deps")
         verify = cmds[-1]
-        assert "sys.path.insert(0,r'/plug/_deps')" in verify
+        assert "sys.path[:0]=" in verify and "r'/plug/_deps'" in verify
+        # pywin32's .pth is never executed under --target, so the verify must
+        # replicate it (win32 dirs + add_dll_directory) or mcp's eager
+        # `import pywintypes` fails.
+        assert "win32" in verify and "add_dll_directory" in verify
         for name in deps.IMPORT_NAMES:
             assert name in verify
 
@@ -103,7 +107,7 @@ class TestPipInstallCommands:
         assert '--target "%KICAD_MCP_DEPS%"' in install
         assert all("Schüler" not in c for c in cmds)  # literal path never inlined
         verify = cmds[-1]
-        assert "sys.path.insert(0,r'%KICAD_MCP_DEPS%')" in verify
+        assert "sys.path[:0]=" in verify and "r'%KICAD_MCP_DEPS%'" in verify
 
 
 class TestPipInstallEnv:
