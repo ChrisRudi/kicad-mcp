@@ -310,7 +310,12 @@ class ClaudeChatPanel(wx.Panel):
                     refs, nets, layers)
                 result["_link_counts"] = (len(refs), len(nets), len(layers))
                 result["_link_source"] = "disk"
-                result.pop("_link_error", None)  # recovered — not a fatal error
+                # Preserve WHY live IPC failed (kipy missing? API off?
+                # multi-instance?) instead of discarding it — otherwise the
+                # status line hides the real reason clicks are inactive behind a
+                # bland "aus Datei".
+                if result.get("_link_error"):
+                    result["_link_live_error"] = result.pop("_link_error")
         wx.CallAfter(self._on_reply, result)
 
     def _discover_board_path(self) -> str:
@@ -398,8 +403,11 @@ class ClaudeChatPanel(wx.Panel):
         # fallback (links render, clicks need live IPC) — say so, since a disk
         # source means the live API couldn't resolve the board.
         src = result.get("_link_source")
-        origin = ("aus Datei — Live-IPC nicht verfügbar, Klick ggf. inaktiv"
-                  if src == "disk" else "vom Board")
+        if src == "disk":
+            live = result.get("_link_live_error") or "nicht verfügbar"
+            origin = f"aus Datei — Klick inaktiv (Live-IPC: {live})"
+        else:
+            origin = "vom Board"
         if rendered == 0:
             self._write(
                 f"  ⓘ Links: {r} Refs / {n} Netze / {ly} Layer {origin} "
