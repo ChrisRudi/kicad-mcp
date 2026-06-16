@@ -12,6 +12,17 @@ import os
 import sys
 import tempfile
 
+# --- Make pip --target-installed server deps importable (umlaut-safe) ---
+# KiCad's bundled Python IGNORES PYTHONPATH, and `pip --user` is fragile under
+# it, so install.ps1 installs the server + its deps into a sibling "_deps" dir
+# via `pip install --target` (passed as argv -> CreateProcessW keeps a
+# non-ASCII path like C:\Users\üser\… intact). Inject that dir here so the
+# imports below resolve without any env-var/PYTHONPATH dance. No-op when the
+# dir is absent (e.g. a classic site-packages install), so this is additive.
+_deps_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_deps")
+if os.path.isdir(_deps_dir) and _deps_dir not in sys.path:
+    sys.path.insert(0, _deps_dir)
+
 # --- Setup Logging ---
 # Prefer ~/.kicad-mcp/logs/ (deterministic, easy to find). Fall back to tempdir
 # if the home directory is not writable.
