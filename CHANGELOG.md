@@ -17,6 +17,17 @@ Installer, robuste Deps-Injektion unter KiCads gebündeltem Python, LF-sichere
 Teil dieses Releases.
 
 ### Fixed
+- **Chat-Link-Diagnose schließt die stille Lücke „Board-Daten da, aber
+  nichts klickbar".** Der Chat-Panel meldete bisher nur den Fehlerfall
+  (`ⓘ Links aus: …`) und 0 gelesene Board-Elemente (`ⓘ Links: 0 …`) — der
+  Fall „Refs/Netze/Layer erfolgreich gelesen (Counts > 0), aber `tokenize`
+  erkennt im konkreten Reply 0 Tokens" blieb **unbeobachtbar** (keine
+  `ⓘ`-Zeile, Text wirkte normal). `_append_claude` gibt jetzt die Zahl der
+  tatsächlich gerenderten Link-Spans zurück; `_on_reply` zeigt
+  `ⓘ Links: <r> Refs / <n> Netze / <ly> Layer vom Board gelesen, aber 0 im
+  Antworttext erkannt`, wenn Board-Daten vorlagen, aber nichts linkifiziert
+  wurde. Macht die Ursache (Token-Format-Mismatch vs. leere Refs) auf einen
+  Blick sichtbar.
 - **v0.2.37: `ModuleNotFoundError: No module named 'pywintypes'` beim
   Deps-Verify/Serverstart behoben.** `mcp` 1.27 importiert beim Laden hart
   `pywintypes` (aus pywin32). `pip install --target _deps mcp` zieht pywin32

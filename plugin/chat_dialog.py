@@ -162,13 +162,19 @@ class ClaudeChatPanel(wx.Panel):
         self._write(style["prefix"], style["prefix_color"], bold=True)
         self._write(text + "\n\n", style["text_color"])
 
-    def _append_claude(self, text: str) -> None:
+    def _append_claude(self, text: str) -> int:
         """Claude reply with board references / nets / layers rendered as
         clickable links (orange + underlined); clicking selects+zooms an
-        element or sets the active layer in the editor."""
+        element or sets the active layer in the editor.
+
+        Returns the number of clickable spans actually rendered in THIS reply,
+        so the caller can tell "board data present but nothing in the text
+        matched" (0 returned despite a non-empty board) apart from a genuine
+        success — otherwise that case is silent and undiagnosable."""
         from . import board_links
         style = theme.style_for("claude")
         self._write(style["prefix"], style["prefix_color"], bold=True)
+        rendered = 0
         for chunk, target in board_links.tokenize(text + "\n\n", self._refs,
                                                    self._nets, self._layers):
             if target is None:
@@ -178,6 +184,8 @@ class ClaudeChatPanel(wx.Panel):
             self._write(chunk, theme.CLAUDE_ORANGE, underline=True)
             kind, value = target
             self._links.append((start, self._out.GetLastPosition(), kind, value))
+            rendered += 1
+        return rendered
 
     def _set_status(self, label: str, color: str) -> None:
         self._status.SetLabel(label)
@@ -325,7 +333,20 @@ class ClaudeChatPanel(wx.Panel):
             )
         if result.get("ok"):
             self._session_id = result.get("session_id") or self._session_id
-            self._append_claude(result.get("text") or "(keine Antwort)")
+            rendered = self._append_claude(result.get("text") or "(keine Antwort)")
+            # Board data was available (refs/nets/layers read, counts > 0) yet
+            # NOTHING in this reply linkified — previously silent and the exact
+            # "Links da, aber nicht klickbar"-Symptom. Surface it so the cause
+            # (token-format mismatch vs. empty refs) is visible at a glance.
+            counts = result.get("_link_counts")
+            if (rendered == 0 and not result.get("_link_error")
+                    and counts and counts != (0, 0, 0)):
+                r, n, ly = counts
+                self._write(
+                    f"  ⓘ Links: {r} Refs / {n} Netze / {ly} Layer vom Board "
+                    "gelesen, aber 0 im Antworttext erkannt (keine Treffer "
+                    "im Reply).\n",
+                    theme.DIM)
         else:
             self._append("error", result.get("error") or "unbekannt")
         self._set_busy(False)
