@@ -264,6 +264,20 @@ Der Installer (a) prüft, ob KiCad 10 erreichbar ist, (b) registriert den Server
 
 Wird KiCad 10 nicht gefunden, bricht der Installer mit einer klaren Fehlermeldung ab. Workaround: `KICAD_PYTHON_PATH` auf den absoluten Pfad zu `python.exe` im KiCad-`bin/`-Ordner setzen.
 
+### Optional: Chat-Plugin direkt in KiCad (PCM „Aus Datei installieren")
+
+Neben dem MCP-Server (für externe Clients) liefert dieses Repo ein **KiCad-Action-Plugin** — eine Toolbar-Schaltfläche im PCB-Editor, die ein angedocktes Chat-Panel „Claude für KiCad" öffnet. Das Panel ist mit einer gebündelten Kopie dieses Servers verdrahtet, sodass jede Nachricht eine headless Claude-Runde gegen das **aktuell geöffnete Board** ausführt.
+
+Installiert wird es über KiCads Plugin and Content Manager — **nicht** über GitHubs automatisch erzeugte Repo-ZIP (die packt alles in einen `<repo>-<branch>/`-Ordner und wird vom PCM abgelehnt). Stattdessen das eigens gebaute PCM-Archiv verwenden:
+
+1. `claude_kicad-<version>-pcm.zip` beschaffen:
+   - vom letzten [GitHub-Release](https://github.com/ChrisRudi/kicad-mcp/releases) **herunterladen** (wird automatisch angehängt), **oder**
+   - selbst **bauen**: `python make_pcm_zip.py` → schreibt `dist/claude_kicad-<version>-pcm.zip` (reine Standardbibliothek, kein KiCad nötig).
+2. In KiCad: **Plugin and Content Manager → Aus Datei installieren… → die ZIP auswählen.**
+3. KiCad neu starten. Im PCB-Editor erscheint eine neue Toolbar-Schaltfläche; ein Klick öffnet den Chat. Beim ersten Start installiert die Einrichtungs-Checkliste des Panels die Python-Abhängigkeiten des Servers und hilft bei der Anmeldung in Claude Code.
+
+Der Chat benötigt die [Claude-Code-CLI](https://claude.ai/code) auf dem System und KiCads aktivierte IPC-API (die Einrichtungs-Checkliste bietet für beides eine Ein-Klick-Lösung).
+
 ### Andere MCP-Clients konfigurieren
 
 Der Installer druckt am Ende fertige JSON-Snippets für Claude Desktop, Cursor, Windsurf, VS Code, Continue.dev und Zed aus. Jeder Eintrag nutzt `start_mcp_wsl.sh` (Linux/WSL/macOS) bzw. `start_mcp.bat` (Windows) als Launch-Befehl und zeigt auf dieses Verzeichnis.
