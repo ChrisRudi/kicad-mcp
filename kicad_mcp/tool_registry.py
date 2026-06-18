@@ -57,6 +57,7 @@ from kicad_mcp.tools.ltspice_tools import register_ltspice_tools
 from kicad_mcp.tools.review_tools import register_review_tools
 from kicad_mcp.tools.audit_tools import register_audit_tools
 from kicad_mcp.tools.docs_tools import register_docs_tools
+from kicad_mcp.tools.pinout_tools import register_pinout_tools
 
 # --- Resource registrars ---------------------------------------------------
 from kicad_mcp.resources.projects import register_project_resources
@@ -113,6 +114,7 @@ TOOL_REGISTRARS: list[Registrar] = [
     register_review_tools,
     register_audit_tools,
     register_docs_tools,
+    register_pinout_tools,
 ]
 
 RESOURCE_REGISTRARS: list[Registrar] = [

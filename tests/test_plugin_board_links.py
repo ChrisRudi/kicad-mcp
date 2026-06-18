@@ -479,3 +479,238 @@ class TestConnectDiagnostics:
                             self._fake_kipy(lambda: sentinel))
         client, board = board_links.connect()
         assert board is sentinel and client is not None
+
+
+# -- Dok 3: safe vocabulary normalization in tokenize -------------------------
+
+class TestNetNormalization:
+    """Hebel 3: a leading hierarchical '/' and letter case must still resolve to
+    a REAL net — no semantic mapping, zero false positives."""
+
+    def test_leading_slash_strips_to_canonical(self):
+        segs = board_links.tokenize("Netz /GND prüfen", known_refs=set(),
+                                    known_nets={"GND"})
+        assert ("/GND", ("net", "GND")) in segs
+        assert "".join(c for c, _ in segs) == "Netz /GND prüfen"
+
+    def test_case_insensitive_maps_back_to_real_name(self):
+        segs = board_links.tokenize("die gnd Leitung", known_refs=set(),
+                                    known_nets={"GND"})
+        assert ("gnd", ("net", "GND")) in segs  # display keeps text, target canon
+
+    def test_exact_still_works(self):
+        segs = board_links.tokenize("auf GND", known_refs=set(),
+                                    known_nets={"GND"})
+        assert ("GND", ("net", "GND")) in segs
+
+    def test_no_semantic_mapping(self):
+        # "ground" must NOT link to GND — that would fabricate a link
+        segs = board_links.tokenize("the ground plane", known_refs=set(),
+                                    known_nets={"GND"})
+        assert all(t is None for _, t in segs)
+
+    def test_substring_guard(self):
+        # GND must not match inside GNDX (boundary lookarounds hold under ignorecase)
+        segs = board_links.tokenize("GNDX", known_refs=set(),
+                                    known_nets={"GND"})
+        assert all(t is None for _, t in segs)
+
+
+class TestPinProse:
+    def test_pin_n_of_ref(self):
+        segs = board_links.tokenize("pin 33 of U1 ist heiß", known_refs={"U1"})
+        assert ("pin 33 of U1", ("pin", ("U1", "33"))) in segs
+
+    def test_ref_pin_n(self):
+        segs = board_links.tokenize("U1 pin 33 prüfen", known_refs={"U1"})
+        assert ("U1 pin 33", ("pin", ("U1", "33"))) in segs
+
+    def test_keyword_case_insensitive(self):
+        segs = board_links.tokenize("Pin 7 of U2", known_refs={"U2"})
+        assert ("Pin 7 of U2", ("pin", ("U2", "7"))) in segs
+
+    def test_unknown_ref_not_linked(self):
+        segs = board_links.tokenize("pin 1 of X9", known_refs={"U1"})
+        assert all(t is None for _, t in segs)
+
+    def test_round_trips_text(self):
+        text = "U1 pin 33 und R5"
+        segs = board_links.tokenize(text, known_refs={"U1", "R5"})
+        assert "".join(c for c, _ in segs) == text
+
+
+class TestLayerAlias:
+    def test_top_copper_with_qualifier(self):
+        segs = board_links.tokenize("route auf top copper", known_refs=set(),
+                                    known_layers={"F.Cu"})
+        assert ("top copper", ("layer", "F.Cu")) in segs
+
+    def test_bottom_layer_alias(self):
+        segs = board_links.tokenize("the bottom layer", known_refs=set(),
+                                    known_layers={"B.Cu"})
+        assert ("bottom layer", ("layer", "B.Cu")) in segs
+
+    def test_bare_top_is_not_a_link(self):
+        # no qualifier word -> the everyday word "top" stays plain
+        segs = board_links.tokenize("the top of the board", known_refs=set(),
+                                    known_layers={"F.Cu"})
+        assert all(t is None for _, t in segs)
+
+    def test_alias_only_when_layer_enabled(self):
+        # F.Cu not enabled -> "top copper" must not resolve
+        segs = board_links.tokenize("top copper", known_refs=set(),
+                                    known_layers={"B.Cu"})
+        assert all(t is None for _, t in segs)
+
+
+# -- Dok 2: board summary + size ----------------------------------------------
+
+class TestBoardSummary:
+    def test_groups_refs_by_prefix(self):
+        s = board_links.board_summary(
+            {"R1", "R2", "U1", "C5"}, {"GND", "VCC"}, {"F.Cu", "B.Cu"})
+        assert s["footprints"] == 4 and s["nets"] == 2
+        assert s["layers"] == ["B.Cu", "F.Cu"]
+        assert s["by_prefix"] == {"C": 1, "R": 2, "U": 1}
+
+    def test_empty_yields_zeros(self):
+        s = board_links.board_summary(set(), set(), set())
+        assert s == {"footprints": 0, "nets": 0, "layers": [], "by_prefix": {}}
+
+    def test_extent_from_edge_cuts(self, tmp_path):
+        pcb = (
+            '(kicad_pcb\n'
+            '  (gr_line (start 10 20) (end 60 20) (layer "Edge.Cuts"))\n'
+            '  (gr_line (start 60 20) (end 60 62) (layer "Edge.Cuts"))\n'
+            '  (gr_line (start 10 20) (end 10 62) (layer "Edge.Cuts"))\n'
+            '  (gr_line (start 10 62) (end 60 62) (layer "Edge.Cuts"))\n'
+            '  (gr_line (start 0 0) (end 99 99) (layer "F.SilkS"))\n'
+            ')\n'
+        )
+        p = tmp_path / "b.kicad_pcb"
+        p.write_text(pcb, encoding="utf-8")
+        assert board_links.board_extent_mm_from_file(str(p)) == (50.0, 42.0)
+
+    def test_extent_none_without_edge_cuts(self, tmp_path):
+        p = tmp_path / "b.kicad_pcb"
+        p.write_text('(kicad_pcb (gr_line (start 0 0) (end 1 1) '
+                     '(layer "F.SilkS")))', encoding="utf-8")
+        assert board_links.board_extent_mm_from_file(str(p)) is None
+
+    def test_extent_missing_file(self):
+        assert board_links.board_extent_mm_from_file("/nope.kicad_pcb") is None
+
+
+# -- Dok 1: reverse selection (P1) + inspect (P3) -----------------------------
+
+class TestSelectionContext:
+    def test_footprint_named(self):
+        ctx = board_links.selection_context([{"kind": "footprint",
+                                              "reference": "U3"}])
+        assert "footprint U3" in ctx and ctx.startswith("[Editor-Auswahl:")
+
+    def test_net_item(self):
+        ctx = board_links.selection_context(
+            [{"kind": "track", "reference": None, "net": "GND"}])
+        assert "Netz GND (track)" in ctx
+
+    def test_coord_only(self):
+        ctx = board_links.selection_context(
+            [{"kind": "via", "reference": None, "net": None,
+              "position_mm": [12.0, 8.0]}])
+        assert "via @ (12.0, 8.0)" in ctx
+
+    def test_empty_is_empty_string(self):
+        assert board_links.selection_context([]) == ""
+
+    def test_multiple_joined(self):
+        ctx = board_links.selection_context(
+            [{"kind": "footprint", "reference": "U3"},
+             {"kind": "footprint", "reference": "R1"}])
+        assert "U3" in ctx and "R1" in ctx and ";" in ctx
+
+
+class _SelBoard:
+    def __init__(self, items):
+        self._items = items
+
+    def get_selection(self):
+        return list(self._items)
+
+
+def _sel_item(ref=None, net=None, xy=None, cls="BoardFootprint"):
+    obj = type(cls, (), {})()  # instance whose type().__name__ == cls
+    if ref is not None:
+        obj.reference_field = SimpleNamespace(text=SimpleNamespace(value=ref))
+    if net is not None:
+        obj.net = SimpleNamespace(name=net)
+    if xy is not None:
+        obj.position = SimpleNamespace(x=int(xy[0] * 1_000_000),
+                                       y=int(xy[1] * 1_000_000))
+    return obj
+
+
+class TestGetSelection:
+    def test_serializes_footprint(self):
+        board = _SelBoard([_sel_item(ref="U3", xy=(10.0, 5.0))])
+        sel = board_links.get_selection(board)
+        assert sel[0]["reference"] == "U3" and sel[0]["kind"] == "footprint"
+        assert sel[0]["position_mm"] == [10.0, 5.0]
+
+    def test_track_with_net(self):
+        board = _SelBoard([_sel_item(net="GND", cls="PcbTrack")])
+        sel = board_links.get_selection(board)
+        assert sel[0]["net"] == "GND" and sel[0]["kind"] == "track"
+
+    def test_empty_selection(self):
+        assert board_links.get_selection(_SelBoard([])) == []
+
+    def test_unreadable_yields_empty(self):
+        bad = SimpleNamespace(
+            get_selection=lambda: (_ for _ in ()).throw(RuntimeError("x")))
+        assert board_links.get_selection(bad) == []
+
+
+class TestInspect:
+    def test_summary_lists_nets(self):
+        msg = board_links.inspect_summary(
+            "U3", [{"number": "1", "net": "GND"}, {"number": "2", "net": "VCC"},
+                   {"number": "3", "net": "GND"}])
+        assert "U3" in msg and "3 Pads" in msg and "GND" in msg and "VCC" in msg
+
+    def test_summary_no_pads(self):
+        assert "keine Pads" in board_links.inspect_summary("X", [])
+
+    def test_inspect_ref_reads_pad_nets(self):
+        fp = _fp("U3", pads=["1", "2"])
+        fp.definition.pads[0].net = SimpleNamespace(name="GND")
+        fp.definition.pads[1].net = SimpleNamespace(name="VCC")
+        board = SimpleNamespace(get_footprints=lambda: [fp])
+        pad_nets = board_links.inspect_ref(board, "U3")
+        assert {p["net"] for p in pad_nets} == {"GND", "VCC"}
+
+    def test_inspect_unknown_ref_is_none(self):
+        board = SimpleNamespace(get_footprints=lambda: [])
+        assert board_links.inspect_ref(board, "X9") is None
+
+
+# -- Dok 1: P5 accumulate selection (add=True) --------------------------------
+
+class TestAddSelection:
+    def test_select_add_does_not_clear(self):
+        board = _FakeBoard(refs=["R1", "R2"])
+        client = _FakeClient()
+        board_links.select(client, board, "ref", "R1", add=True)
+        assert board.cleared is False  # prior selection kept
+
+    def test_select_replace_clears_by_default(self):
+        board = _FakeBoard(refs=["R1"])
+        client = _FakeClient()
+        board_links.select(client, board, "ref", "R1")
+        assert board.cleared is True
+
+    def test_select_pin_add_keeps_prior(self):
+        board = _PinBoard([_fp("U1B", pads=["1", "33"])])
+        client = _FakeClient()
+        board_links.select_pin(client, board, "U1B", "33", add=True)
+        assert board.cleared is False

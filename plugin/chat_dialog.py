@@ -16,9 +16,11 @@ from __future__ import annotations
 import os
 import shlex
 import threading
+import webbrowser
 
 import wx  # KiCad ships wxPython; only importable inside KiCad
 
+from . import banner
 from . import chat_theme as theme
 from . import claude_bridge
 from .version import __version__
@@ -69,6 +71,7 @@ class ClaudeChatPanel(wx.Panel):
         self._out.SetForegroundColour(wx.Colour(theme.FOREGROUND))
         self._out.SetFont(self._mono)
         self._out.Bind(wx.EVT_LEFT_UP, self._on_output_click)
+        self._out.Bind(wx.EVT_RIGHT_UP, self._on_output_right_click)
         root.Add(self._out, 1, wx.EXPAND | wx.ALL, 8)
 
         row = wx.BoxSizer(wx.HORIZONTAL)
@@ -111,6 +114,12 @@ class ClaudeChatPanel(wx.Panel):
         self._opts.SetFont(self._mono)
         self._opts.SetHint("Claude-Optionen, z. B. --model sonnet  (optional)")
         opt.Add(self._opts, 1, wx.EXPAND | wx.RIGHT, 6)
+        # P1 (Dok 1): include the live editor selection as context for the turn,
+        # so "was ist das?" works without typing a reference.
+        self._include_selection = wx.CheckBox(self, label="🔗 Auswahl einbeziehen")
+        self._include_selection.SetForegroundColour(wx.Colour(theme.DIM))
+        self._include_selection.SetFont(self._mono)
+        opt.Add(self._include_selection, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
         root.Add(opt, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         foot = wx.BoxSizer(wx.HORIZONTAL)
@@ -136,12 +145,7 @@ class ClaudeChatPanel(wx.Panel):
         self.Bind(wx.EVT_TIMER, self._on_spin, self._spinner)
         self.Bind(wx.EVT_WINDOW_DESTROY, self._on_destroy)
 
-        self._append(
-            "banner",
-            "Hallo! Ich bin über kicad-mcp mit deinem offenen Board verbunden. "
-            "Frag mich z.B. 'wie viele GND-Vias gibt es?' oder 'markier die 3 "
-            "kleinsten'.",
-        )
+        self._render_startup()
         self._in.SetFocus()
 
     # -- public -------------------------------------------------------------
@@ -179,17 +183,83 @@ class ClaudeChatPanel(wx.Panel):
         style = theme.style_for("claude")
         self._write(style["prefix"], style["prefix_color"], bold=True)
         rendered = 0
+        marks: list = []
         for chunk, target in board_links.tokenize(text + "\n\n", self._refs,
                                                    self._nets, self._layers):
             if target is None:
                 self._write(chunk, style["text_color"])
                 continue
-            start = self._out.GetLastPosition()
-            self._write(chunk, theme.CLAUDE_ORANGE, underline=True)
             kind, value = target
-            self._links.append((start, self._out.GetLastPosition(), kind, value))
+            self._write_link(chunk, kind, value)
             rendered += 1
+            if kind in ("ref", "net", "pin", "coord") and target not in marks:
+                marks.append(target)
+        # P4 (Dok 1): when a reply names several board elements, offer a single
+        # click that selects+zooms ALL of them at once ("zeig's mir auf dem
+        # Board") instead of clicking each link in turn.
+        if len(marks) >= 2:
+            self._write("  ", style["text_color"])
+            self._write_link("📍 alle markieren", "markall", marks)
+            self._write("\n\n", style["text_color"])
         return rendered
+
+    def _write_link(self, chunk: str, kind: str, value) -> None:
+        """Write one clickable span (orange + underlined) and record its
+        char-range → target so a click resolves it. ``kind`` is a board target
+        (``ref``/``net``/``layer``/``pin``/``coord``) or ``"url"`` (Dok 2:
+        the recommend-mailto link, opened via the OS handler)."""
+        start = self._out.GetLastPosition()
+        self._write(chunk, theme.CLAUDE_ORANGE, underline=True)
+        self._links.append((start, self._out.GetLastPosition(), kind, value))
+
+    # -- startup banner (Dok 2) ---------------------------------------------
+
+    def _render_startup(self) -> None:
+        """Render the instant (no-Claude-turn) panel banner: version + board
+        file, a clickable recommend-mailto, the interaction guide, then kick off
+        the async board summary. Replaces the old one-line static banner."""
+        board_name = os.path.basename(self._pcb_path) if self._pcb_path else None
+        head = f"kicad-mcp  v{__version__}"
+        head += f"  ·  verbunden mit {board_name}" if board_name else \
+            "  ·  kein Board erkannt"
+        self._write(head + "\n", theme.DIM)
+        self._write("Gefällt dir das Plugin? → ", theme.FOREGROUND)
+        self._write_link("Empfiehl es einem Freund ✉", "url",
+                         banner.recommend_mailto())
+        self._write("\n\n", theme.FOREGROUND)
+        self._write(banner.interaction_guide() + "\n\n", theme.FOREGROUND)
+        threading.Thread(target=self._summary_worker, daemon=True).start()
+
+    def _summary_worker(self) -> None:
+        """Load the board vocabulary off the GUI thread and build the summary.
+        Sets refs/nets/layers so even the FIRST reply is linkable (previously
+        only from the second). Degrades silently to no summary block."""
+        from . import board_links
+        refs: set = set()
+        nets: set = set()
+        layers: set = set()
+        try:
+            _client, board = board_links.connect()
+            refs, nets, layers = board_links.board_targets(board)
+        except Exception:
+            pass
+        if not (refs or nets or layers) and self._pcb_path:
+            refs, nets, layers = board_links.board_targets_from_file(
+                self._pcb_path)
+        if not (refs or nets or layers):
+            return
+        summary = board_links.board_summary(refs, nets, layers)
+        extent = (board_links.board_extent_mm_from_file(self._pcb_path)
+                  if self._pcb_path else None)
+        wx.CallAfter(self._on_summary, refs, nets, layers, summary, extent)
+
+    def _on_summary(self, refs, nets, layers, summary, extent) -> None:
+        if not self:
+            return
+        self._refs, self._nets, self._layers = refs, nets, layers
+        for line in banner.summary_lines(summary, extent):
+            self._write(line + "\n", theme.FOREGROUND)
+        self._write("\n", theme.FOREGROUND)
 
     def _set_status(self, label: str, color: str) -> None:
         self._status.SetLabel(label)
@@ -248,13 +318,15 @@ class ClaudeChatPanel(wx.Panel):
         except ValueError:  # unbalanced quotes in the options field
             self._append("error", "Optionen unlesbar (Anführungszeichen?).")
             return
+        include_sel = self._include_selection.GetValue()
         self._in.SetValue("")
         self._append("user", prompt)
         self._proc = None
         self._stopped = False
         self._set_busy(True)
         threading.Thread(
-            target=self._worker, args=(prompt, extra_args), daemon=True
+            target=self._worker, args=(prompt, extra_args, include_sel),
+            daemon=True
         ).start()
 
     def _on_stop(self, _evt) -> None:
@@ -268,7 +340,21 @@ class ClaudeChatPanel(wx.Panel):
         threading.Thread(target=lambda: claude_bridge.stop(proc),
                          daemon=True).start()
 
-    def _worker(self, prompt: str, extra_args: list) -> None:
+    def _worker(self, prompt: str, extra_args: list,
+                include_sel: bool = False) -> None:
+        from . import board_links
+        # P1 (Dok 1): prepend what the user has selected in the editor so
+        # "this"/"the selected" resolves without typing a reference. Best-effort:
+        # an empty/unreadable selection just adds nothing.
+        if include_sel:
+            try:
+                _c, board = board_links.connect()
+                ctx = board_links.selection_context(
+                    board_links.get_selection(board))
+                if ctx:
+                    prompt = ctx + "\n\n" + prompt
+            except Exception:
+                pass
         result = claude_bridge.ask(
             prompt,
             project_dir=self._plan.run_cwd,
@@ -283,7 +369,6 @@ class ClaudeChatPanel(wx.Panel):
         # Refresh the board's refs/nets/layers so this reply can be linkified.
         # Capture (don't swallow) any failure so the real reason is VISIBLE —
         # the links silently breaking was undiagnosable before.
-        from . import board_links
         try:
             _client, board = board_links.connect()
             refs, nets, layers = board_links.board_targets(board)
@@ -420,28 +505,78 @@ class ClaudeChatPanel(wx.Panel):
 
     # -- board cross-probe (clickable elements) -----------------------------
 
-    def _on_output_click(self, evt) -> None:
-        evt.Skip()  # let the control handle caret/selection as usual
+    def _hit_target(self, evt):
+        """The (kind, value) link under the mouse, or None. Shared by left- and
+        right-click."""
         if not self._links:
-            return
+            return None
         hit = self._out.HitTestPos(evt.GetPosition())
         # wx returns (HitTestResult, pos); pos is the char index.
         pos = hit[1] if isinstance(hit, (tuple, list)) else hit
-        target = next((( k, v) for s, e, k, v in self._links
-                       if s <= pos < e), None)
+        return next(((k, v) for s, e, k, v in self._links if s <= pos < e), None)
+
+    def _on_output_click(self, evt) -> None:
+        evt.Skip()  # let the control handle caret/selection as usual
+        target = self._hit_target(evt)
         if target is None:
             return
         kind, value = target
+        if kind == "url":  # Dok 2: recommend-mailto → OS handler
+            threading.Thread(target=self._open_url, args=(value,),
+                             daemon=True).start()
+            return
+        if kind == "markall":  # P4: select every named element at once
+            threading.Thread(target=self._mark_all_worker, args=(value,),
+                             daemon=True).start()
+            return
+        # P5 (Dok 1): Ctrl/⌘-click accumulates selection instead of replacing it.
+        add = bool(evt.CmdDown() or evt.ControlDown())
+        self._dispatch(kind, value, "select", add=add)
+
+    def _on_output_right_click(self, evt) -> None:
+        """P2 (Dok 1): per-link actions — markieren / hinzoomen / Eigenschaften —
+        instead of one fixed click action."""
+        target = self._hit_target(evt)
+        if target is None or target[0] == "url":
+            evt.Skip()
+            return
+        kind, value = target
+        menu = wx.Menu()
+        entries = [(menu.Append(wx.ID_ANY, "Nur markieren"), "highlight"),
+                   (menu.Append(wx.ID_ANY, "Hinzoomen"), "zoom")]
+        if kind in ("ref", "pin"):
+            entries.append((menu.Append(wx.ID_ANY, "Eigenschaften"), "inspect"))
+        for item, action in entries:
+            self.Bind(wx.EVT_MENU,
+                      lambda _e, k=kind, v=value, a=action: self._dispatch(k, v, a),
+                      item)
+        self._out.PopupMenu(menu)
+        menu.Destroy()
+
+    def _dispatch(self, kind, value, action: str, add: bool = False) -> None:
         threading.Thread(target=self._select_worker, args=(kind, value),
+                         kwargs={"action": action, "add": add},
                          daemon=True).start()
 
-    def _select_worker(self, kind: str, value) -> None:
+    def _open_url(self, href: str) -> None:
+        try:
+            webbrowser.open(href)
+            msg = "Mail-Vorlage geöffnet"
+        except Exception as exc:
+            msg = f"Link konnte nicht geöffnet werden: {exc}"
+        wx.CallAfter(self._flash_status, msg)
+
+    def _select_worker(self, kind: str, value, action: str = "select",
+                       add: bool = False) -> None:
         from . import board_links
+        zoom = action in ("select", "zoom")
         try:
             client, board = board_links.connect()
-            if kind == "coord":
+            if action == "inspect":
+                msg = self._inspect_msg(board, kind, value)
+            elif kind == "coord":
                 x, y = value
-                dist = board_links.select_coord(client, board, x, y)
+                dist = board_links.select_coord(client, board, x, y, zoom=zoom)
                 msg = (f"({x}, {y}): nächstes Element {dist:.1f} mm entfernt "
                        "markiert" if dist is not None
                        else f"({x}, {y}): kein Element in der Nähe")
@@ -451,16 +586,74 @@ class ClaudeChatPanel(wx.Panel):
                        else f"{value}: Layer nicht auflösbar")
             elif kind == "pin":
                 ref, pin = value
-                n = board_links.select_pin(client, board, ref, pin)
+                n = board_links.select_pin(client, board, ref, pin, zoom=zoom,
+                                           add=add)
                 msg = (f"{ref}.{pin}: Pad markiert" if n
                        else f"{ref}.{pin}: Pad nicht gefunden")
+                if n and action == "select":  # P3: enrich with connectivity
+                    msg = self._augment_inspect(board, ref, msg)
             else:
-                count = board_links.select(client, board, kind, value)
+                count = board_links.select(client, board, kind, value,
+                                           zoom=zoom, add=add)
                 msg = (f"{value}: {count} Element(e) markiert"
                        if count else f"{value}: nichts gefunden")
+                if count and action == "select" and kind == "ref":
+                    msg = self._augment_inspect(board, value, msg)
         except Exception as exc:
             msg = f"Auswahl fehlgeschlagen: {exc}"
         wx.CallAfter(self._flash_status, msg)
+
+    def _mark_all_worker(self, marks: list) -> None:
+        """P4 (Dok 1): select every named board element together (first replaces
+        the selection, the rest accumulate), then zoom to fit the group."""
+        from . import board_links
+        total = 0
+        try:
+            client, board = board_links.connect()
+            for i, (kind, value) in enumerate(marks):
+                add = i > 0  # first clears, rest accumulate
+                if kind == "pin":
+                    ref, pin = value
+                    total += board_links.select_pin(client, board, ref, pin,
+                                                     zoom=False, add=add)
+                elif kind == "coord":
+                    x, y = value
+                    if board_links.select_coord(client, board, x, y,
+                                                 zoom=False, add=add) is not None:
+                        total += 1
+                else:
+                    total += board_links.select(client, board, kind, value,
+                                                 zoom=False, add=add)
+            board_links._zoom_to_selection(client)  # one fit-zoom at the end
+            msg = f"{total} Element(e) markiert"
+        except Exception as exc:
+            msg = f"Markieren fehlgeschlagen: {exc}"
+        wx.CallAfter(self._flash_status, msg)
+
+    def _augment_inspect(self, board, ref: str, base_msg: str) -> str:
+        """P3 (Dok 1): append a compact "what is this wired to" summary to the
+        status line after a normal select. Best-effort — never overrides the
+        primary message on failure."""
+        from . import board_links
+        try:
+            pad_nets = board_links.inspect_ref(board, ref)
+            if pad_nets is not None:
+                return base_msg + " · " + board_links.inspect_summary(
+                    ref, pad_nets)
+        except Exception:
+            pass
+        return base_msg
+
+    def _inspect_msg(self, board, kind: str, value) -> str:
+        """The status text for the right-click "Eigenschaften" action."""
+        from . import board_links
+        if kind not in ("ref", "pin"):
+            return f"{value}: keine Eigenschaften verfügbar"
+        ref = value[0] if kind == "pin" else value
+        pad_nets = board_links.inspect_ref(board, ref)
+        if pad_nets is None:
+            return f"{ref}: nicht gefunden"
+        return board_links.inspect_summary(ref, pad_nets)
 
     def _flash_status(self, msg: str) -> None:
         if self and not self._busy:
