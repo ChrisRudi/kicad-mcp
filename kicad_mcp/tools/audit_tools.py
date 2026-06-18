@@ -131,8 +131,6 @@ def _audit_power_tree(pcb_text: str, max_decoupling_distance_mm: float) -> dict[
 
     # Build: net → list of (ref, pad, x, y)
     net_pins: dict[str, list[dict[str, Any]]] = {}
-    # Per-ref: pad mapping
-    ref_pads: dict[str, list[dict[str, Any]]] = {fp["ref"]: fp["pads"] for fp in fps}
     for fp in fps:
         for p in fp["pads"]:
             if p["net"]:

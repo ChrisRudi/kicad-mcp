@@ -8,6 +8,28 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed
+- **CI wieder grün (Lint + Tests).** Der `pylint`-Job scheiterte (Exit 6) seit
+  Längerem an `import-error` für Module, die nur unter KiCads gebündeltem Python
+  bzw. als optionale Extras existieren (`pcbnew`, `wx`, `kipy`, `cairosvg`,
+  `reportlab`) — sie stehen jetzt in `ignored-modules`. `pip install -e ".[dev]"`
+  in der CI lief ins Leere (`dev` war nur eine `dependency-group`, kein
+  PEP-621-Extra) und fiel auf `pip install -e .` zurück → `pytest` fehlte; ein
+  spiegelndes `[project.optional-dependencies] dev`-Extra behebt das.
+- **`mirror_layout`-Constraint in `place_with_constraints` rief
+  `clone_layout_around_pivot_text` mit nicht existierender Signatur auf**
+  (`source_pivot_ref=…`, `rotation_offset_deg=…`) → garantierter `TypeError` zur
+  Laufzeit. Jetzt korrekt auf `source_ref` / `source_peripherals` /
+  `target_pivots` gemappt, mit optionalem `target_refs`; `rotation_offset_deg`
+  wird (mangels Hook in der Klon-Funktion) ehrlich als strukturierter Fehler
+  abgewiesen statt still ignoriert.
+- **`check_connectivity` / `via_promote` prüfen Datei-Existenz vor dem
+  `pcbnew`-Import** (CLAUDE.md-Konvention #1): eine fehlende Datei liefert jetzt
+  „PCB not found …" statt der irreführenden „pcbnew not importable"-Meldung.
+- Diverse tote/ungenutzte Imports und Variablen entfernt (`defaultdict`,
+  redundante lokale Reimports, ungenutzte `block`/`make_sub`/`ref_pads` u.a.);
+  veralteter `server_bootstrap_code`-Test um die pywin32-`.pth`-Pfade ergänzt.
+
 ## [0.3.5] — 2026-06-16
 
 ### Fixed

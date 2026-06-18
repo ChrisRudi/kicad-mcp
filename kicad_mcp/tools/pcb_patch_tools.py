@@ -764,8 +764,6 @@ def _parse_all_pad_world_pos(
     the PCB. Only pads with a non-empty net (net_idx > 0) are returned —
     they're the lookup targets for net-tag inference.
     """
-    from kicad_mcp.utils.pcb_geometry import pcb_local_to_world
-
     out: list[tuple[float, float, int, str, str, str]] = []
     for fp_start, fp_end in _iter_top_blocks(pcb_text, "footprint"):
         block = pcb_text[fp_start:fp_end]
@@ -1002,9 +1000,6 @@ def _rename_net_in_text(
         old: f"__RENAME_SENTINEL_{i}__"
         for i, old in enumerate(mapping)
     }
-
-    def make_sub(name_map: dict[str, str]) -> re.Pattern:
-        return name_map  # placeholder, see use
 
     # Pass 1: old → sentinel
     new_text = pcb_text
@@ -2565,7 +2560,6 @@ def add_footprint_text_text(
             "error": f"Footprint with Reference {ref!r} not found.",
         }
     start, end = span
-    block = pcb_text[start:end]
     # Find the indentation prefix of this footprint block.
     line_start = pcb_text.rfind("\n", 0, start) + 1
     fp_indent = pcb_text[line_start:start]
@@ -2873,7 +2867,6 @@ def cluster_block_outside_pcb_text(
     schematic. Each ref is placed via :func:`place_at_pivot_text`
     with ``pivot_kind="anchor"`` so no .kicad_mod load is required.
     """
-    import math
     if not isinstance(refs, list) or not refs:
         return pcb_text, {
             "success": False, "error": "refs must be a non-empty list",
@@ -3966,8 +3959,6 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
         Returns:
             ``{success, rotation_deg, target, center, mode}``.
         """
-        from kicad_mcp.utils.pcb_geometry import align_radial_rotation
-
         try:
             rot = align_radial_rotation(
                 (float(target_x_mm), float(target_y_mm)),
@@ -4681,10 +4672,14 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
 
         **mirror_layout** — clone the layout of a parent+companions
         group around a new pivot (wraps
-        ``clone_layout_around_pivot``):
+        ``clone_layout_around_pivot``). ``include_refs`` are the source
+        peripherals whose relative poses form the template; pass distinct
+        ``target_refs`` (same length) to relocate a *sibling* group,
+        otherwise the same refs are moved. ``rotation_offset_deg`` must be
+        0 (the clone reproduces poses verbatim — no rotation hook):
             ``{"type": "mirror_layout", "source_pivot_ref": "U_DRV1",
               "target_pivot_ref": "U_DRV3", "include_refs": [...],
-              "rotation_offset_deg": 0}``
+              "target_refs": [...], "rotation_offset_deg": 0}``
 
         Args:
             pcb_path: ``.kicad_pcb`` file.
@@ -4835,14 +4830,32 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
                         src = c["source_pivot_ref"]
                         dst = c["target_pivot_ref"]
                         include = c.get("include_refs", [])
+                        # The target peripherals to relocate. Defaults to the
+                        # same refs as the source template (relocate this group
+                        # to mirror around the target pivot); pass distinct
+                        # ``target_refs`` (same length) to move a sibling group.
+                        target_refs = c.get("target_refs", include)
                         rot_off = float(c.get("rotation_offset_deg", 0.0))
-                        # Use existing clone_layout_around_pivot_text
+                        if rot_off:
+                            # clone_layout_around_pivot_text reproduces the
+                            # source group's relative poses verbatim around the
+                            # target anchor; it has no rotation-offset hook, so
+                            # honour the request honestly rather than silently
+                            # dropping it.
+                            failed.append({
+                                "index": i, "constraint": c,
+                                "error": ("rotation_offset_deg is not supported "
+                                          "by mirror_layout (use 0)"),
+                            })
+                            continue
                         new_text, rep = clone_layout_around_pivot_text(
                             pcb_text,
-                            source_pivot_ref=src,
-                            target_pivot_ref=dst,
-                            include_refs=include,
-                            rotation_offset_deg=rot_off,
+                            source_ref=src,
+                            source_peripherals=include,
+                            target_pivots=[{
+                                "anchor_ref": dst,
+                                "peripheral_refs": target_refs,
+                            }],
                         )
                         if rep.get("success"):
                             pcb_text = new_text

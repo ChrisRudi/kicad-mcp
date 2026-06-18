@@ -623,7 +623,6 @@ class TestFlipFootprintToLayer:
 
         # Pad local coords. Look at the two `(pad "1" smd rect ... (at X Y))`
         # entries within R1's block.
-        block_end = text.find(")", text.find("(pad", r1_fp_start))  # crude but enough
         # Read the file slice from R1's footprint header.
         r1_block_end = r1_fp_start
         depth = 0

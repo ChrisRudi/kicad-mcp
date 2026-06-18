@@ -264,12 +264,12 @@ def _analyse(pcb_path: str, clearance_mm: float) -> dict[str, Any]:
 def via_promote_impl(pcb_path: str, clearance_mm: float = 0.2,
                      dry_run: bool = True, pofv_ok: bool = True) -> dict[str, Any]:
     """Analyse (and optionally apply) blind/buried→through promotion."""
-    if not _HAS_PCBNEW:
-        return {"success": False,
-                "error": "pcbnew not importable — run under KiCad's bundled Python."}
     pcb_path = to_local_path(pcb_path)
     if not os.path.isfile(pcb_path):
         return {"success": False, "error": f"PCB not found: {pcb_path}"}
+    if not _HAS_PCBNEW:
+        return {"success": False,
+                "error": "pcbnew not importable — run under KiCad's bundled Python."}
 
     report = _analyse(pcb_path, clearance_mm)
     if not report.get("success"):
