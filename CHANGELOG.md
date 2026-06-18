@@ -8,7 +8,63 @@ the first tag ships.
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-06-18
+
+### Added
+- **SessionStart-Hook für Claude Code on the web (`.claude/`).** Ein dauerhaft im
+  Repo eingebauter Startup-Hook (`.claude/hooks/session-start.sh`, registriert in
+  `.claude/settings.json`) installiert in jeder Web-Session die Dev-Umgebung
+  (`pip install -e ".[dev]"` + `pylint`), damit Lint (`pylint kicad_mcp tests`)
+  und Tests (`pytest tests/`) ohne manuelles Setup sofort laufen — dieselbe Matrix
+  wie `.github/workflows/ci.yml`. Idempotent, nicht-interaktiv, nur im Remote-Env
+  aktiv (`$CLAUDE_CODE_REMOTE`).
+
+### Changed
+- **Versionszählung auf eine Quelle der Wahrheit vereinheitlicht.** `pyproject.toml`
+  trug statisch `1.0.0`, während `plugin/version.py` — das sich selbst als „single
+  source of truth" deklariert — auf `0.4.0` stand: zwei divergierende Nummern für
+  dasselbe Release. `pyproject.toml` bezieht die Version jetzt **dynamisch** aus
+  `plugin/version.py` (`[tool.hatch.version] path = "plugin/version.py"`,
+  `project.dynamic = ["version"]`) und legt die Wheel-Discovery explizit auf
+  `kicad_mcp` fest. Ein einziger Bump in `version.py` bewegt fortan GUI-Plugin und
+  gepacktes Wheel gemeinsam; die alte `pyproject`-`1.0.0` wird auf die aktive
+  0.4.x-Linie zusammengeführt.
+- **`kicad-python==0.7.1` als feste Test-Dependency (dev-Extra + CI).** kipy
+  importiert headless vollständig (inkl. `kipy.proto`); als gepinnte
+  dev-Abhängigkeit löst die Suite kipy/protobuf **deterministisch** auf, statt dass
+  jeder Test `sys.modules['kipy']` ad-hoc faked. Damit laufen die
+  `importorskip("kipy")`-IPC-Tests verlässlich (statt davon abzuhängen, ob etwas
+  kipy mitten im Lauf installiert). Auf die KiCad-10.0-Version 0.7.1 gepinnt
+  (vermeidet die v0.3.5-Versionsdiskrepanz-Klasse).
+
 ### Fixed
+- **CI wieder grün — `google.protobuf` in `ignored-modules`.** Der `pylint`-Job
+  scheiterte auf `main` durchgehend (E0401 `Unable to import
+  'google.protobuf.empty_pb2'` in `ipc_tools.py`), und weil der `pytest`-Job per
+  `needs: lint` davon abhängt, lief er gar nicht erst (Status: skipped) — die
+  komplette Pipeline war rot. `google.protobuf` ist — wie `kipy` selbst — eine
+  reine Laufzeit-/KiCad-seitige Abhängigkeit (kipys Wire-Format-Transport, via
+  `kicad-python` gezogen) und im plain-CPython-CI-Runner abwesend; sie fehlte nur
+  in der `ignored-modules`-Ausnahmeliste. Damit ist die Lint-Stufe wieder 0/0 und
+  der per `needs: lint` zuvor übersprungene `pytest`-Job läuft überhaupt erst
+  wieder (lokal 2145 grün).
+- **Test-Suite hermetisch: kein echtes `pip install` mehr im Lauf + `fake_kipy`-
+  Fixture entschärft.** Der dynamische „rufe jedes Tool mit `{}` auf"-Smoke-Test
+  (`test_all_tools_dynamic`) rief `ipc_install_kipy` **echt** auf →
+  `pip install --upgrade kicad-python` mitten in der Suite. Auf einem sauberen
+  Runner (= CI) installierte das kipy *während* des Laufs, wodurch
+  `test_ipc_markup_tools` — dessen Layer-Enums zur Collection-Zeit (kipy noch
+  abwesend) als `None` eingefroren waren — von der Laufzeit (kipy jetzt da)
+  divergierte: 5 **deterministische** Failures, sobald der `pytest`-Job (nach dem
+  Lint-Fix) überhaupt lief. Drei Korrekturen: (1) der Installer wird im Smoke-Test
+  gestubbt **und** ein autouse-conftest-Guard blockt *jeden* echten `pip install`
+  aus Tests (per yield/finally statt `monkeypatch`, um die Fixture-Teardown-
+  Reihenfolge nicht zu stören); (2) die `fake_kipy`-Fixture importiert jetzt das
+  **echte** kipy, statt via `sys.modules.get("kipy") or ModuleType(...)` ein leeres
+  Modul ohne `.proto` zu fabrizieren (das ließ `_layer_to_enum` still auf `None`
+  fallen — maskiert nur dadurch, dass eine Modul-Konstante kipy zur Collection-Zeit
+  als Seiteneffekt importierte); (3) die Layer-Enums werden zur Test-Zeit statt zur
+  Collection-Zeit aufgelöst.
 - **IPC-Verbindung: seltenere Phantom-Abrisse ("MCP nicht verbunden …").** Drei
   zusammenwirkende Härtungen am Live-IPC-Layer, gegen das häufige intermittierende
   Abreißen der kipy↔KiCad-Verbindung (Ursache: KiCad serialisiert API + UI auf

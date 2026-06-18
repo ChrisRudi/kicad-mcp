@@ -2,9 +2,20 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+# Single source of truth for the version: plugin/version.py (``__version__``).
+# pyproject therefore declares the version ``dynamic`` and reads it from there, so
+# one bump in version.py moves the GUI plugin AND the packaged wheel together.
+# (Previously pyproject carried a divergent static ``1.0.0`` while version.py —
+# which calls itself the single source of truth — sat at ``0.4.0``.)
+[tool.hatch.version]
+path = "plugin/version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["kicad_mcp"]
+
 [project]
 name = "kicad-mcp"
-version = "1.0.0"
+dynamic = ["version"]
 description = "Model Context Protocol (MCP) server for KiCad electronic design automation (EDA) files"
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
@@ -68,6 +79,11 @@ dev = [
     "mypy>=1.8.0",
     "pre-commit>=3.0.0",
     "bandit>=1.7.0",
+    # IPC client (kipy). Headless-importable; pinned to the KiCad-10.0-matching
+    # release so the test-suite resolves real kipy/protobuf deterministically
+    # instead of each test faking ``sys.modules['kipy']`` ad-hoc (the source of
+    # an order-dependent flake). Tests still fake the live board/connection.
+    "kicad-python==0.7.1",
 ]
 
 [project.urls]
@@ -90,6 +106,7 @@ dev = [
     "mypy>=1.8.0",
     "pre-commit>=3.0.0",
     "bandit>=1.7.0",  # Security linting for pre-commit hooks
+    "kicad-python==0.7.1",  # IPC client (kipy) — see [project.optional-dependencies].dev
 ]
 docs = [
     "sphinx>=7.0.0",
@@ -255,14 +272,17 @@ skips = ["*_test.py", "*/test_*.py"]
 [tool.pylint.typecheck]
 # Modules that are NOT present in the plain-CPython lint/CI environment but ARE
 # at runtime: pcbnew + wx ship only inside KiCad's bundled Python; kipy is the
-# KiCad IPC client (separate ``kicad-python`` wheel, installed by the plugin);
-# cairosvg / reportlab are optional render / PDF-test extras. Suppressing
-# import-error for them keeps the scoreboard about real defects, not the
-# absence of KiCad on a CI runner. (The code self-skips when they're missing.)
+# KiCad IPC client (separate ``kicad-python`` wheel, installed by the plugin) and
+# google.protobuf is its wire-format transport (pulled in by kicad-python, hence
+# absent wherever kipy is); cairosvg / reportlab are optional render / PDF-test
+# extras. Suppressing import-error for them keeps the scoreboard about real
+# defects, not the absence of KiCad on a CI runner. (The code self-skips when
+# they're missing.)
 ignored-modules = [
     "pcbnew",
     "wx",
     "kipy",
+    "google.protobuf",
     "cairosvg",
     "reportlab",
 ]

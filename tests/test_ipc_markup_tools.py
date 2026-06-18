@@ -34,12 +34,20 @@ class _ArcTrack:
 
 @pytest.fixture
 def fake_kipy(monkeypatch):
+    # Real kipy is a test dependency (kicad-python). Import it so the genuine
+    # package — including kipy.proto, which _layer_to_enum needs — stays
+    # resolvable, and ONLY swap board_types for a fake carrying our test-double
+    # Track/ArcTrack. The old ``sys.modules.get("kipy") or ModuleType("kipy")``
+    # fabricated an EMPTY kipy whenever nothing had imported the real one yet,
+    # which made kipy.proto unimportable and _layer_to_enum silently return None
+    # (masked only by a module-level _layer_to_enum() call importing kipy as a
+    # side effect at collection time).
+    import kipy  # noqa: F401 — ensure the real package is in sys.modules
     bt = types.ModuleType("kipy.board_types")
     bt.Track = _Track
     bt.ArcTrack = _ArcTrack
-    kipy = sys.modules.get("kipy") or types.ModuleType("kipy")
-    monkeypatch.setitem(sys.modules, "kipy", kipy)
     monkeypatch.setitem(sys.modules, "kipy.board_types", bt)
+    monkeypatch.setattr(kipy, "board_types", bt, raising=False)
     return bt
 
 
@@ -128,46 +136,55 @@ def server(fake_kipy):
     return s
 
 
-USER9 = _layer_to_enum("User.9")
-FCU = _layer_to_enum("F.Cu")
+@pytest.fixture
+def layers(fake_kipy):
+    """Resolve layer enums at *test* time, not import time.
+
+    Binding these at module scope froze them to whatever ``_layer_to_enum``
+    returned during collection (``None`` when kipy was absent). If kipy then
+    became importable mid-suite, the tool's runtime resolution diverged from the
+    frozen value — an order-dependent failure. Resolving inside a fixture keeps
+    the expected and the runtime value in lockstep regardless of kipy's state.
+    """
+    return SimpleNamespace(user9=_layer_to_enum("User.9"), fcu=_layer_to_enum("F.Cu"))
 
 
 class TestMapping:
-    def test_segment_becomes_track_netless_on_target(self, server, monkeypatch):
-        board = _Board([_Seg(USER9, 0, 0, 1_000_000, 0)])
+    def test_segment_becomes_track_netless_on_target(self, server, monkeypatch, layers):
+        board = _Board([_Seg(layers.user9, 0, 0, 1_000_000, 0)])
         _patch_board(monkeypatch, board)
         r = _call(server, width_mm=0.3)
         assert r["success"] and r["created"] == 1
         assert r["by_type"] == {"segments": 1, "arcs": 0}
         track = board.created[0]
-        assert track.layer == FCU and track.net is None      # netless
+        assert track.layer == layers.fcu and track.net is None      # netless
         assert track.width == 300000                          # 0.3 mm → nm
         assert track.start.x == 0 and track.end.x == 1_000_000  # nm preserved
         assert board.commits == ["kicad-mcp ipc_markup_to_tracks"]  # 1 undo
 
-    def test_arc_becomes_arctrack(self, server, monkeypatch):
-        board = _Board([_Arc(USER9)])
+    def test_arc_becomes_arctrack(self, server, monkeypatch, layers):
+        board = _Board([_Arc(layers.user9)])
         _patch_board(monkeypatch, board)
         r = _call(server, width_mm=0.25)
         assert r["created"] == 1 and r["by_type"]["arcs"] == 1
         assert isinstance(board.created[0], _ArcTrack)
 
-    def test_other_layer_ignored(self, server, monkeypatch):
-        board = _Board([_Seg(FCU, 0, 0, 1, 0)])  # not on the source layer
+    def test_other_layer_ignored(self, server, monkeypatch, layers):
+        board = _Board([_Seg(layers.fcu, 0, 0, 1, 0)])  # not on the source layer
         _patch_board(monkeypatch, board)
         r = _call(server, source_layer="User.9")
         assert r["created"] == 0 and "note" in r
 
-    def test_polygon_skipped_counted(self, server, monkeypatch):
-        board = _Board([_Poly(USER9), _Seg(USER9, 0, 0, 1, 0)])
+    def test_polygon_skipped_counted(self, server, monkeypatch, layers):
+        board = _Board([_Poly(layers.user9), _Seg(layers.user9, 0, 0, 1, 0)])
         _patch_board(monkeypatch, board)
         r = _call(server)
         assert r["created"] == 1 and r["skipped"] == 1
 
 
 class TestGuards:
-    def test_dry_run_creates_nothing(self, server, monkeypatch):
-        board = _Board([_Seg(USER9, 0, 0, 1, 0)])
+    def test_dry_run_creates_nothing(self, server, monkeypatch, layers):
+        board = _Board([_Seg(layers.user9, 0, 0, 1, 0)])
         _patch_board(monkeypatch, board)
         r = _call(server, dry_run=True)
         assert r["dry_run"] and r["created"] == 1
