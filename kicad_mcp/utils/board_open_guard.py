@@ -52,7 +52,27 @@ def _override_enabled() -> bool:
 def _reset_client() -> None:
     global _client, _last_fail
     _client = None
-    _last_fail = time.time()
+    _last_fail = time.time()  # arm negative TTL — our own probe failed
+
+
+def _drop_client() -> None:
+    """Drop our cached client WITHOUT arming the negative TTL. Used as the
+    coordinated-reset hook (see below): after an *authoritative* reconnect we
+    must reconnect immediately on the next write-check, not stay dark for the
+    negative-TTL window (which would briefly let a disk write slip past an
+    actually-open board)."""
+    global _client
+    _client = None
+
+
+# Coordinate cache invalidation: when ipc_session drops its authoritative
+# client (KiCad restart / dead socket, detected via its ping health-check),
+# drop ours in lockstep too. Our own fast (1 s) probe timeouts stay LOCAL via
+# _reset_client — they over-fire on a merely-busy KiCad and must not nuke the
+# authoritative 15 s client. Direction is one-way: authoritative → siblings.
+from kicad_mcp.utils import ipc_session  # noqa: E402 - after _drop_client def
+
+ipc_session.register_reset_hook(_drop_client)
 
 
 def _get_client(factory: Optional[Callable] = None):

@@ -94,6 +94,24 @@ class TestClientCache:
         assert guard._get_client() is None
 
 
+class TestCacheCoordination:
+    def test_authoritative_reset_drops_guard_cache(self):
+        # an ipc_session reconnect event must invalidate the guard's cache too
+        from kicad_mcp.utils import ipc_session
+        guard._client = object()
+        ipc_session.reset_client()
+        assert guard._client is None
+
+    def test_coordinated_drop_does_not_arm_negative_ttl(self, monkeypatch):
+        # dropping via the coordination hook must let the guard reconnect at
+        # once (no negative-TTL dark window), unlike our own local probe failure
+        from kicad_mcp.utils import ipc_session
+        guard._last_fail = 0.0
+        guard._client = object()
+        ipc_session.reset_client()
+        assert guard._last_fail == 0.0  # TTL NOT armed → next check reconnects
+
+
 class TestWriteTextGuard:
     def test_write_text_blocks_open_board(self, tmp_path, monkeypatch):
         from kicad_mcp.cache import file_cache

@@ -275,10 +275,10 @@ def _require_editor(
     if not _kipy_available():
         return {"success": False, "error": "kipy not installed."}
     try:
-        from kipy import KiCad  # type: ignore
         from kipy.proto.common.types.base_types_pb2 import DocumentType  # type: ignore
     except Exception as exc:
         return {"success": False, "error": f"kipy import failed: {exc}"}
+    from kicad_mcp.utils.ipc_session import call_with_retry, get_client
 
     doc_const = (
         DocumentType.DOCTYPE_SCHEMATIC
@@ -286,13 +286,20 @@ def _require_editor(
         else DocumentType.DOCTYPE_PCB
     )
 
+    # Reuse the central, health-checked, auto-reconnecting client instead of a
+    # fresh per-call connection: this pre-flight gate runs before almost every
+    # IPC tool, so a fresh-connect-without-retry here was the single biggest
+    # source of spurious "Cannot reach KiCad" aborts when the GUI was briefly
+    # busy (zone fill / DRC / redraw). get_client() pings + reconnects a stale
+    # socket; call_with_retry() rides out transient "busy".
     try:
-        client = KiCad(timeout_ms=_ipc_timeout_ms())
+        client = get_client()
     except Exception as exc:
         return {"success": False, "error": f"Cannot reach KiCad: {exc}"}
 
     try:
-        if client.get_open_documents(doc_const):
+        if call_with_retry(lambda: client.get_open_documents(doc_const),
+                           "require_editor"):
             return None  # already open — no auto-launch needed
     except Exception as exc:
         # Differentiate "the bus is down" from "the editor's IPC handler

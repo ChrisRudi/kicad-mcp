@@ -15,13 +15,23 @@ from kicad_mcp.utils import ipc_session
 
 @pytest.fixture(autouse=True)
 def _reset(monkeypatch):
+    saved_hooks = list(ipc_session._reset_hooks)
     ipc_session.reset_client()
     ipc_session._logging_configured = False
     monkeypatch.delenv(ipc_session._TIMEOUT_ENV, raising=False)
     # make backoff instant so retry tests don't sleep
     monkeypatch.setattr(ipc_session.time, "sleep", lambda *_a, **_k: None)
     yield
+    ipc_session._reset_hooks[:] = saved_hooks
     ipc_session.reset_client()
+
+
+def _client_with_ping(ping):
+    """A minimal fake KiCad client whose ``ping()`` runs ``ping`` (which may
+    raise to simulate a dead / busy socket)."""
+    c = type("C", (), {})()
+    c.ping = ping
+    return c
 
 
 class TestTimeout:
@@ -63,6 +73,88 @@ class TestClientReuse:
             raise OSError("no socket")
         with pytest.raises(RuntimeError, match="Cannot reach KiCad"):
             ipc_session.get_client(_boom)
+
+
+class TestHealthCheck:
+    """The cached client is ping-validated before reuse (self-heal on a stale
+    socket), but a *busy* ping must NOT discard an otherwise-live client."""
+
+    def test_live_client_is_pinged_and_reused(self):
+        pings = {"n": 0}
+
+        def factory():
+            return _client_with_ping(
+                lambda: pings.__setitem__("n", pings["n"] + 1))
+
+        c1 = ipc_session.get_client(factory)  # built (not pinged on build)
+        c2 = ipc_session.get_client(factory)  # cached → ping → reuse
+        assert c1 is c2 and pings["n"] == 1
+
+    def test_stale_client_is_rebuilt(self):
+        made = []
+
+        def factory():
+            made.append(1)
+
+            def _dead():
+                raise RuntimeError("connection closed")
+            return _client_with_ping(_dead)
+
+        c1 = ipc_session.get_client(factory)
+        c2 = ipc_session.get_client(factory)  # ping fails (conn) → rebuild
+        assert c1 is not c2 and len(made) == 2
+
+    def test_busy_client_is_kept(self):
+        made = []
+
+        def factory():
+            made.append(1)
+
+            def _busy():
+                raise RuntimeError("KiCad is busy and cannot respond")
+            return _client_with_ping(_busy)
+
+        c1 = ipc_session.get_client(factory)
+        c2 = ipc_session.get_client(factory)  # ping says busy → keep, don't rebuild
+        assert c1 is c2 and len(made) == 1
+
+    def test_pingless_client_is_trusted(self):
+        # a test double / non-kipy client without ping() is reused as-is
+        c1 = ipc_session.get_client(object)
+        c2 = ipc_session.get_client(object)
+        assert c1 is c2
+
+
+class TestResetHooks:
+    """reset_client() fans out to registered sibling caches in lockstep."""
+
+    def test_reset_fires_registered_hooks(self):
+        fired = []
+        ipc_session.register_reset_hook(lambda: fired.append(1))
+        ipc_session.reset_client()
+        assert fired == [1]
+
+    def test_register_is_idempotent(self):
+        fired = []
+        hook = lambda: fired.append(1)  # noqa: E731
+        ipc_session.register_reset_hook(hook)
+        ipc_session.register_reset_hook(hook)  # second registration is a no-op
+        ipc_session.reset_client()
+        assert fired == [1]
+
+    def test_force_new_also_fires_hooks(self):
+        fired = []
+        ipc_session.register_reset_hook(lambda: fired.append(1))
+        ipc_session.get_client(object, force_new=True)
+        assert fired == [1]
+
+    def test_bad_hook_does_not_block_reset(self):
+        def _boom():
+            raise RuntimeError("hook blew up")
+        ipc_session.register_reset_hook(_boom)
+        ipc_session.get_client(object)
+        ipc_session.reset_client()  # must not raise
+        assert ipc_session._client is None
 
 
 class TestErrorClassification:

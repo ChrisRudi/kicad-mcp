@@ -157,9 +157,19 @@ class _FakeKiCad:
 
 class TestRequireEditor:
     def setup_method(self) -> None:
+        # _require_editor now reuses the central, *cached* ipc_session client,
+        # so each test must drop the cache or it would inherit the previous
+        # test's fake KiCad instead of its own monkeypatched kipy.KiCad.
+        from kicad_mcp.utils import ipc_session
+        ipc_session.reset_client()
         ipc_tools._AUTO_OPEN_LAST["doc_type"] = None
         ipc_tools._AUTO_OPEN_LAST["binary"] = ""
         ipc_tools._AUTO_OPEN_LAST["project_file"] = ""
+
+    def teardown_method(self) -> None:
+        # don't leak a cached fake into other test modules
+        from kicad_mcp.utils import ipc_session
+        ipc_session.reset_client()
 
     def test_unknown_doc_type(self) -> None:
         out = ipc_tools._require_editor("not-a-real-type")
