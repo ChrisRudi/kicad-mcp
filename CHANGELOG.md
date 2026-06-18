@@ -8,7 +8,39 @@ the first tag ships.
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-06-18
+
+### Added
+- **SessionStart-Hook für Claude Code on the web (`.claude/`).** Ein dauerhaft im
+  Repo eingebauter Startup-Hook (`.claude/hooks/session-start.sh`, registriert in
+  `.claude/settings.json`) installiert in jeder Web-Session die Dev-Umgebung
+  (`pip install -e ".[dev]"` + `pylint`), damit Lint (`pylint kicad_mcp tests`)
+  und Tests (`pytest tests/`) ohne manuelles Setup sofort laufen — dieselbe Matrix
+  wie `.github/workflows/ci.yml`. Idempotent, nicht-interaktiv, nur im Remote-Env
+  aktiv (`$CLAUDE_CODE_REMOTE`).
+
+### Changed
+- **Versionszählung auf eine Quelle der Wahrheit vereinheitlicht.** `pyproject.toml`
+  trug statisch `1.0.0`, während `plugin/version.py` — das sich selbst als „single
+  source of truth" deklariert — auf `0.4.0` stand: zwei divergierende Nummern für
+  dasselbe Release. `pyproject.toml` bezieht die Version jetzt **dynamisch** aus
+  `plugin/version.py` (`[tool.hatch.version] path = "plugin/version.py"`,
+  `project.dynamic = ["version"]`) und legt die Wheel-Discovery explizit auf
+  `kicad_mcp` fest. Ein einziger Bump in `version.py` bewegt fortan GUI-Plugin und
+  gepacktes Wheel gemeinsam; die alte `pyproject`-`1.0.0` wird auf die aktive
+  0.4.x-Linie zusammengeführt.
+
 ### Fixed
+- **CI wieder grün — `google.protobuf` in `ignored-modules`.** Der `pylint`-Job
+  scheiterte auf `main` durchgehend (E0401 `Unable to import
+  'google.protobuf.empty_pb2'` in `ipc_tools.py`), und weil der `pytest`-Job per
+  `needs: lint` davon abhängt, lief er gar nicht erst (Status: skipped) — die
+  komplette Pipeline war rot. `google.protobuf` ist — wie `kipy` selbst — eine
+  reine Laufzeit-/KiCad-seitige Abhängigkeit (kipys Wire-Format-Transport, via
+  `kicad-python` gezogen) und im plain-CPython-CI-Runner abwesend; sie fehlte nur
+  in der `ignored-modules`-Ausnahmeliste. Damit ist die Lint-Stufe wieder 0/0 und
+  der per `needs: lint` zuvor übersprungene `pytest`-Job läuft überhaupt erst
+  wieder (lokal 2145 grün).
 - **IPC-Verbindung: seltenere Phantom-Abrisse ("MCP nicht verbunden …").** Drei
   zusammenwirkende Härtungen am Live-IPC-Layer, gegen das häufige intermittierende
   Abreißen der kipy↔KiCad-Verbindung (Ursache: KiCad serialisiert API + UI auf
