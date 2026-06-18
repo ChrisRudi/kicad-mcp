@@ -29,6 +29,13 @@ the first tag ships.
   `kicad_mcp` fest. Ein einziger Bump in `version.py` bewegt fortan GUI-Plugin und
   gepacktes Wheel gemeinsam; die alte `pyproject`-`1.0.0` wird auf die aktive
   0.4.x-Linie zusammengeführt.
+- **`kicad-python==0.7.1` als feste Test-Dependency (dev-Extra + CI).** kipy
+  importiert headless vollständig (inkl. `kipy.proto`); als gepinnte
+  dev-Abhängigkeit löst die Suite kipy/protobuf **deterministisch** auf, statt dass
+  jeder Test `sys.modules['kipy']` ad-hoc faked. Damit laufen die
+  `importorskip("kipy")`-IPC-Tests verlässlich (statt davon abzuhängen, ob etwas
+  kipy mitten im Lauf installiert). Auf die KiCad-10.0-Version 0.7.1 gepinnt
+  (vermeidet die v0.3.5-Versionsdiskrepanz-Klasse).
 
 ### Fixed
 - **CI wieder grün — `google.protobuf` in `ignored-modules`.** Der `pylint`-Job
@@ -41,6 +48,23 @@ the first tag ships.
   in der `ignored-modules`-Ausnahmeliste. Damit ist die Lint-Stufe wieder 0/0 und
   der per `needs: lint` zuvor übersprungene `pytest`-Job läuft überhaupt erst
   wieder (lokal 2145 grün).
+- **Test-Suite hermetisch: kein echtes `pip install` mehr im Lauf + `fake_kipy`-
+  Fixture entschärft.** Der dynamische „rufe jedes Tool mit `{}` auf"-Smoke-Test
+  (`test_all_tools_dynamic`) rief `ipc_install_kipy` **echt** auf →
+  `pip install --upgrade kicad-python` mitten in der Suite. Auf einem sauberen
+  Runner (= CI) installierte das kipy *während* des Laufs, wodurch
+  `test_ipc_markup_tools` — dessen Layer-Enums zur Collection-Zeit (kipy noch
+  abwesend) als `None` eingefroren waren — von der Laufzeit (kipy jetzt da)
+  divergierte: 5 **deterministische** Failures, sobald der `pytest`-Job (nach dem
+  Lint-Fix) überhaupt lief. Drei Korrekturen: (1) der Installer wird im Smoke-Test
+  gestubbt **und** ein autouse-conftest-Guard blockt *jeden* echten `pip install`
+  aus Tests (per yield/finally statt `monkeypatch`, um die Fixture-Teardown-
+  Reihenfolge nicht zu stören); (2) die `fake_kipy`-Fixture importiert jetzt das
+  **echte** kipy, statt via `sys.modules.get("kipy") or ModuleType(...)` ein leeres
+  Modul ohne `.proto` zu fabrizieren (das ließ `_layer_to_enum` still auf `None`
+  fallen — maskiert nur dadurch, dass eine Modul-Konstante kipy zur Collection-Zeit
+  als Seiteneffekt importierte); (3) die Layer-Enums werden zur Test-Zeit statt zur
+  Collection-Zeit aufgelöst.
 - **IPC-Verbindung: seltenere Phantom-Abrisse ("MCP nicht verbunden …").** Drei
   zusammenwirkende Härtungen am Live-IPC-Layer, gegen das häufige intermittierende
   Abreißen der kipy↔KiCad-Verbindung (Ursache: KiCad serialisiert API + UI auf

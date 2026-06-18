@@ -79,6 +79,11 @@ dev = [
     "mypy>=1.8.0",
     "pre-commit>=3.0.0",
     "bandit>=1.7.0",
+    # IPC client (kipy). Headless-importable; pinned to the KiCad-10.0-matching
+    # release so the test-suite resolves real kipy/protobuf deterministically
+    # instead of each test faking ``sys.modules['kipy']`` ad-hoc (the source of
+    # an order-dependent flake). Tests still fake the live board/connection.
+    "kicad-python==0.7.1",
 ]
 
 [project.urls]
@@ -101,6 +106,7 @@ dev = [
     "mypy>=1.8.0",
     "pre-commit>=3.0.0",
     "bandit>=1.7.0",  # Security linting for pre-commit hooks
+    "kicad-python==0.7.1",  # IPC client (kipy) — see [project.optional-dependencies].dev
 ]
 docs = [
     "sphinx>=7.0.0",
