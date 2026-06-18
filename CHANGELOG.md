@@ -8,6 +8,52 @@ the first tag ships.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-06-18
+
+### Added
+- **Pinout-Pipeline — Datenblatt-Validator + rangierte Symbol-Suche** (3 neue
+  Tools, Tool-Count 170→173). Neues, eigenständiges deterministisches Modul
+  `kicad_mcp/generators/pinout/`: prüft ein KiCad-`.kicad_sym`-Pinout strikt
+  gegen das Datenblatt (Pin-Nummer, Pin-Name, electrical_type) und fängt damit
+  „Pin vertauscht / falsche Package-Variante / EP-Nummer falsch". PDF-Extraktion
+  hybrid (pdfplumber zuerst, austauschbarer LLM-Hook nur bei Versagen), Typ-
+  Mapping gegen `symbol_author.VALID_PIN_TYPES`, aktive-Low-Namensnormalisierung,
+  EP/PowerPAD-Abgleich. Tools: `search_symbol` (read-only, rangierte Kandidaten
+  über Stock- + User-sym-lib-table), `validate_pinout`, `match_symbol_to_datasheet`
+  (disambiguiert Varianten per Diff-Treffer). Abgegrenzt von
+  `review_ic_against_datasheet` (Bild+LLM); CLI unter
+  `python -m kicad_mcp.generators.pinout`.
+- **Panel-Start: Platinen-Zusammenfassung, Interaktionsanleitung, Version,
+  Empfehlungs-Mailto** (Plugin). Beim Öffnen des Chat-Panels sofort (ohne
+  Claude-Turn): Versionszeile + verbundenes Board, ein klickbarer
+  Empfehlungs-`mailto:`, die Interaktionsanleitung und eine asynchrone
+  Platinen-Zusammenfassung (Footprints/Netze/Lagen, Bestückung nach Ref-Prefix,
+  Board-Größe best-effort aus Edge.Cuts). Nebeneffekt: refs/nets/layers werden
+  schon beim Start geladen → die ERSTE Antwort ist verlinkbar (vorher erst die
+  zweite). Reine Builder in `plugin/banner.py` (`recommend_mailto`,
+  `summary_lines`, `interaction_guide`) + `board_links.board_summary` /
+  `board_extent_mm_from_file`.
+- **Reverse-Brücke Board → Chat** (Plugin, Interaktions-Lücken). Die bisher
+  einseitige Chat→Board-Brücke spricht jetzt zurück: „🔗 Auswahl einbeziehen"
+  stellt die Editor-Selektion (`board_links.get_selection` →
+  `selection_context`) dem Prompt voran (P1); ein Klick auf einen Bauteil-/Pin-
+  Link zeigt zusätzlich die Pad→Netz-Verbindungen in der Statuszeile (P3,
+  `inspect_ref`/`inspect_summary`); Rechtsklick bietet pro Link „nur markieren /
+  hinzoomen / Eigenschaften" (P2); eine Antwort, die mehrere Elemente nennt,
+  bekommt eine „📍 alle markieren"-Zeile (P4); Strg-Klick sammelt die Auswahl
+  (P5).
+
+### Changed
+- **Chat-Board-Links erkennen die kanonischen KiCad-Benennungen toleranter**
+  (Vokabular-Vertrag). Der Producer-System-Prompt (`claude_bridge`) verlangt
+  jetzt kanonische Tokens (bare Reference, exakter Netzname, `F.Cu`,
+  `<ref>.<pin>`, `(x, y)` mm), und `board_links.tokenize` normalisiert drei
+  SICHERE Alias-Klassen ohne die Zero-False-Positive-Garantie aufzugeben:
+  führender `/` an Netzen (`/GND`↔`GND`) + Groß/Kleinschreibung, Pin-Prosa
+  (`pin 33 of U1` / `U1 pin 33` → `U1.33`) und Layer-Aliase nur mit Qualifier
+  (`top copper`→`F.Cu`, bare „top" bleibt Text). Kein semantisches Raten
+  (`ground`→`GND`).
+
 ### Fixed
 - **CI wieder grün (Lint + Tests).** Der `pylint`-Job scheiterte (Exit 6) seit
   Längerem an `import-error` für Module, die nur unter KiCads gebündeltem Python
