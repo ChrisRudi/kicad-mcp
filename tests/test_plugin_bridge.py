@@ -106,6 +106,8 @@ class TestBuildCommand:
         sp = cmd[cmd.index("--append-system-prompt") + 1]
         assert "check_connectivity" in sp and "pcb_render" in sp
         assert "mcp__" in sp  # the "no MCP tools → say so, don't flail" rule
+        # Dok 3 Hebel 1: canonical-naming rule so replies stay click-linkable
+        assert "kanonisch" in sp and "<ref>.<pin>" in sp
 
     def test_max_turns_default_override_and_off(self, monkeypatch):
         monkeypatch.delenv("KICAD_MCP_MAX_TURNS", raising=False)

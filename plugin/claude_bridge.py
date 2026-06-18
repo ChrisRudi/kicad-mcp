@@ -104,7 +104,13 @@ BEHAVIOR_SYSTEM_PROMPT = (
     "(5) Gleichartige Mutationen bündeln (z. B. add_vias_to_pcb statt N× "
     "add_via_to_pcb), dann EINMAL füllen und EINMAL verifizieren. "
     "(6) Kein Fortschritt nach wenigen Versuchen? Abbrechen und kurz "
-    "berichten/fragen — kein Probieren über Dutzende Calls."
+    "berichten/fragen — kein Probieren über Dutzende Calls. "
+    "(7) Benenne Board-Elemente AUSSCHLIESSLICH mit ihrem kanonischen "
+    "KiCad-Token, damit sie im Chat klickbar werden: Footprints als bare "
+    "Reference (R12, U8); Netze mit dem EXAKTEN Netznamen aus der Tool-Ausgabe "
+    "(nicht paraphrasieren, nicht übersetzen, kein führender Slash); Layer "
+    "kanonisch (F.Cu, B.Cu, In1.Cu); Pins als <ref>.<pin> (U1.33); Koordinaten "
+    "als (x, y) in mm. Übernimm Namen aus Tool-Ergebnissen WÖRTLICH."
 )
 
 # Hard cap on agentic turns so a stuck task can't loop for the whole idle
