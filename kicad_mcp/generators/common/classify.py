@@ -14,7 +14,6 @@ Callers:
   - common/fd_refine.py    (_classify_component — fuer PCB fixed-set)
 """
 
-from collections import defaultdict
 import re
 
 # ── Keywords for connector sub-classification ───────────────────────────────

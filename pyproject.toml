@@ -54,6 +54,21 @@ dependencies = [
 pdf = [
     "pdfplumber>=0.10.0",  # circuit_block extract_pdf_tables / extract_circuit_from_pdf
 ]
+# Mirror of the ``[dependency-groups] dev`` list below as a PEP-621 extra so
+# ``pip install -e ".[dev]"`` (used by .github/workflows/ci.yml) resolves on every
+# pip — dependency-groups need ``--group`` and silently fall through the CI
+# ``|| pip install -e .`` fallback, which then ran pytest with no pytest installed.
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-mock>=3.10.0",
+    "pytest-cov>=4.0.0",
+    "pytest-xdist>=3.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+    "pre-commit>=3.0.0",
+    "bandit>=1.7.0",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/ChrisRudi/kicad-mcp"
@@ -236,6 +251,21 @@ skips = ["B101", "B601", "B404", "B603", "B110", "B112"]  # Skip low-severity su
 
 [tool.bandit.assert_used]
 skips = ["*_test.py", "*/test_*.py"]
+
+[tool.pylint.typecheck]
+# Modules that are NOT present in the plain-CPython lint/CI environment but ARE
+# at runtime: pcbnew + wx ship only inside KiCad's bundled Python; kipy is the
+# KiCad IPC client (separate ``kicad-python`` wheel, installed by the plugin);
+# cairosvg / reportlab are optional render / PDF-test extras. Suppressing
+# import-error for them keeps the scoreboard about real defects, not the
+# absence of KiCad on a CI runner. (The code self-skips when they're missing.)
+ignored-modules = [
+    "pcbnew",
+    "wx",
+    "kipy",
+    "cairosvg",
+    "reportlab",
+]
 
 [tool.pylint."MESSAGES CONTROL"]
 # Disabled checks — rationale per cluster:

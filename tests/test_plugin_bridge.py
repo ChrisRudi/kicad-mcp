@@ -363,11 +363,19 @@ class TestMcpConfig:
 
     def test_bootstrap_includes_deps_dir_and_escapes_windows_paths(self):
         import ast
+
+        from plugin import deps
         code = mcp_config.server_bootstrap_code(r"C:\plug\mcp",
                                                 r"C:\plug\_deps")
-        # the generated path list must be valid Python despite backslashes
+        # the generated path list must be valid Python despite backslashes, and
+        # carry the deps dir plus pywin32's .pth dirs (win32, win32/lib) — those
+        # are required so mcp's eager ``import pywintypes`` resolves under a
+        # ``pip install --target`` _deps (see deps.pywin32_path_entries).
         list_src = code.split("= ", 1)[1].split("];")[0] + "]"
-        assert ast.literal_eval(list_src) == [r"C:\plug\mcp", r"C:\plug\_deps"]
+        assert ast.literal_eval(list_src) == (
+            [r"C:\plug\mcp", r"C:\plug\_deps"]
+            + deps.pywin32_path_entries(r"C:\plug\_deps")
+        )
 
     def test_write_creates_valid_json(self, tmp_path):
         root = tmp_path / "repo"; root.mkdir()

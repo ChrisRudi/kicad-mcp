@@ -18,8 +18,6 @@ the placement-dependent wire-routing heuristics.
 """
 from __future__ import annotations
 
-import pytest
-
 from kicad_mcp.generators.schematic.builder import build_schematic
 from kicad_mcp.generators.schematic.route import _place_label_with_stub
 from kicad_mcp.generators.sexpr import SExpr

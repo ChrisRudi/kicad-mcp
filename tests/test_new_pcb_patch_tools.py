@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 import asyncio
-import re
 
 import pytest
 
@@ -262,11 +261,6 @@ def test_add_footprint_text_happy_path(mcp_server, pcb_path):
     assert out["text_added"]["local_xy"] == [-1.0, 0.0]
     assert out["text_added"]["rotation"] == 0
     text = _read(pcb_path)
-    # The new fp_text block should be inside the R1 footprint.
-    m = re.search(
-        r'\(footprint\s+"Resistor_SMD:R_0402_1005Metric".*?\)\s*\(footprint',
-        text, re.DOTALL,
-    )
     # Find the R1 block by ref.
     r1_idx = text.find('"R1"')
     fp_start = text.rfind("(footprint", 0, r1_idx)

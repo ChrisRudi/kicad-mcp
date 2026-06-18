@@ -167,7 +167,7 @@ def _read(path: str) -> str:
 def test_text_fn_happy_path():
     """3 refs in a 3-column grid at phi=0°, r=42, pcb_center=(0,0):
     cluster centre lands at (42, 0); each ref is offset tangentially."""
-    new_text, result = ppt.cluster_block_outside_pcb_text(
+    _, result = ppt.cluster_block_outside_pcb_text(
         MIN_PCB_3,
         refs=["R1", "R2", "C1"],
         cluster_phi_deg=0.0,

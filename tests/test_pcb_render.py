@@ -54,6 +54,8 @@ def test_render_missing_file_via_tool(tmp_path):
     from kicad_mcp.tools import pcb_render_tools as m
 
     class _Mcp:
+        fn = None
+
         def tool(self):
             def deco(fn):
                 self.fn = fn

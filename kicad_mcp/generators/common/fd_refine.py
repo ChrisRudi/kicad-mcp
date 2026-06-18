@@ -11,7 +11,6 @@ Callers:
 import math
 
 from .bbox import _fp_size
-from .constants import MARGIN, SHEET_H, SHEET_W, Y_CENTER
 
 
 def _fd_pcb_refine(
