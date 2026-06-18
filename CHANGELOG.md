@@ -8,6 +8,31 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed
+- **IPC-Verbindung: seltenere Phantom-Abrisse ("MCP nicht verbunden …").** Drei
+  zusammenwirkende Härtungen am Live-IPC-Layer, gegen das häufige intermittierende
+  Abreißen der kipy↔KiCad-Verbindung (Ursache: KiCad serialisiert API + UI auf
+  einem Thread, und unsere Pre-Flight-/Cache-Pfade fingen einen bloß-busy oder
+  veralteten Socket nicht ab):
+  - `ipc_session.get_client()` health-checkt den gecachten Client jetzt mit einem
+    billigen `ping()` vor der Wiederverwendung. Ein toter/desynchroner Socket
+    (KiCad neu gestartet, oder ein vorheriger Call ist mitten im recv getimeoutet
+    und hat den pynng-REQ/REP-Socket aus dem Tritt gebracht) wird transparent neu
+    aufgebaut, statt eine tote Verbindung zurückzugeben. Ein `ping()`, das nur
+    wegen "busy" fehlschlägt, behält den Client (Busy-Backoff bleibt Sache von
+    `call_with_retry`).
+  - `_require_editor` (der Pre-Flight-Gate vor fast jedem IPC-Tool) nutzt jetzt den
+    zentralen, wiederverwendeten + auto-reconnectenden Client und wickelt die
+    `get_open_documents`-Probe in `call_with_retry`, statt pro Call frisch und
+    ohne Retry zu verbinden — das war der Haupt-Funnel für falsche
+    "Cannot reach KiCad"-Abbrüche bei kurz beschäftigter GUI.
+  - **Koordinierte Cache-Invalidierung:** `ipc_session.reset_client()` feuert jetzt
+    registrierte Reset-Hooks, sodass Geschwister-Caches (der `board_open_guard`-
+    Fast-Probe-Client) im Gleichschritt fallen. Ein einziges Reconnect-Ereignis
+    invalidiert damit alle Verbindungs-Caches kohärent über einen KiCad-Neustart;
+    die flakigen 1-s-Timeouts des Guards bleiben dagegen lokal (sie over-firen bei
+    bloß-busy KiCad und dürfen den autoritativen 15-s-Client nicht abschießen).
+
 ## [0.4.0] — 2026-06-18
 
 ### Added

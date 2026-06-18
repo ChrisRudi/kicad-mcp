@@ -153,9 +153,13 @@ hydratisiert die Multi-MB-Datei aus der Cloud (~80 s), nicht pcbnew (Load+Fill ~
 Writes (jeder Write = ein Sync-Upload); `file_cache` killt redundante Reads.
 
 **Live-IPC:** Der zentrale Session-Layer `utils/ipc_session.py` hält **einen** wieder-
-verwendeten kipy-Client (`get_client()`, von `_connect_kicad` genutzt) statt pro Tool-Call
-neu zu verbinden — der größte Latenz-Hebel. Timeout konfigurierbar via
-`KICAD_MCP_IPC_TIMEOUT_MS` (Default 15000 ms, statt kipys 2000 ms); `call_with_retry`
-fängt „KiCad is busy" mit Backoff ab und reconnectet bei abgerissener Verbindung. File-Log
+verwendeten kipy-Client (`get_client()`, von `_connect_kicad` **und** `_require_editor`
+genutzt) statt pro Tool-Call neu zu verbinden — der größte Latenz-Hebel. `get_client()`
+health-checkt den Cache vor Wiederverwendung per `ping()` (toter/desynchroner Socket → still
+neu aufbauen; „busy" → behalten). Timeout konfigurierbar via `KICAD_MCP_IPC_TIMEOUT_MS`
+(Default 15000 ms, statt kipys 2000 ms); `call_with_retry` fängt „KiCad is busy" mit Backoff
+ab und reconnectet bei abgerissener Verbindung. `reset_client()` feuert Reset-Hooks, sodass
+Geschwister-Caches (`board_open_guard`) bei einem Reconnect-Ereignis im Gleichschritt fallen
+(`register_reset_hook`); Guard-eigene 1-s-Timeouts bleiben lokal. File-Log
 neben dem Board (`kicad_mcp_ipc.log`, Fallback Temp-Dir), da stdout beim Plugin-Launch
 unsichtbar ist. Wait-/Restart-Loops nutzen `new_client()` (frisch, gleicher Timeout).
