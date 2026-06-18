@@ -255,6 +255,24 @@ EXPECTED_EMPTY_CALL_FAILURES = {
 }
 
 
+@pytest.fixture(autouse=True)
+def _no_real_kipy_install(monkeypatch):
+    """``ipc_install_kipy`` (one of the tools the empty-call smoke test below
+    invokes) runs a real ``pip install kicad-python`` against the live
+    interpreter — no KiCad needed, no required args, so it actually executes.
+    Stub the installer so the tool returns a structured failure instead of
+    installing kipy mid-suite (which poisoned later enum-dependent tests). The
+    conftest pip guard is the backstop; this makes the intent explicit and keeps
+    the tool's return path (a clean failure dict) under test.
+    """
+    from kicad_mcp.tools import ipc_tools
+    monkeypatch.setattr(
+        ipc_tools, "_pip_install_kipy",
+        lambda target_python=None: (False, "stubbed in tests — no real install"),
+        raising=False,
+    )
+
+
 @pytest.mark.parametrize("tool_name", [None])  # placeholder; real param ids below
 def test_placeholder(tool_name):
     """Pytest collection requires at least one parametrize value; replaced
