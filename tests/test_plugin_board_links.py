@@ -481,6 +481,34 @@ class TestConnectDiagnostics:
         assert board is sentinel and client is not None
 
 
+class TestBoardUnavailableMessage:
+    """The SAME raw kipy error means EITHER >1 KiCad instance OR a kipy↔KiCad
+    version mismatch — the message must disambiguate via the env_resolve
+    coupling so the user is told the RIGHT fix."""
+
+    def test_version_mismatch_leads_with_version_fix(self):
+        msg = board_links.board_unavailable_message(
+            "ApiError: no handler", kicad_version=(10, 0, 1),
+            kipy_version="0.8.0", coupled="0.7.1")
+        assert "0.8.0" in msg and "0.7.1" in msg
+        assert "Installieren" in msg          # the version fix
+        assert "Instanz" not in msg           # NOT the multi-instance fix
+
+    def test_coupled_version_leads_with_close_window(self):
+        msg = board_links.board_unavailable_message(
+            "ApiError: no handler", kicad_version=(10, 0, 1),
+            kipy_version="0.7.1", coupled="0.7.1")
+        assert "Instanz" in msg               # close the extra window
+        assert "KiCad 10.0.1" in msg and "0.7.1" in msg
+
+    def test_unknown_coupling_defaults_to_multi_instance(self):
+        msg = board_links.board_unavailable_message(
+            "ApiError: no handler", kicad_version=None,
+            kipy_version=None, coupled=None)
+        assert "Instanz" in msg
+        assert "Technisch" in msg             # raw cause always appended
+
+
 # -- Dok 3: safe vocabulary normalization in tokenize -------------------------
 
 class TestNetNormalization:

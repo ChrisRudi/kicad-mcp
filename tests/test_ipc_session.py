@@ -75,6 +75,31 @@ class TestClientReuse:
             ipc_session.get_client(_boom)
 
 
+class TestWslSocketHint:
+    """A WSL-launched server cannot reach KiCad's Windows-native IPC socket; the
+    connect error must say so (reusing path_env's single env detection) instead
+    of looking like 'KiCad is down'."""
+
+    def test_hint_present_under_wsl(self, monkeypatch):
+        from kicad_mcp.utils import path_env
+        monkeypatch.setattr(path_env, "is_wsl", lambda: True)
+        assert "WSL erkannt" in ipc_session._wsl_socket_hint()
+
+    def test_no_hint_off_wsl(self, monkeypatch):
+        from kicad_mcp.utils import path_env
+        monkeypatch.setattr(path_env, "is_wsl", lambda: False)
+        assert ipc_session._wsl_socket_hint() == ""
+
+    def test_unreachable_error_carries_wsl_hint(self, monkeypatch):
+        from kicad_mcp.utils import path_env
+        monkeypatch.setattr(path_env, "is_wsl", lambda: True)
+
+        def _boom():
+            raise OSError("no socket")
+        with pytest.raises(RuntimeError, match="WSL erkannt"):
+            ipc_session.new_client(_boom)
+
+
 class TestHealthCheck:
     """The cached client is ping-validated before reuse (self-heal on a stale
     socket), but a *busy* ping must NOT discard an otherwise-live client."""

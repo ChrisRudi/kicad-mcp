@@ -78,6 +78,24 @@ def is_busy_error(exc: BaseException) -> bool:
     return "busy" in str(exc).lower()
 
 
+def _wsl_socket_hint() -> str:
+    """When THIS server runs under WSL, KiCad's live IPC socket is Windows-native
+    and not reachable across the WSL boundary — a bare connect timeout then looks
+    like "KiCad is down" when the real fix is launching the server under Windows
+    KiCad. Reuses the single environment detection in ``path_env`` (no duplicate
+    WSL sniffing). Empty string off-WSL."""
+    try:
+        from .path_env import is_wsl  # local: pure stdlib, no kipy
+        if is_wsl():
+            return (" [WSL erkannt: KiCads Live-API-Socket ist Windows-nativ und "
+                    "aus WSL nicht erreichbar — Live-IPC braucht den unter "
+                    "Windows-KiCad gestarteten Server (start_mcp.bat). Aus WSL "
+                    "geht nur die datei-basierte (headless) Arbeit.]")
+    except Exception:
+        pass
+    return ""
+
+
 def is_connection_error(exc: BaseException) -> bool:
     """True for a dropped/broken connection — reconnect, then retry once."""
     text = str(exc).lower()
@@ -112,6 +130,7 @@ def new_client(factory: Optional[Callable[[], Any]] = None) -> Any:
         raise RuntimeError(
             f"Cannot reach KiCad IPC server: {exc}. Is KiCad running and the "
             "IPC API enabled (Preferences → Plugins → IPC API)?"
+            + _wsl_socket_hint()
         ) from exc
     log.info("ipc connect (fresh, timeout=%d ms)", timeout_ms())
     return client
@@ -275,6 +294,6 @@ def connect_board(factory: Optional[Callable[[], Any]] = None):
     except Exception as exc:
         raise RuntimeError(
             f"No board accessible via IPC: {exc}. Open a .kicad_pcb in the "
-            "PCB Editor before calling IPC tools."
+            "PCB Editor before calling IPC tools." + _wsl_socket_hint()
         ) from exc
     return client, board

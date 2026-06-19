@@ -8,6 +8,43 @@ the first tag ships.
 
 ## [Unreleased]
 
+## [0.4.4] — 2026-06-19
+
+### Changed
+- **„Kein eindeutiges Board"-Meldung unterscheidet jetzt die zwei Ursachen.**
+  Derselbe rohe kipy-Fehler („no handler for GetOpenDocuments") feuert sowohl
+  bei MEHREREN KiCad-Instanzen auf einem Socket als auch bei einem
+  kipy↔KiCad-Versions-Mismatch. `board_links.connect()` löst das jetzt über die
+  `env_resolve`-Kopplung auf: ist die geladene kipy NICHT die für das laufende
+  KiCad gekoppelte Version → Meldung führt mit dem Versions-Fix („Installieren"
+  in der Einrichtung); sonst → mit „schließe zusätzliche KiCad-Fenster". Plus
+  erkannte KiCad-/kipy-Version in der Meldung. (Kein Auto-Pick: `KiCad.get_board()`
+  nimmt bereits `docs[0]` — der scheiternde Aufruf IST die Enumeration, ein
+  Auto-Pick ist im Mehrfachinstanz-Fall technisch unmöglich.)
+- **WSL↔Windows-Diagnose im IPC-Connect-Fehler.** Läuft der MCP-Server unter WSL
+  (`ipc_session` nutzt `path_env.is_wsl()` — die bereits vorhandene, einzige
+  Umgebungs-Erkennung), erklärt der Connect-Fehler jetzt, dass KiCads
+  Live-API-Socket Windows-nativ und aus WSL nicht erreichbar ist (Live-IPC nur
+  unter Windows-KiCad; aus WSL nur datei-basiert) — statt eines nackten Timeouts,
+  der wie „KiCad ist tot" aussieht.
+
+### Fixed
+- **Gebündelter Server `plugin/mcp/kicad_mcp/` war veraltet — jetzt synchron +
+  dauerhaft abgesichert.** Das Live-Plugin lädt den Server *bundled-first*
+  (`claude_action._mcp_root`), führte also alten Code aus: dem Bundle fehlten
+  9 Dateien (das komplette `generators/pinout/`-Feature aus v0.4.0 +
+  `tools/pinout_tools.py`) und 14 Dateien waren inhaltlich veraltet (u. a. die
+  Phantom-Disconnect-Härtung aus `df91f33`, `ipc_session`, `ipc_tools`,
+  `board_open_guard`, `tool_registry`). Es gab nie einen Sync-Schritt —
+  `make_pcm_zip.py` packte nur, was zufällig in `plugin/mcp/` lag. Behoben: das
+  Bundle ist jetzt ein exakter Spiegel des kanonischen `kicad_mcp/`.
+
+### Added
+- **`scripts/sync_bundle.py`** — spiegelt `kicad_mcp/` → `plugin/mcp/kicad_mcp/`
+  (ohne Caches/Bytecode); `--check` meldet Drift. **`tests/test_bundle_sync.py`**
+  lässt die Suite fehlschlagen, sobald Bundle und kanonisch divergieren — die
+  Drift kann damit nicht mehr unbemerkt wiederkehren.
+
 ## [0.4.3] — 2026-06-19
 
 ### Fixed
