@@ -73,15 +73,15 @@ def check_connectivity_impl(
     Validates cheaply (no daemon round-trip on bad args / missing file),
     then forwards to the warm connectivity daemon.
     """
+    pcb_path = to_local_path(pcb_path)
+    if not os.path.isfile(pcb_path):
+        return {"success": False, "error": f"PCB not found: {pcb_path}"}
     if not _HAS_PCBNEW:
         return {"success": False, "error": "pcbnew not importable — run the MCP server under KiCad's bundled Python."}
 
     err = _validate(mode, ref_pad, x_mm, y_mm)
     if err:
         return err
-    pcb_path = to_local_path(pcb_path)
-    if not os.path.isfile(pcb_path):
-        return {"success": False, "error": f"PCB not found: {pcb_path}"}
 
     resp = _DAEMON.request(
         {"op": mode, "pcb_path": pcb_path, "ref_pad": ref_pad,

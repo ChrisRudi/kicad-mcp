@@ -21,7 +21,7 @@ import logging
 from ..common.bbox import _get_symbol_height, _get_symbol_width
 from ..common.bus_detect import find_bus_groups
 from ..common.chain_detect import find_series_chains
-from ..common.classify import _is_bypass_cap, _is_small_passive
+from ..common.classify import _is_bypass_cap
 from ..common.connectivity import _build_connection_graph
 from ..common.constants import (
     GRID,

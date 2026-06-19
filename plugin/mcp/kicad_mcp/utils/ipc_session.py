@@ -50,6 +50,12 @@ BUSY_BACKOFF_BASE_S = 0.15
 _client: Any = None
 _logging_configured = False
 
+# Sibling IPC caches (e.g. the board-open guard's fast-probe client) register a
+# drop-callback here. A single reconnect event — KiCad restart / dead socket —
+# then invalidates every cache in lockstep, instead of each one discovering the
+# death independently at a different time (the source of "phantom" disconnects).
+_reset_hooks: list[Callable[[], None]] = []
+
 
 # --------------------------------------------------------------------------- #
 # Configuration
@@ -70,6 +76,24 @@ def timeout_ms() -> int:
 def is_busy_error(exc: BaseException) -> bool:
     """True for the "KiCad is busy and cannot respond" transient (retryable)."""
     return "busy" in str(exc).lower()
+
+
+def _wsl_socket_hint() -> str:
+    """When THIS server runs under WSL, KiCad's live IPC socket is Windows-native
+    and not reachable across the WSL boundary — a bare connect timeout then looks
+    like "KiCad is down" when the real fix is launching the server under Windows
+    KiCad. Reuses the single environment detection in ``path_env`` (no duplicate
+    WSL sniffing). Empty string off-WSL."""
+    try:
+        from .path_env import is_wsl  # local: pure stdlib, no kipy
+        if is_wsl():
+            return (" [WSL erkannt: KiCads Live-API-Socket ist Windows-nativ und "
+                    "aus WSL nicht erreichbar — Live-IPC braucht den unter "
+                    "Windows-KiCad gestarteten Server (start_mcp.bat). Aus WSL "
+                    "geht nur die datei-basierte (headless) Arbeit.]")
+    except Exception:
+        pass
+    return ""
 
 
 def is_connection_error(exc: BaseException) -> bool:
@@ -106,6 +130,7 @@ def new_client(factory: Optional[Callable[[], Any]] = None) -> Any:
         raise RuntimeError(
             f"Cannot reach KiCad IPC server: {exc}. Is KiCad running and the "
             "IPC API enabled (Preferences → Plugins → IPC API)?"
+            + _wsl_socket_hint()
         ) from exc
     log.info("ipc connect (fresh, timeout=%d ms)", timeout_ms())
     return client
@@ -114,20 +139,55 @@ def new_client(factory: Optional[Callable[[], Any]] = None) -> Any:
 def get_client(factory: Optional[Callable[[], Any]] = None,
                force_new: bool = False) -> Any:
     """The REUSED process-wide client (connecting on first use). ``force_new``
-    drops any cached client first. Raises ``RuntimeError`` if unreachable."""
+    drops any cached client first. Raises ``RuntimeError`` if unreachable.
+
+    Before handing back a cached client it is health-checked with a cheap
+    ``ping()``: a dropped/desynced socket — KiCad was restarted, or a prior
+    call timed out mid-recv leaving the pynng REQ/REP socket out of step — is
+    transparently rebuilt instead of returning a dead connection (the funnel
+    behind intermittent "MCP nicht verbunden" failures). A ``ping()`` that
+    fails only because KiCad is *busy* keeps the client — ``call_with_retry``
+    owns the busy backoff. Clients without ``ping`` (test doubles) are trusted
+    as-is."""
     global _client
     if force_new:
-        _client = None
+        reset_client()
     if _client is not None:
-        return _client
+        ping = getattr(_client, "ping", None)
+        if ping is None:
+            return _client  # non-kipy/test double — cannot probe, trust it
+        try:
+            ping()
+            return _client
+        except Exception as exc:  # noqa: BLE001 - classified, not swallowed
+            if is_busy_error(exc):
+                return _client  # alive, just busy — let call_with_retry handle
+            log.warning("cached IPC client stale (%s); reconnecting", exc)
+            reset_client()
     _client = new_client(factory)
     return _client
 
 
+def register_reset_hook(fn: Callable[[], None]) -> None:
+    """Register ``fn`` to fire whenever :func:`reset_client` drops the cached
+    client, so a sibling connection cache can drop in lockstep. Idempotent per
+    ``fn`` (registering the same callable twice is a no-op)."""
+    if fn not in _reset_hooks:
+        _reset_hooks.append(fn)
+
+
 def reset_client() -> None:
-    """Drop the cached client so the next ``get_client`` reconnects."""
+    """Drop the cached client so the next ``get_client`` reconnects, and fire
+    every registered reset hook so sibling IPC caches drop in lockstep. One
+    reconnect event thus invalidates all connection caches coherently across a
+    KiCad restart / socket death, rather than each rediscovering it later."""
     global _client
     _client = None
+    for hook in list(_reset_hooks):
+        try:
+            hook()
+        except Exception:  # noqa: BLE001 - a bad hook must not block the reset
+            log.debug("ipc reset hook failed", exc_info=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -234,6 +294,6 @@ def connect_board(factory: Optional[Callable[[], Any]] = None):
     except Exception as exc:
         raise RuntimeError(
             f"No board accessible via IPC: {exc}. Open a .kicad_pcb in the "
-            "PCB Editor before calling IPC tools."
+            "PCB Editor before calling IPC tools." + _wsl_socket_hint()
         ) from exc
     return client, board

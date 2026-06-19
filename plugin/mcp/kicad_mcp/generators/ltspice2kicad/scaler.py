@@ -6,7 +6,7 @@ from __future__ import annotations
 from functools import reduce
 from math import gcd
 
-from kicad_mcp.generators.ltspice2kicad.models import ParsedSchematic, SymbolMeta
+from kicad_mcp.generators.ltspice2kicad.models import ParsedSchematic
 
 KICAD_GRID_FINE = 0.635   # mm (finest KiCad grid)
 KICAD_GRID_STD = 1.27     # mm (standard KiCad grid)

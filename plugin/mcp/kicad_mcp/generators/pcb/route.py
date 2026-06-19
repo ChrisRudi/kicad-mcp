@@ -19,7 +19,6 @@ Callers:
     - kicad_mcp.generators.pcb_generator (route_pcb)
 """
 
-from collections import defaultdict
 import logging
 import re
 
