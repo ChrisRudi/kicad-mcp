@@ -8,6 +8,34 @@ the first tag ships.
 
 ## [Unreleased]
 
+## [0.4.5] — 2026-06-19
+
+### Fixed
+- **Geist-`pcbnew` beseitigt — die *eigentliche* Wurzel von „kein eindeutiges
+  Board".** `ipc_open_kicad` startete den Editor DETACHED
+  (`creationflags=DETACHED_PROCESS`) und hielt die PID **nirgends** fest. Beim
+  KiCad-Schließen killt das Plugin den claude+MCP-Baum (`taskkill /F /T`) — ein
+  detached Kind liegt aber **außerhalb** dieses Baums und überlebt. Resultat: ein
+  board-loser `pcbnew` (live beobachtet: 7-MB-Prozess, der KiCads Schließen
+  überlebte), der den IPC-Socket besetzt → `GetOpenDocuments` liefert „no
+  handler" / 0 Boards → **jeder** Chat-Link scheitert mit „kein eindeutiges
+  Board". Behoben durch eine **Spawned-Editor-Registry**:
+  - `kicad_mcp/utils/spawned_registry.py` (neu): `ipc_open_kicad` schreibt jede
+    gespawnte PID in eine feste Temp-Datei.
+  - **Zwei unabhängige Reaper** lesen sie: `ipc_close_kicad` (serverseitig) und
+    `claude_bridge.terminate_all` (plugin-seitig, auf Panel-Close/KiCad-Exit via
+    atexit). Der Plugin-Reaper liest die Datei direkt (kann das Paket nicht
+    importieren — `kicad_mcp/__init__` zieht den ganzen Server); ein Test sichert,
+    dass beide denselben Dateinamen verwenden.
+  Damit ist die Lebensdauer eines MCP-gestarteten Editors an die Session
+  gebunden — kein Geist mehr, und das echte Board wird nie mit-gekillt (gezieltes
+  `taskkill /PID`, nie `/IM pcbnew.exe`).
+
+### Added
+- `tests/test_spawned_registry.py` — 13 Headless-Tests (record/forget/reap mit
+  injiziertem Killer, Korrupt-/Fehlt-Datei, Plugin-Reaper liest dieselbe Datei +
+  Dateinamen-Kontrakt server↔plugin).
+
 ## [0.4.4] — 2026-06-19
 
 ### Changed
