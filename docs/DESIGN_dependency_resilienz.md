@@ -23,6 +23,12 @@ Ankern passen:
 „latest" oder „fester Pin" sind **beide** falsch, weil keiner an die Anker gekoppelt ist.
 Dynamisch = an die Anker koppeln **und** gegen die Realität verifizieren.
 
+> **Heute (0.4.2) ist der Installer strukturell *upgrade-only*** (`--upgrade
+> --ignore-installed`, keine Pins): er kann eine zu neue Dependency **nie** auf die vom
+> Anker geforderte ältere zurücknehmen. Da die meisten User *hinter* dem neuesten KiCad/CLI
+> liegen, ist **Downgrade der Normalfall** — genau die Lücke, die das dynamische Design
+> schließen muss.
+
 ---
 
 ## 2. Architektur: Detect → Resolve → Install → Verify → Self-heal
@@ -66,12 +72,22 @@ Umgebungs-Änderung, nicht auf einen Kalender oder eine hartcodierte Versionszah
 → Manifest = schneller, bekannter Pfad. Empirik = Sicherheitsnetz für die Zukunft. Zusammen
 **ohne Pflege pro Release** tragfähig.
 
-### 2.3 Install — constrained statt „latest", host-bewusst
-- Resolvete Versionen als **pip-Constraints** verwenden — **nicht** `--upgrade …latest`.
-- `--ignore-installed` **behalten** (0.4.2's gutes Stück: `_deps` self-contained), aber an
-  resolvete Versionen gebunden → „force in `_deps`" heißt nicht mehr „force LATEST".
-- Natives nur als Wheel (`--only-binary`) für die C-Klasse → fehlendes Wheel scheitert
-  **sofort und klar** statt im aussichtslosen Source-Build (Windows = kein Compiler).
+### 2.3 Install — constrained statt „latest", **auf- UND abwärts**, host-bewusst
+- Resolvete Versionen als **pip-Constraints/Exact-Pins** — **nicht** `--upgrade …latest`.
+  pip installiert dann die *aufgelöste* Version, **auch wenn sie niedriger als latest ist**
+  (Downgrade = Normalfall, s. o.).
+- **`_deps` je Fingerprint sauber (neu) bauen statt zu überlagern — das ist der Kern für
+  Downgrade.** Fallstrick: `pip install --target _deps` legt sich nur *über* Vorhandenes;
+  eine bereits liegende **neuere** Version wird dabei **nicht** ersetzt → **kein
+  In-Place-Downgrade**. Lösung: `_deps` ist **fingerprint-adressiert** (eigener Build je
+  Fingerprint, atomarer Swap). Ändert sich ein Anker → **frischer `_deps`-Build mit exakt
+  den aufgelösten Versionen** → Up- und Downgrade sind beide einfach „der neue Build". Bonus:
+  Hin-und-her-Wechseln (z. B. zwei KiCad-Versionen testen) reaktiviert den **gecachten**
+  `_deps` je Fingerprint, ohne neu zu installieren.
+- `--ignore-installed` **behalten** (0.4.2's gutes Stück: self-contained), aber an die
+  aufgelösten Versionen gebunden → „force in `_deps`" heißt nicht mehr „force LATEST".
+- Natives nur als Wheel (`--only-binary`) → fehlendes Wheel scheitert **sofort und klar**
+  statt im aussichtslosen Source-Build (Windows = kein Compiler).
 
 ### 2.4 Verify — gegen die *echte* Laufzeit, zwei Oberflächen
 - **Import-Verify (`-S`, existiert):** fängt fehlende/kaputte Natives in `_deps`-Isolation.
@@ -88,7 +104,9 @@ Umgebungs-Änderung, nicht auf einen Kalender oder eine hartcodierte Versionszah
 
 ### 2.5 Self-heal — die Schleife schließen
 - Handshake scheitert + als Versions-Skew klassifiziert → **re-resolve + passende Version
-  re-installieren** (bounded retry / Walk-back), dann re-verify.
+  re-installieren** über einen bounded **Walk-back, der bewusst auch nach UNTEN geht**
+  („kipy zu neu für dieses KiCad" → nächst-ältere kipy; „numpy 2.x bricht pandas" → `numpy<2`)
+  — wirksam via frischem `_deps`-Build (§2.3), dann re-verify.
 - Konvergiert nicht → **lauter, handlungsweisender** Hinweis statt stillem „nichts orange":
   „kipy X passt nicht zu KiCad Y → brauche kipy Z" bzw. „MCP-Protokoll des Claude-CLI zu neu
   für fastmcp → fastmcp updaten".
