@@ -8,6 +8,58 @@ the first tag ships.
 
 ## [Unreleased]
 
+## [0.4.3] — 2026-06-19
+
+### Fixed
+- **`_deps` koppelt `kicad-python` (kipy) jetzt an die laufende KiCad-Version,
+  statt blind „latest" zu ziehen — die Wurzel von „nichts orange" /
+  `failed: kicad-mcp`.** `deps.PIP_SPECS` installierte `kicad-python` ungepinnt,
+  also zog pip die *neueste* kipy nach `_deps`. kipy spricht aber KiCads
+  IPC-Protokoll, das pro Major-Release bricht: eine kipy neuer als das laufende
+  KiCad reicht der GUI ein Protobuf-Schema, das sie nicht versteht →
+  `KiCad().get_version()` scheitert *im GUI-Prozess*, und jedes board-bewusste
+  Feature (Chat-Links, Live-Selektion) geht still aus. Neu: `plugin/env_resolve.py`
+  erkennt die KiCad-Version (`pcbnew.GetBuildVersion()`, Fallback: Install-Pfad)
+  und pinnt kipy auf die **gekoppelte** Version (KiCad 10 → `kicad-python==0.7.1`).
+  Unbekannte/zukünftige KiCad-Version → unverändert ungepinnt (defensiv, bricht
+  den Install nie).
+
+### Added
+- **Downgrade-Ausführung mit atomarem `_deps`-Swap (kein Brick).** Der Install
+  landet zuerst in `_deps.new`, wird dort unter `-S` import-verifiziert und erst
+  dann **atomar** über das Live-`_deps` geschoben (`env_resolve.atomic_swap_dir`:
+  altes `_deps` zur Seite → neues hinein → altes löschen, mit Rollback bei
+  Fehlschlag). Ein fehlgeschlagener Install lässt das alte `_deps` damit intakt.
+  Weil `_deps.new` vor dem Install geleert wird, nimmt der Install eine zu neue
+  kipy auch wirklich auf die gekoppelte Version **zurück** (pip `--target`
+  downgradet eine vorhandene Kopie sonst nicht).
+- **Environment-Fingerprint** (`_deps/.env_fingerprint`): hält fest, für welche
+  KiCad-Version + gekoppelte kipy der Baum gebaut wurde
+  (`env_resolve.build_fingerprint` / `fingerprint_stale`), sodass ein späterer
+  Lauf „bereits gekoppelt" von „braucht Rebuild" unterscheiden kann.
+- **Handshake-Selbstcheck nach dem Install** (im Einrichtungs-Dialog): bestätigt
+  die Kopplung (`downgrade_decision` gegen das frische `_deps`) und startet
+  testweise den MCP-Server (`server_probe.probe_server`). Bei Mismatch oder
+  totem Handshake erscheint ein **lauter, handlungsweisender Hinweis** im
+  Install-Log statt eines stillen „nichts orange".
+- **Read-it-out-Fallback für unbekannte KiCad-Majors + Pollution-Wächter.** Die
+  Coupling-Tabelle deckt nur bekannte Majors (heute KiCad 10). Damit ein
+  künftiges KiCad 11 nicht auf blindes „latest" zurückfällt, liest
+  `kicad_bundled_kipy_version` die kipy-Version, die KiCad **selbst** in seinen
+  site-packages mitbringt (install-Pfad bevorzugt, sonst user-`3rdparty`; das
+  Plugin-eigene `_deps` wird ignoriert), und pinnt `_deps` auf **diese** Version
+  — strikt besser als „latest", mit lautem „abgeleitet, bitte verifizieren".
+  `plan_kipy_pin` entscheidet `table → bundled → unpinned` und meldet zusätzlich
+  **Verschmutzung**: hat die Tabelle den Major, weicht aber das (veränderbare)
+  3rdparty-kipy ab, gewinnt die Tabelle und ein lauter Hinweis erscheint im
+  Install-Log. (Live-Befund 2026-06-19: KiCad 10 liefert kipy nur im mutablen
+  user-`3rdparty`, **keine** pristine Install-Kopie → Tabelle bleibt primär,
+  3rdparty ist Fallback/Cross-Check, nicht Autorität.)
+- `tests/test_plugin_env_resolve.py` — 61 Headless-Tests (Coupling,
+  `resolve_pip_specs` inkl. 3rdparty-Fallback, Versions-Parse/-Vergleich,
+  Downgrade-Entscheidung, Pfad-Klassifizierung, `plan_kipy_pin`/Pollution,
+  Fingerprint, atomarer Swap inkl. Rollback).
+
 ## [0.4.2] — 2026-06-19
 
 ### Fixed
