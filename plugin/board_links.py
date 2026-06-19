@@ -22,6 +22,8 @@ import re
 import time
 from typing import Any, Optional
 
+from . import env_resolve  # pure (no kipy); used to disambiguate connect errors
+
 # Chars that may sit inside a designator/net token; used in the link lookarounds
 # so "R1" never matches inside "R12" or "DR1" or a net like "R1_OUT".
 _BOUNDARY = r"[\w/.+\-]"
@@ -278,6 +280,47 @@ _NO_BOARD_MARKERS = ("getopendocuments", "no handler", "no open document",
                      "not a board")
 
 
+def _loaded_kipy_version() -> Optional[str]:
+    """The kipy (kicad-python) version actually loaded in this GUI process."""
+    try:
+        import importlib.metadata as m
+        return m.version("kicad-python")
+    except Exception:
+        try:
+            import kipy
+            return getattr(kipy, "__version__", None)
+        except Exception:
+            return None
+
+
+def board_unavailable_message(exc_text: str, kicad_version=None,
+                              kipy_version: Optional[str] = None,
+                              coupled: Optional[str] = None) -> str:
+    """The actionable BoardUnavailable text. The SAME raw kipy error ("no
+    handler for GetOpenDocuments") means EITHER several KiCad instances on one
+    socket OR a kipy↔KiCad version mismatch — so we disambiguate with the
+    env_resolve coupling: if the loaded kipy is NOT the version coupled to the
+    detected KiCad, lead with the version fix; otherwise lead with the
+    close-the-extra-window fix. Pure (no IPC) so it is unit-testable."""
+    kv = ".".join(str(x) for x in kicad_version) if kicad_version else "?"
+    tail = f" [Technisch: {exc_text}]"
+    mismatch = (kipy_version and coupled
+                and env_resolve.parse_version(kipy_version)
+                != env_resolve.parse_version(coupled))
+    if mismatch:
+        return (
+            f"Live-Auswahl nicht möglich: die geladene kipy {kipy_version} passt "
+            f"nicht zur für KiCad {kv} gekoppelten Version {coupled}. Führe in "
+            "der Einrichtung 'Installieren' aus (koppelt kipy an KiCad) und "
+            f"starte KiCad neu.{tail}")
+    return (
+        "Kein eindeutiges Board über die KiCad-API erreichbar — es laufen "
+        "vermutlich MEHRERE KiCad-Instanzen (Projektmanager + zweiter Editor, "
+        "oder ein Rest-Prozess) auf einem Socket. Schließe zusätzliche "
+        "KiCad-Fenster, sodass genau EIN Board im PCB-Editor offen ist "
+        f"(erkannt: KiCad {kv}, kipy {kipy_version or '?'}).{tail}")
+
+
 def connect():
     """Open an IPC client (generous timeout); returns ``(client, board)``.
 
@@ -296,19 +339,17 @@ def connect():
         return client, call(client.get_board)
     except Exception as exc:
         if any(m in str(exc).lower() for m in _NO_BOARD_MARKERS):
-            # Same raw error ("no handler for GetOpenDocuments") fires for BOTH
-            # multiple KiCad instances on one socket AND a kipy↔KiCad version
-            # mismatch — so append the raw cause; you can't tell them apart from
-            # the friendly text alone.
-            raise BoardUnavailable(
-                "Kein eindeutiges Board über die KiCad-API erreichbar — meist "
-                "laufen MEHRERE KiCad-Instanzen (Projektmanager + zweiter "
-                "Editor, oder ein Rest-Prozess) auf einem Socket. Schließe "
-                "zusätzliche KiCad-Fenster, sodass genau EIN Board im "
-                "PCB-Editor offen ist. Falls nur EIN Fenster offen ist, passt "
-                "die kipy-Version evtl. nicht zu KiCad. [Technisch: "
-                f"{type(exc).__name__}: {exc}]"
-            ) from exc
+            # Disambiguate the two causes of this identical raw error via the
+            # coupling: loaded kipy vs the version coupled to the running KiCad.
+            kv = kipyv = coupled = None
+            try:
+                kv = env_resolve.detect_kicad_version()
+                kipyv = _loaded_kipy_version()
+                coupled = env_resolve.coupled_kipy_version(kv)
+            except Exception:
+                pass
+            raise BoardUnavailable(board_unavailable_message(
+                f"{type(exc).__name__}: {exc}", kv, kipyv, coupled)) from exc
         raise
 
 
