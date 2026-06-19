@@ -8,6 +8,31 @@ the first tag ships.
 
 ## [Unreleased]
 
+## [0.4.3] — 2026-06-19
+
+### Added
+- **Dynamische Dependency-Auflösung — Fundament (Detection + Fingerprint +
+  KiCad→kipy-Kopplung).** Neues, pures Modul `plugin/env_resolve.py`: koppelt die
+  `_deps`-Versionen an die *erkannte* Umgebung statt an „latest"/feste Pins. Diese
+  Stufe liefert: KiCad-Version-Erkennung kipy-unabhängig (`pcbnew.GetBuildVersion`),
+  `kipy_spec()` mit datengetriebenem Map `KIPY_FOR_KICAD` (heute `10.0 →
+  kicad-python==0.7.1`; unbekanntes KiCad → unverändert ungepinnt, kein falscher
+  Pin), `resolve_pip_specs()`, einen `environment_fingerprint()` über die drei Anker
+  (KiCad / Python-ABI / Claude-CLI) und `needs_reinstall()` als Trigger für **Up-
+  und Downgrade**. Adressiert die v0.3.5-Klasse (ungepinntes kicad-python →
+  Link-Feature/IPC-Bruch), die 0.4.2's `--ignore-installed` unbeabsichtigt
+  verschärfte. Vollständig unit-getestet (`tests/test_env_resolve.py`).
+- **`deps.py`:** `pip_install_argv` / `pip_install_commands` nehmen jetzt optionale
+  `specs` (Default = `PIP_SPECS`, rückwärtskompatibel) → die aufgelösten Specs lassen
+  sich durchreichen. Fingerprint-Sentinel `read/write/fingerprint_path` (`_deps/
+  .env_fingerprint`) keyt `_deps` an die Umgebung — never-raise, best-effort.
+
+### Notes
+- Increment 1 von „Dependency-Resilienz" (Design: `docs/DESIGN_dependency_resilienz.md`).
+  **Noch offen** (Increment 2, da Live-KiCad-Test nötig): die GUI-Verdrahtung
+  (`setup_dialog`) der aufgelösten Specs, der fingerprint-getriggerte **Clean-Rebuild**
+  (Downgrade-*Ausführung*) und die kipy↔KiCad-/MCP-Handshake-Selbstheilung.
+
 ## [0.4.2] — 2026-06-19
 
 ### Fixed

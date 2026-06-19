@@ -189,3 +189,37 @@ class TestDepsDir:
 
         deps.check_deps("/k/py", _run=_run, deps_dir="/plug/_deps")
         assert seen["env"]["PYTHONPATH"] == "/plug/_deps"
+
+
+class TestPipInstallSpecs:
+    def test_argv_defaults_to_pip_specs(self):
+        argv = deps.pip_install_argv("/k/py", target="/t")
+        for s in deps.PIP_SPECS:
+            assert s in argv
+
+    def test_argv_threads_custom_specs(self):
+        argv = deps.pip_install_argv("/k/py", target="/t",
+                                     specs=["fastmcp", "kicad-python==0.7.1"])
+        assert "kicad-python==0.7.1" in argv
+        assert "kicad-python" not in argv   # the bare/unpinned one is replaced
+        assert "pandas" not in argv          # only the passed specs are installed
+
+    def test_commands_thread_custom_specs(self):
+        cmds = deps.pip_install_commands("/k/py", target="/t",
+                                         specs=["mcp", "kicad-python==0.7.1"])
+        install = next(c for c in cmds if "pip install" in c)
+        assert "kicad-python==0.7.1" in install
+
+
+class TestFingerprintSentinel:
+    def test_read_missing_is_none(self, tmp_path):
+        assert deps.read_fingerprint(target=str(tmp_path)) is None
+
+    def test_write_then_read_roundtrip(self, tmp_path):
+        sub = tmp_path / "_deps"
+        assert deps.write_fingerprint("abc123", target=str(sub)) is True
+        assert deps.read_fingerprint(target=str(sub)) == "abc123"
+
+    def test_path_is_inside_target(self, tmp_path):
+        p = deps.fingerprint_path(target=str(tmp_path))
+        assert p.startswith(str(tmp_path)) and p.endswith(deps.FINGERPRINT_FILE)

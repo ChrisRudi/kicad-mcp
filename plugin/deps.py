@@ -155,7 +155,8 @@ def pip_install_env(target: Optional[str] = None) -> dict:
     return {DEPS_ENV_VAR: target or default_target_dir()}
 
 
-def pip_install_commands(kicad_py: str, target: Optional[str] = None) -> list:
+def pip_install_commands(kicad_py: str, target: Optional[str] = None,
+                         specs: Optional[list] = None) -> list:
     """The command lines for a visible terminal (see plugin.terminal):
     install into the plugin-local ``--target`` dir (no admin, no user-site).
 
@@ -176,7 +177,7 @@ def pip_install_commands(kicad_py: str, target: Optional[str] = None) -> list:
     target = target or default_target_dir()
     # Windows: reference the env var (uncorruptible). POSIX: literal is safe.
     ref = f"%{DEPS_ENV_VAR}%" if os.name == "nt" else target
-    pkgs = " ".join(PIP_SPECS)
+    pkgs = " ".join(PIP_SPECS if specs is None else specs)
     q = f'"{kicad_py}"'
     verify = (
         "import sys,os;"
@@ -208,22 +209,66 @@ def pip_install_commands(kicad_py: str, target: Optional[str] = None) -> list:
     ]
 
 
-def pip_install_argv(kicad_py: str, target: Optional[str] = None) -> list:
+def pip_install_argv(kicad_py: str, target: Optional[str] = None,
+                     specs: Optional[list] = None) -> list:
     """The pip-install command as an argv LIST (NOT a shell string).
 
     Run directly via ``subprocess`` so a non-ASCII ``--target`` path (e.g.
     ``C:\\Users\\Schüler\\…\\_deps``) is passed to pip as proper unicode via
     Windows' CreateProcessW — a cmd.exe/batch round-trip mangles the ``ü`` to
     ``?`` (an invalid path char → ``WinError 123``).
+
+    ``specs`` defaults to :data:`PIP_SPECS`; pass an environment-resolved list
+    (see ``env_resolve.resolve_pip_specs``) to couple e.g. kicad-python to the
+    running KiCad. An exact pin in ``specs`` downgrades only after a clean
+    rebuild of ``_deps`` (pip ``--target`` overlays, it does not uninstall) —
+    that rebuild orchestration lands in a later increment.
     """
     target = target or default_target_dir()
+    pkgs = PIP_SPECS if specs is None else list(specs)
     # --ignore-installed: force kicad-python + its transitive natives (protobuf,
     # pynng, sniffio) INTO --target even when they already exist in KiCad's
     # 3rdparty site-packages — otherwise pip skips them as "already satisfied"
     # and _deps stays incomplete (works only via the 3rdparty backstop). See
     # pip_install_commands for the full rationale.
     return [kicad_py, "-m", "pip", "install", "--upgrade", "--ignore-installed",
-            "--target", target, *PIP_SPECS]
+            "--target", target, *pkgs]
+
+
+# --- environment fingerprint sentinel (keys _deps to the resolved environment)-
+# A tiny file inside _deps records the environment_fingerprint the deps were
+# resolved for. When the detected environment changes (KiCad / Python / Claude
+# CLI upgrade), the recorded fingerprint no longer matches -> the installer
+# rebuilds _deps for the new anchors (the trigger for up- AND downgrade). Read/
+# write never raise: a missing/corrupt sentinel simply reads as "unknown".
+FINGERPRINT_FILE = ".env_fingerprint"
+
+
+def fingerprint_path(target: Optional[str] = None) -> str:
+    """Path of the fingerprint sentinel inside ``_deps``."""
+    return os.path.join(target or default_target_dir(), FINGERPRINT_FILE)
+
+
+def read_fingerprint(target: Optional[str] = None) -> Optional[str]:
+    """The fingerprint ``_deps`` was last built for, or ``None`` if unknown."""
+    try:
+        with open(fingerprint_path(target), encoding="utf-8") as fh:
+            return fh.read().strip() or None
+    except OSError:
+        return None
+
+
+def write_fingerprint(fingerprint: str, target: Optional[str] = None) -> bool:
+    """Record the fingerprint ``_deps`` was just built for. Returns ``True`` on
+    success; never raises (best-effort)."""
+    tgt = target or default_target_dir()
+    try:
+        os.makedirs(tgt, exist_ok=True)
+        with open(fingerprint_path(tgt), "w", encoding="utf-8") as fh:
+            fh.write(fingerprint)
+        return True
+    except OSError:
+        return False
 
 
 def verify_import_argv(kicad_py: str, target: Optional[str] = None) -> list:
