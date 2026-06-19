@@ -30,7 +30,10 @@ IMPORT_NAMES = ["fastmcp", "mcp", "pandas", "yaml", "defusedxml", "jsonschema",
                 "kipy"]
 # pip specs to install (no brackets -> no cross-shell quoting headaches;
 # fastmcp pulls mcp transitively, mcp listed too to be safe). kicad-python pulls
-# protobuf + pynng (the IPC transport) transitively.
+# protobuf + pynng + sniffio (the IPC transport stack) transitively — all three
+# must land in _deps, which is why the install uses --ignore-installed (they are
+# typically already present in KiCad's 3rdparty site-packages, so plain pip would
+# skip them) and the verify runs under -S (so 3rdparty can't mask their absence).
 PIP_SPECS = ["fastmcp", "mcp", "pandas", "pyyaml", "defusedxml", "jsonschema",
              "kicad-python"]
 
@@ -191,8 +194,17 @@ def pip_install_commands(kicad_py: str, target: Optional[str] = None) -> list:
         f"{q} --version",
         # Some bundles ship without pip -> bootstrap it (no admin needed).
         f"{q} -m pip --version || {q} -m ensurepip --user",
-        f'{q} -m pip install --upgrade --target "{ref}" {pkgs}',
-        f'{q} -c "{verify}"',
+        # --ignore-installed: kicad-python (kipy) + its transitive natives
+        # (protobuf, pynng, sniffio) usually ALREADY sit in KiCad's user
+        # 3rdparty site-packages. Without -I pip calls them "already satisfied"
+        # and never copies them into --target, leaving _deps incomplete — it
+        # only worked because KiCad's Python backstops 3rdparty onto sys.path.
+        # -I forces the FULL tree into _deps so it is self-contained.
+        f'{q} -m pip install --upgrade --ignore-installed --target "{ref}" {pkgs}',
+        # -S: verify with site DISABLED so the 3rdparty backstop can't mask an
+        # incomplete _deps. A bare import sees only _deps -> import kipy fails
+        # loudly if any transitive native (pynng/sniffio/protobuf) is missing.
+        f'{q} -S -c "{verify}"',
     ]
 
 
@@ -205,18 +217,30 @@ def pip_install_argv(kicad_py: str, target: Optional[str] = None) -> list:
     ``?`` (an invalid path char → ``WinError 123``).
     """
     target = target or default_target_dir()
-    return [kicad_py, "-m", "pip", "install", "--upgrade",
+    # --ignore-installed: force kicad-python + its transitive natives (protobuf,
+    # pynng, sniffio) INTO --target even when they already exist in KiCad's
+    # 3rdparty site-packages — otherwise pip skips them as "already satisfied"
+    # and _deps stays incomplete (works only via the 3rdparty backstop). See
+    # pip_install_commands for the full rationale.
+    return [kicad_py, "-m", "pip", "install", "--upgrade", "--ignore-installed",
             "--target", target, *PIP_SPECS]
 
 
 def verify_import_argv(kicad_py: str, target: Optional[str] = None) -> list:
     """argv that imports every MCP dep from ``target`` and prints an OK line —
     catches "install said success but imports still fail". Unicode-safe: the
-    path is embedded via ``repr`` (a valid Python string literal)."""
+    path is embedded via ``repr`` (a valid Python string literal).
+
+    Runs under ``-S`` (site DISABLED) on purpose: KiCad's Python otherwise puts
+    its user 3rdparty site-packages on sys.path, where kipy/protobuf/pynng also
+    live — so a verify WITHOUT -S would import them from 3rdparty and report OK
+    even when ``_deps`` itself is incomplete (the exact gap that let a stale
+    ``_deps`` pass unnoticed). With -S the only source is ``_deps``, so
+    ``import kipy`` fails loudly if any transitive native is missing there."""
     target = target or default_target_dir()
     paths = [target] + pywin32_path_entries(target)
     code = ("import sys; sys.path[:0] = " + repr(paths) + "; "
             + pywin32_dll_setup_code(target)
             + "import " + ", ".join(IMPORT_NAMES) + "; "
             "print('OK - alle MCP-Module importierbar')")
-    return [kicad_py, "-c", code]
+    return [kicad_py, "-S", "-c", code]

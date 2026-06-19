@@ -8,7 +8,27 @@ the first tag ships.
 
 ## [Unreleased]
 
-## [0.4.1] — 2026-06-18
+## [0.4.2] — 2026-06-19
+
+### Fixed
+- **`_deps`-Installer macht den Ordner jetzt self-contained — kein stilles
+  Auslassen von `kicad-python` mehr.** `pip install --target _deps … kicad-python`
+  lief ohne `--ignore-installed`: weil `kicad-python` (kipy) samt seiner nativen
+  Transitiv-Deps `protobuf` + `pynng` + `sniffio` in der Regel bereits in KiCads
+  User-`3rdparty/Python311/site-packages` liegt, wertete pip sie als „already
+  satisfied" und kopierte sie **nie** nach `_deps`. Der Server lief dann nur, weil
+  KiCads Python jenes `3rdparty`-Verzeichnis als Backstop auf `sys.path` legt — ein
+  `_deps`, das den Stack gar nicht enthält, fiel nicht auf. Der Install erzwingt den
+  vollständigen Baum jetzt via `--ignore-installed` in `_deps` (Terminal-Variante
+  `pip_install_commands` **und** der direkt genutzte `pip_install_argv`).
+- **Deps-Verify deckt einen unvollständigen `_deps` jetzt auf, statt ihn zu
+  maskieren.** Die Import-Verifikation lief ohne `-S`; KiCads Python legte dabei die
+  `3rdparty`-site-packages auf den Pfad, sodass `import kipy` aus `3rdparty` gelang
+  und „OK" meldete, obwohl `_deps` selbst leer war (genau die Lücke, die einen
+  veralteten `_deps` durchrutschen ließ). `verify_import_argv` und die
+  Terminal-Verify-Zeile laufen jetzt unter `-S` (site deaktiviert) → einzige Quelle
+  ist `_deps`, und `import kipy` scheitert laut, wenn ein nativer Transitiv-Dep dort
+  fehlt.
 
 ### Added
 - **SessionStart-Hook für Claude Code on the web (`.claude/`).** Ein dauerhaft im

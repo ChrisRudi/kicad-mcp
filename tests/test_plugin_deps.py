@@ -66,10 +66,19 @@ class TestPipInstallCommands:
         # with other CPython installs and not reliably on KiCad-python's path.
         cmds = deps.pip_install_commands(r"C:\KiCad\python.exe")
         install = next(c for c in cmds if "pip install" in c)
-        assert "pip install --upgrade --target" in install
+        assert "pip install --upgrade --ignore-installed --target" in install
         assert "--user" not in install
         assert "_deps" in install and "fastmcp" in install
         assert r'"C:\KiCad\python.exe"' in install  # quoted (path has spaces)
+
+    def test_install_ignores_already_satisfied_3rdparty_copies(self):
+        # kicad-python/protobuf/pynng usually pre-exist in KiCad's 3rdparty site
+        # -> without -I pip skips them and _deps stays incomplete. The flag must
+        # be present in BOTH the terminal commands and the argv builder.
+        install = next(c for c in deps.pip_install_commands("/k/py")
+                       if "pip install" in c)
+        assert "--ignore-installed" in install
+        assert "--ignore-installed" in deps.pip_install_argv("/k/py")
 
     def test_bootstraps_pip_when_bundle_lacks_it(self):
         cmds = deps.pip_install_commands("/k/py")
@@ -80,6 +89,9 @@ class TestPipInstallCommands:
         cmds = deps.pip_install_commands("/k/py", target="/plug/_deps")
         verify = cmds[-1]
         assert "sys.path[:0]=" in verify and "r'/plug/_deps'" in verify
+        # -S: site disabled so KiCad's 3rdparty site-packages can't backstop the
+        # import and hide an incomplete _deps (see verify_import_argv).
+        assert " -S -c " in verify
         # pywin32's .pth is never executed under --target, so the verify must
         # replicate it (win32 dirs + add_dll_directory) or mcp's eager
         # `import pywintypes` fails.
@@ -143,8 +155,9 @@ class TestArgvBuilders:
     def test_verify_import_argv_embeds_path_via_repr(self):
         umlaut = r"C:\Users\üser\_deps"
         argv = deps.verify_import_argv("/k/py", target=umlaut)
-        assert argv[0] == "/k/py" and argv[1] == "-c"
-        code = argv[2]
+        # -S (site off) before -c: verify only from _deps, no 3rdparty backstop.
+        assert argv[0] == "/k/py" and argv[1] == "-S" and argv[2] == "-c"
+        code = argv[3]
         # repr produces a valid Python string literal -> unicode-safe, and the
         # backslashes are escaped so the path can't break the literal.
         assert repr(umlaut) in code
