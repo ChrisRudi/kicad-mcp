@@ -283,18 +283,60 @@ def _kill_tree(proc) -> None:
             pass
 
 
+# MUST match kicad_mcp/utils/spawned_registry.py::REGISTRY_FILENAME — the MCP
+# server writes the file, we read it here (we cannot import that package: its
+# __init__ pulls the whole server).
+_SPAWNED_REGISTRY_FILENAME = "kicad_mcp_spawned_editors.json"
+
+
+def _reap_spawned_editors() -> int:
+    """Kill GUI editors the MCP server spawned via ``ipc_open_kicad`` and
+    recorded. Those are launched DETACHED, so ``_kill_tree``'s ``/T`` does not
+    reach them — without this they orphan as a board-less ``pcbnew`` that squats
+    the IPC socket and breaks every chat link ("kein eindeutiges Board"). Reads
+    the registry file the server writes; best-effort, never raises."""
+    import tempfile
+    path = os.path.join(tempfile.gettempdir(), _SPAWNED_REGISTRY_FILENAME)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            ids = [int(p) for p in json.load(fh)
+                   if str(p).strip().lstrip("-").isdigit()]
+    except Exception:
+        return 0
+    killed = 0
+    for pid in ids:
+        try:
+            if os.name == "nt":
+                subprocess.run(
+                    ["taskkill", "/F", "/PID", str(pid)], timeout=10,
+                    check=False, stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL, **hidden_console_kwargs())
+            else:
+                import signal
+                os.kill(pid, signal.SIGTERM)
+            killed += 1
+        except Exception:
+            pass
+    try:
+        os.remove(path)
+    except Exception:
+        pass
+    return killed
+
+
 def terminate_all() -> int:
     """Kill every in-flight claude turn + its MCP child. Returns how many.
 
     Called on chat-panel close and (via atexit) on KiCad shutdown, so neither
-    claude nor the MCP server outlive KiCad. Idempotent and safe to call with
-    nothing running.
+    claude nor the MCP server — nor any editor the MCP spawned — outlive KiCad.
+    Idempotent and safe to call with nothing running.
     """
     with _LIVE_LOCK:
         procs = list(_LIVE)
         _LIVE.clear()
     for proc in procs:
         _kill_tree(proc)
+    _reap_spawned_editors()  # detached MCP-spawned editors aren't in the tree
     return len(procs)
 
 

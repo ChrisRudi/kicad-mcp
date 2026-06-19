@@ -2248,17 +2248,23 @@ def register_ipc_tools(mcp: FastMCP) -> None:
             try:
                 if os.name == "nt" or binary.lower().endswith(".exe"):
                     DETACHED_PROCESS = 0x00000008  # noqa: N806
-                    subprocess.Popen(
+                    proc = subprocess.Popen(
                         [binary, target_file],
                         creationflags=DETACHED_PROCESS,
                         close_fds=True,
                     )
                 else:
-                    subprocess.Popen(
+                    proc = subprocess.Popen(
                         [binary, target_file],
                         start_new_session=True,
                         close_fds=True,
                     )
+                # Record the PID: a DETACHED editor sits outside the plugin's
+                # kill-tree, so without this it orphans into a board-less ghost
+                # that squats the IPC socket and breaks every link. Reaped by
+                # ipc_close_kicad and the plugin's shutdown handler.
+                from kicad_mcp.utils import spawned_registry
+                spawned_registry.record(proc.pid)
             except Exception as exc:
                 return {
                     "success": False,
@@ -2451,6 +2457,14 @@ def register_ipc_tools(mcp: FastMCP) -> None:
         still = _editor_process_running(doc_type)
         result["running"] = still
         result["success"] = not still
+
+        # Clear the spawned-editor registry: this close reaps whatever we
+        # launched, so no recorded PID should outlive it as a ghost.
+        try:
+            from kicad_mcp.utils import spawned_registry
+            result["reaped_spawned"] = spawned_registry.reap()
+        except Exception:
+            pass
 
         # Remove the stale lock file a force-terminate leaves behind.
         removed: list[str] = []
