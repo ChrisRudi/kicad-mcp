@@ -32,7 +32,6 @@ from ..common.classify import (
 from ..common.constants import (
     INLINE_GAP,
     OVERLAP_PASSES,
-    SCHEMATIC_LAYOUT_FACTOR,
     SHEET_H,
     VERTICAL_GAP,
 )
