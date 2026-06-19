@@ -11,8 +11,8 @@ import os
 
 import wx  # KiCad ships wxPython
 
-from . import deps, installer, ipc_setup, mcp_config, preflight, runtime_env, \
-    terminal, updater
+from . import deps, env_resolve, installer, ipc_setup, mcp_config, preflight, \
+    runtime_env, server_probe, terminal, updater
 from .version import __version__
 
 _ICON = {preflight.OK: ("✓", wx.Colour(0, 140, 0)),
@@ -173,18 +173,86 @@ class SetupDialog(wx.Dialog):
             wx.MessageBox("KiCad-Python (mit kipy) nicht gefunden.",
                           "Abhängigkeiten", wx.OK | wx.ICON_WARNING)
             return
-        target = deps.default_target_dir()
+        final = deps.default_target_dir()
+        staging = deps.staging_target_dir(final)
+        # Start from an EMPTY staging dir: pip --target won't downgrade a
+        # newer kipy already sitting there (from an interrupted run), so a
+        # leftover _deps.new would defeat the very downgrade we're forcing.
+        import shutil
+        shutil.rmtree(staging, ignore_errors=True)
+        # Resolve kicad-python (kipy) to the version COUPLED to the running
+        # KiCad (KiCad 10 → 0.7.1). A "latest" kipy speaks a newer IPC protocol
+        # than the GUI → silent handshake death ("nichts orange"). Defensive:
+        # any resolver hiccup falls back to today's unpinned specs so the
+        # coupling layer can NEVER break the install itself.
+        import sys
+        try:
+            kv = env_resolve.detect_kicad_version(kicad_py_path=py)
+            # search_paths=sys.path enables the KiCad-bundled (3rdparty) fallback
+            # for an unknown KiCad major + the pollution guard for a known one.
+            plan = env_resolve.plan_kipy_pin(kv, sys.path)
+            specs = env_resolve.resolve_pip_specs(kv, deps.PIP_SPECS,
+                                                  search_paths=sys.path)
+        except Exception:
+            kv, plan, specs = None, None, deps.PIP_SPECS
+        # Stage into _deps.new (NOT the live _deps): install + verify happen in
+        # the staging dir, then an atomic swap promotes it. A failed install
+        # therefore leaves the working _deps intact — no brick (see _finalize).
         # Run pip DIRECTLY (argv list, no cmd/batch): a cmd.exe/batch round-trip
         # mangles a non-ASCII --target path (e.g. C:\Users\üser) to "?" →
         # WinError 123. CreateProcessW passes the unicode argv intact. Output
         # streams live into a dialog so the long install stays visible.
-        steps = [("Installiere MCP-Abhängigkeiten …",
-                  deps.pip_install_argv(py, target)),
-                 ("Prüfe Importe …", deps.verify_import_argv(py, target))]
+        steps = [("Installiere MCP-Abhängigkeiten (gekoppelt an KiCad) …",
+                  deps.pip_install_argv(py, staging, specs=specs)),
+                 ("Prüfe Importe …", deps.verify_import_argv(py, staging))]
         self._run_streamed_install(
-            "MCP-Abhängigkeiten installieren", target, steps)
+            "MCP-Abhängigkeiten installieren", staging, steps,
+            finalize=lambda emit: self._finalize_deps_install(
+                emit, py, staging, final, kv, specs, plan))
 
-    def _run_streamed_install(self, title, target, steps) -> None:
+    def _finalize_deps_install(self, emit, py, staging, final, kv, specs,
+                               plan=None) -> bool:
+        """Runs in the worker thread AFTER install+verify succeeded in the
+        staging dir. Atomic-swaps it over the live _deps, writes the env
+        fingerprint, confirms the coupling, and runs the MCP handshake
+        self-check. Returns True only when everything is green; a mismatch
+        emits a LOUD, actionable line rather than failing silently."""
+        emit("$ Aktiviere neue Abhängigkeiten (atomarer Swap) …\n")
+        swap = env_resolve.atomic_swap_dir(staging, final)
+        if not swap["ok"]:
+            emit(f"[Fehler] {swap['error']}\n"
+                 "Das bisherige _deps bleibt unverändert (kein Brick).\n")
+            return False
+        fp = env_resolve.build_fingerprint(kv, specs, plugin_version=__version__)
+        env_resolve.write_fingerprint(final, fp)
+        src = f" [{plan['source']}]" if plan else ""
+        emit(f"Gekoppelt an KiCad {fp['kicad_version'] or '?'} → kipy "
+             f"{fp['kipy'] or '(unpinned/latest)'}{src}\n")
+        # Loud notice when the pin came from the mutable 3rdparty fallback or
+        # the KiCad major is unknown, or a pollution mismatch was detected.
+        if plan and plan.get("warning"):
+            emit(f"\n  ⚠  {plan['warning']}\n")
+        # Coupling proof: is the kipy now in _deps the coupled one?
+        dec = env_resolve.downgrade_decision(kv, final)
+        coupled_ok = not dec["mismatch"]
+        if dec["mismatch"]:
+            emit("\n  ⚠  KIPY-KOPPLUNG NICHT ERREICHT — installiert: "
+                 f"{dec['installed'] or '?'}, erwartet: {dec['target'] or '?'} "
+                 f"(Aktion: {dec['action']}).\n"
+                 "     Bitte diese Meldung im Plugin per 'Diagnose' melden.\n")
+        # Handshake self-check: does the MCP server actually start for Claude?
+        emit("\n$ Handshake-Selbstcheck (startet der MCP-Server für Claude?) …\n")
+        probe = server_probe.probe_server(py, self._mcp_root)
+        if probe.get("ok"):
+            emit(f"OK — MCP-Server antwortet ({probe.get('seconds')}s).\n")
+        else:
+            emit("\n  ⚠  HANDSHAKE FEHLGESCHLAGEN — der Server startet noch "
+                 "nicht für Claude:\n"
+                 f"     {probe.get('error') or 'unbekannter Fehler'}\n"
+                 "     'Diagnose' im Plugin liefert den vollen Traceback.\n")
+        return coupled_ok and bool(probe.get("ok"))
+
+    def _run_streamed_install(self, title, target, steps, finalize=None) -> None:
         """Run a sequence of (label, argv) steps via direct subprocess in a
         worker thread, streaming combined stdout/stderr into a live dialog.
         No shell — argv goes straight to CreateProcessW so Umlaut paths survive.
@@ -239,6 +307,13 @@ class SetupDialog(wx.Dialog):
                     ok = False
                     break
                 emit("\n")
+            if ok and finalize is not None:
+                # post-install: swap into place, fingerprint, handshake check
+                try:
+                    ok = finalize(emit)
+                except Exception as exc:  # never let the worker die silently
+                    emit(f"\n[Fehler] Abschluss fehlgeschlagen: {exc}\n")
+                    ok = False
             if ok:
                 emit("\n============================================\n"
                      "Fertig. Dieses Fenster schließen und im Plugin auf "

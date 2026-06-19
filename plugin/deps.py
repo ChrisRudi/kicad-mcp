@@ -75,6 +75,14 @@ def default_target_dir() -> str:
     return os.path.join(PLUGIN_DIR, "_deps")
 
 
+def staging_target_dir(target: Optional[str] = None) -> str:
+    """The sibling ``_deps.new`` staging dir for the no-brick rebuild: the
+    install lands here, is verified, then atomically swapped over the live
+    ``_deps`` (see ``env_resolve.atomic_swap_dir``). A failed install never
+    touches the working tree."""
+    return (target or default_target_dir()) + ".new"
+
+
 def active_deps_dir() -> Optional[str]:
     """The plugin-local deps dir if it exists, else None (rely on site dirs —
     keeps earlier ``pip --user`` installs working)."""
@@ -208,13 +216,19 @@ def pip_install_commands(kicad_py: str, target: Optional[str] = None) -> list:
     ]
 
 
-def pip_install_argv(kicad_py: str, target: Optional[str] = None) -> list:
+def pip_install_argv(kicad_py: str, target: Optional[str] = None,
+                     specs: Optional[list] = None) -> list:
     """The pip-install command as an argv LIST (NOT a shell string).
 
     Run directly via ``subprocess`` so a non-ASCII ``--target`` path (e.g.
     ``C:\\Users\\üser\\…\\_deps``) is passed to pip as proper unicode via
     Windows' CreateProcessW — a cmd.exe/batch round-trip mangles the ``ü`` to
     ``?`` (an invalid path char → ``WinError 123``).
+
+    ``specs`` overrides the package list (default ``PIP_SPECS``); the setup
+    dialog passes a version-RESOLVED list (kicad-python pinned to the version
+    coupled to the running KiCad — see ``env_resolve.resolve_pip_specs``) so the
+    install/downgrade lands the IPC-compatible kipy instead of "latest".
     """
     target = target or default_target_dir()
     # --ignore-installed: force kicad-python + its transitive natives (protobuf,
@@ -223,7 +237,7 @@ def pip_install_argv(kicad_py: str, target: Optional[str] = None) -> list:
     # and _deps stays incomplete (works only via the 3rdparty backstop). See
     # pip_install_commands for the full rationale.
     return [kicad_py, "-m", "pip", "install", "--upgrade", "--ignore-installed",
-            "--target", target, *PIP_SPECS]
+            "--target", target, *(specs if specs is not None else PIP_SPECS)]
 
 
 def verify_import_argv(kicad_py: str, target: Optional[str] = None) -> list:
