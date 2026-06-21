@@ -29,6 +29,7 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from kicad_mcp.tools._warm_daemon import WarmDaemon
+from kicad_mcp.tools.clearance_tools import attach_clearance
 from kicad_mcp.tools.via_promote_worker import (
     MARK as _MARK,
     run as _run_in_process,  # cold in-process path, re-exported for unit tests
@@ -365,7 +366,8 @@ def register_via_promote_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def via_retype(pcb_path: str, uuids: list[str], new_type: str = "blind",
-                   dry_run: bool = True) -> dict[str, Any]:
+                   dry_run: bool = True,
+                   check_clearance: bool = True) -> dict[str, Any]:
         """Change the via-*type* token of specific vias by UUID.
 
         Companion to ``via_promote`` (which changes a via's *span/layers*).
@@ -387,19 +389,29 @@ def register_via_promote_tools(mcp: FastMCP) -> None:
                 ``"through"`` (drops the token).
             dry_run: if True (default), report how many would change without
                 writing.
+            check_clearance: if True (default), run the clearance engine on
+                the retyped vias and fold the result into the ``clearance``
+                key. Most relevant for ``"through"``, which extends the span
+                to the full stack and can short newly-occupied inner layers.
 
         Returns:
-            ``{success, requested, new_type, changed, dry_run, wrote}`` or
-            ``{success: False, error}``. Idempotent: re-running after an apply
-            changes 0 (the token already matches).
+            ``{success, requested, new_type, changed, dry_run, wrote,
+            clearance}`` or ``{success: False, error}``. Idempotent:
+            re-running after an apply changes 0 (the token already matches).
         """
         pcb_path = to_local_path(pcb_path)
-        return via_retype_impl(pcb_path, uuids, new_type, dry_run)
+        result = via_retype_impl(pcb_path, uuids, new_type, dry_run)
+        if result.get("success") and result.get("wrote"):
+            items = [{"kind": "via_uuid", "uuid": u} for u in set(uuids)]
+            return attach_clearance(result, pcb_path, items,
+                                    enabled=check_clearance)
+        return result
 
     @mcp.tool()
     def via_resize(pcb_path: str, size: float = 0.4, drill: float = 0.2,
                    uuids: list[str] | None = None,
-                   dry_run: bool = True) -> dict[str, Any]:
+                   dry_run: bool = True,
+                   check_clearance: bool = True) -> dict[str, Any]:
         """Standardise via *size* (and drill) — board-wide or by UUID.
 
         Surgical text-patch of each via's ``(size …)`` and ``(drill …)``
@@ -418,10 +430,21 @@ def register_via_promote_tools(mcp: FastMCP) -> None:
             drill: via drill diameter mm (default 0.2); pass the same for all.
             uuids: specific vias, or None for all vias.
             dry_run: if True (default), report how many would change.
+            check_clearance: if True (default), run the clearance engine and
+                fold the result into the ``clearance`` key — targeted at the
+                resized vias when ``uuids`` is given, board-wide when resizing
+                every via. A larger pad reduces copper-to-copper clearance.
 
         Returns:
-            ``{success, size, drill, scope, changed, dry_run, wrote}``.
-            Idempotent — vias already at the target size/drill aren't counted.
+            ``{success, size, drill, scope, changed, dry_run, wrote,
+            clearance}``. Idempotent — vias already at the target size/drill
+            aren't counted.
         """
         pcb_path = to_local_path(pcb_path)
-        return via_resize_impl(pcb_path, size, drill, uuids, dry_run)
+        result = via_resize_impl(pcb_path, size, drill, uuids, dry_run)
+        if result.get("success") and result.get("wrote"):
+            items = ([{"kind": "via_uuid", "uuid": u} for u in set(uuids)]
+                     if uuids else None)
+            return attach_clearance(result, pcb_path, items,
+                                    enabled=check_clearance)
+        return result

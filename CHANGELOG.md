@@ -8,6 +8,37 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added
+- **Clearance-Engine — gemeinsamer Kupfer-Kurzschluss-Check, jetzt in jedem
+  Kupfer-mutierenden Tool verdrahtet.** Die geometrische `SHAPE.Collide`-Prüfung
+  steckte bisher *nur* in `via_promote`; jeder andere Edit (Tracks, Vias, Zonen,
+  Via-Retype/-Resize, Batches) lief blind. Neu:
+  - `kicad_mcp/tools/clearance_worker.py` — Warm-pcbnew-Daemon (Cache by
+    path+mtime, füllt Zonen vor dem Check), generalisiert die via_promote-Kollision
+    in zwei Modi: **targeted** (nur die neu hinzugefügten Items gegen Fremdnetz-
+    Kupfer — schnell) und **board-wide** (grid-gebinnter Different-Net-Scan über
+    Hard-Copper, nahezu linear statt O(n²)). Reiner Read; lazy `pcbnew`-Import.
+  - `kicad_mcp/tools/clearance_tools.py` — Tool `check_clearance(pcb_path,
+    items?, clearance_mm)` (standalone Audit, board-wide per Default) plus
+    `attach_clearance()`/`check_clearance_impl()`, mit denen die Mutations-Tools
+    einen `clearance`-Effekt-Echo ins eigene Result falten (kein separater
+    Verify-Call — konform zur Anti-Toolcall-Explosion-Regel: einmal pro Tranche).
+    `attach_clearance` ist total (wirft nie, kippt nie `success`); ohne `pcbnew`
+    bzw. mit `check_clearance=False` → `{checked: False, reason}`, der Edit bleibt
+    unangetastet.
+- `tests/test_clearance_tools.py` — Spec-Builder + Degradations-Pfad + Tool-
+  Surface (no-pcbnew) und `@_needs_pcbnew` Kollisions-Geometrie (targeted/
+  board-wide/same-net).
+
+### Changed
+- **`clearance`-Effekt-Echo verdrahtet in:** `add_track_to_pcb`, `add_arc_to_pcb`,
+  `add_via_to_pcb`, `add_vias_to_pcb`, `add_zone_pour_to_pcb` (pcb_geometry),
+  `via_retype`, `via_resize` (via_promote) und `pcb_batch` (board-wide nach dem
+  Schreiben). Jedes bekommt `check_clearance: bool = True` (Opt-out für enge
+  Loops; auf `dry_run`/Nicht-Schreiben übersprungen). Keine Input-Signatur-
+  Brüche — nur ein neuer optionaler Parameter + ein `clearance`-Key im Result.
+- `EXPECTED_TOOL_COUNT` 173 → 174 (`check_clearance`).
+
 ## [0.4.5] — 2026-06-19
 
 ### Fixed

@@ -319,13 +319,15 @@ def test_allowlist_has_no_obsolete_entries(tool_list):
 # 2026-06-09: -5 — FreeRouting/autoroute removed entirely (autoroute_tools.py
 # deleted): install_autorouter, autoroute_pcb, check_autorouter_status,
 # export_pcb_dsn, import_pcb_ses.
-EXPECTED_TOOL_COUNT = 173  # +ipc_interact G1-G6 (15) + ipc_draw_sketch_legend
+EXPECTED_TOOL_COUNT = 174  # +ipc_interact G1-G6 (15) + ipc_draw_sketch_legend
 # 2026-06-13: +1 (ipc_markup_to_tracks — markup-layer User.9 → copper tracks)
 # 2026-06-14: +1 (add_vias_to_pcb — batch via placement, one read+write)
 # 2026-06-15: +3 (normalize_footprint_libid, refresh_pinfunctions,
 #                 replace_footprint_canonical — footprint resync)
 # 2026-06-18: +3 (pinout pipeline — search_symbol, validate_pinout,
 #                 match_symbol_to_datasheet)
+# 2026-06-21: +1 (check_clearance — shared clearance engine; also wired as a
+#                 `clearance` effect-echo into the copper-mutating tools)
 
 
 def test_tool_count_locked(tool_list):

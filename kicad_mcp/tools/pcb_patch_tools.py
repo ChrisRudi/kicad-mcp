@@ -35,6 +35,7 @@ from typing import Any, Callable
 from mcp.server.fastmcp import FastMCP
 
 from kicad_mcp.cache import get_text, write_text
+from kicad_mcp.tools.clearance_tools import attach_clearance
 from kicad_mcp.utils.path_env import kicad_lib_root, to_local_path
 from kicad_mcp.utils.pcb_geometry import (
     align_radial_rotation,
@@ -3727,6 +3728,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
         operations: list[dict[str, Any]],
         dry_run: bool = False,
         halt_on_error: bool = True,
+        check_clearance: bool = True,
     ) -> dict[str, Any]:
         """Apply a sequence of file-edit operations to a ``.kicad_pcb`` in
         a single open / write cycle.
@@ -3757,13 +3759,19 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
                 operation that returns ``success=False`` and report it.
                 If False, continue chaining and collect each operation's
                 result.
+            check_clearance: If True (default), run the clearance engine
+                ONCE over the whole board after the batch writes and fold the
+                result into the ``clearance`` key — the per-tranche verify
+                pattern for a multi-mutation batch. Skipped on ``dry_run`` or
+                when nothing was written.
 
         Returns:
             Dict with ``success`` (True iff all operations succeeded),
             ``count`` (operations actually executed), ``results`` (one
             dict per operation, mirroring what the standalone tool
-            would return), ``dry_run`` flag, and ``unknown_tools``
-            (any tool names that weren't in the registry).
+            would return), ``dry_run`` flag, ``unknown_tools``
+            (any tool names that weren't in the registry), and
+            ``clearance`` (board-wide engine effect-echo when written).
 
         Example:
             Move three footprints and drop one routing net in one call:
@@ -3858,15 +3866,18 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
                 if halt_on_error:
                     break
 
-        if all_ok and not dry_run:
+        wrote = all_ok and not dry_run
+        if wrote:
             write_text(pcb_path, text)
 
-        return {
+        out = {
             "success": all_ok,
             "count": len(results),
             "results": results,
             "dry_run": dry_run,
         }
+        return attach_clearance(out, pcb_path, None,
+                                enabled=check_clearance and wrote)
 
     @mcp.tool()
     def patch_track_nets_from_pads(

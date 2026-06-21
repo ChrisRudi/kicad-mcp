@@ -22,6 +22,15 @@ text-patcher could not previously do correctly:
 All three operate on the file system and never touch the SWIG ``pcbnew``
 bindings, so they are usable in batch / CI pipelines and free of the
 ``SwigPyObject`` quirks observed on KiCad 10's Python module.
+
+Copper-adding tools fold a clearance effect-echo into their result (the
+``clearance`` key) via the shared clearance engine (``clearance_tools``) —
+a post-mutation copper-short check so the agent need not make a separate
+verify call. The check runs in the warm pcbnew daemon (a subprocess); the
+tools themselves stay pcbnew-free, and when pcbnew is absent the echo is
+recorded as ``{checked: False}`` and the edit is otherwise untouched. Pass
+``check_clearance=False`` to skip it (e.g. inside a tight placement loop —
+verify once at the end instead).
 """
 
 from __future__ import annotations
@@ -37,6 +46,9 @@ from typing import Any, Callable
 from mcp.server.fastmcp import FastMCP
 
 from kicad_mcp.cache import get_text, put_text
+from kicad_mcp.tools.clearance_tools import (
+    attach_clearance, arc_specs, seg_spec, via_spec,
+)
 from kicad_mcp.utils.path_env import to_local_path
 from kicad_mcp.utils.pcb_geometry import pcb_local_to_world
 from kicad_mcp.utils.pcb_net_format import ensure_net_tag, pcb_net_format
@@ -621,6 +633,7 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
         via_layers: list[str] | None = None,
         via_size_mm: float = 0.6,
         via_drill_mm: float = 0.3,
+        check_clearance: bool = True,
     ) -> dict[str, Any]:
         """Insert a straight track between two pads in a ``.kicad_pcb``.
 
@@ -660,11 +673,16 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
                 production.
             via_size_mm: Via diameter in mm (default 0.6).
             via_drill_mm: Via drill diameter in mm (default 0.3).
+            check_clearance: If True (default), run the clearance engine on
+                the new track/via and fold the result into the ``clearance``
+                key. Set False to skip (e.g. mid-loop; verify once at the end).
 
         Returns:
             Dict with ``success``, ``segments_added``, ``vias_added``,
             ``net_id``, ``layer``, ``via_layers`` (the actual pair used,
-            or ``None`` if no via), ``from``/``to`` (with world coords).
+            or ``None`` if no via), ``from``/``to`` (with world coords), and
+            ``clearance`` (engine effect-echo: ``{checked, ok,
+            violation_count, violations}``).
         """
         pcb_path = to_local_path(pcb_path)
         if not os.path.isfile(pcb_path):
@@ -754,7 +772,7 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
             fh.write(text)
         put_text(pcb_path, text)
 
-        return {
+        result = {
             "success": True,
             "pcb_path": pcb_path,
             "segments_added": 1,
@@ -775,6 +793,12 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
                 "layer": pad2.primary_layer,
             },
         }
+        items = [seg_spec(pad1.x_mm, pad1.y_mm, pad2.x_mm, pad2.y_mm,
+                          net_used, chosen_layer, width_mm)]
+        if chosen_via_layers:
+            items.append(via_spec(pad2.x_mm, pad2.y_mm, net_used,
+                                  chosen_via_layers, via_size_mm))
+        return attach_clearance(result, pcb_path, items, enabled=check_clearance)
 
     @mcp.tool()
     def add_arc_to_pcb(
@@ -789,6 +813,7 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
         mid_x_mm: float = float("nan"),
         mid_y_mm: float = float("nan"),
         dry_run: bool = False,
+        check_clearance: bool = True,
     ) -> dict[str, Any]:
         """Insert a circular arc segment into a ``.kicad_pcb``.
 
@@ -834,13 +859,17 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
             dry_run: If True, compute the arc geometry and report it in
                 the return value but do not write the file. Default
                 False.
+            check_clearance: If True (default), run the clearance engine on
+                the new arc (approximated by its chords) and fold the result
+                into the ``clearance`` key. Skipped on ``dry_run``.
 
         Returns:
             Dict with ``success``, ``arc_added``, ``net_id``,
             ``start``, ``mid``, ``end``, ``layer``, and ``radius_mm``
             (computed from the start point relative to the chosen
             centre, or from the circle through start/mid/end when in
-            explicit-mid mode). On failure: ``success: False`` and
+            explicit-mid mode), plus ``clearance`` (engine effect-echo
+            when written). On failure: ``success: False`` and
             ``error``.
 
         Example:
@@ -881,7 +910,15 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
             with open(pcb_path, "w", encoding="utf-8") as fh:
                 fh.write(new_text)
             put_text(pcb_path, new_text)
-        return {"dry_run": dry_run, **result}
+        out = {"dry_run": dry_run, **result}
+        items = arc_specs(
+            (result["start"]["x_mm"], result["start"]["y_mm"]),
+            (result["mid"]["x_mm"], result["mid"]["y_mm"]),
+            (result["end"]["x_mm"], result["end"]["y_mm"]),
+            result["net_name"], result["layer"], result["width_mm"],
+        )
+        return attach_clearance(out, pcb_path, items,
+                                enabled=check_clearance and not dry_run)
 
     @mcp.tool()
     def add_via_to_pcb(
@@ -892,6 +929,7 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
         size_mm: float = 0.6,
         drill_mm: float = 0.3,
         dry_run: bool = False,
+        check_clearance: bool = True,
     ) -> dict[str, Any]:
         """Insert a standalone via into a ``.kicad_pcb`` at a chosen
         world coordinate.
@@ -926,12 +964,16 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
             dry_run: If True, compute the via placement and report it
                 in the return value but do not write the file. Default
                 False.
+            check_clearance: If True (default), run the clearance engine on
+                the new via and fold the result into the ``clearance`` key.
+                Skipped on ``dry_run``. For many vias prefer
+                ``add_vias_to_pcb`` (one check for the whole tranche).
 
         Returns:
             Dict with ``success``, ``at`` (x_mm, y_mm), ``net_id``,
             ``net_name``, ``layer_pair`` (the actual pair used),
-            ``size_mm``, ``drill_mm``. On failure: ``success: False``
-            and ``error``.
+            ``size_mm``, ``drill_mm``, ``clearance`` (engine effect-echo
+            when written). On failure: ``success: False`` and ``error``.
 
         Example:
             Insert a buried In1↔In2 via at the radial-to-arc transition
@@ -960,13 +1002,19 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
             with open(pcb_path, "w", encoding="utf-8") as fh:
                 fh.write(new_text)
             put_text(pcb_path, new_text)
-        return {"dry_run": dry_run, **result}
+        out = {"dry_run": dry_run, **result}
+        items = [via_spec(result["at"]["x_mm"], result["at"]["y_mm"],
+                          result["net_name"], result["layer_pair"],
+                          result["size_mm"])]
+        return attach_clearance(out, pcb_path, items,
+                                enabled=check_clearance and not dry_run)
 
     @mcp.tool()
     def add_vias_to_pcb(
         pcb_path: str,
         vias: list[dict[str, Any]] | str,
         dry_run: bool = False,
+        check_clearance: bool = True,
     ) -> dict[str, Any]:
         """Insert MANY vias into a ``.kicad_pcb`` in ONE read+write round.
 
@@ -986,12 +1034,17 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
                 same fields as ``add_via_to_pcb`` (``layer_pair`` default
                 through-via F.Cu/B.Cu; ``size_mm`` 0.6; ``drill_mm`` 0.3).
             dry_run: If True, validate + report every via but write nothing.
+            check_clearance: If True (default), run the clearance engine
+                ONCE over the whole tranche after writing and fold the result
+                into the ``clearance`` key — the per-tranche verify pattern.
+                Skipped on ``dry_run``.
 
         Returns:
             Effect echo so no read-back is needed: ``{success, count}`` (vias
             placed), ``vias`` (per-via result list: at/net_id/net_name/
-            layer_pair), ``dry_run``. On a bad spec: ``{success: False,
-            error, failed_index}`` and the file is untouched.
+            layer_pair), ``clearance`` (engine effect-echo for the tranche),
+            ``dry_run``. On a bad spec: ``{success: False, error,
+            failed_index}`` and the file is untouched.
         """
         pcb_path = to_local_path(pcb_path)
         if not os.path.isfile(pcb_path):
@@ -1033,8 +1086,12 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
             with open(pcb_path, "w", encoding="utf-8") as fh:
                 fh.write(text)
             put_text(pcb_path, text)
-        return {"success": True, "count": len(placed), "vias": placed,
-                "dry_run": dry_run}
+        out = {"success": True, "count": len(placed), "vias": placed,
+               "dry_run": dry_run}
+        items = [via_spec(p["at"]["x_mm"], p["at"]["y_mm"], p["net_name"],
+                          p["layer_pair"], p["size_mm"]) for p in placed]
+        return attach_clearance(out, pcb_path, items,
+                                enabled=check_clearance and not dry_run)
 
     @mcp.tool()
     def add_zone_pour_to_pcb(
@@ -1042,6 +1099,7 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
         net_name: str,
         layer: str,
         polygon_xy_mm: list[list[float]],
+        check_clearance: bool = True,
     ) -> dict[str, Any]:
         """Add a copper-pour zone bound to ``net_name`` on ``layer``.
 
@@ -1057,9 +1115,16 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
                 PCB if not yet defined).
             layer: KiCad copper layer name (``"F.Cu"`` / ``"B.Cu"`` / ...).
             polygon_xy_mm: List of ``[x_mm, y_mm]`` pairs — at least 3.
+            check_clearance: If True (default), run the clearance engine
+                (board-wide hard-copper scan, since a poured zone clears
+                around foreign nets) and fold the result into the
+                ``clearance`` key. Set False to skip.
 
         Returns:
-            Dict with ``success``, ``net_id``, ``layer``, ``vertices``.
+            Dict with ``success``, ``net_id``, ``layer``, ``vertices``, and
+            ``clearance`` (engine effect-echo). Note: zone clearance proper
+            is settled by the filler + ``run_drc_check``; this echo flags any
+            hard-copper short on the board after the pour was added.
         """
         pcb_path = to_local_path(pcb_path)
         if not os.path.isfile(pcb_path):
@@ -1080,7 +1145,7 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
         with open(pcb_path, "w", encoding="utf-8") as fh:
             fh.write(text)
         put_text(pcb_path, text)
-        return {
+        result = {
             "success": True,
             "pcb_path": pcb_path,
             "net_id": net_id,
@@ -1089,3 +1154,4 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
             "layer": layer,
             "vertices": len(polygon),
         }
+        return attach_clearance(result, pcb_path, None, enabled=check_clearance)

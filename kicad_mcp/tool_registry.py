@@ -44,6 +44,7 @@ from kicad_mcp.tools.footprint_search_tools import register_footprint_search_too
 from kicad_mcp.tools.ipc_tools import register_ipc_tools
 from kicad_mcp.tools.pin_tools import register_pin_tools
 from kicad_mcp.tools.connectivity_tools import register_connectivity_tools
+from kicad_mcp.tools.clearance_tools import register_clearance_tools
 from kicad_mcp.tools.via_promote_tools import register_via_promote_tools
 from kicad_mcp.tools.ipc_live_tools import register_ipc_live_tools
 from kicad_mcp.tools.ipc_interact_tools import register_ipc_interact_tools
@@ -101,6 +102,7 @@ TOOL_REGISTRARS: list[Registrar] = [
     register_ipc_tools,
     register_pin_tools,
     register_connectivity_tools,
+    register_clearance_tools,
     register_via_promote_tools,
     register_ipc_live_tools,
     register_ipc_interact_tools,
