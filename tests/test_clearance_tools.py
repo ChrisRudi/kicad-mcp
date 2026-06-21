@@ -250,6 +250,42 @@ class TestWorkerTargeted:
                                             ["F.Cu", "B.Cu"], 0.6)], 0.2)
         assert r["success"] is True and r["ok"] is True
 
+    def test_track_over_foreign_pad_is_violation(self, pad_board):
+        # A NET_A track crossing the NET_B pad → short. Exercises the
+        # SHAPE_SEGMENT subject + Collide(segment, clr) path.
+        r = worker.run(pad_board, [seg_spec(149, 105, 151, 105,
+                                            "NET_A", "F.Cu", 0.25)], 0.2)
+        assert r["success"] is True and r["ok"] is False
+        assert r["violations"][0]["item_kind"] == "seg"
+        assert r["violations"][0]["blocker_net"] == "NET_B"
+
+
+def _board_short():
+    """Board where a NET_A track physically crosses the NET_B pad → a real
+    different-net short for the board-wide scan to find."""
+    return (
+        '(kicad_pcb (version 20240108) (generator "pcbnew") '
+        '(generator_version "9.0")\n'
+        ' (general (thickness 1.6)) (paper "A4")\n'
+        ' (layers (0 "F.Cu" signal) (31 "B.Cu" signal) (44 "Edge.Cuts" user))\n'
+        ' (net 0 "") (net 1 "NET_A") (net 2 "NET_B")\n'
+        ' (footprint "lib:pad" (layer "F.Cu") (at 150 105) '
+        '(uuid "11111111-1111-1111-1111-111111111111")\n'
+        '   (pad "1" smd rect (at 0 0) (size 1 1) (layers "F.Cu") '
+        '(net 2 "NET_B")))\n'
+        ' (segment (start 149 105) (end 151 105) (width 0.25) '
+        '(layer "F.Cu") (net 1) '
+        '(uuid "22222222-2222-2222-2222-222222222222"))\n'
+        ')\n'
+    )
+
+
+@pytest.fixture
+def short_board(tmp_path):
+    p = tmp_path / "short.kicad_pcb"
+    p.write_text(_board_short(), encoding="utf-8")
+    return str(p)
+
 
 @_needs_pcbnew
 class TestWorkerBoardWide:
@@ -257,3 +293,54 @@ class TestWorkerBoardWide:
         r = worker.run(pad_board, None, 0.2)
         assert r["success"] is True and r["mode"] == "board"
         assert r["ok"] is True and r["violation_count"] == 0
+
+    def test_detects_different_net_short(self, short_board):
+        r = worker.run(short_board, None, 0.2)
+        assert r["success"] is True and r["mode"] == "board"
+        assert r["ok"] is False and r["violation_count"] >= 1
+        v = r["violations"][0]
+        assert {v["a_net"], v["b_net"]} == {"NET_A", "NET_B"}
+
+
+_U_VIA = "33333333-3333-3333-3333-333333333333"
+
+
+def _board_via_uuid():
+    """NET_A through-via (known uuid) sitting on the NET_B pad — the
+    ``via_uuid`` path (used by via_retype / via_resize) must resolve the via,
+    read ITS net (NET_A) and flag the NET_B pad."""
+    return (
+        '(kicad_pcb (version 20240108) (generator "pcbnew") '
+        '(generator_version "9.0")\n'
+        ' (general (thickness 1.6)) (paper "A4")\n'
+        ' (layers (0 "F.Cu" signal) (31 "B.Cu" signal) (44 "Edge.Cuts" user))\n'
+        ' (net 0 "") (net 1 "NET_A") (net 2 "NET_B")\n'
+        ' (footprint "lib:pad" (layer "F.Cu") (at 150 105) '
+        '(uuid "11111111-1111-1111-1111-111111111111")\n'
+        '   (pad "1" smd rect (at 0 0) (size 1 1) (layers "F.Cu") '
+        '(net 2 "NET_B")))\n'
+        f' (via (at 150 105) (size 0.6) (drill 0.3) '
+        f'(layers "F.Cu" "B.Cu") (net 1) (uuid "{_U_VIA}"))\n'
+        ')\n'
+    )
+
+
+@pytest.fixture
+def viauuid_board(tmp_path):
+    p = tmp_path / "viauuid.kicad_pcb"
+    p.write_text(_board_via_uuid(), encoding="utf-8")
+    return str(p)
+
+
+@_needs_pcbnew
+class TestWorkerViaUuid:
+    def test_via_uuid_resolves_and_collides(self, viauuid_board):
+        r = worker.run(viauuid_board, [{"kind": "via_uuid", "uuid": _U_VIA}], 0.2)
+        assert r["success"] is True and r["ok"] is False
+        assert r["violations"][0]["blocker_net"] == "NET_B"
+
+    def test_unknown_via_uuid_is_clean(self, viauuid_board):
+        # A uuid not on the board resolves to nothing → no subject, no error.
+        r = worker.run(viauuid_board, [{"kind": "via_uuid", "uuid": "deadbeef"}], 0.2)
+        assert r["success"] is True and r["ok"] is True
+        assert r["violation_count"] == 0

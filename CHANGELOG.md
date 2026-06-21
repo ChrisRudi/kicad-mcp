@@ -27,8 +27,12 @@ the first tag ships.
     bzw. mit `check_clearance=False` → `{checked: False, reason}`, der Edit bleibt
     unangetastet.
 - `tests/test_clearance_tools.py` — Spec-Builder + Degradations-Pfad + Tool-
-  Surface (no-pcbnew) und `@_needs_pcbnew` Kollisions-Geometrie (targeted/
-  board-wide/same-net).
+  Surface (no-pcbnew) und `@_needs_pcbnew` Kollisions-Geometrie (targeted
+  via/seg/same-net, board-wide clean+short, `via_uuid`-Auflösung).
+- `docs/clearance_engine_tests.md` — Runbook: diesen Branch ziehen und die
+  Tests **lokal unter KiCads Python** laufen lassen (wo `pcbnew` existiert und
+  die `@_needs_pcbnew`-Tests die echte `SHAPE.Collide`-Geometrie ausführen),
+  plus `pcbnew`-Spot-Check-Liste der remote nie gelaufenen API-Aufrufe.
 
 ### Changed
 - **`clearance`-Effekt-Echo verdrahtet in:** `add_track_to_pcb`, `add_arc_to_pcb`,
