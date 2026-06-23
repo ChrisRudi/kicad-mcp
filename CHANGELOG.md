@@ -8,6 +8,34 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added
+- **`center_item_clearance` — räumliches Via-Zentrieren in einem Call** (Tool
+  #174). Statt „Clearance zu Wand A messen → Clearance zu Wand B messen → von
+  Hand um die Differenz nudgen" (die ~9 Calls aus dem Live-Mitschnitt) sammelt
+  das Tool selbst das *fremde* Kupfer (Netz ≠ Via-Netz) im Radius — Tracks,
+  Vias, Pads — löst den Zielpunkt und draggt das Via dorthin, **Stubs ziehen
+  automatisch nach** (die fernen Enden bleiben verankert, nichts reißt). Zwei
+  Modi: `equalize` (Default) trifft exakt die Mittelsenkrechte zwischen den zwei
+  nächsten, gegenüberliegenden Wänden (der `(C₁−C₂)/2`-Schritt); `maximize`
+  steigt bis die engste Clearance nicht weiter wächst (lokaler Inkreis-Vertex).
+  `dry_run=True` rechnet nur (Zielposition + Clearance vorher/nachher) ohne zu
+  bewegen → perfekt als Vorschau. Result echot alte/neue Position, Clearance je
+  Nachbar vorher/nachher, `min_clearance`, `meets_rule` (gegen die Board-Default-
+  Netzklasse), `stubs_followed`, `connectivity_ok`. Rendert **nicht** (Mutations-
+  Tool-Regel) — `pcb_render` separat nach Abschluss. Arbeitet nur an Vias; für
+  einen freien Nudge bleibt `ipc_move_items`. Liegt in der `ipc_interact`-Familie
+  (`register_ipc_interact_tools`), reicht die Live-IPC-Bausteine
+  (`_find_items_by_uuids`, Commit-Pattern) nach.
+- **`kicad_mcp/utils/pcb_clearance.py` (neu)** — die reine, KiCad-freie Geometrie
+  dahinter: Obstacle-Modell (`SegmentObstacle`/`CircleObstacle`/`RectObstacle`
+  mit `probe(px,py) -> (gap, ux, uy)`) plus die zwei Solver (`solve_equalize`
+  Closed-Form + iterativ, `solve_maximize` Soft-Min-Subgradient-Ascent mit
+  monotoner Schrittkontrolle). Headless unit-testbar.
+- `tests/test_pcb_clearance.py` (16 Geometrie-Tests: Probes, Korridor-Zentrieren,
+  Ecke-Fallback, Monotonie) + `tests/test_center_clearance.py` (11 Tool-Tests:
+  equalize+Stub-Drag, dry_run, maximize, Layer-Scoping, Selektion/Validierung).
+  Tool-Count-Lock 173 → 174.
+
 ## [0.4.5] — 2026-06-19
 
 ### Fixed
