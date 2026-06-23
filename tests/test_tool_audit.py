@@ -319,7 +319,7 @@ def test_allowlist_has_no_obsolete_entries(tool_list):
 # 2026-06-09: -5 — FreeRouting/autoroute removed entirely (autoroute_tools.py
 # deleted): install_autorouter, autoroute_pcb, check_autorouter_status,
 # export_pcb_dsn, import_pcb_ses.
-EXPECTED_TOOL_COUNT = 174  # +ipc_interact G1-G6 (15) + ipc_draw_sketch_legend
+EXPECTED_TOOL_COUNT = 176  # +ipc_interact G1-G6 (15) + ipc_draw_sketch_legend
 # 2026-06-13: +1 (ipc_markup_to_tracks — markup-layer User.9 → copper tracks)
 # 2026-06-14: +1 (add_vias_to_pcb — batch via placement, one read+write)
 # 2026-06-15: +3 (normalize_footprint_libid, refresh_pinfunctions,
@@ -328,6 +328,8 @@ EXPECTED_TOOL_COUNT = 174  # +ipc_interact G1-G6 (15) + ipc_draw_sketch_legend
 #                 match_symbol_to_datasheet)
 # 2026-06-23: +1 (center_item_clearance — spatial via centering between
 #                 nearest foreign copper; one call replaces measure+nudge)
+# 2026-06-23: +2 (drc_triage + drc_select_group — group live DRC by type with
+#                 a suggested fix tool, then select a group in the editor)
 
 
 def test_tool_count_locked(tool_list):
@@ -662,6 +664,10 @@ PATH_EXIST_EXEMPT = {
     # IPC DRC session: pcb_path is optional (derived from the open document)
     # and only checked after the live-editor connection — needs a board open.
     "ipc_drc_session_start",
+    # DRC triage/select: same — pcb_path optional, derived from the open
+    # document and only resolved after the live-editor connection.
+    "drc_triage",
+    "drc_select_group",
     # Conversion tools — same: input must exist but output is created.
     "esphome_to_kicad", "convert_ltspice_to_kicad",
     # Export-to-disk: writes a fresh file at the given output_path.

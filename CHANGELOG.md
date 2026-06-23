@@ -35,6 +35,29 @@ the first tag ships.
   Ecke-Fallback, Monotonie) + `tests/test_center_clearance.py` (11 Tool-Tests:
   equalize+Stub-Drag, dry_run, maximize, Layer-Scoping, Selektion/Validierung).
   Tool-Count-Lock 173 → 174.
+- **`drc_triage` + `drc_select_group` — DRC-Ergebnisse gruppieren & gezielt
+  zeigen** (Tools #175/#176). Hintergrund: KiCad-10-IPC gibt die DRC-Marker des
+  GUI **nicht** raus (die `Board`-API hat keine drc/marker-Methode), also läuft
+  DRC headless über `kicad-cli` mit denselben `.kicad_pro`-Regeln — die
+  `items[].uuid` sind echte Board-KIIDs und damit live selektierbar.
+  - **`drc_triage`** speichert das Live-Board, runnt DRC und gibt die Verstöße
+    **nach Typ gruppiert** zurück: pro Gruppe `{type, severity, count,
+    item_uuids, nets, layers, item_kinds, centroid_mm, bbox_mm, suggested_tool}`,
+    Errors zuerst. `suggested_tool` ist eine **Fix-Strategie-Map** (via-aware):
+    Clearance-mit-Via → `center_item_clearance`, Annular/Drill → `via_resize`,
+    blind/buried → `via_promote`, Unconnected → `ipc_route_pin_to_pin`, Silk/
+    Courtyard → `ipc_move_items`. So laufen die Folge-Tools **im Batch** (eine
+    Tranche je Typ) statt ein Call pro Verstoß — die „Batch vor Einzeln"-Linie.
+  - **`drc_select_group`** selektiert eine Gruppe (per `group_type` oder
+    `index`) live im Editor (clear + add_to_selection) → „einzelne Verstöße
+    gezielt zeigen", inkl. echo des `suggested_tool`.
+  - Pad-aware Auflösung (`_resolve_drc_items`) steigt für pad-level-Verstöße
+    (unconnected/Pad-Clearance) zusätzlich in `get_pads()` ab — sonst wären die
+    nicht selektierbar. Grouped-DRC ist per (path→mtime) gecacht, sodass
+    `triage` + folgendes `select` **einen** DRC-Lauf teilen.
+  - `tests/test_drc_triage.py` (18 Tests: Gruppierung, Fix-Map-Unit, Severity-/
+    Unconnected-Filter, Select per Typ/Index, Pad-level-Select, Cache-Reuse).
+    Tool-Count-Lock 174 → 176.
 
 ## [0.4.5] — 2026-06-19
 

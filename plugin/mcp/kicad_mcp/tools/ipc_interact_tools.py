@@ -668,6 +668,199 @@ def _drag_via_with_stubs(
 
 
 # ---------------------------------------------------------------------------
+# DRC triage (drc_triage / drc_select_group) — module helpers
+# ---------------------------------------------------------------------------
+
+# DRC violation type (lowercased, matched in order) → suggested downstream MCP
+# tool. The plain copper-copper "clearance" type is via-aware and handled in
+# _suggest_fix_tool before this list. Keep "annular" ahead of "width" so
+# "annular_width" maps to via_resize, not ipc_set_track_width.
+_DRC_FIX_HINTS: list[tuple[str, str]] = [
+    ("annular", "via_resize"),
+    ("hole", "via_resize"),
+    ("drill", "via_resize"),
+    ("track_width", "ipc_set_track_width"),
+    ("width", "ipc_set_track_width"),
+    ("unconnected", "ipc_route_pin_to_pin"),
+    ("dangling", "ipc_route_pin_to_pin / ipc_remove_items"),
+    ("silk", "ipc_move_items"),
+    ("courtyard", "ipc_move_items"),
+    ("edge", "ipc_move_items"),
+    ("parity", "update_pcb_from_schematic"),
+    ("footprint", "update_pcb_from_schematic"),
+]
+
+
+def _suggest_fix_tool(vtype: str, item_kinds: set[str]) -> str:
+    """Map a DRC violation type to the MCP tool that best fixes that class.
+
+    Copper-copper ``clearance`` is via-aware: a via in the offending items →
+    ``center_item_clearance`` (re-centre it), a track → width/reroute, else a
+    plain move. Everything else is a keyword lookup; unknown types fall back to
+    manual review so the agent doesn't fire the wrong batch tool.
+    """
+    t = (vtype or "").lower()
+    if t == "clearance":
+        if "via" in item_kinds:
+            return "center_item_clearance"
+        if "track" in item_kinds:
+            return "ipc_set_track_width / reroute"
+        return "ipc_move_items"
+    for key, tool in _DRC_FIX_HINTS:
+        if key in t:
+            return tool
+    return "manuelle Prüfung"
+
+
+def _resolve_drc_items(board: Any, uuids: list[str]) -> dict[str, Any]:
+    """``{uuid: item}`` for DRC uuids, descending into pads.
+
+    ``_find_items_by_uuids`` walks footprints/tracks/vias/zones/shapes/text but
+    not the pads nested inside footprints — yet many DRC violations are
+    pad-level (unconnected pads, pad clearance). This supplements the base
+    lookup with a single pad pass for whatever uuids are still missing, so those
+    violations resolve (and thus select) too.
+    """
+    found = _find_items_by_uuids(board, uuids)
+    missing = {u for u in uuids if u not in found}
+    if missing:
+        try:
+            for p in board.get_pads():
+                pu = _safe_uuid(p)
+                if pu in missing:
+                    found[pu] = p
+                    missing.discard(pu)
+                    if not missing:
+                        break
+        except Exception:
+            pass
+    return found
+
+
+def _build_drc_groups(board: Any, report: dict[str, Any]) -> list[dict[str, Any]]:
+    """Group a kicad-cli DRC report by violation type and enrich each group.
+
+    One board lookup resolves every offending uuid to its live item so the
+    group can carry the affected nets/layers/kinds (and thus a via-aware fix
+    suggestion). Groups are ordered errors-first, then by descending count.
+    """
+    all_v = (list(report.get("violations", []))
+             + list(report.get("unconnected_items", []))
+             + list(report.get("schematic_parity", [])))
+
+    all_uuids: set[str] = set()
+    for v in all_v:
+        for it in v.get("items", []):
+            if it.get("uuid"):
+                all_uuids.add(it["uuid"])
+    item_map = _resolve_drc_items(board, list(all_uuids)) if all_uuids else {}
+
+    by_type: dict[str, dict[str, Any]] = {}
+    for v in all_v:
+        vtype = v.get("type") or v.get("message") or "unknown"
+        g = by_type.setdefault(vtype, {
+            "type": vtype, "severity": "warning", "count": 0,
+            "item_uuids": [], "_seen": set(), "_nets": set(), "_layers": set(),
+            "_kinds": set(), "_pos": [], "examples": [],
+        })
+        g["count"] += 1
+        if v.get("severity") == "error":
+            g["severity"] = "error"
+        pos = _violation_pos(v)
+        if pos:
+            g["_pos"].append(pos)
+        desc = v.get("description") or v.get("message")
+        if desc and len(g["examples"]) < 3:
+            g["examples"].append(desc)
+        for it in v.get("items", []):
+            u = it.get("uuid")
+            if not u or u in g["_seen"]:
+                continue
+            g["_seen"].add(u)
+            g["item_uuids"].append(u)
+            obj = item_map.get(u)
+            if obj is None:
+                continue
+            g["_kinds"].add(_friendly_type(obj))
+            net = _net_name(obj)
+            if net:
+                g["_nets"].add(net)
+            lname = _layer_name(board, getattr(obj, "layer", None))
+            if lname:
+                g["_layers"].add(lname)
+
+    out: list[dict[str, Any]] = []
+    for g in by_type.values():
+        positions = g.pop("_pos")
+        kinds = g.pop("_kinds")
+        g.pop("_seen")
+        g["nets"] = sorted(g.pop("_nets"))
+        g["layers"] = sorted(g.pop("_layers"))
+        g["item_kinds"] = sorted(kinds)
+        g["suggested_tool"] = _suggest_fix_tool(g["type"], kinds)
+        if positions:
+            xs = [p[0] for p in positions]
+            ys = [p[1] for p in positions]
+            g["centroid_mm"] = [round(sum(xs) / len(xs), 4), round(sum(ys) / len(ys), 4)]
+            g["bbox_mm"] = [round(min(xs), 4), round(min(ys), 4),
+                            round(max(xs), 4), round(max(ys), 4)]
+        else:
+            g["centroid_mm"] = None
+            g["bbox_mm"] = None
+        out.append(g)
+    out.sort(key=lambda g: (0 if g["severity"] == "error" else 1, -g["count"]))
+    return out
+
+
+# Per-process cache of the grouped DRC, keyed by (path → mtime_ns). A triage
+# call followed by one or more select calls in the same turn reuses one DRC run;
+# an edit+save bumps the mtime and forces a fresh run.
+_DRC_TRIAGE_CACHE: dict[str, dict[str, Any]] = {}
+
+
+def _reset_drc_triage_cache() -> None:
+    """Test hook: drop the grouped-DRC cache."""
+    _DRC_TRIAGE_CACHE.clear()
+
+
+def _drc_grouped(board: Any, path: str) -> tuple[Optional[list[dict[str, Any]]], Optional[str]]:
+    """Grouped DRC for ``path`` (cached by mtime). Returns ``(groups, error)``."""
+    try:
+        mtime = os.stat(path).st_mtime_ns
+    except OSError:
+        mtime = None
+    ent = _DRC_TRIAGE_CACHE.get(path)
+    if ent is not None and mtime is not None and ent["mtime"] == mtime:
+        return ent["groups"], None
+    report = _run_cli_drc(path)
+    if "error" in report:
+        return None, report["error"]
+    groups = _build_drc_groups(board, report)
+    if mtime is not None:
+        _DRC_TRIAGE_CACHE[path] = {"mtime": mtime, "groups": groups}
+    return groups, None
+
+
+def _save_and_resolve_drc_path(board: Any, pcb_path: str) -> tuple[str, Optional[dict[str, Any]]]:
+    """Save the live board and resolve the DRC target file. Returns
+    ``(path, error_dict)`` — exactly one is meaningful."""
+    try:
+        board.save()
+    except Exception as exc:
+        return "", {"success": False, "error": f"could not save board for DRC: {exc}"}
+    path = pcb_path
+    if not path:
+        try:
+            path = to_local_path(board.name)
+        except Exception:
+            path = ""
+    if not path or not os.path.isfile(path):
+        return "", {"success": False,
+                    "error": "pcb_path not given and could not be derived; pass it explicitly."}
+    return path, None
+
+
+# ---------------------------------------------------------------------------
 # MCP registration
 # ---------------------------------------------------------------------------
 
@@ -1698,6 +1891,158 @@ def register_ipc_interact_tools(mcp) -> None:
             "marked": len(markers),
             "markers": markers,
             "pcb_path": path,
+        }
+
+    @mcp.tool()
+    def drc_triage(
+        pcb_path: str = "",
+        include_unconnected: bool = True,
+        include_warnings: bool = True,
+    ) -> dict[str, Any]:
+        """Run DRC on the live board and return the violations **grouped by
+        type**, each with the downstream tool that fixes that class — so the
+        follow-up edits run in batch instead of one call per violation.
+
+        KiCad 10's IPC API does not expose the editor's own DRC markers, so this
+        saves the live board and runs the same rules headless via ``kicad-cli``,
+        then buckets every violation by its rule type. Each group carries its
+        count, max severity, the offending ``item_uuids`` (deduped), the affected
+        nets/layers/item-kinds, a centroid + bbox, and a ``suggested_tool``
+        (e.g. via clearance → ``center_item_clearance``, annular → ``via_resize``,
+        unconnected → ``ipc_route_pin_to_pin``). Groups are ordered errors-first.
+
+        Use this as the entry point of a DRC fix session: triage once, then loop
+        the suggested tool over each group's uuids, then re-run to confirm. To
+        highlight one group in the editor use ``drc_select_group``; for a marker
+        overlay on the board use ``ipc_drc_session_start`` instead. The result is
+        cached per board state, so an immediately following ``drc_select_group``
+        does not re-run DRC. Needs a board open.
+
+        Args:
+            pcb_path: ``.kicad_pcb`` to check; empty = derive from the open
+                document.
+            include_unconnected: Include the ``unconnected_items`` group
+                (default True).
+            include_warnings: Include warning-severity groups (default True);
+                False shows only error groups.
+
+        Returns:
+            ``{success, pcb_path, total, group_count, by_severity,
+            groups: [{type, severity, count, suggested_tool, item_uuids, nets,
+            layers, item_kinds, centroid_mm, bbox_mm, examples}]}``.
+        """
+        pcb_path = to_local_path(pcb_path) if pcb_path else ""
+        if err := _require_editor("pcb"):
+            return err
+        try:
+            _, board = _connect_kicad()
+        except RuntimeError as exc:
+            return {"success": False, "error": str(exc)}
+        path, perr = _save_and_resolve_drc_path(board, pcb_path)
+        if perr:
+            return perr
+        groups, gerr = _drc_grouped(board, path)
+        if gerr:
+            return {"success": False, "error": gerr}
+
+        shown = []
+        for g in groups:
+            if g["type"] == "unconnected_items" and not include_unconnected:
+                continue
+            if g["severity"] == "warning" and not include_warnings:
+                continue
+            shown.append({k: v for k, v in g.items() if not k.startswith("_")})
+        by_sev: dict[str, int] = {}
+        for g in shown:
+            by_sev[g["severity"]] = by_sev.get(g["severity"], 0) + g["count"]
+        return {
+            "success": True, "pcb_path": path,
+            "total": sum(g["count"] for g in shown),
+            "group_count": len(shown), "by_severity": by_sev,
+            "groups": shown,
+        }
+
+    @mcp.tool()
+    def drc_select_group(
+        group_type: str = "",
+        index: int = -1,
+        pcb_path: str = "",
+    ) -> dict[str, Any]:
+        """Select all items of one DRC violation group in the live editor — the
+        "show me these violations" companion to ``drc_triage``.
+
+        Re-uses (or refreshes) the grouped DRC for the current board, picks the
+        group by ``group_type`` (e.g. ``"clearance"``) or by ``index`` (0-based,
+        in the same order ``drc_triage`` returned), clears the selection and adds
+        every offending item so KiCad highlights them natively (scroll/zoom to
+        them in the editor). Also echoes the group's ``suggested_tool`` so you
+        know what to run next on exactly that set.
+
+        Use this to inspect or stage a specific violation class before fixing it;
+        for the full grouped overview call ``drc_triage`` first, and for a drawn
+        marker overlay use ``ipc_drc_session_start``. Read-only on the board
+        (selection only). Needs a board open.
+
+        Args:
+            group_type: Violation type to select (``"clearance"``,
+                ``"annular_width"``, …). Takes precedence over ``index``.
+            index: 0-based group index (errors-first order) when no
+                ``group_type`` is given.
+            pcb_path: ``.kicad_pcb`` to check; empty = derive from the open
+                document.
+
+        Returns:
+            ``{success, group_type, severity, selected_count, requested_uuids,
+            suggested_tool, nets, layers, centroid_mm, note}``.
+        """
+        pcb_path = to_local_path(pcb_path) if pcb_path else ""
+        if not group_type.strip() and index < 0:
+            return {"success": False,
+                    "error": "Give group_type (e.g. 'clearance') or index (0-based)."}
+        if err := _require_editor("pcb"):
+            return err
+        try:
+            _, board = _connect_kicad()
+        except RuntimeError as exc:
+            return {"success": False, "error": str(exc)}
+        path, perr = _save_and_resolve_drc_path(board, pcb_path)
+        if perr:
+            return perr
+        groups, gerr = _drc_grouped(board, path)
+        if gerr:
+            return {"success": False, "error": gerr}
+        if not groups:
+            return {"success": True, "selected_count": 0,
+                    "note": "No DRC violations — nothing to select."}
+
+        if group_type.strip():
+            gt = group_type.strip().lower()
+            grp = next((g for g in groups if g["type"].lower() == gt), None)
+            if grp is None:
+                return {"success": False,
+                        "error": f"No violation group of type {group_type!r}. "
+                                 f"Available: {[g['type'] for g in groups]}"}
+        else:
+            if index >= len(groups):
+                return {"success": False,
+                        "error": f"index {index} out of range (0..{len(groups) - 1})."}
+            grp = groups[index]
+
+        items = list(_resolve_drc_items(board, grp["item_uuids"]).values())
+        try:
+            board.clear_selection()
+            if items:
+                board.add_to_selection(items)
+        except Exception as exc:
+            return {"success": False, "error": f"selection update failed: {exc}"}
+        return {
+            "success": True, "group_type": grp["type"], "severity": grp["severity"],
+            "selected_count": len(items), "requested_uuids": len(grp["item_uuids"]),
+            "suggested_tool": grp["suggested_tool"],
+            "nets": grp["nets"], "layers": grp["layers"],
+            "centroid_mm": grp["centroid_mm"],
+            "note": f"Selected {len(items)} item(s) of '{grp['type']}'. "
+                    f"Suggested fix: {grp['suggested_tool']}.",
         }
 
     # ---------------------------------------------------------- session status (G6)
