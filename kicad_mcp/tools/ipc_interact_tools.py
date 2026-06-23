@@ -13,6 +13,7 @@ sibling modules.
 """
 
 import json
+import math
 import os
 import re
 import subprocess
@@ -491,6 +492,179 @@ def _violation_pos(viol: dict) -> Optional[list[float]]:
         if isinstance(pos, dict) and "x" in pos and "y" in pos:
             return [round(float(pos["x"]), 4), round(float(pos["y"]), 4)]
     return None
+
+
+# ---------------------------------------------------------------------------
+# Via clearance centering (center_item_clearance) — module helpers
+# ---------------------------------------------------------------------------
+
+# A track endpoint within this distance (nm) of the via centre counts as
+# galvanically "on" the via and is dragged along with it (1 µm).
+_COINCIDENCE_NM = 1000
+
+
+def _safe_list(board: Any, getter: str) -> list[Any]:
+    """``list(board.<getter>())`` or ``[]`` if the getter is missing/raises."""
+    fn = getattr(board, getter, None)
+    if fn is None:
+        return []
+    try:
+        return list(fn())
+    except Exception:
+        return []
+
+
+def _net_name(item: Any) -> str:
+    """Net name of a board item, or ``""`` if it carries no net."""
+    net = getattr(item, "net", None)
+    return str(getattr(net, "name", "") or "") if net is not None else ""
+
+
+def _is_copper_layer_name(name: Optional[str]) -> bool:
+    return bool(name) and str(name).endswith(".Cu")
+
+
+def _via_radius_mm(board: Any, via: Any) -> float:
+    """Via copper radius in mm, falling back to the board default via size for a
+    degenerate (diameter-0) via."""
+    d = int(getattr(via, "diameter", 0) or 0)
+    if d <= 0:
+        d, _drill = _board_default_via_nm(board)
+    return d / 2.0 / 1_000_000.0
+
+
+def _board_clearance_mm(board: Any) -> float:
+    """Best-effort board copper clearance (Default net class) in mm; 0.2 mm when
+    the net classes can't be read or carry no explicit clearance."""
+    try:
+        for nc in board.get_project().get_net_classes():
+            if getattr(nc, "name", None) in ("Default", "default"):
+                c = int(getattr(nc, "clearance", 0) or 0)
+                if c > 0:
+                    return c / 1_000_000.0
+    except Exception:
+        pass
+    return 0.2
+
+
+def _pad_rect_mm(board: Any, pad: Any) -> Optional[tuple[float, float, float, float]]:
+    """Axis-aligned world bbox of a pad as ``(cx, cy, half_w, half_h)`` mm.
+
+    Uses KiCad's own ``get_item_bounding_box`` (exact for axis-aligned rect
+    pads, conservative for rotated/oval/rounded). Falls back to a 0.5 mm square
+    around the pad position when the bbox is unavailable.
+    """
+    try:
+        bbox = board.get_item_bounding_box(pad)
+        bp = getattr(bbox, "pos", None)
+        sz = getattr(bbox, "size", None)
+        if bp is not None and sz is not None:
+            cx = (bp.x + sz.x / 2.0) / 1_000_000.0
+            cy = (bp.y + sz.y / 2.0) / 1_000_000.0
+            return cx, cy, abs(sz.x) / 2.0 / 1_000_000.0, abs(sz.y) / 2.0 / 1_000_000.0
+    except Exception:
+        pass
+    pos = getattr(pad, "position", None)
+    if pos is None:
+        return None
+    return pos.x / 1_000_000.0, pos.y / 1_000_000.0, 0.25, 0.25
+
+
+def _build_clearance_obstacles(
+    board: Any, via: Any, via_xy_mm: tuple[float, float],
+    own_net: str, radius_mm: float, layers: Optional[list[str]],
+) -> list[Any]:
+    """Collect foreign copper near the via as ``pcb_clearance`` obstacles.
+
+    Foreign = net ≠ ``own_net``. Foreign tracks are filtered to the requested
+    copper layers (all copper when ``layers`` is empty — a through via sees
+    every layer); foreign vias and pads within the radius are always considered
+    (they span / meet the via stack). Only copper whose edge lies within
+    ``radius_mm`` of the via centre is kept.
+    """
+    from kicad_mcp.utils import pcb_clearance as pc  # local: pure, but co-located
+
+    vx, vy = via_xy_mm
+    via_uuid = _safe_uuid(via)
+    layer_set = {str(layer) for layer in layers} if layers else None
+    obs: list[Any] = []
+
+    def _add(o: Any) -> None:
+        if o.probe(vx, vy)[0] <= radius_mm:
+            obs.append(o)
+
+    for t in _safe_list(board, "get_tracks"):
+        if _net_name(t) == own_net:
+            continue
+        lname = _layer_name(board, getattr(t, "layer", None))
+        if not _is_copper_layer_name(lname):
+            continue
+        if layer_set is not None and lname not in layer_set:
+            continue
+        st, en = getattr(t, "start", None), getattr(t, "end", None)
+        if st is None or en is None:
+            continue
+        w = _nm(getattr(t, "width", 0)) or 0.0
+        _add(pc.SegmentObstacle(
+            st.x / 1_000_000.0, st.y / 1_000_000.0,
+            en.x / 1_000_000.0, en.y / 1_000_000.0,
+            w / 2.0, net=_net_name(t), uuid=_safe_uuid(t) or ""))
+
+    for v in _safe_list(board, "get_vias"):
+        if _safe_uuid(v) == via_uuid or _net_name(v) == own_net:
+            continue
+        pos = getattr(v, "position", None)
+        if pos is None:
+            continue
+        _add(pc.CircleObstacle(
+            pos.x / 1_000_000.0, pos.y / 1_000_000.0, _via_radius_mm(board, v),
+            net=_net_name(v), uuid=_safe_uuid(v) or ""))
+
+    for p in _safe_list(board, "get_pads"):
+        if _net_name(p) == own_net:
+            continue
+        rect = _pad_rect_mm(board, p)
+        if rect is None:
+            continue
+        cx, cy, hw, hh = rect
+        _add(pc.RectObstacle(
+            cx, cy, hw, hh, net=_net_name(p), uuid=_safe_uuid(p) or ""))
+
+    return obs
+
+
+def _drag_via_with_stubs(
+    board: Any, via: Any, dx_mm: float, dy_mm: float,
+) -> tuple[list[Any], int]:
+    """Translate the via by (dx, dy) mm and drag every track endpoint that sat
+    on its original centre along with it (the stubs' far ends stay anchored).
+
+    Returns ``(changed_items, stubs_followed)``. The caller commits.
+    """
+    from kipy.geometry import Vector2  # local: optional dep
+
+    vp = getattr(via, "position", None)
+    if vp is None:
+        return [], 0
+    ox, oy = vp.x, vp.y  # original via centre, nm
+    via.position = Vector2.from_xy_mm(ox / 1_000_000.0 + dx_mm, oy / 1_000_000.0 + dy_mm)
+    changed: list[Any] = [via]
+    stubs = 0
+    for t in _safe_list(board, "get_tracks"):
+        st, en = getattr(t, "start", None), getattr(t, "end", None)
+        if st is None or en is None:
+            continue
+        moved = False
+        if abs(st.x - ox) <= _COINCIDENCE_NM and abs(st.y - oy) <= _COINCIDENCE_NM:
+            t.start = Vector2.from_xy_mm(st.x / 1_000_000.0 + dx_mm, st.y / 1_000_000.0 + dy_mm)
+            moved = True
+        if abs(en.x - ox) <= _COINCIDENCE_NM and abs(en.y - oy) <= _COINCIDENCE_NM:
+            t.end = Vector2.from_xy_mm(en.x / 1_000_000.0 + dx_mm, en.y / 1_000_000.0 + dy_mm)
+            moved = True
+        if moved:
+            changed.append(t)
+            stubs += 1
+    return changed, stubs
 
 
 # ---------------------------------------------------------------------------
@@ -1217,6 +1391,163 @@ def register_ipc_interact_tools(mcp) -> None:
         except Exception as exc:
             return {"success": False, "error": f"move failed: {exc}"}
         return {"success": True, "moved": len(moved), "not_found": not_found}
+
+    @mcp.tool()
+    def center_item_clearance(
+        uuid: str = "",
+        search_radius_mm: float = 2.0,
+        mode: str = "equalize",
+        layers: Optional[list[str]] = None,
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        """Re-centre a via between the nearby foreign copper so its clearances
+        even out (or its tightest clearance grows) — one spatial call instead of
+        measuring each wall and nudging the via by hand.
+
+        It scans the board for foreign copper (net ≠ the via's net) within
+        ``search_radius_mm`` of the via — tracks, other vias and pads — solves
+        the target point, then drags the via there with its connected track
+        stubs following (the stubs' far ends stay put, so nothing tears). In
+        ``equalize`` mode (default) it lands on the exact midpoint between the
+        two nearest, opposed walls (the (C1−C2)/2 step); in ``maximize`` mode it
+        climbs until the tightest clearance can grow no further (the local
+        in-circle vertex). The via never moves farther than ``search_radius_mm``.
+
+        Use this when a via sits off-centre in a corridor between two pieces of
+        copper, or when ``ipc_get_selection`` shows a single via you want
+        breathing room around. Works on a via only — for a plain nudge of any
+        item use ``ipc_move_items`` instead. Pass ``dry_run=True`` to get the
+        proposed position and before/after clearances without moving anything
+        (ideal for previewing). Does not render — call ``pcb_render`` separately
+        afterwards if you want to see it. Undoable in KiCad. Needs a board open.
+
+        Args:
+            uuid: KIID of the via to centre. Empty = use the via currently
+                selected in the editor (exactly one via must be selected).
+            search_radius_mm: Half-window (mm) for the nearest-copper scan and
+                the cap on how far the via may travel (default 2.0).
+            mode: ``equalize`` (default — equal clearance to the two nearest
+                walls) or ``maximize`` (grow the single tightest clearance).
+            layers: Copper layer names to scan for foreign tracks (e.g.
+                ``["In1.Cu"]``); omit to scan every copper layer (a through via
+                sees all of them). Foreign vias and pads are always considered.
+            dry_run: If True, only compute and report — the via is not moved.
+
+        Returns:
+            ``{success, mode, dry_run, moved, uuid, net, old_position_mm,
+            new_position_mm, displacement_mm, min_clearance_before_mm,
+            min_clearance_after_mm, required_clearance_mm, meets_rule,
+            neighbor_count, neighbors: [{uuid, kind, net, clearance_before_mm,
+            clearance_after_mm}], stubs_followed, connectivity_ok, note}``.
+        """
+        mode = (mode or "equalize").strip().lower()
+        if mode not in ("equalize", "maximize"):
+            return {"success": False,
+                    "error": "mode must be 'equalize' or 'maximize'."}
+        if float(search_radius_mm) <= 0:
+            return {"success": False, "error": "search_radius_mm must be > 0."}
+        if err := _require_editor("pcb"):
+            return err
+        try:
+            _, board = _connect_kicad()
+        except RuntimeError as exc:
+            return {"success": False, "error": str(exc)}
+
+        # Resolve the via — explicit uuid, else the single selected via.
+        target_uuid = uuid.strip()
+        if target_uuid:
+            via = _find_items_by_uuids(board, [target_uuid]).get(target_uuid)
+            if via is None:
+                return {"success": False,
+                        "error": f"No item with uuid {target_uuid!r} found."}
+        else:
+            try:
+                sel = board.get_selection() or []
+            except Exception as exc:
+                return {"success": False, "error": f"get_selection failed: {exc}"}
+            sel_vias = [it for it in sel if _friendly_type(it) == "via"]
+            if len(sel_vias) != 1:
+                return {"success": False,
+                        "error": "Select exactly one via in the editor, or pass uuid=."}
+            via = sel_vias[0]
+        if _friendly_type(via) != "via":
+            return {"success": False,
+                    "error": ("center_item_clearance works on a via; that item "
+                              f"is a {_friendly_type(via)}. Use ipc_move_items "
+                              "for other items.")}
+
+        from kicad_mcp.utils import pcb_clearance as pc
+
+        pos = getattr(via, "position", None)
+        if pos is None:
+            return {"success": False, "error": "via has no position."}
+        vx, vy = pos.x / 1_000_000.0, pos.y / 1_000_000.0
+        own_net = _net_name(via)
+        via_r = _via_radius_mm(board, via)
+
+        obstacles = _build_clearance_obstacles(
+            board, via, (vx, vy), own_net, float(search_radius_mm), layers)
+        old_pos = [round(vx, 4), round(vy, 4)]
+        if not obstacles:
+            return {
+                "success": True, "mode": mode, "dry_run": dry_run, "moved": False,
+                "uuid": _safe_uuid(via), "net": own_net,
+                "old_position_mm": old_pos, "new_position_mm": old_pos,
+                "displacement_mm": 0.0, "neighbor_count": 0, "neighbors": [],
+                "min_clearance_before_mm": None, "min_clearance_after_mm": None,
+                "stubs_followed": 0, "connectivity_ok": True,
+                "note": (f"No foreign copper within {search_radius_mm} mm — "
+                         "nothing to centre against."),
+            }
+
+        tx, ty = pc.solve_target(vx, vy, obstacles, mode, float(search_radius_mm))
+        dx, dy = tx - vx, ty - vy
+        disp = math.hypot(dx, dy)
+
+        neighbors = []
+        for o in obstacles:
+            neighbors.append({
+                "uuid": o.uuid, "kind": o.kind, "net": o.net,
+                "clearance_before_mm": round(o.probe(vx, vy)[0] - via_r, 4),
+                "clearance_after_mm": round(o.probe(tx, ty)[0] - via_r, 4),
+            })
+        neighbors.sort(key=lambda n: n["clearance_after_mm"])
+        min_before = min(n["clearance_before_mm"] for n in neighbors)
+        min_after = min(n["clearance_after_mm"] for n in neighbors)
+        required = _board_clearance_mm(board)
+
+        report = {
+            "success": True, "mode": mode, "uuid": _safe_uuid(via), "net": own_net,
+            "old_position_mm": old_pos, "new_position_mm": [round(tx, 4), round(ty, 4)],
+            "displacement_mm": round(disp, 4),
+            "min_clearance_before_mm": min_before,
+            "min_clearance_after_mm": min_after,
+            "required_clearance_mm": round(required, 4),
+            "meets_rule": min_after >= required - 1e-6,
+            "neighbor_count": len(neighbors), "neighbors": neighbors,
+            "connectivity_ok": True,
+        }
+
+        if disp < 1e-4:
+            report.update({"dry_run": dry_run, "moved": False, "stubs_followed": 0,
+                           "note": "Via already centred (no meaningful move)."})
+            return report
+        if dry_run:
+            report.update({"dry_run": True, "moved": False, "stubs_followed": 0,
+                           "note": "dry_run — computed only; via not moved."})
+            return report
+
+        try:
+            changed, stubs = _drag_via_with_stubs(board, via, dx, dy)
+            commit = board.begin_commit()
+            board.update_items(changed)
+            board.push_commit(commit, f"kicad-mcp center_item_clearance ({mode})")
+        except Exception as exc:
+            return {"success": False, "error": f"move failed: {exc}"}
+
+        report.update({"dry_run": False, "moved": True, "stubs_followed": stubs,
+                       "note": f"Centred via ({mode}); {stubs} stub(s) followed."})
+        return report
 
     @mcp.tool()
     def ipc_remove_items(uuids: list[str]) -> dict[str, Any]:
