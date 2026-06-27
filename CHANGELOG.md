@@ -59,6 +59,19 @@ the first tag ships.
     Unconnected-Filter, Select per Typ/Index, Pad-level-Select, Cache-Reuse).
     Tool-Count-Lock 174 → 176.
 
+### Changed
+- **Plugin-Chat-System-Prompt (`BEHAVIOR_SYSTEM_PROMPT` in
+  `plugin/claude_bridge.py`) geschärft.** Drei Ergänzungen am pro-Turn via
+  `--append-system-prompt` injizierten Verhaltenstext: (1) **Rollen-Rahmung** —
+  „Du bist ein erfahrener Senior-PCB-/Platinen-Entwickler" primt
+  Domänenkompetenz und Tonfall. (2) **Offen-Board-Lenkung auf IPC** — das
+  Plugin läuft per Definition gegen ein in KiCad geöffnetes Board, daher
+  explizit „mutiere über `ipc_*`/`live_*`; die Text-Patcher (`*_text`,
+  `pcb_batch`) sind bei offenem Board geblockt (`BoardOpenError`)" — spart den
+  sonst garantierten Fehlversuch-Zyklus. (3) **Positiv-Wegweiser zur
+  Tool-Wahl** (Aufgabe → Tool, aus `CLAUDE.md`), statt des bisher fast reinen
+  Verbots-Katalogs. `tests/test_plugin_bridge.py` deckt Rolle + IPC-Lenkung ab.
+
 ## [0.4.5] — 2026-06-19
 
 ### Fixed

@@ -108,6 +108,9 @@ class TestBuildCommand:
         assert "mcp__" in sp  # the "no MCP tools → say so, don't flail" rule
         # Dok 3 Hebel 1: canonical-naming rule so replies stay click-linkable
         assert "kanonisch" in sp and "<ref>.<pin>" in sp
+        # Senior-PCB role framing + open-board steering to the Live (IPC) tools
+        assert "Senior" in sp
+        assert "ipc_" in sp and "BoardOpenError" in sp
 
     def test_max_turns_default_override_and_off(self, monkeypatch):
         monkeypatch.delenv("KICAD_MCP_MAX_TURNS", raising=False)
