@@ -17,8 +17,10 @@ from . import ipc_setup, mcp_config, preflight, runtime_env
 from .version import __version__
 
 # Dev fallback only — used when neither an env override nor the bundled copy is
-# present (e.g. running from a repo checkout before bundling).
-_DEV_MCP_ROOT = r"C:\Users\user\OneDrive\Projects\kicad-mcp"
+# present (e.g. running from a repo checkout before bundling). Empty by default
+# so NO machine-specific path is ever hardcoded or shipped; set
+# ``KICAD_MCP_DEV_ROOT`` to your local kicad-mcp checkout if you rely on this.
+_DEV_MCP_ROOT = os.environ.get("KICAD_MCP_DEV_ROOT", "").strip()
 
 
 def _mcp_root() -> str:
@@ -37,7 +39,7 @@ def _mcp_root() -> str:
     bundled = os.path.join(os.path.dirname(__file__), "mcp")
     if os.path.isdir(os.path.join(bundled, "kicad_mcp")):
         return bundled
-    if os.path.isdir(os.path.join(_DEV_MCP_ROOT, "kicad_mcp")):
+    if _DEV_MCP_ROOT and os.path.isdir(os.path.join(_DEV_MCP_ROOT, "kicad_mcp")):
         return _DEV_MCP_ROOT
     return bundled
 

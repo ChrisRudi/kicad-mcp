@@ -8,6 +8,21 @@ the first tag ships.
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-06-30
+
+### Security / Privacy
+- **Persönliche Pfade aus dem Code entfernt.** Der hardcodierte Dev-Pfad
+  `C:\Users\user\OneDrive\Projects\kicad-mcp` (Windows-Username +
+  privater OneDrive-Projektordner) steckte im ausgelieferten Plugin-Code
+  (`plugin/claude_action.py`) sowie in `scripts/check_kipy.py` und
+  `tests/test_plugin_runtime_env.py`. Ersetzt durch:
+  `_DEV_MCP_ROOT` ist jetzt env-getrieben (`KICAD_MCP_DEV_ROOT`, leer als
+  Default — kein maschinenspezifischer Pfad wird mehr hardcodiert oder
+  mitgeliefert); Doc-Beispiel auf `<path-to>\kicad-mcp\…` neutralisiert;
+  Test-Fixtures auf neutralen Benutzernamen `user` umgestellt. **Hinweis:**
+  betrifft nur den aktuellen Stand — der Pfad existiert weiterhin in der
+  Git-Historie (separate Bereinigung nötig, falls gewünscht).
+
 ## [0.5.0] — 2026-06-30
 
 ### Added

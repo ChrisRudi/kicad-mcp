@@ -3,7 +3,7 @@
 
 Run from KiCad's Scripting Console (Tools -> Scripting Console):
 
-    exec(open(r"C:\\Users\\user\\OneDrive\\Projects\\kicad-mcp\\scripts\\check_kipy.py").read())
+    exec(open(r"<path-to>\\kicad-mcp\\scripts\\check_kipy.py").read())
 
 Decides whether "read the version out of KiCad" is a GOLD source (an
 install-owned, pristine kipy) or a RISK (only a user-mutable 3rdparty copy
