@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Pre-commit: spiegelt den Bundle plugin/mcp/kicad_mcp/ automatisch aus dem
+# kanonischen kicad_mcp/ und staged das Ergebnis mit. So muss nur EIN Pfad
+# (kicad_mcp/) gepflegt werden — der Bundle zieht bei jedem Commit selbst nach,
+# und tests/test_bundle_sync.py kann nicht mehr unbemerkt rot werden.
+#
+# Aktiviert über:  git config core.hooksPath .githooks
+# (einmalig pro Clone; scripts/setup-hooks.sh erledigt das.)
+
+set -e
+
+# Python-3-Interpreter wählen (Hook läuft auf Win unter git-bash, Linux, macOS).
+if command -v python3 >/dev/null 2>&1; then
+  PY=python3
+elif command -v python >/dev/null 2>&1; then
+  PY=python
+else
+  echo "pre-commit: kein python/python3 gefunden — Bundle-Sync uebersprungen." >&2
+  exit 0
+fi
+
+repo_root=$(git rev-parse --show-toplevel)
+
+# sync_bundle.py (ohne --check) macht den Bundle zur exakten Kopie von canonical:
+# fehlende/abweichende Dateien kopieren, ueberzaehlige loeschen, leere Dirs prunen.
+"$PY" "$repo_root/scripts/sync_bundle.py" >/dev/null
+
+# Alle daraus resultierenden Aenderungen mit-stagen (Adds, Updates, Deletes).
+git add -A "$repo_root/plugin/mcp/kicad_mcp"
