@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from kicad_mcp.generators.schematic_patcher import default_power_rotation
+
 
 # Default placement geometry --------------------------------------------------
 # All numbers are millimetres. The tool aims for "minimum viable" placement:
@@ -252,7 +254,7 @@ def build_patch_payload(
                 "net": net,
                 "x_mm": px,
                 "y_mm": py,
-                "rotation_deg": 0 if net.upper().startswith("GND") else 180,
+                "rotation_deg": default_power_rotation(net),
             })
 
     # Peripherals -------------------------------------------------------------
@@ -335,7 +337,7 @@ def build_patch_payload(
                             "net": net,
                             "x_mm": ax,
                             "y_mm": ay,
-                            "rotation_deg": 0 if net.upper().startswith("GND") else 180,
+                            "rotation_deg": default_power_rotation(net),
                         })
                     net_to_pin_map.setdefault(net, []).append((peri_ref, peri_pin))
                 else:
@@ -392,7 +394,7 @@ def build_patch_payload(
                 "net": far_net,
                 "x_mm": ax,
                 "y_mm": ay,
-                "rotation_deg": 0 if far_net.upper().startswith("GND") else 180,
+                "rotation_deg": default_power_rotation(far_net),
             })
             net_to_pin_map.setdefault(far_net, []).append((rref, "2"))
 

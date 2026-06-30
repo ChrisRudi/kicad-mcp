@@ -72,6 +72,18 @@ the first tag ships.
   Tool-Wahl** (Aufgabe → Tool, aus `CLAUDE.md`), statt des bisher fast reinen
   Verbots-Katalogs. `tests/test_plugin_bridge.py` deckt Rolle + IPC-Lenkung ab.
 
+### Fixed
+- **Power-Symbol-Rotation im Circuit-Block-Generator vereinheitlicht
+  (AUD-203).** `generators/circuit_block/_block_to_patch.py` drehte positive
+  Rails (+3V3/+5V/VBUS/VCC …) hart auf 180° (`0 if net.startswith("GND") else
+  180`), während alle anderen Pfade (`add_power_symbols`,
+  `convert_global_labels_to_power`) der kanonischen `default_power_rotation`
+  (immer 0) folgen — dieselbe Rail erschien je nach Erzeugungsweg unterschiedlich
+  orientiert. Die drei Anker-Stellen rufen jetzt `default_power_rotation(net)`
+  als Single Source of Truth auf; der Generator kann nicht mehr driften.
+  Regressionstest `test_power_anchors_rotation_zero_for_all_rails` (positive
+  Rail VCC → Rotation 0). Dokumentiert in `docs/kicad_mcp_behavior_audit.md`.
+
 ## [0.4.5] — 2026-06-19
 
 ### Fixed

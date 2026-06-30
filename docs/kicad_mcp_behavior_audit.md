@@ -112,6 +112,7 @@ Code: `generators/circuit_block/_block_to_patch.py` (Zeilen 255/338/395): `"rota
 - F9: Kein Test fixiert die circuit_block-Rotation; `test_convert_global_labels_to_power_replaces_power_nets` fixiert dagegen 0° für GND und +3V3 — eine Vereinheitlichung auf 0 bricht **keinen** bestehenden Test.
 - F10: Ja, aber widersprüchlich (Generator-Code vs. `default_power_rotation`-Docstring).
 - **Klassifizierung: K3** (echte Inkonsistenz, Vereinheitlichung auf 0 empfohlen).
+- **Status: BEHOBEN** — die drei Anker-Stellen in `_block_to_patch.py` rufen jetzt `default_power_rotation(net)` (Single Source of Truth) statt `else 180`. Regressionstest `test_power_anchors_rotation_zero_for_all_rails`. Siehe CHANGELOG [Unreleased] → Fixed.
 
 ---
 
@@ -514,7 +515,7 @@ Siehe AUD-203. **K3**.
 | AUD-103 | Platzierung | BBox-Überlappungssperre | Nein | ja | K2 |
 | AUD-201 | Orientierung | keine Auto-Rotation (Patch) | Ja | – | K0 |
 | AUD-202 | Orientierung/Geom | Mirror-vor-Rotation, Pin-Y-Flip | Ja | indirekt | K0/K1 |
-| AUD-203 | Orientierung/Konsistenz | Power-Rot 180 (Generator) vs 0 | Nein (Gen.) | nein | **K3** |
+| AUD-203 | Orientierung/Konsistenz | Power-Rot 180 (Generator) vs 0 | Nein (Gen.) | ja (neu) | **K3 — behoben** |
 | AUD-301 | Instanzen | deterministische UUID-5 | Nein | indirekt | K2 |
 | AUD-302 | Instanzen/Text | leere hidden Datasheet/Description | Nein | nein | K2 |
 | AUD-303 | Instanzen | `kicad-mcp.group` Property | Nein | – | K2 |
@@ -550,7 +551,7 @@ Siehe AUD-203. **K3**.
 
 Die folgenden Punkte sind die klarsten Bereinigungs-Kandidaten (rein dokumentierend, keine Aktion in diesem Audit):
 
-1. **AUD-203 / AUD-1203 (K3):** Power-Rotation vereinheitlichen — `circuit_block` `else 180` auf `0` ziehen, damit alle Pfade `default_power_rotation` folgen. Bricht keinen bestehenden Test.
+1. **AUD-203 / AUD-1203 (K3) — ERLEDIGT:** Power-Rotation vereinheitlicht — `circuit_block` ruft jetzt `default_power_rotation(net)` statt `else 180`; alle Pfade folgen derselben Quelle. Regressionstest ergänzt.
 2. **AUD-1201 (K3):** `snap`-Flag auf `add_schematic_symbols`, `add_schematic_label`, `convert_global_labels_to_power` nachrüsten (Default `True`), für einheitliches Off-Grid-Opt-out.
 3. **AUD-401 (K3-Kandidat):** Prüfen, ob feste Feld-Offsets durch Übernahme der Lib-Symbol-Feldpositionen ersetzt werden sollten.
 4. **AUD-801/802 (K2/K3):** Auto-`PWR_FLAG` und Auto-`no_connect` der Vollgenerierung als Generator-Optionen exponieren — sie können reale ERC-Fehler maskieren.

@@ -151,6 +151,25 @@ class TestApply:
         refs = [(c["from"][0], c["to"][0]) for c in wa["connections"]]
         assert ("C1", "DUMMY_IC") in refs
 
+    def test_power_anchors_rotation_zero_for_all_rails(self, server, seeded_sch):
+        """Regression (AUD-203): every power symbol the circuit-block
+        generator drops must use rotation 0 — the canonical orientation
+        for *every* power family per default_power_rotation(). A positive
+        rail (VCC) must not be flipped to 180 (the old generator behaviour
+        that contradicted the patch-tool / convert path)."""
+        spec_d = _minimal_spec()
+        # Add a positive-rail power pin so an anchor with a non-GND net exists.
+        spec_d["pins"].append({"num": 4, "name": "VCC", "type": "power_in"})
+        r = _call(
+            server, "apply_circuit_block",
+            sch_path=seeded_sch, spec=json.dumps(spec_d), dry_run=True,
+        )
+        assert r["success"] is True, r
+        anchors = r["would_apply"]["power_anchors"]
+        nets = {a["net"] for a in anchors}
+        assert {"GND", "VCC"} <= nets, anchors
+        assert all(a["rotation_deg"] == 0 for a in anchors), anchors
+
     def test_edge_invalid_instance_id(self, server, seeded_sch):
         spec_d = _minimal_spec()
         spec_d["instances"] = [{"ref": "U_ONE"}, {"ref": "U_TWO"}]
