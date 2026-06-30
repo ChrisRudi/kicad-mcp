@@ -30,9 +30,10 @@ import math
 import os
 import re
 import uuid
-from typing import Any, Callable
+from typing import Annotated, Any, Callable
 
 from mcp.server.fastmcp import FastMCP
+from pydantic import Field
 
 from kicad_mcp.cache import get_text, write_text
 from kicad_mcp.utils.path_env import kicad_lib_root, to_local_path
@@ -4335,7 +4336,9 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
         pcb_path: str,
         fp_library_name: str,
         ref: str,
-        value: str,
+        value: Annotated[str, Field(
+            description="Value field of the new footprint "
+            "(e.g. \"100nF\", \"GND\") — not the reference designator.")],
         x_mm: float,
         y_mm: float,
         rotation_deg: float = 0.0,
@@ -4912,7 +4915,9 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
         pcb_path: str,
         ref_pattern: str,
         property_name: str,
-        value: str,
+        value: Annotated[str, Field(
+            description="New value to write into the named property on every "
+            "matching footprint (the property's content, not its name).")],
         dry_run: bool = False,
     ) -> dict[str, Any]:
         """Set a property on every footprint whose reference matches a

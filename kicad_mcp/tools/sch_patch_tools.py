@@ -35,9 +35,10 @@ from __future__ import annotations
 import json
 import os
 import re
-from typing import Any, Optional
+from typing import Annotated, Any, Optional
 
 from mcp.server.fastmcp import FastMCP
+from pydantic import Field
 
 
 from kicad_mcp.generators.schematic_patcher import (
@@ -1714,7 +1715,9 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
     def update_symbol_property(
         sch_path: str,
         refs: str,
-        value: str = "",
+        value: Annotated[str, Field(
+            description="New content for the symbol's \"Value\" property; "
+            "empty string leaves it unchanged.")] = "",
         footprint: str = "",
         datasheet: str = "",
         description: str = "",
@@ -2519,7 +2522,9 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
         symbol_name: str,
         pins: str,
         reference: str = "U",
-        value: str = "",
+        value: Annotated[str, Field(
+            description="Content of the new symbol's Value field "
+            "(defaults to symbol_name when empty).")] = "",
         footprint: str = "",
         datasheet: str = "",
         description: str = "",
