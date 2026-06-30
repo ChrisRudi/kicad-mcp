@@ -7,7 +7,8 @@ import logging
 import os
 import subprocess
 
-from mcp.server.fastmcp import Context, FastMCP, Image
+from fastmcp import Context, FastMCP
+from fastmcp.utilities.types import Image
 
 from kicad_mcp.utils.file_utils import get_project_files
 from kicad_mcp.utils.kicad_cli import find_kicad_cli

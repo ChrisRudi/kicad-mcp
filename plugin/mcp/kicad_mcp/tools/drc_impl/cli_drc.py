@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 from typing import Any
 
-from mcp.server.fastmcp import Context
+from fastmcp import Context
 
 from kicad_mcp.utils.kicad_cli import find_kicad_cli
 

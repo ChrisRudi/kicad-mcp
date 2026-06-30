@@ -30,7 +30,7 @@ import shutil
 from datetime import datetime, timezone
 from typing import Any
 
-from mcp.server.fastmcp import Context, FastMCP
+from fastmcp import Context, FastMCP
 
 from kicad_mcp.generators.review._brief import (
     render_brief_md,

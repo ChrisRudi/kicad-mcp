@@ -9,7 +9,7 @@ import json
 import os
 from typing import Any
 
-from mcp.server.fastmcp import Context, FastMCP
+from fastmcp import Context, FastMCP
 
 from kicad_mcp.generators.esphome_parser import COMPONENT_DB, esphome_to_parts_nets
 from kicad_mcp.generators.pcb.builder import build_pcb

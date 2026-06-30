@@ -8,7 +8,7 @@ reconstruction, and guaranteed pin-wire connectivity.
 import os
 from typing import Any
 
-from mcp.server.fastmcp import Context, FastMCP
+from fastmcp import Context, FastMCP
 
 from kicad_mcp.generators.ltspice2kicad.main import convert_asc_to_kicad
 from kicad_mcp.generators.ltspice2kicad.validator import format_report

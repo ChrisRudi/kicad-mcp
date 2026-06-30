@@ -12,7 +12,7 @@ import re
 import subprocess
 from typing import Any
 
-from mcp.server.fastmcp import Context, FastMCP
+from fastmcp import Context, FastMCP
 
 from kicad_mcp.generators.pcb.builder import build_pcb
 from kicad_mcp.generators.schematic.builder import build_schematic

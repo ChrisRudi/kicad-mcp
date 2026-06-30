@@ -13,7 +13,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from mcp.server.fastmcp import Context, FastMCP
+from fastmcp import Context, FastMCP
 
 from kicad_mcp.utils.path_env import to_local_path
 

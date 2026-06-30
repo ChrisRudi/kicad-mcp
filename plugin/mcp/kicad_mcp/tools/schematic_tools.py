@@ -11,7 +11,7 @@ from pathlib import Path
 import re
 from typing import Any
 
-from mcp.server.fastmcp import Context, FastMCP
+from fastmcp import Context, FastMCP
 
 from kicad_mcp.utils.path_env import to_local_path
 from kicad_mcp.utils.sexpr_parser import find_node, find_nodes, parse_sexpr
