@@ -23,8 +23,17 @@ def _parse_schematic(sch_path: str) -> list:
         return parse_sexpr(f.read())
 
 
-def _extract_components(tree: list) -> list[dict[str, Any]]:
-    """Extract all symbol instances (components) from a schematic tree."""
+def _extract_components(
+    tree: list,
+    include_pins: bool = False,
+    include_properties: bool = False,
+) -> list[dict[str, Any]]:
+    """Extract all symbol instances (components) from a schematic tree.
+
+    Lean by default (agent token budget): the duplicative ``properties``
+    block and the per-pin list are omitted unless explicitly requested via
+    ``include_properties`` / ``include_pins``.
+    """
     components = []
     symbols = find_nodes(tree, "symbol")
 
@@ -68,20 +77,7 @@ def _extract_components(tree: list) -> list[dict[str, Any]]:
         unit_node = find_node(sym, "unit")
         unit = int(unit_node[1]) if unit_node and len(unit_node) > 1 else 1
 
-        # Get pins from lib_symbols
-        pins = []
-        pin_nodes = find_nodes(sym, "pin")
-        for pin in pin_nodes:
-            if len(pin) >= 2:
-                pin_name_node = find_node(pin, "name")
-                pin_num_node = find_node(pin, "number")
-                pins.append({
-                    "type": str(pin[1]) if len(pin) > 1 else "",
-                    "name": str(pin_name_node[1]) if pin_name_node and len(pin_name_node) > 1 else "",
-                    "number": str(pin_num_node[1]) if pin_num_node and len(pin_num_node) > 1 else "",
-                })
-
-        components.append({
+        rec: dict[str, Any] = {
             "reference": reference,
             "value": value,
             "library_id": lib_id,
@@ -90,9 +86,25 @@ def _extract_components(tree: list) -> list[dict[str, Any]]:
             "unit": unit,
             "dnp": dnp,
             "in_bom": in_bom,
-            "properties": props,
-            "pins": pins,
-        })
+        }
+        # Opt-in extras (board-independent token bloat otherwise):
+        #  - properties duplicates Reference/Value/Footprint (already above)
+        #    and carries empty Datasheet/Description noise → return only the
+        #    non-empty EXTRA props.
+        #  - a symbol instance's pin nodes only hold the pin number.
+        if include_properties:
+            rec["properties"] = {
+                k: v
+                for k, v in props.items()
+                if k not in ("Reference", "Value", "Footprint") and v
+            }
+        if include_pins:
+            rec["pins"] = [
+                {"number": str(pin[1])}
+                for pin in find_nodes(sym, "pin")
+                if len(pin) > 1
+            ]
+        components.append(rec)
 
     return components
 
@@ -149,9 +161,11 @@ def register_schematic_tools(mcp: FastMCP) -> None:
         schematic_path: str,
         filter_type: str = "",
         filter_value: str = "",
+        include_pins: bool = False,
+        include_properties: bool = False,
         ctx: Context | None = None,
     ) -> dict[str, Any]:
-        """List every symbol instance in a ``.kicad_sch`` with reference, value, lib_id, footprint, position, unit, DNP, in_bom, props, pins.
+        """List every symbol instance in a ``.kicad_sch`` with reference, value, lib_id, footprint, position, unit, DNP, in_bom.
 
         Use this whenever the user asks for a BOM-like overview, "which
         opamps does this schematic use", "show me all caps", or you need
@@ -169,11 +183,17 @@ def register_schematic_tools(mcp: FastMCP) -> None:
             filter_type: Reference prefix (case-insensitive prefix match,
                 e.g. ``"R"`` returns R1/R2/…/R99 only).
             filter_value: Substring matched against ``value`` (case-insensitive).
+            include_pins: Add a lean ``pins: [{number}]`` list per symbol
+                (off by default — saves tokens on large schematics).
+            include_properties: Add a ``properties`` dict of the EXTRA
+                (non Reference/Value/Footprint, non-empty) properties per
+                symbol (off by default).
 
         Returns:
             ``{success, schematic, count, components: [{reference, value,
-            library_id, footprint, position, unit, dnp, in_bom, properties,
-            pins}, …]}``.
+            library_id, footprint, position, unit, dnp, in_bom}, …]}``.
+            ``pins`` / ``properties`` are added per symbol only when the
+            respective ``include_*`` flag is set.
         """
         schematic_path = to_local_path(schematic_path)
         if not Path(schematic_path).exists():
@@ -181,7 +201,9 @@ def register_schematic_tools(mcp: FastMCP) -> None:
 
         try:
             tree = _parse_schematic(schematic_path)
-            components = _extract_components(tree)
+            components = _extract_components(
+                tree, include_pins=include_pins,
+                include_properties=include_properties)
 
             if filter_type:
                 components = [c for c in components if c["reference"].startswith(filter_type.upper())]
@@ -231,7 +253,9 @@ def register_schematic_tools(mcp: FastMCP) -> None:
 
         try:
             tree = _parse_schematic(schematic_path)
-            components = _extract_components(tree)
+            # Deep-dive: keep the full per-symbol detail (pins + extra props).
+            components = _extract_components(
+                tree, include_pins=True, include_properties=True)
 
             for comp in components:
                 if comp["reference"] == reference:
