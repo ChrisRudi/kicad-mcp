@@ -104,8 +104,12 @@ def _parse_pcb_for_audit(pcb_text: str) -> dict[str, Any]:
             wx, wy = pcb_local_to_world(
                 (fx, fy), frot, lx, ly, flipped=flipped,
             )
+            # Pad net spelling varies: ``(net 5 "+5V")`` (number + name) and
+            # ``(net "+5V")`` (name only, as written by the net-patch tools).
+            # The number is therefore OPTIONAL — the old ``\d+``-required
+            # regex matched neither name-only boards (→ 0 power nets) ...
             net_m = re.search(
-                r'\(net\s+\d+\s+"([^"]*)"\)', pad_snippet,
+                r'\(net\s+(?:\d+\s+)?"([^"]*)"\)', pad_snippet,
             )
             pads.append({
                 "pad": pm.group(1),
