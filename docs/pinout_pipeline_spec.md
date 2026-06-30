@@ -1,11 +1,15 @@
-<!-- Design-Spezifikation. STATUS: freigegeben, noch NICHT implementiert. -->
+<!-- Design-Spezifikation. STATUS: IMPLEMENTIERT in v0.4.0 (Commit edba3e1, 2026-06-18). Historisches Designdokument. -->
 <!-- Erstellt 2026-06-18 in der Analyse-Phase (TASK_pinout_validator.md). -->
 
 # Pinout-Pipeline: Symbol-Suche → Datenblatt-Validator (Spezifikation)
 
-**Status:** freigegeben, **noch nicht implementiert**. Dieses Dokument ist die
-Vorlage für den späteren Implementierungs-Auftrag (dann mit Code, Tests,
-CHANGELOG, pylint 0/0). Es ist self-contained — keine Chat-Historie nötig.
+**Status:** freigegeben, **IMPLEMENTIERT** in v0.4.0 (Commit `edba3e1`,
+2026-06-18; verifiziert 2026-06-30). Die Module (`generators/pinout/`:
+`symbol_pins.py`, `datasheet_pins.py`, `type_map.py`, `diff.py`, `search.py`)
+und die Tools `search_symbol` / `validate_pinout` / `match_symbol_to_datasheet`
+(`tools/pinout_tools.py`, registriert in `tool_registry.py`) existieren, samt
+Tests `tests/test_pinout_*.py`. Dokument bleibt als historische Design-Vorlage
+erhalten. Self-contained — keine Chat-Historie nötig.
 
 ## 0. Ziel
 

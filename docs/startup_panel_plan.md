@@ -1,10 +1,13 @@
-<!-- Plan/Spezifikation. STATUS: freigegeben, noch NICHT implementiert. -->
+<!-- Plan/Spezifikation. STATUS: IMPLEMENTIERT in v0.4.0 (Commit edba3e1, 2026-06-18). Historisches Planungsdokument. -->
 <!-- Erstellt 2026-06-18 aus der Diskussion "Panel-Start: Zusammenfassung, Anleitung, Version, Empfehlung". -->
 
 # Plan: Panel-Start — Platinen-Zusammenfassung, Interaktionsanleitung, Version, Empfehlungs-Mailto
 
-**Status:** freigegeben, **noch nicht implementiert**. Vorlage für den späteren
-Implementierungs-Auftrag. Betrifft das KiCad-Plugin-Chat-Panel
+**Status:** freigegeben, **IMPLEMENTIERT** in v0.4.0 (Commit `edba3e1`,
+2026-06-18; verifiziert 2026-06-30). Alle vier Bausteine (3.1 Versions-Anzeige,
+3.2 Empfehlungs-Mailto, 3.3 Platinen-Zusammenfassung, 3.4 Interaktionsanleitung)
+sind in `plugin/banner.py` / `plugin/chat_dialog.py` umgesetzt. Dokument bleibt
+als historische Planungs-Vorlage erhalten. Betrifft das KiCad-Plugin-Chat-Panel
 (`plugin/chat_dialog.py`), **kein** MCP-Tool. Self-contained.
 
 ## 0. Ziel

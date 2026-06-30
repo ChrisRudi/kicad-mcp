@@ -1,11 +1,16 @@
-<!-- Plan/Spezifikation. STATUS: freigegeben, noch NICHT implementiert. -->
+<!-- Plan/Spezifikation. STATUS: IMPLEMENTIERT in v0.4.0 (Commit edba3e1, 2026-06-18). Historisches Planungsdokument. -->
 <!-- Erstellt 2026-06-18 aus der Lücken-Analyse der Interaktions-Oberfläche. -->
 
 # Plan: Interaktions-Lücken schließen (User-Sicht zuerst)
 
-**Status:** freigegeben, **noch nicht implementiert**. Vorlage für spätere
-Implementierungs-Aufträge. Betrifft v. a. das KiCad-Plugin-Chat-Panel
-(`plugin/chat_dialog.py`, `plugin/board_links.py`); nutzt vorhandene MCP-Tools.
+**Status:** freigegeben, **IMPLEMENTIERT** in v0.4.0 (Commit `edba3e1`,
+2026-06-18; verifiziert 2026-06-30). Alle fünf priorisierten Lücken (P1
+Reverse-Selektion, P2 Aktionen pro Link, P3 Klick→Inspect, P4 Marker-Affordanz,
+P5 Mehrfach-Selektion) sind in `plugin/chat_dialog.py` / `plugin/board_links.py`
+umgesetzt (Tools `ipc_get_selection`, `ipc_inspect_item`, `ipc_draw_markers`).
+Dokument bleibt als historische Planungs-Vorlage erhalten. Betrifft v. a. das
+KiCad-Plugin-Chat-Panel (`plugin/chat_dialog.py`, `plugin/board_links.py`);
+nutzt vorhandene MCP-Tools.
 Self-contained.
 
 ## 0. Leitprinzip — die Nutzer-Sicht

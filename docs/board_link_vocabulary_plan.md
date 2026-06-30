@@ -1,10 +1,16 @@
-<!-- Plan/Spezifikation. STATUS: freigegeben, noch NICHT implementiert. -->
+<!-- Plan/Spezifikation. STATUS: IMPLEMENTIERT in v0.4.0 (Commit edba3e1, 2026-06-18). Historisches Planungsdokument. -->
 <!-- Erstellt 2026-06-18 aus der Diskussion "Sprache der Chat-Links vereinheitlichen". -->
 
 # Plan: Chat-Board-Links — Sprache mit KiCad-Benennungen vereinheitlichen
 
-**Status:** freigegeben, **noch nicht implementiert**. Vorlage für den späteren
-Implementierungs-Auftrag. Self-contained — keine Chat-Historie nötig.
+**Status:** freigegeben, **IMPLEMENTIERT** in v0.4.0 (Commit `edba3e1`,
+2026-06-18; verifiziert 2026-06-30). Hebel 1 (Producer-Vertrag im
+System-Prompt, `plugin/claude_bridge.py`) und Hebel 3 (sichere `tokenize`-
+Normalisierung: Netz-Slash/Case, Pin-Prosa, Layer-Alias in
+`plugin/board_links.py`) sind umgesetzt und in `tests/test_plugin_board_links.py`
+abgedeckt. Hebel 2 ist nur eine Konventions-Notiz (Tools liefern bereits
+kanonisch) — als optionale Doku-Ergänzung offen. Dokument bleibt als
+historische Planungs-Vorlage erhalten. Self-contained.
 
 ## 0. Problem
 
