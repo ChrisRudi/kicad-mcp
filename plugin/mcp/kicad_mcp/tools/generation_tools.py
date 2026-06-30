@@ -23,9 +23,15 @@ from kicad_mcp.utils.wsl_path import to_windows_path
 
 
 def _run_drc(sch_path: str, ctx=None) -> dict | None:
-    """6.2: Run KiCad DRC on a schematic file if kicad-cli is available.
+    """6.2: Run KiCad ERC on a schematic file if kicad-cli is available.
 
     Returns dict with errors/warnings, or None if kicad-cli not found.
+
+    NB: the schematic check is ``kicad-cli sch erc`` — there is no
+    ``sch drc`` subcommand, so the old argv silently produced no report and
+    the generator's quality gate never fired. KiCad-10 also nests violations
+    under ``sheets[N].violations`` (Bug 1), so aggregate those plus any
+    legacy top-level ``violations``.
     """
     try:
         from kicad_mcp.utils.kicad_cli import get_kicad_cli_path
@@ -33,9 +39,9 @@ def _run_drc(sch_path: str, ctx=None) -> dict | None:
         if not cli:
             return None
 
-        drc_output = sch_path.replace(".kicad_sch", "_drc.json")
+        drc_output = sch_path.replace(".kicad_sch", "_erc.json")
         _result = subprocess.run(
-            [cli, "sch", "drc",
+            [cli, "sch", "erc",
              "--output", to_windows_path(drc_output),
              "--format", "json",
              to_windows_path(sch_path)],
@@ -45,9 +51,13 @@ def _run_drc(sch_path: str, ctx=None) -> dict | None:
             with open(drc_output, encoding="utf-8") as f:
                 drc_data = json.load(f)
 
-            errors = [v for v in drc_data.get("violations", [])
+            violations = list(drc_data.get("violations", []))
+            for sheet in drc_data.get("sheets", []):
+                violations.extend(sheet.get("violations", []))
+
+            errors = [v for v in violations
                       if v.get("severity") == "error"]
-            warnings = [v for v in drc_data.get("violations", [])
+            warnings = [v for v in violations
                         if v.get("severity") == "warning"]
 
             os.remove(drc_output)  # cleanup
@@ -208,26 +218,11 @@ def register_generation_tools(mcp: FastMCP) -> None:
         if ctx:
             ctx.info(f"Project generated: {sch_path}, {pcb_path}, {pro_path}")
 
-        # 6.2: DRC integration — errors cause abort + output removal
+        # 6.2: ERC integration — report, non-destructive. The generator can
+        # emit benign ERC artefacts (e.g. a connector-fed rail without a
+        # PWR_FLAG), so surface the violations instead of silently deleting
+        # the output. ``erc_clean`` tells the caller whether it was 0 errors.
         drc_result = _run_drc(sch_path, ctx)
-        if drc_result and drc_result["error_count"] > 0:
-            # Remove generated files on DRC errors
-            for fpath in [sch_path, pcb_path, pro_path]:
-                if os.path.exists(fpath):
-                    os.remove(fpath)
-            # Also remove multi-sheet sub-files
-            if "root" in sch_files:
-                for gname in sch_files:
-                    if gname == "root":
-                        continue
-                    sub_path = os.path.join(output_dir, f"{project_name}_{gname}.kicad_sch")
-                    if os.path.exists(sub_path):
-                        os.remove(sub_path)
-            return {
-                "success": False,
-                "error": f"DRC failed with {drc_result['error_count']} error(s)",
-                "drc": drc_result,
-            }
 
         result = {
             "success": True,
@@ -240,6 +235,7 @@ def register_generation_tools(mcp: FastMCP) -> None:
         }
         if drc_result:
             result["drc"] = drc_result
+            result["erc_clean"] = drc_result["error_count"] == 0
         return result
 
     @mcp.tool()
@@ -304,20 +300,13 @@ def register_generation_tools(mcp: FastMCP) -> None:
         if not os.path.exists(pro_path):
             _write_kicad_pro(pro_path, project_name)
 
-        # 6.2: DRC integration — errors cause abort + output removal
+        # 6.2: ERC integration — report, non-destructive (see generate_project).
         drc_result = _run_drc(output_path, ctx)
-        if drc_result and drc_result["error_count"] > 0:
-            if os.path.exists(output_path):
-                os.remove(output_path)
-            return {
-                "success": False,
-                "error": f"DRC failed with {drc_result['error_count']} error(s)",
-                "drc": drc_result,
-            }
 
         result = {"success": True, "output_path": output_path, "project_file": pro_path}
         if drc_result:
             result["drc"] = drc_result
+            result["erc_clean"] = drc_result["error_count"] == 0
         return result
 
     @mcp.tool()
@@ -392,16 +381,8 @@ def register_generation_tools(mcp: FastMCP) -> None:
         if not os.path.exists(pro_path):
             _write_kicad_pro(pro_path, project_name)
 
-        # DRC check
+        # ERC check — report, non-destructive (see generate_project).
         drc_result = _run_drc(output_path, ctx)
-        if drc_result and drc_result["error_count"] > 0:
-            if os.path.exists(output_path):
-                os.remove(output_path)
-            return {
-                "success": False,
-                "error": f"DRC failed with {drc_result['error_count']} error(s)",
-                "drc": drc_result,
-            }
 
         result = {
             "success": True,
@@ -412,6 +393,7 @@ def register_generation_tools(mcp: FastMCP) -> None:
         }
         if drc_result:
             result["drc"] = drc_result
+            result["erc_clean"] = drc_result["error_count"] == 0
         return result
 
     @mcp.tool()
