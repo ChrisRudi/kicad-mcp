@@ -317,6 +317,7 @@ def register_pcb_tools(mcp: FastMCP) -> None:
     async def list_pcb_footprints(
         pcb_path: str,
         layer_filter: str = "",
+        refs: str = "",
         ctx: Context | None = None,
     ) -> dict[str, Any]:
         """List every footprint in a ``.kicad_pcb`` with reference, value, layer, position, rotation, pad count.
@@ -337,6 +338,8 @@ def register_pcb_tools(mcp: FastMCP) -> None:
         Args:
             pcb_path: ``.kicad_pcb`` file (WSL or Windows path).
             layer_filter: Optional layer name like ``"F.Cu"`` / ``"B.Cu"``.
+            refs: Optional comma-separated references to limit to
+                (e.g. ``"U1,R5"``) — scopes the result and its token size.
 
         Returns:
             ``{success, pcb_path, count, footprints: [{reference, value,
@@ -352,6 +355,11 @@ def register_pcb_tools(mcp: FastMCP) -> None:
 
             if layer_filter:
                 footprints = [f for f in footprints if f["layer"] == layer_filter]
+
+            ref_filter = {r.strip() for r in refs.split(",") if r.strip()}
+            if ref_filter:
+                footprints = [f for f in footprints
+                              if f["reference"] in ref_filter]
 
             return {
                 "success": True,

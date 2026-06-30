@@ -562,7 +562,9 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
     """Register headless geometry/routing tools with the MCP server."""
 
     @mcp.tool()
-    def compute_pad_world_positions(pcb_path: str) -> dict[str, Any]:
+    def compute_pad_world_positions(
+        pcb_path: str, refs: str = "", net: str = "",
+    ) -> dict[str, Any]:
         """Read a ``.kicad_pcb`` and return absolute world coordinates of
         every pad, accounting for footprint rotation and ``B.Cu`` flip.
 
@@ -571,8 +573,16 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
         math is the piece that earlier text-only routing attempts got
         wrong.
 
+        On a full board this returns thousands of pad records. When you only
+        need a few footprints or one net, pass ``refs`` and/or ``net`` to
+        scope the result (and its token size) down.
+
         Args:
             pcb_path: Path to a ``.kicad_pcb``.
+            refs: Optional comma-separated footprint references to limit to
+                (e.g. ``"U1,U_DRV1"``); empty = all footprints.
+            net: Optional net name; only pads on this net are returned
+                (empty = all pads).
 
         Returns:
             Dict with ``success``, ``footprints`` (ref → list of pad dicts),
@@ -583,11 +593,17 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
             return {"success": False, "error": f"PCB not found: {pcb_path}"}
         text = get_text(pcb_path)
         idx = _index_footprints(text)
+        ref_filter = {r.strip() for r in refs.split(",") if r.strip()}
+        net_filter = net.strip()
         out_fps: dict[str, list[dict[str, Any]]] = {}
         pad_count = 0
         for ref, fp in idx.items():
+            if ref_filter and ref not in ref_filter:
+                continue
             entries = []
             for pname, pad in fp.pads.items():
+                if net_filter and pad.net_name != net_filter:
+                    continue
                 entries.append(
                     {
                         "pin": pname,
@@ -600,6 +616,8 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
                     }
                 )
                 pad_count += 1
+            if net_filter and not entries:
+                continue  # net filter: skip footprints with no matching pad
             out_fps[ref] = entries
         return {
             "success": True,

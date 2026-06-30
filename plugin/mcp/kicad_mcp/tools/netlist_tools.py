@@ -22,7 +22,7 @@ def register_netlist_tools(mcp: FastMCP) -> None:
     """
 
     @mcp.tool()
-    async def extract_schematic_netlist(schematic_path: str, ctx: Context | None = None) -> dict[str, Any]:
+    async def extract_schematic_netlist(schematic_path: str, summary_only: bool = False, ctx: Context | None = None) -> dict[str, Any]:
         """Parse a ``.kicad_sch`` and return its full netlist (components + nets + labels + connections).
 
         Use this when you need the **electrical** view of a schematic (what
@@ -37,10 +37,15 @@ def register_netlist_tools(mcp: FastMCP) -> None:
 
         Args:
             schematic_path: ``.kicad_sch`` file.
+            summary_only: If True, omit the heavy per-component and per-net
+                connection detail and return only counts + net names +
+                analysis (much smaller — use for an overview).
 
         Returns:
             ``{success, schematic_path, component_count, net_count,
-            components, nets, analysis, partial?, partial_reason?}``.
+            components, nets, analysis, partial?, partial_reason?}``. With
+            ``summary_only`` the ``components``/``nets`` detail is replaced by
+            a ``net_names`` list.
         """
         schematic_path = to_local_path(schematic_path)
         logger.info(f"Extracting netlist from schematic: {schematic_path}")
@@ -85,15 +90,29 @@ def register_netlist_tools(mcp: FastMCP) -> None:
                 await ctx.report_progress(90, 100)
 
             # Build result
-            result = {
-                "success": True,
-                "schematic_path": schematic_path,
-                "component_count": netlist_data["component_count"],
-                "net_count": netlist_data["net_count"],
-                "components": netlist_data["components"],
-                "nets": netlist_data["nets"],
-                "analysis": analysis_results
-            }
+            if summary_only:
+                result = {
+                    "success": True,
+                    "schematic_path": schematic_path,
+                    "component_count": netlist_data["component_count"],
+                    "net_count": netlist_data["net_count"],
+                    "net_names": [
+                        n.get("name") if isinstance(n, dict) else n
+                        for n in netlist_data["nets"]
+                    ],
+                    "analysis": analysis_results,
+                    "summary_only": True,
+                }
+            else:
+                result = {
+                    "success": True,
+                    "schematic_path": schematic_path,
+                    "component_count": netlist_data["component_count"],
+                    "net_count": netlist_data["net_count"],
+                    "components": netlist_data["components"],
+                    "nets": netlist_data["nets"],
+                    "analysis": analysis_results
+                }
 
             # Forward partial-data warning if present
             if netlist_data.get("partial"):
@@ -117,7 +136,7 @@ def register_netlist_tools(mcp: FastMCP) -> None:
             return {"success": False, "error": str(e)}
 
     @mcp.tool()
-    async def extract_project_netlist(project_path: str, ctx: Context | None = None) -> dict[str, Any]:
+    async def extract_project_netlist(project_path: str, summary_only: bool = False, ctx: Context | None = None) -> dict[str, Any]:
         """Project-file entrypoint for ``extract_schematic_netlist``: resolve schematic from ``.kicad_pro`` and extract.
 
         Use this when the user gives you a project path; this tool finds
@@ -125,6 +144,8 @@ def register_netlist_tools(mcp: FastMCP) -> None:
 
         Args:
             project_path: Path to ``.kicad_pro``.
+            summary_only: Forwarded to ``extract_schematic_netlist`` — counts
+                + net names + analysis only (smaller response).
 
         Returns:
             Same shape as ``extract_schematic_netlist``, plus ``project_path``.
@@ -162,7 +183,8 @@ def register_netlist_tools(mcp: FastMCP) -> None:
                 await ctx.report_progress(20, 100)
 
             # Call the schematic netlist extraction
-            result = await extract_schematic_netlist(schematic_path, ctx)
+            result = await extract_schematic_netlist(
+                schematic_path, summary_only=summary_only, ctx=ctx)
 
             # Add project path to result
             if "success" in result and result["success"]:

@@ -91,7 +91,6 @@ def _extract_components(
         #  - properties duplicates Reference/Value/Footprint (already above)
         #    and carries empty Datasheet/Description noise → return only the
         #    non-empty EXTRA props.
-        #  - a symbol instance's pin nodes only hold the pin number.
         if include_properties:
             rec["properties"] = {
                 k: v
@@ -99,11 +98,29 @@ def _extract_components(
                 if k not in ("Reference", "Value", "Footprint") and v
             }
         if include_pins:
-            rec["pins"] = [
-                {"number": str(pin[1])}
-                for pin in find_nodes(sym, "pin")
-                if len(pin) > 1
-            ]
+            # Two pin spellings occur: an INSTANCE pin ``(pin "1" (uuid …))``
+            # carries the number as ``pin[1]``, while a DEFINITION pin
+            # ``(pin passive_line (name "VIN") (number "3"))`` carries the
+            # type as ``pin[1]`` and the number in a ``(number …)`` child.
+            # Prefer the child node, fall back to ``pin[1]``.
+            pins = []
+            for pin in find_nodes(sym, "pin"):
+                if len(pin) < 2:
+                    continue
+                num_node = find_node(pin, "number")
+                number = (
+                    str(num_node[1])
+                    if num_node and len(num_node) > 1
+                    else str(pin[1])
+                )
+                entry = {"number": number}
+                name_node = find_node(pin, "name")
+                if name_node and len(name_node) > 1:
+                    nm = str(name_node[1])
+                    if nm and nm != "~":
+                        entry["name"] = nm
+                pins.append(entry)
+            rec["pins"] = pins
         components.append(rec)
 
     return components

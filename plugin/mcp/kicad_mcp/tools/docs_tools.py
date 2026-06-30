@@ -519,6 +519,7 @@ def register_docs_tools(mcp: FastMCP) -> None:
         kicad_version: int = 0,
         namespace: str = "",
         only_bound: bool = False,
+        summary: bool = False,
         config_path: str = "",
     ) -> dict[str, Any]:
         """List every KiCad action and its currently bound keyboard
@@ -556,6 +557,9 @@ def register_docs_tools(mcp: FastMCP) -> None:
                 ``"plEditor"``. Empty string (default) returns all.
             only_bound: If ``True``, drop actions whose primary shortcut
                 is empty. Default ``False`` (return everything).
+            summary: If ``True``, return per-namespace action/bound COUNTS
+                instead of the full action list (the full dump is ~20k
+                tokens). Default ``False``.
             config_path: Explicit path to a ``user.hotkeys`` file,
                 bypassing all env / default detection. WSL and Windows
                 paths are both accepted.
@@ -639,6 +643,27 @@ def register_docs_tools(mcp: FastMCP) -> None:
             filtered = [a for a in filtered if a["namespace"] == namespace]
         if only_bound:
             filtered = [a for a in filtered if a["shortcut"]]
+
+        if summary:
+            # Counts-only overview (the full ~880-action dump is ~20k tokens).
+            by_ns: dict[str, dict[str, int]] = {}
+            for a in filtered:
+                d = by_ns.setdefault(a["namespace"], {"actions": 0, "bound": 0})
+                d["actions"] += 1
+                if a["shortcut"]:
+                    d["bound"] += 1
+            return {
+                "success": True,
+                "config_path_used": resolved,
+                "kicad_version_detected": major,
+                "namespace_filter": namespace,
+                "only_bound_filter": only_bound,
+                "summary": True,
+                "total_actions": len(filtered),
+                "bound_actions": sum(1 for a in filtered if a["shortcut"]),
+                "by_namespace": by_ns,
+                "namespaces_available": namespaces_available,
+            }
 
         return {
             "success": True,
