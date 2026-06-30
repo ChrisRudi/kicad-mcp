@@ -683,7 +683,8 @@ def register_cli_export_tools(mcp: FastMCP) -> None:
             output_path: Optional output ``.png`` path.
             side: ``"top"`` / ``"bottom"`` / ``"front"`` / ``"back"`` /
                 ``"left"`` / ``"right"``.
-            width, height: PNG resolution in pixels.
+            width: Output PNG width in pixels.
+            height: Output PNG height in pixels.
 
         Returns:
             ``{success, output_path}``.

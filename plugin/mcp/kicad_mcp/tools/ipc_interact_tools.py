@@ -1320,7 +1320,8 @@ def register_ipc_interact_tools(mcp) -> None:
 
         Args:
             layer: Sketch layer name (default ``User.9`` / "MCP.Skizze").
-            x_mm, y_mm: Top-left of the legend block (board mm).
+            x_mm: Legend block top-left X in mm (board coords).
+            y_mm: Legend block top-left Y in mm (board coords).
             size_mm: Text size (default 1.0 mm).
 
         Returns:
@@ -1397,7 +1398,8 @@ def register_ipc_interact_tools(mcp) -> None:
         ``ipc_accept_markers`` instead. Undoable. Needs a board open.
 
         Args:
-            x_mm, y_mm: Via centre (board mm).
+            x_mm: Via centre X in mm (board coords).
+            y_mm: Via centre Y in mm (board coords).
             net: Net name to put the via on (``"GND"``); empty = unassigned.
             size_mm: Via diameter; 0 = board default.
             drill_mm: Drill diameter; 0 = board default.
@@ -1443,7 +1445,8 @@ def register_ipc_interact_tools(mcp) -> None:
         Args:
             ids: Marker IDs to accept (``["M1", "M3"]``).
             net: Net for the created vias (``"GND"``).
-            size_mm / drill_mm: Via size / drill; 0 = board default.
+            size_mm: Via diameter in mm; 0 = board default.
+            drill_mm: Via drill diameter in mm; 0 = board default.
             layer: Marker layer (default ``User.9``).
 
         Returns:
@@ -1557,7 +1560,8 @@ def register_ipc_interact_tools(mcp) -> None:
 
         Args:
             uuids: Item KIID uuid strings (from selection/inspect).
-            dx_mm, dy_mm: Delta in mm (KiCad Y is down).
+            dx_mm: X translation delta in mm.
+            dy_mm: Y translation delta in mm (KiCad Y is down).
 
         Returns:
             ``{success, moved, not_found}``.

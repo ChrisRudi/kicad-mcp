@@ -925,34 +925,50 @@ def register_polar_grid_tools(mcp: FastMCP) -> None:
             op: Which operation to perform — see list below.
             pcb_path: Path to ``.kicad_pcb`` (required for ops that edit
                 the file).
-            center_x_mm, center_y_mm, r_outer_mm, r_inner_mm,
-            ring_step_mm, ring_count_from, spoke_count, spoke_offset_deg,
-            arc_layer, radial_layer, snap_to_spoke, snap_to_ring:
-                Polar configuration overrides. Omitted fields use reference
-                defaults.
+            center_x_mm: Polar grid centre X in mm, board coords (config override; default 148.5).
+            center_y_mm: Polar grid centre Y in mm, board coords (config override; default 105.0).
+            r_outer_mm: Outer (largest) ring radius in mm (config override; default 30.0).
+            r_inner_mm: Inner (smallest) ring radius in mm (config override; default 13.5).
+            ring_step_mm: Radial spacing between adjacent rings in mm (config override; default 0.55).
+            ring_count_from: Whether ring 1 is the ``"outer"`` (default) or ``"inner"`` radius.
+            spoke_count: Number of evenly spaced radial spokes (config override; default 18).
+            spoke_offset_deg: Angular offset of spoke 0 in degrees (config override; default 0).
+            arc_layer: Default copper layer for tangential arcs (config override; default ``In1.Cu``).
+            radial_layer: Default copper layer for radial stubs (config override; default ``In2.Cu``).
+            snap_to_spoke: Snap angles to the nearest spoke when True (config override; default True).
+            snap_to_ring: Snap radii to the nearest ring when True (config override; default True).
             ref: Footprint reference (place_on_ring, place_on_spoke).
-            ring | r_mm: Ring number (1..ring_count) or absolute radius.
+            ring: Ring number (1..ring_count) selecting the target radius.
+            r_mm: Absolute target radius in mm (alternative to ``ring``).
             theta_deg: Angle from centre, ``(-180, 180]``.
-            x_mm, y_mm: Cartesian inputs (xy_to_polar only).
-            spoke_idx | spoke_deg: Spoke selector
-                (place_on_spoke / add_polar_via).
+            x_mm: Cartesian X in mm, board coords (xy_to_polar only).
+            y_mm: Cartesian Y in mm, board coords (xy_to_polar only).
+            spoke_idx: Spoke index selector (place_on_spoke / add_polar_via).
+            spoke_deg: Spoke angle in degrees, snapped to the nearest spoke (place_on_spoke / add_polar_via).
             mode: Rotation mode for align_rotation /
                 place_on_*. One of ``radial_out``, ``radial_in``,
                 ``tangential_ccw``, ``tangential_cw``.
             long_axis: ``"auto"`` (default, footprint-name regex),
                 ``"x"`` (caps/resistors), ``"y"`` (SOIC/SOT-23/TO-252).
-            r_min_mm, r_max_mm: Bounds for align_outer_components.
+            r_min_mm: Inner radius bound in mm for align_outer_components.
+            r_max_mm: Outer radius bound in mm for align_outer_components.
             exempt_refs: List of refs to skip in
                 align_outer_components (e.g. ``["U1"]`` for an ESP
                 module).
-            net_name, layer, width_mm: For add_polar_arc /
-                add_radial_segment / add_polar_via.
-            theta_start_deg, theta_end_deg: Arc endpoints (deg).
-            ring_from | r_from_mm, ring_to | r_to_mm: Endpoints of a
-                radial segment.
+            net_name: Net name assigned to the added arc / segment / via copper.
+            layer: Override copper layer for add_polar_arc / add_radial_segment
+                (defaults to ``arc_layer`` / ``radial_layer`` respectively).
+            width_mm: Trace width in mm for add_polar_arc / add_radial_segment (default 0.2).
+            theta_start_deg: Arc start angle in degrees (add_polar_arc).
+            theta_end_deg: Arc end angle in degrees (add_polar_arc).
+            ring_from: Start ring number of a radial segment.
+            r_from_mm: Start radius in mm of a radial segment (alternative to ``ring_from``).
+            ring_to: End ring number of a radial segment.
+            r_to_mm: End radius in mm of a radial segment (alternative to ``ring_to``).
             layer_pair: For add_polar_via (default ``[arc_layer,
                 radial_layer]``).
-            size_mm, drill_mm: Via dimensions.
+            size_mm: Via pad diameter in mm for add_polar_via (default 0.6).
+            drill_mm: Via drill diameter in mm for add_polar_via (default 0.3).
             tolerance_mm: Match radius for list_ring_occupants
                 (default ring_step/2).
             dry_run: For align_outer_components and route — plan/preview
@@ -961,14 +977,16 @@ def register_polar_grid_tools(mcp: FastMCP) -> None:
                 ``{from, to, ring|r_mm, [direction]}`` dicts to route in
                 one read/write pass (e.g.
                 ``[{"from": "U_DRV1.5", "to": "C9.1", "ring": 20}]``).
-            from_ref_pad, to_ref_pad: For a single ``route`` connection
-                instead of ``connections`` — pad addresses ``"REF.PAD"``
-                (e.g. ``"U_DRV1.5"``); combine with ``ring``/``r_mm``.
+            from_ref_pad: Source pad address ``"REF.PAD"`` for a single
+                ``route`` connection instead of ``connections`` (e.g.
+                ``"U_DRV1.5"``); combine with ``ring``/``r_mm``.
+            to_ref_pad: Destination pad address ``"REF.PAD"`` for a single
+                ``route`` connection; combine with ``ring``/``r_mm``.
             arc_width_mm: Arc trace width for ``route`` (mm, default 0.5).
             stub_width_mm: Radial-stub width for ``route`` (mm, default
                 0.5).
-            via_size_mm, via_drill_mm: Via pad / drill diameter for
-                ``route`` (mm, default 0.45 / 0.2).
+            via_size_mm: Via pad diameter in mm for ``route`` (default 0.45).
+            via_drill_mm: Via drill diameter in mm for ``route`` (default 0.2).
             ring_snap_tol_mm: If a pad sits within this radius of the
                 target ring (mm, default 0.02) the radial stub collapses
                 and one via drops the pad straight onto the arc layer.

@@ -1374,6 +1374,10 @@ def register_ipc_tools(mcp: FastMCP) -> None:
           save-prompt dialog, so this is also silent. Side-effect: editor
           zoom / cursor position are lost because the document is closed
           and reopened.
+
+        Args:
+            doc_type: ``"pcb"`` (default) or ``"schematic"`` — which open
+                editor document to reload from disk.
         """
         if err := _require_editor(doc_type.lower()):
             return err
@@ -1697,13 +1701,10 @@ def register_ipc_tools(mcp: FastMCP) -> None:
 
         Args:
             ref: Component reference (e.g. ``"U1"``, ``"LED9"``).
-            x_mm / y_mm: Absolute target position in millimetres. If both
-                are ``None``, the position only shifts by ``dx_mm`` /
-                ``dy_mm`` from the current pose. ``x_mm=None`` together
-                with non-zero ``dx_mm`` shifts only along that axis.
-            dx_mm / dy_mm: Relative offset added to the current position.
-                Defaults to ``0``. Combined with ``x_mm``/``y_mm`` if both
-                are given (target = absolute + delta).
+            x_mm: Absolute target X position in millimetres (board coords); ``None`` keeps the current X (shift only via ``dx_mm``).
+            y_mm: Absolute target Y position in millimetres (board coords); ``None`` keeps the current Y (shift only via ``dy_mm``).
+            dx_mm: Relative X offset in millimetres added to the current position (default ``0``).
+            dy_mm: Relative Y offset in millimetres added to the current position (default ``0``).
             angle_deg: Absolute target rotation in degrees.
             delta_angle_deg: Delta added to the current rotation.
 
@@ -1840,8 +1841,10 @@ def register_ipc_tools(mcp: FastMCP) -> None:
         track lands on a valid layer.
 
         Args:
-            ref1, pin1: Source pad.
-            ref2, pin2: Destination pad.
+            ref1: Source footprint reference (e.g. ``"U1"``).
+            pin1: Source pad number/name on ``ref1`` (e.g. ``"1"``).
+            ref2: Destination footprint reference (e.g. ``"R5"``).
+            pin2: Destination pad number/name on ``ref2`` (e.g. ``"2"``).
             layer: Track layer (``"F.Cu"`` / ``"B.Cu"`` / ``"In1.Cu"`` …).
             width_mm: Track width in millimetres.
             with_via: Insert a layer-change via at the endpoint if needed.

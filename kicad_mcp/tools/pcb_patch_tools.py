@@ -3650,10 +3650,11 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
             library_root: Override path to the KiCad bundled footprint
                 library root. Default "" = auto-detect via
                 :func:`kicad_lib_root`.
-            stage_position_x_mm, stage_position_y_mm: Top-left corner
-                (mm) of the staging grid for newly-added footprints.
-                Defaults to ``(250, 50)`` — well outside a typical
-                board outline.
+            stage_position_x_mm: Top-left corner X (mm) of the staging
+                grid for newly-added footprints. Default 250 — well
+                outside a typical board outline.
+            stage_position_y_mm: Top-left corner Y (mm) of the staging
+                grid for newly-added footprints. Default 50.
             stage_pitch_mm: Spacing between staged footprints. Default
                 2.5 mm.
             dry_run: If True, compute the diff and report it but do
@@ -3958,11 +3959,12 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
         this tool is the pure-helper version of that same math.
 
         Args:
-            target_x_mm, target_y_mm: World position the rotation is
-                computed at.
-            center_x_mm, center_y_mm: World position the rotation is
-                measured against — usually the PCB centre or a parent IC
-                anchor.
+            target_x_mm: World X (mm) the rotation is computed at.
+            target_y_mm: World Y (mm) the rotation is computed at.
+            center_x_mm: World X (mm) the rotation is measured against —
+                usually the PCB centre or a parent IC anchor.
+            center_y_mm: World Y (mm) the rotation is measured against —
+                usually the PCB centre or a parent IC anchor.
             mode: One of:
                 * ``"radial_out"`` — long axis points away from centre.
                 * ``"radial_in"`` — long axis points toward centre.
@@ -4177,20 +4179,31 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
 
         Args:
             pcb_path: ``.kicad_pcb`` to edit.
-            center_x_mm, center_y_mm: Centre of the keepout (mm).
+            center_x_mm: Centre X of the keepout (mm).
+            center_y_mm: Centre Y of the keepout (mm).
             shape: ``"circle"`` (default), ``"rectangle"``, or
                 ``"polygon"``.
             radius_mm: Required if ``shape="circle"``.
-            width_mm, height_mm: Required if ``shape="rectangle"``.
+            width_mm: Rectangle width (mm). Required if
+                ``shape="rectangle"``.
+            height_mm: Rectangle height (mm). Required if
+                ``shape="rectangle"``.
             polygon_pts: Required if ``shape="polygon"`` — list of
                 ``[x_mm, y_mm]`` pairs relative to ``center_*``. Closed
                 implicitly.
             layers: Copper layers the keepout applies to (default
                 ``["F.Cu","B.Cu","In1.Cu","In2.Cu"]``).
             name: Optional zone label.
-            block_tracks, block_vias, block_pads, block_footprints,
-            block_copperpour: Keepout flags — each blocks (``True``) or
-                allows (``False``) that element type in the zone.
+            block_tracks: Keepout flag — blocks (``True``) or allows
+                (``False``) tracks in the zone.
+            block_vias: Keepout flag — blocks (``True``) or allows
+                (``False``) vias in the zone.
+            block_pads: Keepout flag — blocks (``True``) or allows
+                (``False``) pads in the zone.
+            block_footprints: Keepout flag — blocks (``True``) or allows
+                (``False``) footprints in the zone.
+            block_copperpour: Keepout flag — blocks (``True``) or allows
+                (``False``) copper pour in the zone.
             circle_segments: Number of polygon vertices used to
                 approximate a circle. 48 is smooth; 24 is acceptable for
                 large keepouts.
@@ -4370,7 +4383,8 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
                 (e.g. ``"C42"``, ``"TP1"``). Must not collide with an
                 existing PCB reference.
             value: Value text (e.g. ``"100nF"``, ``"GND"``).
-            x_mm, y_mm: World position for the footprint anchor.
+            x_mm: World X (mm) for the footprint anchor.
+            y_mm: World Y (mm) for the footprint anchor.
             rotation_deg: Footprint rotation (CCW, deg). Pad-local rot is
                 automatically updated to match.
             layer: ``"F.Cu"`` (default) or ``"B.Cu"``. If ``"B.Cu"`` the
@@ -4995,8 +5009,10 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
 
         Args:
             pcb_path: ``.kicad_pcb`` to edit (WSL or Windows path).
-            start_x_mm, start_y_mm: World coordinates of the segment start.
-            end_x_mm, end_y_mm: World coordinates of the segment end.
+            start_x_mm: World X (mm) of the segment start.
+            start_y_mm: World Y (mm) of the segment start.
+            end_x_mm: World X (mm) of the segment end.
+            end_y_mm: World Y (mm) of the segment end.
             layer: Copper layer name, e.g. ``"F.Cu"``, ``"B.Cu"``,
                 ``"In1.Cu"``. Must end in ``.Cu``.
             net_name: Net to bind the segment to. Created at the top
@@ -5120,8 +5136,8 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
                 ``"U1"``).
             text: The text to render. May contain ``${REFERENCE}`` and
                 other KiCad text-variables.
-            local_x_mm, local_y_mm: Position in the footprint's local
-                frame, in mm.
+            local_x_mm: X position (mm) in the footprint's local frame.
+            local_y_mm: Y position (mm) in the footprint's local frame.
             layer: Target layer (silkscreen / fab / courtyard / user
                 etc.), e.g. ``"F.SilkS"``, ``"B.Fab"``, ``"F.Cu"``.
             font_size_mm: Font size in mm (uniform x/y). Default 0.8.

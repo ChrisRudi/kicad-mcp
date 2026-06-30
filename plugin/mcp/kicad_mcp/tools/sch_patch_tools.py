@@ -486,6 +486,9 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
         ``move_schematic_group`` / ``rotate_schematic_group`` /
         ``delete_schematic_items`` operation. Don't grep the file: KiCad's
         group property is a hidden symbol field this tool reads correctly.
+
+        Args:
+            sch_path: ``.kicad_sch`` file to scan for ``kicad-mcp.group`` tags.
         """
         sch_path = to_local_path(sch_path)
         if not os.path.isfile(sch_path):
@@ -517,6 +520,13 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
         positions: this tool walks the *real* symbol bbox (including pin
         stubs) from the embedded lib_symbol — manual ``(at x y)`` math
         misses the symbol's actual extent.
+
+        Args:
+            sch_path: ``.kicad_sch`` file to measure.
+            refs: optional list of reference designators to restrict the bbox
+                to those symbols only. ``None`` / empty (default) = all symbols.
+            group_id: optional ``kicad-mcp.group`` tag — restrict the bbox to
+                that group's symbols. Empty (default) = no group filter.
         """
         sch_path = to_local_path(sch_path)
         if not os.path.isfile(sch_path):
@@ -851,7 +861,8 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
         Args:
             sch_path: ``.kicad_sch`` to patch.
             text: Label text (the net name).
-            x_mm, y_mm: Anchor in mm (the label's electrical hot-spot).
+            x_mm: Label anchor X in mm (the label's electrical hot-spot).
+            y_mm: Label anchor Y in mm (the label's electrical hot-spot).
             kind: ``"local"`` / ``"global"`` / ``"hierarchical"``.
             rotation_deg: 0 / 90 / 180 / 270.
             justify: ``"left"`` / ``"right"`` / ``""``. Empty = derive
@@ -1531,6 +1542,11 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
         common failure mode (lib_id typo, ref already in use) without
         leaving the schematic half-patched. Don't try a write and roll
         back: this tool is the cheap pre-flight.
+
+        Args:
+            sch_path: ``.kicad_sch`` to validate the patch against.
+            parts: JSON string — the same ``[{ref, name OR lib_id, …}]`` list
+                you would pass to ``add_schematic_symbols``. Default ``"[]"``.
         """
         sch_path = to_local_path(sch_path)
         if not os.path.isfile(sch_path):
@@ -2070,6 +2086,12 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
 
         Sibling: ``rotate_schematic_group`` for rotation, ``get_schematic_bbox``
         to inspect group extent, ``list_schematic_groups`` to enumerate.
+
+        Args:
+            sch_path: ``.kicad_sch`` to patch.
+            group_id: ``kicad-mcp.group`` tag whose symbols are translated.
+            dx_mm: Translation along X in mm.
+            dy_mm: Translation along Y in mm.
         """
         sch_path = to_local_path(sch_path)
         if not os.path.isfile(sch_path):
@@ -2122,11 +2144,19 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
         """Rigid-rotate a group by ``angle_deg`` around ``pivot``.
 
         Args:
+            sch_path: ``.kicad_sch`` to patch.
+            group_id: ``kicad-mcp.group`` tag whose symbols are rotated.
+            angle_deg: Rotation angle in degrees; each symbol's internal
+                rotation is snapped to the nearest 90°.
             pivot: ``centroid`` / ``bbox_center`` (alias for centroid here)
                 or ``custom`` (use ``pivot_xy``).
+            pivot_xy: ``[x, y]`` pivot point in mm — required when
+                ``pivot="custom"``, ignored otherwise.
             tolerance_deg: maximum residual after snapping symbol-internal
                 rotations to 90° before erroring. ``force=True`` accepts
                 any residual with a warning.
+            force: Accept an out-of-tolerance 90°-snap residual, emitting a
+                warning instead of erroring.
         """
         sch_path = to_local_path(sch_path)
         if not os.path.isfile(sch_path):
@@ -2557,7 +2587,9 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
                 ``left``/``right``/``top``/``bottom``.
             reference: Reference prefix (default ``"U"``).
             value: Value field (defaults to ``symbol_name``).
-            footprint / datasheet / description: optional metadata.
+            footprint: Default Footprint field for the new symbol (empty = none).
+            datasheet: Datasheet URL/field for the new symbol (empty = none).
+            description: Description field for the new symbol (empty = none).
             width_mm: Body width override (0 = auto from pin-name lengths).
             overwrite: Replace an existing same-named symbol (default False —
                 error out instead).

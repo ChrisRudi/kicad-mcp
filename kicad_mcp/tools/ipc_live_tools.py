@@ -406,7 +406,8 @@ def register_ipc_live_tools(mcp: FastMCP) -> None:
 
         Args:
             reference: footprint reference designator (e.g. "U3").
-            x_mm, y_mm: target position in millimetres (board coordinates).
+            x_mm: target X position in mm (board coordinates).
+            y_mm: target Y position in mm (board coordinates).
             dry_run: if True (default), report old->new position + affected
                 nets WITHOUT writing. This is also the mechanical half of a
                 human-in-the-loop confirm gate.

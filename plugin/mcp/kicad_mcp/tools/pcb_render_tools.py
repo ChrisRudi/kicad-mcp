@@ -131,7 +131,8 @@ def register_pcb_render_tools(mcp: FastMCP) -> None:
 
         Args:
             pcb_path: Path to the ``.kicad_pcb`` (WSL or Windows form).
-            center_x_mm, center_y_mm: Board-coordinate centre of the crop.
+            center_x_mm: Board-coordinate X centre of the crop, in mm.
+            center_y_mm: Board-coordinate Y centre of the crop, in mm.
             window_mm: Side length of the square crop in mm. Default 10.
             px: Output pixel size (square). Default 900 (≈ px/window mm res).
             layers: Comma-separated KiCad layer names to include. Default

@@ -654,8 +654,10 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
 
         Args:
             pcb_path: Path to a ``.kicad_pcb``.
-            ref1, pin1: Source pad.
-            ref2, pin2: Destination pad.
+            ref1: Source footprint reference designator (e.g. "U1").
+            pin1: Pad/pin number on ``ref1`` (the source pad).
+            ref2: Destination footprint reference designator (e.g. "U2").
+            pin2: Pad/pin number on ``ref2`` (the destination pad).
             layer: Track layer (default: source pad's primary copper layer).
             width_mm: Track width.
             with_via: If true and the two pads sit on different copper
@@ -837,18 +839,22 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
 
         Args:
             pcb_path: Path to a ``.kicad_pcb`` file.
-            start_x_mm, start_y_mm: Arc start point (mm).
-            end_x_mm, end_y_mm: Arc end point (mm).
+            start_x_mm: Arc start X in mm (board/world coords).
+            start_y_mm: Arc start Y in mm (board/world coords).
+            end_x_mm: Arc end X in mm (board/world coords).
+            end_y_mm: Arc end Y in mm (board/world coords).
             layer: Copper layer for the arc (e.g. ``"In2.Cu"``).
             net_name: Net the arc belongs to. If the net is not yet in
                 the PCB's net table it is added automatically.
             width_mm: Trace width (mm). Default 0.25.
-            center_x_mm, center_y_mm: Arc-circle centre (mm). Pass
-                both to use *center mode*; leave both as default
-                (``nan``) to use explicit-mid mode.
-            mid_x_mm, mid_y_mm: Explicit midpoint (mm). Pass both to
-                use *explicit-mid mode*; leave both as ``nan`` to use
-                center mode.
+            center_x_mm: Arc-circle centre X in mm. Pass both
+                ``center_*`` to use *center mode*; leave both as
+                default (``nan``) to use explicit-mid mode.
+            center_y_mm: Arc-circle centre Y in mm (see ``center_x_mm``).
+            mid_x_mm: Explicit arc midpoint X in mm. Pass both
+                ``mid_*`` to use *explicit-mid mode*; leave both as
+                ``nan`` to use center mode.
+            mid_y_mm: Explicit arc midpoint Y in mm (see ``mid_x_mm``).
             dry_run: If True, compute the arc geometry and report it in
                 the return value but do not write the file. Default
                 False.
@@ -928,7 +934,8 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
 
         Args:
             pcb_path: Path to a ``.kicad_pcb``.
-            x_mm, y_mm: World position (mm).
+            x_mm: Via centre X in mm (board/world coords).
+            y_mm: Via centre Y in mm (board/world coords).
             net_name: Net the via belongs to. If the net is not yet in
                 the PCB's net table it is added automatically. Pass
                 ``""`` (empty) to leave the via on net 0 (no-connect).
