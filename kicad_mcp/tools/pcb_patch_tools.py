@@ -2808,17 +2808,29 @@ def set_footprint_property_visibility_text(
                     + new_prop[insert_at:]
                 )
             else:
-                # Fallback: inject before closing ')'.
+                # No own-line (layer …) — e.g. a SINGLE-LINE property block.
+                # (hide yes) MUST land INSIDE the property parens, before its
+                # closing ')'.  Bug 11: the old fallback computed
+                # line_start = 0 for a single-line block (rfind("\n")==-1) and
+                # inserted (hide yes) BEFORE the opening '(property' → a bare
+                # footprint-level token → the .kicad_pcb no longer parsed.
                 last_close = new_prop.rfind(")")
-                line_start = new_prop.rfind("\n", 0, last_close) + 1
-                indent = new_prop[line_start:last_close]
-                if indent.strip() != "":
-                    indent = "\t\t\t"
-                new_prop = (
-                    new_prop[:line_start]
-                    + f"{indent}(hide yes)\n"
-                    + new_prop[line_start:]
-                )
+                if "\n" not in new_prop:
+                    # Single-line: inline, space-separated, before the ')'.
+                    new_prop = (
+                        new_prop[:last_close].rstrip()
+                        + " (hide yes)"
+                        + new_prop[last_close:]
+                    )
+                else:
+                    # Multi-line without an own-line (layer …): own indented
+                    # line just before the closing ')'.
+                    line_start = new_prop.rfind("\n", 0, last_close) + 1
+                    new_prop = (
+                        new_prop[:line_start]
+                        + "\t\t\t(hide yes)\n"
+                        + new_prop[line_start:]
+                    )
     else:
         if has_yes:
             new_prop = hide_yes_re.sub("", new_prop, count=1)

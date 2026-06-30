@@ -429,3 +429,55 @@ def test_set_visibility_unknown_property(mcp_server, pcb_path):
         ref="R1", property_name="NoSuchProperty", hide=True,
     )
     assert out["success"] is False
+
+
+# Bug 11: single-line property block must not get a bare footprint-level
+# (hide yes) — that produced an unparsable .kicad_pcb.
+_SINGLE_LINE_PCB = (
+    '(kicad_pcb\n'
+    '  (footprint "iFloat:FFC8-1MM-RA" (layer "B.Cu")\n'
+    '    (attr smd)\n'
+    '    (property "Reference" "J_FFC_A" (at 0 -2.5 150) (layer "B.SilkS")'
+    ' (effects (font (size 1 1))))\n'
+    '  )\n'
+    ')\n'
+)
+
+
+def test_set_visibility_single_line_property_inside_parens():
+    out, meta = ppt.set_footprint_property_visibility_text(
+        _SINGLE_LINE_PCB, "J_FFC_A", "Reference", True)
+    assert meta["success"] is True
+    assert meta["property"]["hide_after"] is True
+    # (hide yes) lands INSIDE the property block ...
+    pstart = out.find('(property "Reference"')
+    pend = ppt._find_block_end(out, pstart)
+    assert "(hide yes)" in out[pstart:pend]
+    # ... and NEVER as a bare footprint-level token (the Bug 11 corruption).
+    assert not any(ln.strip() == "(hide yes)" for ln in out.splitlines())
+    # parens stay balanced (file still parses).
+    assert out.count("(") == out.count(")")
+
+
+def test_set_visibility_multiline_property_not_regressed():
+    # A property whose (layer …) is on its own line keeps the existing
+    # behaviour: (hide yes) inside the block, parens balanced.
+    pcb = (
+        '(kicad_pcb\n'
+        '  (footprint "Lib:X" (layer "F.Cu")\n'
+        '    (property "Reference" "X" (at 0 0 0))\n'
+        '    (property "Value" "100n"\n'
+        '      (at 0 1 0)\n'
+        '      (layer "F.Fab")\n'
+        '      (effects (font (size 1 1)))\n'
+        '    )\n'
+        '  )\n'
+        ')\n'
+    )
+    out, meta = ppt.set_footprint_property_visibility_text(
+        pcb, "X", "Value", True)
+    assert meta["success"] is True
+    pstart = out.find('(property "Value"')
+    pend = ppt._find_block_end(out, pstart)
+    assert "(hide yes)" in out[pstart:pend]
+    assert out.count("(") == out.count(")")

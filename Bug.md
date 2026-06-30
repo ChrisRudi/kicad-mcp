@@ -252,6 +252,51 @@ from, to}, …]` — Caller kann den Move im Diff sehen. Tests in
 
 ---
 
+## ✅ Bug 11 — `set_footprint_property_visibility` korrumpiert einzeilige Property-Blöcke [RESOLVED 2026-06-30]
+
+> **Fix:** Der Insert-Fallback in `set_footprint_property_visibility_text`
+> (`pcb_patch_tools.py`) platziert `(hide yes)` jetzt **innerhalb** der
+> Property-Parens — bei Single-Line-Blocks (`"\n" not in prop_block`) inline
+> vor dem letzten `)` (`… (effects …) (hide yes))`), bei Multi-Line als eigene
+> eingerückte Zeile vor dem schließenden `)`. Damit entsteht kein bare
+> footprint-level `(hide yes)` mehr. Tests:
+> `test_set_visibility_single_line_property_inside_parens` +
+> `test_set_visibility_multiline_property_not_regressed`. Kein Duplikat in
+> `pcb_geometry_tools.py`.
+
+**Severity:** High (silent file corruption — die `.kicad_pcb` parst danach nicht mehr; weder KiCad-GUI noch pcbnew/kipy noch die MCP-Tools können sie öffnen, bis von Hand repariert wird).
+
+**File:** `kicad_mcp/tools/pcb_patch_tools.py` — `set_footprint_property_visibility_text` (Insert-Pfad ~Z. 2796-2821)
+
+**Symptom:** Nach `set_footprint_property_visibility(..., hide=True)` auf einen Footprint, dessen `(property "Reference"/"Value" …)` **komplett auf einer Zeile** steht, wird eine alleinstehende `(hide yes)`-Zeile **vor** die Property-Zeile eingefügt — also als direktes Kind von `(footprint …)` statt innerhalb der Property-Klammern. Bare `(hide yes)` auf Footprint-Ebene ist ungültig → S-Expression-Parse bricht. Bei 2 Footprints × 2 Properties (Reference+Value) entstehen 4 kaputte Zeilen.
+
+**Reproducer (real-world):** `iFloat_V16_09/top_pcb/iFloat_TopPCB.kicad_pcb`, Custom-Footprints `J_FFC_A` / `J_FFC_B` (`iFloat:FFC8-1MM-RA`). Deren Reference/Value-Properties stehen je auf einer Zeile:
+```
+(footprint "iFloat:FFC8-1MM-RA" (layer "B.Cu") (at …)
+  …
+  (attr smd)
+			(hide yes)                       <-- eingefügt, VOR der Property → kaputt
+(property "Reference" "J_FFC_A" (at 0 -2.5 150) (layer "B.SilkS") … (effects …))
+```
+Datei parst danach nicht; `list_pcb_footprints` etc. scheitern beim Laden.
+
+**Root cause:** Der „nach `(layer …)` einfügen"-Zweig matcht nur, wenn `(layer "…")` auf einer **eigenen** Zeile steht:
+```python
+layer_m = re.search(r'(\n([ \t]+)\(layer\s+"[^"]+"\)[ \t]*\n)', new_prop)
+```
+Bei einer Single-Line-Property ist `(layer "B.SilkS")` inline → kein `\n…\n` drumherum → `layer_m is None`. Im Fallback (Z. 2811-2821) findet `new_prop.rfind("\n", 0, last_close)` keinen Zeilenumbruch innerhalb des Single-Line-Blocks → `line_start = 0`. `(hide yes)` wird damit an Position 0 des Property-Blocks eingefügt, d.h. **vor** dessen öffnender `(` — außerhalb der Property, als Footprint-Sibling.
+
+**Suggested fix:** Den `(hide yes)`-Token immer **innerhalb** der Property-Parens platzieren — vor deren schließender `)`, nicht vor dem Block-Anfang. Robust für ein- und mehrzeilige Properties:
+- `prop_end` ist via `_find_block_end` bereits bekannt → das schließende `)` der Property ist `prop_block[-1]` (bzw. das letzte `)` des Blocks). `(hide yes)` direkt davor einsetzen, mit einem Leerzeichen-Separator bei Single-Line (`… (effects …) (hide yes))`) bzw. eigener eingerückter Zeile bei Multi-Line.
+- Single-Line erkennen: `"\n" not in prop_block`. Dann inline `" (hide yes)"` vor dem letzten `)` einfügen statt einer neuen Zeile.
+- Spiegelbildlich gilt dasselbe für die `set_footprint_property_visibility`-Variante in `pcb_geometry_tools.py`, falls dort dupliziert.
+
+**Workaround / Reparatur einer bereits korrumpierten Datei:** die alleinstehenden `(hide yes)`-Zeilen (Zeilen, die *nur* aus `(hide yes)` bestehen und als Footprint-Kind vor einer `(property …)`-Zeile sitzen) löschen; die Property-Zeilen unangetastet lassen. Danach lädt die Datei wieder (verifiziert via `list_pcb_footprints` → pcbnew-Backend).
+
+**Test-Vorschlag:** `tests/test_pcb_patch_tools.py` — Fixture mit einem Footprint, dessen Property einzeilig ist; `set_footprint_property_visibility(hide=True)`; assert dass `(hide yes)` *innerhalb* des Property-Blocks landet und die Datei einen balanced-paren / pcbnew-Load-Roundtrip besteht. Zweiter Case: mehrzeilige Property (bestehendes Verhalten darf nicht regressieren).
+
+---
+
 ## ✅ Bug 1 — `mcp__kicad__run_erc` parses wrong JSON path [RESOLVED 2026-04-27]
 
 Aggregation jetzt über `report.get("sheets", [])` mit Fallback auf
