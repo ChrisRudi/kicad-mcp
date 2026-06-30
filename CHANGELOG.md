@@ -8,7 +8,13 @@ the first tag ships.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-06-30
+
 ### Added
+- **Behavior-Audit der Schaltplan-Pfade** (`docs/kicad_mcp_behavior_delta.md`,
+  `docs/kicad_mcp_behavior_audit.md`). Vollständige Inventur der automatischen
+  Verhaltensabweichungen MCP vs. Stock-KiCad über 12 Bereiche, je gegen 10
+  Audit-Fragen geprüft und K0–K3-klassifiziert.
 - **`center_item_clearance` — räumliches Via-Zentrieren in einem Call** (Tool
   #174). Statt „Clearance zu Wand A messen → Clearance zu Wand B messen → von
   Hand um die Differenz nudgen" (die ~9 Calls aus dem Live-Mitschnitt) sammelt
@@ -71,6 +77,12 @@ the first tag ships.
   sonst garantierten Fehlversuch-Zyklus. (3) **Positiv-Wegweiser zur
   Tool-Wahl** (Aufgabe → Tool, aus `CLAUDE.md`), statt des bisher fast reinen
   Verbots-Katalogs. `tests/test_plugin_bridge.py` deckt Rolle + IPC-Lenkung ab.
+- **Pre-commit-Hook für automatischen Bundle-Sync** (`.githooks/pre-commit`,
+  `scripts/setup-hooks.sh`). Spiegelt `plugin/mcp/kicad_mcp/` bei jedem Commit
+  aus dem kanonischen `kicad_mcp/` (`scripts/sync_bundle.py`) und staged das
+  Ergebnis mit — so muss nur ein Pfad gepflegt werden. Aktivierung einmalig
+  via `core.hooksPath`. Doc-Status der vier v0.4.0-Pläne (`docs/*_plan.md`,
+  `pinout_pipeline_spec.md`) auf „implementiert" korrigiert.
 
 ### Fixed
 - **Power-Symbol-Rotation im Circuit-Block-Generator vereinheitlicht
