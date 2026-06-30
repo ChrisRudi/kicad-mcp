@@ -31,6 +31,8 @@ def register_esphome_tools(mcp: FastMCP) -> None:
     ) -> dict[str, Any]:
         """Convert an ESPHome YAML configuration to a KiCad project.
 
+        Use this when you have an ESPHome YAML config and want to turn it into a ready-to-open KiCad project (schematic + PCB + .kicad_pro) in one call, optionally writing the files to disk.
+
         Parses ESPHome YAML and generates complete .kicad_sch + .kicad_pcb + .kicad_pro
         with all sensors, buses (I2C/SPI/UART), decoupling caps, and pull-up resistors.
 

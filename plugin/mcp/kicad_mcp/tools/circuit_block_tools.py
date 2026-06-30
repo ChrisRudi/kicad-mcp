@@ -474,6 +474,10 @@ def register_circuit_block_tools(mcp: FastMCP) -> None:
     ) -> dict[str, Any]:
         """Bundle datasheet tables + per-page text into an LLM-ready blob.
 
+        Use this when you have a chip's datasheet PDF and need its tables and
+        page text pulled into a structured payload to hand-author a v1.1
+        ``draft_block.json`` from.
+
         This is the **first half** of Phase A1: the tool extracts every
         table and the section-text for the requested pages and returns
         a structured payload that the calling LLM (you, in the chat) can

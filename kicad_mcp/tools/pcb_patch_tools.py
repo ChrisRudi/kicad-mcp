@@ -2972,6 +2972,10 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
     ) -> dict[str, Any]:
         """Apply schematic netlist net tags to all matching PCB pads.
 
+        Use this when the PCB's pad net assignments are stale or missing and you
+        need to sync them from an exported schematic netlist without opening the
+        KiCad GUI.
+
         Equivalent to KiCad's GUI command "Tools → Update PCB from Schematic"
         (F8) for the net-assignment portion, but runs without any KiCad GUI
         and without the SWIG ``FootprintLoad`` quirk. The netlist must have
@@ -3146,6 +3150,10 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     def rotate_pcb(pcb_path: str, angle_deg: float) -> dict[str, Any]:
         """Rotate every object on the board around ``(0,0)`` by ``angle_deg``.
+
+        Use this when you need to reorient the entire board layout at once (e.g.
+        to align the design to a panel or fab orientation) rather than moving
+        individual footprints.
 
         Footprints, tracks, vias, drawings and zones are rotated in place.
         Uses the pcbnew Python API (``board.GetFootprints()/GetTracks()`` …
@@ -4936,6 +4944,10 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
     ) -> dict[str, Any]:
         """Set a property on every footprint whose reference matches a
         glob-style pattern.
+
+        Use this when you need to flip a flag (like ``dnp`` or ``in_bom``) or
+        overwrite a text field across a whole group of footprints at once
+        instead of editing each one individually.
 
         Supported targets:
             * Boolean flags (``dnp``, ``in_bom``, ``on_board``,

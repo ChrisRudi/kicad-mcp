@@ -442,6 +442,10 @@ def register_footprint_search_tools(mcp: FastMCP) -> None:
     ) -> dict[str, Any]:
         """Fuzzy / substring search across all indexed footprint names.
 
+        Use this when you know roughly what a footprint is called (a name,
+        package code, or connector type like ``"C_0402"`` or ``"USB-C"``) and
+        want the closest built-in matches ranked by name similarity.
+
         Tries (in order) exact match, ``lib:name`` substring, ``name``
         substring, and finally a SequenceMatcher similarity. Results are
         ranked by score in ``[0,1]`` and capped at ``max_results``.
@@ -501,6 +505,10 @@ def register_footprint_search_tools(mcp: FastMCP) -> None:
         """Filter the footprint index by hard specs (pad count, package
         family, body bounding box) and rank what is left by body-size
         proximity to the requested dimensions.
+
+        Use this when you do not know the footprint name but can describe its
+        physical specs (pad count, package family, and/or body dimensions) and
+        want candidates that fit those constraints.
 
         At least one of ``pad_count``, ``package`` or the body-size pair
         must be supplied — empty queries return an error.

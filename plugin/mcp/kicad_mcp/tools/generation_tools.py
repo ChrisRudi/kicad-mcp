@@ -106,6 +106,10 @@ def register_generation_tools(mcp: FastMCP) -> None:
     ) -> dict[str, Any]:
         """Generate a complete KiCad project (.kicad_pro + .kicad_sch + .kicad_pcb).
 
+        Use this to scaffold a brand-new KiCad project from a parts+nets
+        description in one call, emitting the .kicad_pro, schematic
+        (single- or auto multi-sheet), and PCB together.
+
         Args:
             output_dir: Directory to write output files
             parts: JSON string - list of components with ref, name, footprint, value, pins
@@ -320,6 +324,10 @@ def register_generation_tools(mcp: FastMCP) -> None:
     ) -> dict[str, Any]:
         """Generate a KiCad schematic from a compact netlist.
 
+        Use this when you only have a rough parts list (refs + values, no
+        pin maps) and want pins, lib IDs, footprints, and placement
+        auto-resolved from the symbol libraries instead of spelling them out.
+
         Unlike generate_schematic, this tool auto-resolves:
         - Pin definitions from KiCad symbol libraries
         - Library IDs from component names/prefixes
@@ -522,6 +530,10 @@ def register_generation_tools(mcp: FastMCP) -> None:
     ) -> dict[str, Any]:
         """Generate schematic and measure quality metrics (wire:label ratio, score).
 
+        Use this when tuning the schematic generator and you need quantified
+        quality feedback (wire/label counts, ratios, 15-rule score) on a spec
+        without writing any files to disk.
+
         Hidden benchmarking tool for iterative improvement loops.
         Generates a schematic from the given parts/nets, then analyzes
         the output for wire count, label count, wire:label ratio,
@@ -602,6 +614,10 @@ def register_generation_tools(mcp: FastMCP) -> None:
         ctx: Context | None = None,
     ) -> dict[str, Any]:
         """Generate project, export SVG, score, and report — full benchmark loop.
+
+        Use this when you want the full quality cycle in one shot — write the
+        project files, render an SVG for visual comparison, and score it — so
+        you can eyeball and measure a generated layout end to end.
 
         Complete quality analysis loop:
         1. Generate .kicad_sch + .kicad_pcb

@@ -1400,6 +1400,10 @@ def register_ipc_tools(mcp: FastMCP) -> None:
         state** is what gets written. Counterpart to ``kicad-cli sch export``,
         but consumes the editor's current buffer instead of the saved file.
 
+        Use this when you need an SVG/PDF/netlist/BOM that reflects unsaved
+        schematic edits in the running Eeschema (e.g. to run live ERC on a
+        netlist) without first saving the project to disk.
+
         Args:
             output_path: absolute path where the file should land. The host
                 running KiCad must be able to write to this path (in WSL
@@ -1694,6 +1698,11 @@ def register_ipc_tools(mcp: FastMCP) -> None:
         """Live-translate / rotate a footprint in the running KiCad PCB
         editor — visible **immediately**, no F5, no dialog.
 
+        Use this when you want to reposition or rotate a placed component in
+        the open PCB editor and have the change appear instantly as a single
+        undoable step (optionally guarded against clobbering a user's
+        concurrent edit via the dry_run/expect_sig confirm gate).
+
         Uses the proper ``UpdateItems`` IPC command path: KiCad mutates the
         in-memory footprint, the GUI re-renders, and a single
         ``push_commit`` registers the change as one undo-step (Ctrl+Z
@@ -1948,6 +1957,10 @@ def register_ipc_tools(mcp: FastMCP) -> None:
     ) -> dict[str, Any]:
         """Add a filled zone (copper pour) bound to ``net_name`` on ``layer``.
 
+        Use this when you want to drop a ground/power plane or shielding pour
+        over a region of the live board by giving its outline polygon and the
+        net it should connect to.
+
         Args:
             net_name: Net name to bind the pour to (e.g. ``"GND"``).
             layer: KiCad copper layer name.
@@ -2026,6 +2039,10 @@ def register_ipc_tools(mcp: FastMCP) -> None:
         width_mm: float = 0.5,
     ) -> dict[str, Any]:
         """Route a wide power track that visits a sequence of pads in order.
+
+        Use this when you need to daisy-chain a power/ground rail through an
+        ordered list of pads (e.g. VBUS across several decoupling caps) in one
+        call rather than placing each segment individually.
 
         Each consecutive pair of pads becomes one track segment. Useful for
         chaining a power rail through several decoupling-pad attachment

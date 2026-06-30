@@ -1070,6 +1070,8 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
     ) -> dict[str, Any]:
         """Add a copper-pour zone bound to ``net_name`` on ``layer``.
 
+        Use this when you need to flood a region (e.g. a GND or power plane) on a copper layer with a net-bound fill defined by an explicit polygon outline.
+
         The pour outline is given as a list of ``[x_mm, y_mm]`` pairs
         (closed implicitly). The zone is inserted with sensible defaults
         (hatched edge, 0.2 mm clearance/min-width). KiCad's GUI / DRC

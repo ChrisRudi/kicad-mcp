@@ -587,6 +587,10 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
         """Insert one or more symbols incrementally into an existing
         ``.kicad_sch``.
 
+        Use this when you need to add parts to a schematic that already
+        exists — appending new symbols (with overlap blocking and ref-collision
+        checks) rather than regenerating the whole sheet.
+
         Args:
             sch_path: Path to a ``.kicad_sch``.
             parts: JSON string — list of ``{ref, name OR lib_id, value,
@@ -2142,6 +2146,10 @@ def register_sch_patch_tools(mcp: FastMCP) -> None:
         force: bool = False,
     ) -> dict[str, Any]:
         """Rigid-rotate a group by ``angle_deg`` around ``pivot``.
+
+        Use this when you want to reorient a previously-grouped block of
+        symbols as a unit (e.g. turning a placed sub-circuit 90°) without
+        moving its parts individually.
 
         Args:
             sch_path: ``.kicad_sch`` to patch.

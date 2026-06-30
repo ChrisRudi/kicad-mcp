@@ -28,6 +28,8 @@ def register_ltspice_tools(mcp: FastMCP) -> None:
     ) -> dict[str, Any]:
         """Convert an LTspice .asc schematic to KiCad .kicad_sch format.
 
+        Use this when you have an existing LTspice .asc design and want to bring it into KiCad as an editable, layout-preserving .kicad_sch (plus .kicad_pro) project.
+
         Geometry-faithful rebuilder that preserves the original layout:
         - Isotropic scaling with auto-detected grid unit (LGU)
         - Pin-driven reconstruction with guaranteed connectivity
