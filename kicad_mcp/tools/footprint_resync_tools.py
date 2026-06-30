@@ -216,6 +216,7 @@ def _resolve_pretty_dir(nick: str, pcb_dir: str) -> Optional[str]:
 
 def replace_footprint_canonical_impl(
     pcb_path: str, sch_path: str, refs: list[str], dry_run: bool = True,
+    force: bool = False,
 ) -> dict[str, Any]:
     pcb_path = to_local_path(pcb_path)
     sch_path = to_local_path(sch_path)
@@ -256,7 +257,8 @@ def replace_footprint_canonical_impl(
                 "unresolved": unresolved, "saved": False, "dry_run": dry_run,
                 "note": "Keine auflösbaren refs."}
 
-    payload = {"pcb_path": pcb_path, "jobs": jobs, "dry_run": dry_run}
+    payload = {"pcb_path": pcb_path, "jobs": jobs, "dry_run": dry_run,
+               "force": force}
     try:
         proc = subprocess.run(
             [sys.executable, _WORKER], input=json.dumps(payload),
@@ -352,7 +354,7 @@ def register_footprint_resync_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     def replace_footprint_canonical(
         pcb_path: str, schematic_path: str, refs: list[str],
-        dry_run: bool = True,
+        dry_run: bool = True, force: bool = False,
     ) -> dict[str, Any]:
         """Replace footprints with their library version, flip/placement-correct.
 
@@ -376,6 +378,12 @@ def register_footprint_resync_tools(mcp: FastMCP) -> None:
             schematic_path: Path to the matching ``.kicad_sch`` (lib_id source).
             refs: References to replace (required — no board-wide default).
             dry_run: If True (default), build + verify but do not SaveBoard.
+            force: If True, BYPASS the pad-drift gate. Required for an
+                intentional footprint SWAP (e.g. SOIC-16 -> TSSOP-16, or
+                tantalum -> MLCC) where the pads are MEANT to move. The
+                pcbnew placement (Flip + absolute orientation) stays correct;
+                forcing only skips the same-geometry safety check. Leave
+                False to restore canonical geometry of the SAME footprint.
 
         Returns:
             ``{success, dry_run, done: [refs], errors: [{ref, error, …}],
@@ -384,4 +392,4 @@ def register_footprint_resync_tools(mcp: FastMCP) -> None:
         pcb_path = to_local_path(pcb_path)
         schematic_path = to_local_path(schematic_path)
         return replace_footprint_canonical_impl(
-            pcb_path, schematic_path, refs, dry_run)
+            pcb_path, schematic_path, refs, dry_run, force)

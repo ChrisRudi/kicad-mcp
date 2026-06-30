@@ -27,8 +27,14 @@ MARK_END = "<<<FPR_END>>>"
 _DRIFT_LIMIT_NM = 1000  # 1 µm
 
 
-def _replace_one(board, pcbnew, job: dict) -> dict:
-    """Replace one footprint; returns ``{ref, status, ...}`` (never raises)."""
+def _replace_one(board, pcbnew, job: dict, force: bool = False) -> dict:
+    """Replace one footprint; returns ``{ref, status, ...}`` (never raises).
+
+    ``force=True`` bypasses the pad-drift gate — required for an INTENTIONAL
+    footprint swap (e.g. SOIC-16 -> TSSOP-16) where the geometry is meant to
+    change. The pcbnew placement (Flip + absolute SetOrientation) is the
+    GUI-F8-correct geometry regardless, so forcing only removes the
+    same-geometry safety check, not correctness."""
     ref = job["ref"]
     try:
         old = board.FindFootprintByReference(ref)
@@ -70,13 +76,14 @@ def _replace_one(board, pcbnew, job: dict) -> dict:
             if max(dx, dy) > _DRIFT_LIMIT_NM:
                 drift.append({"pad": npad.GetNumber(),
                               "dx_nm": dx, "dy_nm": dy})
-        if drift:
+        if drift and not force:
             return {"ref": ref, "status": "error", "error": "pad drift",
                     "drift": drift}
 
         board.Remove(old)
         board.Add(new)
-        return {"ref": ref, "status": "ok"}
+        return {"ref": ref, "status": "ok",
+                "drift_ignored": drift if force else []}
     except Exception as exc:  # noqa: BLE001 - reported per-ref, never raises
         return {"ref": ref, "status": "error", "error": str(exc)}
 
@@ -87,11 +94,12 @@ def run(payload: dict) -> dict:
 
     pcb_path = payload["pcb_path"]
     dry_run = bool(payload.get("dry_run", True))
+    force = bool(payload.get("force", False))
     board = pcbnew.LoadBoard(pcb_path)
 
     done, errors = [], []
     for job in payload.get("jobs", []):
-        res = _replace_one(board, pcbnew, job)
+        res = _replace_one(board, pcbnew, job, force)
         if res["status"] == "ok":
             done.append(res["ref"])
         else:

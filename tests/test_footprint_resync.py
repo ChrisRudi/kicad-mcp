@@ -166,3 +166,44 @@ class TestReplaceCanonicalWrapper:
             encoding="utf-8")
         got = frt._resolve_pretty_dir("iFloat", str(tmp_path))
         assert got == str(pretty)
+
+
+# --- force flag (B.Cu-flip override) ----------------------------------------
+# The pcbnew swap itself is KiCad-only; here we pin the wrapper contract that
+# `force` reaches the worker payload (the worker's gate is `if drift and not
+# force`). The pad-drift gate must stay armed by DEFAULT (force=False).
+
+class TestForceFlag:
+    def _patch(self, monkeypatch, captured):
+        import json as _json
+        # make the ref resolvable without a real .pretty dir on disk
+        monkeypatch.setattr(frt, "_resolve_pretty_dir",
+                            lambda nick, d: "/fake.pretty")
+
+        class FakeProc:
+            stdout = (frt.MARK
+                      + '{"done":["U_DRV4"],"errors":[],"saved":false}'
+                      + frt.MARK_END)
+            stderr = ""
+
+        def fake_run(cmd, input=None, **kw):
+            captured["payload"] = _json.loads(input)
+            return FakeProc()
+
+        monkeypatch.setattr(frt.subprocess, "run", fake_run)
+
+    def test_force_true_propagates(self, board, monkeypatch):
+        pcb, sch = board
+        cap: dict = {}
+        self._patch(monkeypatch, cap)
+        r = frt.replace_footprint_canonical_impl(
+            pcb, sch, ["U_DRV4"], dry_run=True, force=True)
+        assert r["success"] is True
+        assert cap["payload"]["force"] is True
+
+    def test_force_defaults_false(self, board, monkeypatch):
+        pcb, sch = board
+        cap: dict = {}
+        self._patch(monkeypatch, cap)
+        frt.replace_footprint_canonical_impl(pcb, sch, ["U_DRV4"], dry_run=True)
+        assert cap["payload"]["force"] is False
