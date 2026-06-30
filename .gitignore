@@ -39,9 +39,12 @@ Thumbs.db
 
 # KiCad scratch / backups / lock files / local-history
 *.lck
+*.bak*
 *-backups/
 **/.history/
 fp-info-cache
+/examples/test/
+/kommt manchmal.txt
 plugin/mcp/**/__pycache__/
 plugin/mcp/**/.cache/
 plugin/**/*.pyc
