@@ -1,4 +1,4 @@
-(pcb "C:\Users\user\OneDrive\Projects\kicad-mcp\tests\PCB\tiny_2pin\tiny_2pin.dsn"
+(pcb "tiny_2pin.dsn"
   (parser
     (string_quote ")
     (space_in_quoted_tokens on)
