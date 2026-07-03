@@ -51,23 +51,24 @@ class SetupDialog(wx.Dialog):
 
         bar = wx.BoxSizer(wx.HORIZONTAL)
         recheck = wx.Button(self._panel, label="Erneut prüfen")
-        recheck.Bind(wx.EVT_BUTTON, lambda e: self._render())
+        recheck.Bind(wx.EVT_BUTTON, lambda e: self._guarded(self._render))
         bar.Add(recheck, 0, wx.RIGHT, 8)
         update = wx.Button(self._panel, label="Update prüfen")
-        update.Bind(wx.EVT_BUTTON, lambda e: self._check_update())
+        update.Bind(wx.EVT_BUTTON, lambda e: self._guarded(self._check_update))
         bar.Add(update, 0, wx.RIGHT, 8)
         diag = wx.Button(self._panel, label="Diagnose")
-        diag.Bind(wx.EVT_BUTTON, lambda e: self._show_diagnose())
+        diag.Bind(wx.EVT_BUTTON, lambda e: self._guarded(self._show_diagnose))
         bar.Add(diag, 0, wx.RIGHT, 8)
         settings_btn = wx.Button(self._panel, label=tr("Einstellungen"))
-        settings_btn.Bind(wx.EVT_BUTTON, lambda e: self._show_settings())
+        settings_btn.Bind(wx.EVT_BUTTON,
+                          lambda e: self._guarded(self._show_settings))
         bar.Add(settings_btn, 0, wx.RIGHT, 8)
         e2e_btn = wx.Button(self._panel, label=tr("🧪 E2E-Test"))
         e2e_btn.SetToolTip(tr(
             "Alle Super-Features automatisch gegen das offene Board testen "
             "(ohne Board-Änderung) und einen Report schreiben — dauert je "
             "nach Board 15-45 Minuten."))
-        e2e_btn.Bind(wx.EVT_BUTTON, lambda e: self._run_e2e())
+        e2e_btn.Bind(wx.EVT_BUTTON, lambda e: self._guarded(self._run_e2e))
         bar.Add(e2e_btn, 0, wx.RIGHT, 8)
         bar.AddStretchSpacer()
         self._start = wx.Button(self._panel, label="Chat starten")
@@ -76,6 +77,19 @@ class SetupDialog(wx.Dialog):
         self._root.Add(bar, 0, wx.EXPAND | wx.ALL, 10)
 
         self._render()
+
+    def _guarded(self, fn) -> None:
+        """Button-Handler-Schutz: wx schluckt Handler-Exceptions (Traceback
+        geht nach stderr — in KiCad unsichtbar), der Klick wirkt dann 'tot'.
+        Genau so blieb der E2E-Button-Absturz (Feld-Report) unsichtbar.
+        Stattdessen den Fehler als kopierbaren Dialog zeigen."""
+        try:
+            fn()
+        except Exception:
+            import traceback
+            wx.MessageBox(traceback.format_exc(),
+                          "Plugin-Fehler (bitte melden)",
+                          wx.OK | wx.ICON_ERROR)
 
     # -- rendering ----------------------------------------------------------
 
@@ -141,11 +155,13 @@ class SetupDialog(wx.Dialog):
         import threading
         from datetime import date
 
-        from . import e2e_runner, i18n
+        # NUR relative Imports: das installierte Paket heißt claude_kicad,
+        # nicht "plugin" — ein absoluter Import stirbt im Feld VOR dem
+        # Bestätigungsdialog (toter Button, Feld-Report 0.8.3).
+        from . import e2e_runner, i18n, superfeatures
 
-        n = sum(1 for f in __import__(
-            "plugin.superfeatures", fromlist=["x"]).all_features()
-            if f.status == "shipped")
+        n = sum(1 for f in superfeatures.all_features()
+                if f.status == superfeatures.SHIPPED)
         if wx.MessageBox(
                 tr("Alle {n} Super-Features werden nacheinander als echte "
                    "Claude-Züge gegen das offene Board getestet — OHNE "

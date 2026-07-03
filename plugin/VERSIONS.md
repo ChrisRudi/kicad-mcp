@@ -1,7 +1,24 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.8.3**
+Aktuelle Version: **0.8.4**
+
+---
+
+## 🩹 Neu in 0.8.4 — der 🧪-E2E-Knopf war im Feld tot (zweiter Feld-Report!)
+
+- **Der Befund:** Klick auf „🧪 E2E-Test" im Einrichtungs-Fenster — und
+  nichts passiert, nicht einmal die Bestätigungs-Abfrage. Ursache: Eine
+  Code-Zeile importierte das Plugin unter seinem **Repo-Namen** (`plugin.…`),
+  installiert heißt der Ordner aber `claude_kicad`. Der Klick starb also im
+  Feld sofort — und nur dort: in der Entwicklungsumgebung (und allen Tests)
+  stimmt der Name zufällig, deshalb blieb es unsichtbar.
+- **Doppelt gefixt:** (1) Der Import ist jetzt namensunabhängig (relativ),
+  ein neuer Wächter-Test verbietet solche absoluten Selbst-Importe im ganzen
+  Plugin für immer. (2) Stirbt künftig irgendein Knopf im
+  Einrichtungs-Fenster, erscheint der Fehler als kopierbarer Dialog
+  („Plugin-Fehler") statt eines stummen Nichts — tote Knöpfe können sich
+  nicht mehr verstecken.
 
 ---
 

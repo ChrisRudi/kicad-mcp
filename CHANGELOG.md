@@ -8,6 +8,24 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (E2E-Button im Feld tot — absoluter Selbst-Import, Plugin 0.8.4)
+- **Zweiter Feld-Report:** Klick auf „🧪 E2E-Test" tat nichts — nicht mal
+  der Bestätigungsdialog kam. Wurzel: `setup_dialog._run_e2e` zählte die
+  Features per `__import__("plugin.superfeatures")`; installiert heißt das
+  Paket aber `claude_kicad` (install_plugin.*: PKGNAME) →
+  `ModuleNotFoundError` VOR der MessageBox. wx schluckt
+  Handler-Exceptions (stderr, in KiCad unsichtbar) → „toter Button". In
+  Repo/CI heißt das Paket zufällig `plugin`, daher grün. Fix:
+  - `_run_e2e` nutzt den relativen Import (`from . import superfeatures`)
+    und `superfeatures.SHIPPED` statt des String-Literals.
+  - `SetupDialog._guarded()`: alle Leisten-Buttons (Erneut prüfen, Update,
+    Diagnose, Einstellungen, E2E) zeigen Handler-Exceptions jetzt als
+    kopierbaren Fehlerdialog statt still zu sterben.
+  - Ratchet `tests/test_plugin_imports.py`: verbietet absolute
+    Selbst-Importe (`import plugin…`/`__import__("plugin…`/
+    `import_module("plugin…`) im gesamten Plugin-Paket.
+  Version 0.8.3 → 0.8.4.
+
 ### Fixed (http-Env steckte stdio-Pfade an — Errno 10048, Plugin 0.8.3)
 - **Erster Feld-Report des 0.8.x-Warm-Modus:** Diagnose-Probe FAIL mit
   `[Errno 10048] bind 127.0.0.1:8331`. Wurzel: `parse_args` liest
