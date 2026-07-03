@@ -86,12 +86,16 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "maximal 3 Bewertungs-Durchgänge, Board bleibt unberührt). "
                 "(4) Zeige mir den Plan kompakt — welches Bauteil wohin (Ref, "
                 "(x, y) in mm), Score vorher → nachher (signal_crossings, "
-                "overlaps, wirelength_mm) — und WARTE auf mein Go; ist der "
-                "Rest nicht-planar (Layer/Vias nötig), sage das ehrlich. "
+                "overlaps, wirelength_mm) — und zeichne die Zielpositionen "
+                "als GEISTER-VORSCHAU auf den Skizzen-Layer: EIN "
+                "ipc_draw_markers-Aufruf mit allen Zielen (type=cross, "
+                "label_text=Ref). Dann WARTE auf mein Go; ist der Rest "
+                "nicht-planar (Layer/Vias nötig), sage das ehrlich. "
                 "(5) Erst nach dem Go: alles in EINEM gebündelten Zug über "
                 "die Live-Tools umsetzen (Board ist offen: ipc_*-Tools, "
-                "Moves bündeln), danach genau EIN check_connectivity. Kein "
-                "pcb_render zwischendrin."),
+                "Moves bündeln), danach genau EIN check_connectivity und EIN "
+                "ipc_clear_markers — die Vorschau wird auch bei Ablehnung "
+                "weggeräumt. Kein pcb_render zwischendrin."),
     ),
     # (kein eigenes "Auswahl entwirren"-Feature: Selektion-Scoping ist der
     #  GLOBALE Vertrag jedes Buttons — ohne Auswahl boardweit, mit Auswahl nur
@@ -561,18 +565,19 @@ FEATURES: tuple[SuperFeature, ...] = (
         moat=("KiCad kann ngspice starten, aber weder die *Frage* noch das "
               "*Ergebnis* interpretieren."),
         prompt=(
-                "Simulation (analytisch, v1): Rufe extract_schematic_netlist "
-                "für den Schaltplan auf (per Glob finden); steht oben eine "
-                "Auswahl, analysiere nur diesen Teilschaltkreis. Frage, was "
-                "mich interessiert (Arbeitspunkt, Verstärkung/Bandbreite, "
-                "Filter-Eckfrequenz, Zeitverhalten), falls unklar. Analysiere "
-                "ANALYTISCH aus der Netzliste: Kleinsignalmodell, RC/RL- "
-                "Eckfrequenzen, OpAmp-Idealmodell plus relevante Datenblatt- "
-                "Limits — und erkläre das Ergebnis in Klartext mit Rechenweg. "
-                "EHRLICH: das ist Schaltungsanalyse per Reasoning, keine "
-                "numerische SPICE-Ausführung; für harte Zahlen liefere ich dir "
-                "die Netzliste als SPICE-Deck zum Kopieren für "
-                "LTspice/ngspice. Keine Änderung, kein pcb_render.")
+                "Simulation: Rufe extract_schematic_netlist für den "
+                "Schaltplan auf (per Glob finden); steht oben eine Auswahl, "
+                "analysiere nur diesen Teilschaltkreis. Frage, was mich "
+                "interessiert (Arbeitspunkt, Verstärkung/Bandbreite, "
+                "Filter-Eckfrequenz, Zeitverhalten), falls unklar. Baue ein "
+                "SELBSTSTÄNDIGES SPICE-Deck (Analysen + .print/.measure; "
+                "Modelle beilegen oder ehrlich vereinfachen — nenne die "
+                "Vereinfachungen) und führe es mit run_spice_sim aus; "
+                "erkläre die Zahlen dann in Klartext. Meldet das Tool, dass "
+                "ngspice fehlt: analysiere ANALYTISCH (Kleinsignal, RC/RL-"
+                "Eckfrequenzen, OpAmp-Idealmodell) mit offenem Rechenweg und "
+                "liefere das Deck als Codeblock zum Kopieren. Keine Änderung "
+                "am Projekt, kein pcb_render.")
     ),
     SuperFeature(
         key="sim_models",

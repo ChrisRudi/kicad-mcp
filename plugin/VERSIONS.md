@@ -1,7 +1,23 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.7.5**
+Aktuelle Version: **0.7.6**
+
+---
+
+## 📈 Neu in 0.7.6 — echte SPICE-Simulation + Geister-Vorschau beim Entwirren
+
+- **📈 Simulation rechnet jetzt wirklich** (Werkzeug Nr. 185, `run_spice_sim`):
+  Claude baut aus deinem Schaltplan ein SPICE-Deck und führt es mit **ngspice**
+  aus (gefunden über PATH, KiCad-Ordner oder `KICAD_MCP_NGSPICE`) — echte
+  Arbeitspunkte, Verstärkungen, Eckfrequenzen statt nur Abschätzung. Ist
+  ngspice nicht installiert, sagt der Button das ehrlich und liefert die
+  analytische Analyse plus das fertige Deck zum Kopieren.
+- **🧶 Entwirren zeigt eine Geister-Vorschau:** Vor deinem Go erscheinen die
+  geplanten Zielpositionen als Kreuz-Marker mit Bauteilnamen auf dem
+  Skizzen-Layer („MCP.Skizze") — du siehst die neue Anordnung direkt auf dem
+  Board. Nach Umsetzung oder Ablehnung wird die Vorschau automatisch
+  weggeräumt.
 
 ---
 

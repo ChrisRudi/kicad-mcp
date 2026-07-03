@@ -41,7 +41,7 @@ Prompt benennt seine Grenze. Die wichtigsten v1-Grenzen im Überblick:
 |---|---|---|
 | 🔀 Pin-Tausch | Kreuzungs-Analyse + Swap-Vorschläge; Umsetzung Go-gated (Schaltplan nur bei geschlossenem Eeschema) | Pinmux-Wissen aus dem Modell, nicht aus einer Mux-Datenbank |
 | 👁️ Mitdenken | Ein Klick = ein Review der Handänderungen (`live_summarize_user_changes`) | kein Dauer-Beobachten — IPC liefert keine Events |
-| 📈 Simulation | analytische Schaltungsanalyse aus der Netzliste + SPICE-Deck zum Kopieren | keine numerische SPICE-Ausführung |
+| 📈 Simulation | echtes ngspice über `run_spice_sim` (Deck baut der Agent); analytischer Fallback + Deck zum Kopieren | braucht installiertes ngspice-Binary (`KICAD_MCP_NGSPICE`) |
 | 🧬 SPICE-Modelle | Modell-Suche per WebSearch + fertige Sim.*-Eintragungen | Einträge schreiben nur nach Go, Eeschema zu |
 | 🛒 Sourcing | WebSearch-Verfügbarkeit/Preise + pin-kompatible Alternativen | Momentaufnahme, kein Live-Katalog |
 | 📷 Foto→Schaltung | Bild per Read analysieren, Netz-Hypothesen mit Konfidenz | verdeckte Lagen bleiben unsichtbar |
@@ -107,9 +107,11 @@ Handplatzierung.
     (Tool #177, `utils/placement_eval.py`: Signalnetz-Kreuzungen, Überlappung,
     Wirelength) prüfen, Plan als Text-Vorschau zeigen, erst nach ausdrücklichem
     Go EIN gebündelter Live-Move. Mit Selektion wirkt es nur auf die markierten
-    Bauteile (Rest = fixer Anker). **Ehrliche Grenze:** die Vorschau ist Text
-    (Ref → Zielkoordinate + Score), noch keine Geister-Vorschau auf dem Board;
-    Trigger-Erkennung („frisch synchronisierter Haufen") ist offen. Das Board
+    Bauteile (Rest = fixer Anker). **Seit 0.7.6 mit Geister-Vorschau:** die
+    Zielpositionen erscheinen vor dem Go als Kreuz-Marker mit Ref-Label auf dem
+    Skizzen-Layer (MCP.Skizze) und werden nach Umsetzung oder Ablehnung
+    weggeräumt. **Ehrliche Grenze:** Trigger-Erkennung („frisch
+    synchronisierter Haufen") ist offen. Das Board
     wird während des Denkens **null mal** angefasst — genau das
     Anti-Toolcall-Explosion-Prinzip.
 - **Ehrliche Grenze:** Reale Netz-Graphen sind meist **nicht-planar** — „null
@@ -366,6 +368,14 @@ Schaltungsverhalten (Verstärker-**Bandbreite**, Frequenzgang, Arbeitspunkt) üb
 SPICE und **erklärt das Ergebnis in Klartext** statt nur Kurven auszuspucken.
 **Warum KiCad das nicht kann:** es kann ngspice *starten*, aber weder die Frage
 noch das Ergebnis interpretieren.
+
+- **Gebaut ✅ (0.7.6):** `run_spice_sim` (Tool #185) führt ein komplettes
+  SPICE-Deck in ngspice `-b` aus (Discovery: `KICAD_MCP_NGSPICE` → PATH →
+  KiCad-bin) und liefert Werte/Fehler strukturiert; das Deck baut der Agent
+  aus `extract_schematic_netlist`. Ohne installiertes ngspice fällt der
+  Button ehrlich auf analytische Analyse + Deck zum Kopieren zurück.
+  **Grenze:** das Deck muss selbstständig sein — Hersteller-Modelle besorgt
+  der 🧬-Button.
 
 ### 🧬 Simulationsmodelle ergänzen  · ✅
 Findet und **hängt das passende SPICE-Modell je Bauteil an**, damit die Simulation

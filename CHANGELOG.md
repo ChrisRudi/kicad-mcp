@@ -8,6 +8,22 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (echte SPICE-Ausführung + Entwirren-Geister-Vorschau, Plugin 0.7.6)
+- **`run_spice_sim` — ngspice-Batch-Ausführung** (Tool #185, neue Familie
+  `tools/sim_tools.py`). Bewusst dumm: führt ein SELBSTSTÄNDIGES SPICE-Deck
+  verbatim aus (`ngspice -b`) und liefert Werte/Fehler/Warnungen strukturiert
+  zurück — Deck-Bau und Interpretation sind LLM-Arbeit. Discovery:
+  `KICAD_MCP_NGSPICE`-Env → PATH → neben `kicad-cli` im KiCad-bin; ohne
+  ngspice ein klarer Installationshinweis statt Traceback. Timeout-Schutz,
+  Temp-Deck wird aufgeräumt. Tests: `test_sim_tools.py` (Discovery,
+  Output-Parser, Fake-ngspice-Läufe headless; echter RC-Teiler skipif ohne
+  Binary). Simulations-Prompt nutzt jetzt zuerst `run_spice_sim`,
+  analytischer Fallback bleibt. Tool-Count 184→185.
+- **🧶 Entwirren: Geister-Vorschau auf dem Skizzen-Layer** — der Plan wird vor
+  dem Go als EIN `ipc_draw_markers`-Batch (Kreuz + Ref-Label je Ziel) auf
+  MCP.Skizze gezeichnet und nach Umsetzung ODER Ablehnung per
+  `ipc_clear_markers` weggeräumt. Plugin-Version 0.7.5 → 0.7.6.
+
 ### Added (ALLE Super-Features aktiv — 33/33 Buttons live, Plugin 0.7.5)
 - **Die letzten 20 Features auf SHIPPED mit geführten v1-Prompts** — kein neues
   Tool nötig (Grundregel: keine Calculator-Formeln als Selbstzweck — Physik-

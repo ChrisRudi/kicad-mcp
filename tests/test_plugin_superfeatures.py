@@ -85,7 +85,7 @@ SHIPPED_TOOL = {
     "impedance": "pcb_eval",
     "dfm_check": "run_drc_check",
     "cost_estimate": "get_board_stats",
-    "simulate": "extract_schematic_netlist",
+    "simulate": "run_spice_sim",
     "sim_models": "list_schematic_components",
     "bom_sourcing": "analyze_bom",
     "photo_reverse": "generate_schematic",
