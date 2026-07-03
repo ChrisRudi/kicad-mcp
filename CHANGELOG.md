@@ -8,6 +8,26 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (vier weitere Super-Features aktiv — 12 Buttons live, Plugin 0.7.3)
+- **📄 Datenblatt-Abgleich SHIPPED (v1):** mit IC-Auswahl reviewt der Button
+  über `review_ic_against_datasheet` (Pin-Tabelle + Schaltplan-Crop +
+  Datenblatt-Seite, Abgleich durch den Agenten); ohne Auswahl inventarisiert
+  `list_missing_datasheets`, welche PDFs unter `docs/<Value>.pdf`
+  liegen/fehlen (inkl. Datasheet-URL). Grenze: PDF muss lokal vorliegen.
+- **💡 Board erklären SHIPPED:** EINMAL `list_pcb_footprints` +
+  `analyze_pcb_nets`, daraus Funktionsblöcke/Schnittstellen/Stromfluss mit
+  exakten (klickbaren) Ref-/Netznamen; mit Selektion gezielt der markierte
+  Teilschaltkreis.
+- **⊙ Polar-Board SHIPPED (v1, geführt):** EIN `polar_grid`-Call
+  (`op=check_grid_config`) zeigt die Grid-Parameter; Workflow-Erklärung
+  (place_on_ring/spoke, polare Bögen/Segmente); Mutation nur nach Go.
+- **🖊️ Skizzen-Layer SHIPPED (v1):** `ipc_list_markers` zeigt den Inhalt von
+  User.9; Legende (`ipc_draw_sketch_legend`) und Leeren
+  (`ipc_clear_markers`) werden angeboten, laufen aber erst nach Go. Grenze:
+  Layer-Sichtbarkeit ist über IPC nicht schaltbar.
+- `SHIPPED_TOOL`-Testkopplung um die vier erweitert; docs-Marker auf ✅ mit
+  „Gebaut/Grenze"-Absätzen. Plugin-Version 0.7.2 → 0.7.3.
+
 ### Added (Entwirren v1 + globale Auswahl-Regel + Optionen-Dropdown, Plugin 0.7.2)
 - **🧶 Entwirren SHIPPED (v1):** der Button orchestriert den im Roadmap-Doc
   beschriebenen Ablauf — EINMAL lesen (`list_pcb_footprints` +

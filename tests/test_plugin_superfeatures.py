@@ -69,6 +69,10 @@ SHIPPED_TOOL = {
     "preferred_parts": "suggest_preferred_parts",
     "via_cost": "via_promote",
     "sketch_conductor": "ipc_markup_to_tracks",
+    "datasheet_diff": "review_ic_against_datasheet",
+    "explain_board": "analyze_pcb_nets",
+    "polar_board": "polar_grid",
+    "sketch_layer": "ipc_list_markers",
 }
 
 

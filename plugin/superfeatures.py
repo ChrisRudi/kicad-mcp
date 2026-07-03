@@ -118,11 +118,26 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="datasheet_diff",
         label="📄 Datenblatt-Abgleich",
         name="Datenblatt-Abgleich",
-        status=SOON,
-        tooltip=("Zieht das Datenblatt eines ICs und vergleicht deine "
-                 "Beschaltung mit der Referenz: Entkopplung, Pin-Beschaltung, "
-                 "externe Bauteile, Load-Caps."),
+        status=SHIPPED,
+        tooltip=("Vergleicht die Beschaltung eines ICs mit seinem Datenblatt "
+                 "(PDF unter docs/<Value>.pdf): Entkopplung, Pin-Beschaltung, "
+                 "fehlende externe Bauteile. IC markieren und klicken — ohne "
+                 "Auswahl zeigt es erst, welche Datenblätter da sind/fehlen."),
         moat="KiCad weiß nichts von Datenblättern — der Abgleich ist reine Bedeutungs-Arbeit.",
+        prompt=("Datenblatt-Abgleich: Steht oben im Kontext eine Auswahl mit "
+                "einem IC (U-Referenz), rufe review_ic_against_datasheet für "
+                "genau dieses IC auf (project_path = die .kicad_pro im "
+                "Projektordner, per Glob finden) und mache dann den "
+                "eigentlichen Abgleich: vergleiche Pin-Tabelle und "
+                "Schaltplan-Ausschnitt mit der Datenblatt-Seite — "
+                "Entkopplung, Pin-Beschaltung, fehlende externe Bauteile — "
+                "und berichte Befunde mit EXAKTEN Ref-/Netznamen. Ohne "
+                "Auswahl: rufe zuerst list_missing_datasheets auf und zeige, "
+                "für welche ICs ein PDF unter docs/<Value>.pdf bereitliegt "
+                "und welche fehlen (mit Datasheet-URL zum Besorgen), und "
+                "frage, welches IC ich reviewen will. Fehlt das PDF des "
+                "gewählten ICs, sage das ehrlich statt zu raten. Keine "
+                "Board-Änderung, kein pcb_render."),
     ),
     SuperFeature(
         key="semantic_erc",
@@ -174,10 +189,21 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="explain_board",
         label="💡 Board erklären",
         name="Board erklären",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Rekonstruiert aus Netzliste + Bauteilen, was das Board tut: "
-                 "Funktionsblöcke, Schnittstellen, Stromversorgung."),
+                 "Funktionsblöcke, Schnittstellen, Stromversorgung. Mit "
+                 "Auswahl: erklärt gezielt diesen Teilschaltkreis."),
         moat="KiCad hat ein Modell der Verbindungen, keines der Funktion.",
+        prompt=("Board erklären: Lies EINMAL list_pcb_footprints und "
+                "analyze_pcb_nets für die .kicad_pcb im Projektordner (per "
+                "Glob finden, nicht nachfragen) und rekonstruiere daraus, was "
+                "das Board tut: Funktionsblöcke (Versorgung, Controller, "
+                "Schnittstellen, Treiber, Sensorik …), wie sie zusammenspielen "
+                "und wie Strom und Signale fließen. Steht oben im Kontext "
+                "eine Auswahl, erkläre stattdessen gezielt diesen "
+                "Teilschaltkreis und seine Rolle im Board. Benenne Bauteile "
+                "und Netze mit ihren EXAKTEN Namen. Keine Board-Änderung, "
+                "kein pcb_render."),
     ),
     SuperFeature(
         key="nl_navigation",
@@ -202,24 +228,47 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="polar_board",
         label="⊙ Polar-Board",
         name="Polar-Board — Radial-Layout für runde Boards",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Platzieren und Routen in Polarkoordinaten (Radius + Winkel) "
                  "statt X/Y: LEDs gleichmäßig auf einem Kreis, Stecker rund um "
-                 "den Rand, radiale und konzentrische Leiterbahnen."),
+                 "den Rand, radiale und konzentrische Leiterbahnen. Der Klick "
+                 "zeigt die Grid-Konfiguration und den Workflow; geändert "
+                 "wird erst auf dein Go."),
         moat=("KiCad rechnet nur kartesisch; runde Boards zwingen sonst zur "
               "Handrechnung von Winkel und Radius."),
+        prompt=("Polar-Board: Prüfe mit EINEM polar_grid-Aufruf "
+                "(op=check_grid_config, Referenz-Defaults) die "
+                "Polar-Konfiguration für die .kicad_pcb im Projektordner (per "
+                "Glob finden) und zeige die resultierenden Parameter "
+                "(Zentrum, Ringe/Radien, Speichen). Erkläre dann kurz den "
+                "Radial-Workflow: Bauteile auf Ring/Speiche platzieren "
+                "(place_on_ring/place_on_spoke), konzentrische Bögen und "
+                "radiale Segmente routen (add_polar_arc/add_radial_segment) "
+                "— alles in Radius + Winkel statt X/Y. Steht oben im Kontext "
+                "eine Auswahl, schlage konkret vor, wie genau diese Bauteile "
+                "auf einen Ring kämen (nur Vorschlag). Ändere NICHTS ohne "
+                "mein Go. Kein pcb_render."),
     ),
     SuperFeature(
         key="sketch_layer",
         label="🖊️ Skizzen-Layer",
         name="Skizzen-Layer — gemeinsamer Notiz-/Hilfslayer",
-        status=SOON,
-        tooltip=("Ein verwalteter Hilfslayer als gemeinsames Skizzenblatt: du "
-                 "zeichnest Absichten hin, der Agent zeichnet Vorschläge, Marker "
-                 "und Geister-Vorschauen — ein Klick zum Ein-/Ausblenden und "
-                 "Leeren."),
+        status=SHIPPED,
+        tooltip=("Der gemeinsame Skizzen-Layer (User.9): du zeichnest "
+                 "Absichten, der Agent Vorschläge und Marker. Der Klick zeigt, "
+                 "was drauf liegt, und bietet Legende zeichnen oder Leeren an "
+                 "(erst nach deinem Go)."),
         moat=("KiCad hat keinen dedizierten, von Mensch UND Agent gemeinsam "
               "genutzten Skizzen-/Vorschau-Kanal."),
+        prompt=("Skizzen-Layer: Lies mit ipc_list_markers, was auf dem "
+                "gemeinsamen Skizzen-Layer (User.9) des offenen Boards liegt, "
+                "und berichte kompakt, wie viele Marker/Skizzen es sind. "
+                "Biete dann an: (a) Legende zeichnen "
+                "(ipc_draw_sketch_legend), (b) Layer leeren "
+                "(ipc_clear_markers) — beides erst nach meinem Go, nicht "
+                "sofort ausführen. Ist der Layer leer, sage das in einem Satz "
+                "und erkläre kurz, wofür er da ist (du zeichnest Absichten, "
+                "der Agent Vorschläge/Marker). Kein pcb_render."),
     ),
     SuperFeature(
         key="sketch_conductor",

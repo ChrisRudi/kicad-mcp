@@ -1,7 +1,23 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.7.2**
+Aktuelle Version: **0.7.3**
+
+---
+
+## 📄 Neu in 0.7.3 — vier weitere Super-Features aktiv (jetzt 12)
+
+- **📄 Datenblatt-Abgleich** — IC markieren, klicken: die Beschaltung wird gegen
+  das Datenblatt (`docs/<Value>.pdf` im Projekt) geprüft — Entkopplung,
+  Pin-Beschaltung, fehlende externe Bauteile. Ohne Auswahl zeigt es erst,
+  welche Datenblätter vorliegen und welche fehlen (mit Download-URL).
+- **💡 Board erklären** — rekonstruiert Funktionsblöcke, Schnittstellen und
+  Stromversorgung aus Netzliste + Bauteilen; mit Auswahl gezielt den
+  markierten Teilschaltkreis.
+- **⊙ Polar-Board** — zeigt die Polar-Grid-Parameter (Zentrum, Ringe, Speichen)
+  und den Radial-Workflow für runde Boards; platziert wird erst auf dein Go.
+- **🖊️ Skizzen-Layer** — zeigt, was auf dem gemeinsamen Skizzen-Layer (User.9)
+  liegt, und bietet Legende zeichnen oder Leeren an (erst nach deinem Go).
 
 ---
 

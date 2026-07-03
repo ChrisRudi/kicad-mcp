@@ -123,7 +123,7 @@ Leitungen" erst möglich.
   Diff-Paare aus den Netznamen und listet Netze + Pins je Bus — headless getestet.
   Offen: Gruppen-Platzierung/-Routing darauf aufsetzen.
 
-### 📄 Datenblatt-Abgleich  · 🔜
+### 📄 Datenblatt-Abgleich  · ✅
 **Sorte:** externes Wissen. Das sichtbare Flaggschiff.
 
 Zieht das Datenblatt eines ICs und **vergleicht deine Beschaltung mit der
@@ -135,6 +135,12 @@ Quarz-Load-Caps?", „fehlt ein externes Bauteil aus der Applikationsschaltung?"
 - **Ehrliche Grenze:** der harte Teil ist *das richtige PDF finden* und
   *Pin-Tabellen robust extrahieren* — der Vergleich selbst ist LLM-Stärke.
 - **Warum KiCad das nicht kann:** es weiß nichts von Datenblättern.
+- **Gebaut ✅ (v1, 0.7.3):** der GUI-Button reviewt das *markierte* IC über
+  `review_ic_against_datasheet` (Pin-Tabelle + Schaltplan-Ausschnitt +
+  Datenblatt-Seite → Abgleich durch den Agenten); ohne Auswahl inventarisiert
+  `list_missing_datasheets` erst, welche PDFs unter `docs/<Value>.pdf`
+  liegen/fehlen. **Grenze:** das PDF muss lokal vorliegen (kein Auto-Download);
+  mehrseitige Datenblätter brauchen ggf. die richtige Seite.
 
 ### 🛡️ Design-Wächter — semantischer ERC  · ✅
 **Sorte:** externes Wissen + Bedeutung.
@@ -186,11 +192,15 @@ PCB kohärent nachziehen. Routing wird trivial, ohne dass du eine Leitung ziehst
 - **Warum KiCad das nicht kann:** es hat kein Konzept funktional
   austauschbarer Pins.
 
-### 💡 Board erklären  · 🔜
+### 💡 Board erklären  · ✅
 Rekonstruiert aus Netzliste + Bauteilen, **was das Board tut**: Funktionsblöcke,
 Schnittstellen, Stromversorgung, Signalfluss. Reverse-Engineering der Absicht —
 nützlich für fremde/alte Boards. **Warum KiCad das nicht kann:** es hat ein Modell
 der Verbindungen, keines der Funktion.
+
+- **Gebaut ✅ (0.7.3):** der GUI-Button liest einmal `list_pcb_footprints` +
+  `analyze_pcb_nets` und erklärt Blöcke/Fluss mit klickbaren Ref-/Netznamen;
+  mit Selektion gezielt den markierten Teilschaltkreis.
 
 ### 🧭 Netz-Navigator — Fragen in normaler Sprache  · 🔜
 „Welcher Pin treibt Motor-Enable?", „was liegt sonst auf U1.7?", „wo geht 3V3
@@ -225,22 +235,31 @@ Clearance-Unterschreitung, gerade fragmentierte Netze, DRC-Risiken —
 Copilot-Stil, ohne Prompt. **Warum KiCad das nicht kann:** es hat kein
 mitlaufendes, verstehendes Assistenz-Auge.
 
-### ⊙ Polar-Board — Radial-Layout für runde Boards  · 🔜
-**Fundament da:** das `polar_grid`-Tool existiert bereits — dieses Feature ist am
-nächsten dran am „fertig". Platzieren und Routen in **Polarkoordinaten (Radius +
+### ⊙ Polar-Board — Radial-Layout für runde Boards  · ✅
+**Gebaut ✅ (v1, 0.7.3):** der GUI-Button zeigt die Grid-Konfiguration
+(`polar_grid op=check_grid_config`) und den Radial-Workflow; platziert/geroutet
+wird erst auf ausdrückliches Go (mit Selektion: Vorschlag, wie die markierten
+Teile auf einen Ring kämen). **Fundament:** das `polar_grid`-Tool existiert
+vollständig (place_on_ring/spoke, polare Bögen/Segmente/Vias, route). Platzieren und Routen in **Polarkoordinaten (Radius +
 Winkel)** statt X/Y: LEDs gleichmäßig auf einem Kreis, Stecker rund um den Rand,
 radiale und konzentrische Leiterbahnen, Bohrbild auf Teilkreis. **Warum KiCad das
 nicht kann:** es rechnet nur kartesisch; runde Boards zwingen sonst zur
 Handrechnung von Winkel und Radius (und der Rotations-Footgun schlägt dabei
 doppelt zu).
 
-### 🖊️ Skizzen-Layer — gemeinsamer Notiz-/Hilfslayer  · 🔜
+### 🖊️ Skizzen-Layer — gemeinsamer Notiz-/Hilfslayer  · ✅
 Ein **verwalteter Hilfslayer als gemeinsames Skizzenblatt**: du zeichnest
 Absichten hin, der Agent zeichnet **Vorschläge, Marker und Geister-Vorschauen** —
 ein Klick zum Ein-/Ausblenden und Leeren. Das ist das *Medium*, auf dem
 „Skizzen-Dirigent", die Geister-Vorschau von „Entwirren" und die Marker
 zusammenlaufen. **Warum KiCad das nicht kann:** es hat keinen dedizierten, von
 Mensch *und* Agent gemeinsam genutzten Skizzen-/Vorschau-Kanal.
+
+- **Gebaut ✅ (v1, 0.7.3):** der GUI-Button zeigt den Layer-Inhalt
+  (`ipc_list_markers` auf User.9) und bietet Legende zeichnen
+  (`ipc_draw_sketch_legend`) bzw. Leeren (`ipc_clear_markers`) an — beides erst
+  nach Go. **Grenze:** Ein-/Ausblenden der Layer-Sichtbarkeit exponiert die
+  IPC-API nicht; Geister-Vorschauen zeichnen ist offen.
 
 ## Elektrik & Fertigung (DFM)
 
