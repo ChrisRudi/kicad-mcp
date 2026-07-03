@@ -101,9 +101,26 @@ def _layer_matches(text, layer_set) -> list[tuple]:
             for m in rx.finditer(text)]
 
 
-def _pin_matches(text, ref_set) -> list[tuple]:
+def _pin_ok(ref: str, pin: str, pin_map) -> bool:
+    """Whether ``<ref>.<pin>`` should linkify. With a ``pin_map`` (``{ref:
+    {padnumbers}}``) the pad must REALLY exist on that footprint — this is what
+    stops dead links like ``U3.3V3`` (a rail name, not a pad) or a pin number
+    the part doesn't have. Without a map (``None``) we keep the legacy permissive
+    behaviour (ref known ⇒ mark), so headless callers that have no pad data still
+    linkify. Pad numbers are compared case-insensitively as strings (KiCad pads
+    can be ``"A1"``, ``"1"``, ``"MP"``)."""
+    if pin_map is None:
+        return True
+    pads = pin_map.get(ref)
+    if not pads:
+        return False
+    return str(pin).upper() in {str(p).upper() for p in pads}
+
+
+def _pin_matches(text, ref_set, pin_map=None) -> list[tuple]:
     """Match ``<ref>.<pin>`` (e.g. ``U1B.33`` = footprint U1B, pin 33) where
-    ``<ref>`` is a known board reference. Target ``("pin", (ref, pin))``."""
+    ``<ref>`` is a known board reference and — when ``pin_map`` is given — the
+    pad actually exists. Target ``("pin", (ref, pin))``."""
     refs = sorted({r for r in ref_set if r}, key=len, reverse=True)
     if not refs:
         return []
@@ -111,16 +128,18 @@ def _pin_matches(text, ref_set) -> list[tuple]:
     rx = re.compile(
         rf"(?<!{_BOUNDARY})({alts})\.([A-Za-z0-9]+)(?!{_BOUNDARY})")
     return [(m.start(), m.end(), ("pin", (m.group(1), m.group(2))))
-            for m in rx.finditer(text)]
+            for m in rx.finditer(text)
+            if _pin_ok(m.group(1), m.group(2), pin_map)]
 
 
-def _pin_prose_matches(text, ref_set) -> list[tuple]:
+def _pin_prose_matches(text, ref_set, pin_map=None) -> list[tuple]:
     """Match the prose pin forms ``pin 33 of U1`` and ``U1 pin 33`` (Dok 3) and
     resolve them to the same ``("pin", (ref, pin))`` target as ``U1.33``.
 
-    The reference is still verified against ``ref_set`` case-sensitively (the
-    ``pin``/``of`` keywords may be any case), so an unknown ref produces no
-    link — the safety invariant is preserved."""
+    The reference is verified against ``ref_set`` case-sensitively (the
+    ``pin``/``of`` keywords may be any case); when ``pin_map`` is given the pad
+    must also really exist on that footprint — so an unknown ref or a
+    non-existent pad produces no link (the "a click always resolves" invariant)."""
     refs = sorted({r for r in ref_set if r}, key=len, reverse=True)
     if not refs:
         return []
@@ -134,10 +153,10 @@ def _pin_prose_matches(text, ref_set) -> list[tuple]:
         re.IGNORECASE)
     out = []
     for m in rx_of.finditer(text):
-        if m.group(2) in ref_set:
+        if m.group(2) in ref_set and _pin_ok(m.group(2), m.group(1), pin_map):
             out.append((m.start(), m.end(), ("pin", (m.group(2), m.group(1)))))
     for m in rx_post.finditer(text):
-        if m.group(1) in ref_set:
+        if m.group(1) in ref_set and _pin_ok(m.group(1), m.group(2), pin_map):
             out.append((m.start(), m.end(), ("pin", (m.group(1), m.group(2)))))
     return out
 
@@ -172,7 +191,8 @@ def _layer_alias_matches(text, layer_set) -> list[tuple]:
             for m in rx.finditer(text)]
 
 
-def tokenize(text: str, known_refs, known_nets=(), known_layers=()) -> list[tuple]:
+def tokenize(text: str, known_refs, known_nets=(), known_layers=(),
+             known_pins=None) -> list[tuple]:
     """Split ``text`` into ``(chunk, target)`` segments.
 
     ``target`` is ``None`` for plain text, or a clickable target:
@@ -181,16 +201,22 @@ def tokenize(text: str, known_refs, known_nets=(), known_layers=()) -> list[tupl
     board — refs win ties over nets, pins take a ``<ref>.<pin>`` span before a
     bare ref would) or ``("coord", (x_mm, y_mm))`` for a printed coordinate
     pair. Coordinate links need no board data.
+
+    ``known_pins`` (``{ref: {padnumbers}}``) makes pin links *verified*: only
+    ``<ref>.<pin>`` spans whose pad really exists linkify, killing dead links
+    like ``U3.3V3``. When omitted, pin links stay permissive (ref-known ⇒ mark)
+    so headless callers without pad data keep working.
     """
     ref_set = {str(r) for r in (known_refs or []) if str(r)}
     net_set = {str(n) for n in (known_nets or []) if str(n)}
     layer_set = {str(l) for l in (known_layers or []) if str(l)} - ref_set - net_set
+    pin_map = known_pins if known_pins else None
     # Order = precedence on overlap (the sort below is stable, so an earlier
     # list wins a same-start tie): a ``<ref>.<pin>`` / prose-pin span before a
     # bare ref; exact refs before nets (ref-beats-net on a tie); exact layer
     # names before alias phrases.
-    matches = (_pin_matches(text, ref_set)
-               + _pin_prose_matches(text, ref_set)
+    matches = (_pin_matches(text, ref_set, pin_map)
+               + _pin_prose_matches(text, ref_set, pin_map)
                + _ref_matches(text, ref_set)
                + _net_matches(text, net_set)
                + _layer_matches(text, layer_set)
@@ -378,17 +404,25 @@ def _canonical_to_enum(name: str) -> Optional[int]:
         return None
 
 
-def board_targets(board: Any) -> tuple[set, set, set]:
-    """The sets of (footprint references, net names, enabled layer names) on
-    the live board — used to linkify only tokens that really exist."""
+def board_targets(board: Any) -> tuple[set, set, set, dict]:
+    """The (footprint references, net names, enabled layer names, pads-per-ref)
+    of the live board — used to linkify only tokens that really exist. The
+    fourth element maps ``ref -> {padnumber}`` so pin links can be verified
+    (see :func:`tokenize`)."""
     refs: set = set()
     nets: set = set()
     layers: set = set()
+    pins: dict = {}
     try:
         for fp in call(board.get_footprints):
             r = _ref_of(fp)
             if r:
                 refs.add(r)
+                nums = {str(getattr(p, "number", "")).strip()
+                        for p in _pads_of(fp)}
+                nums.discard("")
+                if nums:
+                    pins[r] = nums
     except Exception:
         pass
     try:
@@ -405,7 +439,7 @@ def board_targets(board: Any) -> tuple[set, set, set]:
                 layers.add(canonical)
     except Exception:
         pass
-    return refs, nets, layers
+    return refs, nets, layers, pins
 
 
 # -- disk fallback (no kipy, no GUI) ------------------------------------------
@@ -420,11 +454,16 @@ _RE_NET_U = re.compile(r'\(net\s+\d+\s+([^\s")]+)\s*\)')
 # Board layer table rows: `(0 "F.Cu" signal)` — digit-first distinguishes them
 # from footprint `(layers "F.Cu" …)` (names only) and `(net …)` entries.
 _RE_LAYER = re.compile(r'\(\d+\s+"([^"]+)"\s+\w+')
+# Footprint block openers `(footprint "lib:name" …` — split points for pads/ref.
+_RE_FP_START = re.compile(r'\(footprint\s')
+# Pad number = first token of a `(pad "1" …)` / `(pad A1 …)`; empty "" mechanical
+# pads yield no group and are skipped by the caller.
+_RE_PAD = re.compile(r'\(pad\s+(?:"([^"]*)"|([^\s")]+))')
 
 
-def board_targets_from_file(path: str) -> tuple[set, set, set]:
+def board_targets_from_file(path: str) -> tuple[set, set, set, dict]:
     """Disk fallback for :func:`board_targets`: parse footprint references, net
-    names and layer names straight from the ``.kicad_pcb`` TEXT.
+    names, layer names and pads-per-ref straight from the ``.kicad_pcb`` TEXT.
 
     Use this when the live IPC client can't resolve the board (the classic case
     is several KiCad instances on one socket → ``BoardUnavailable``) but the file
@@ -436,11 +475,12 @@ def board_targets_from_file(path: str) -> tuple[set, set, set]:
     refs: set = set()
     nets: set = set()
     layers: set = set()
+    pins: dict = {}
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as fh:
             text = fh.read()
     except Exception:
-        return refs, nets, layers
+        return refs, nets, layers, pins
     for m in _RE_REF_PROP.finditer(text):
         refs.add(m.group(1))
     for m in _RE_REF_FPTEXT.finditer(text):
@@ -454,7 +494,27 @@ def board_targets_from_file(path: str) -> tuple[set, set, set]:
     nets.discard("")
     for m in _RE_LAYER.finditer(text):
         layers.add(m.group(1))
-    return refs, nets, layers
+    # Pads-per-ref is block-scoped: split on each `(footprint ` start and, within
+    # a footprint's slice, tie its Reference to its pad numbers. Regex-only (no
+    # full s-expr parse) but each pad clearly belongs to the enclosing footprint.
+    starts = [m.start() for m in _RE_FP_START.finditer(text)]
+    bounds = starts + [len(text)]
+    for i, s in enumerate(starts):
+        block = text[s:bounds[i + 1]]
+        ref_m = _RE_REF_PROP.search(block) or _RE_REF_FPTEXT.search(block)
+        if not ref_m:
+            continue
+        ref = ref_m.group(1)
+        if not ref or ref in ("~", "REF**"):
+            continue
+        nums = set()
+        for pm in _RE_PAD.finditer(block):
+            num = (pm.group(1) if pm.group(1) is not None else pm.group(2)) or ""
+            if num:
+                nums.add(num)
+        if nums:
+            pins.setdefault(ref, set()).update(nums)
+    return refs, nets, layers, pins
 
 
 # -- board summary (Dok 2: startup panel) -------------------------------------
@@ -535,24 +595,32 @@ def _zoom_to_selection(client: Any) -> None:
 
 
 def _item_xy_mm(item: Any) -> Optional[tuple]:
-    pos = getattr(item, "position", None)
-    x, y = getattr(pos, "x", None), getattr(pos, "y", None)
-    if x is None or y is None:
-        return None
-    return (x / 1_000_000, y / 1_000_000)
+    """An item's anchor point in mm: its ``position`` (footprint/via/pad), or a
+    track's ``start`` as a fallback so routing can also anchor a coordinate."""
+    for attr in ("position", "start"):
+        pt = getattr(item, attr, None)
+        x, y = getattr(pt, "x", None), getattr(pt, "y", None)
+        if x is not None and y is not None:
+            return (x / 1_000_000, y / 1_000_000)
+    return None
 
 
 def select_coord(client: Any, board: Any, x_mm: float, y_mm: float,
-                 radius_mm: float = 8.0, zoom: bool = True,
+                 radius_mm: float = 25.0, zoom: bool = True,
                  add: bool = False) -> Optional[float]:
     """Navigate to a printed coordinate by selecting the nearest board element
-    (footprint/via/pad) and zooming to it. Returns the distance in mm to that
-    element, or None if nothing is within ``radius_mm`` (KiCad has no
+    (footprint/via/pad/track) and zooming to it. Returns the distance in mm to
+    that element, or None if nothing is within ``radius_mm`` (KiCad has no
     "center on point" API, so an anchor element is how we get the view there).
-    ``add=True`` keeps the prior selection (used by "mark all", Dok 1 P4)."""
+
+    The default radius is generous (25 mm) on purpose: a coordinate printed in a
+    sparsely-populated copper area used to fall outside the old 8 mm cap and the
+    link silently did nothing — the exact "not every link jumps" complaint.
+    Tracks are included as anchors too. ``add=True`` keeps the prior selection
+    (used by "mark all", Dok 1 P4)."""
     best = None
     best_d: Optional[float] = None
-    for getter in ("get_footprints", "get_vias", "get_pads"):
+    for getter in ("get_footprints", "get_vias", "get_pads", "get_tracks"):
         fn = getattr(board, getter, None)
         if fn is None:
             continue

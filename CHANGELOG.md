@@ -8,6 +8,22 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Plugin — Chat-Links)
+- **Tote Chat-Links, die nicht ins Board sprangen, behoben.** Manche
+  unterstrichenen Stellen taten beim Klick nichts, weil der Tokenizer nach
+  Oberflächen-Muster verlinkte, der Resolver aber KiCads echte Adressierung
+  braucht:
+  - **Pins verifiziert:** `board_targets`/`board_targets_from_file` liefern jetzt
+    die echten Pad-Nummern pro Ref; `tokenize(..., known_pins=…)` verlinkt
+    `<ref>.<pin>` nur, wenn das Pad wirklich existiert — tote Links wie `U3.3V3`
+    (ein Schienenname, kein Pad) verschwinden. Ohne Pin-Vokabular bleibt das
+    Verhalten permissiv (Rückwärtskompatibilität).
+  - **Koordinaten robuster:** `select_coord`-Default-Radius 8 → 25 mm (eine
+    Koordinate in dünn besetztem Kupfer fiel vorher aus dem Fenster und der Link
+    verpuffte), plus Tracks als zusätzliche Anker. Enge explizite Radien bleiben
+    respektiert.
+  - Tests in `tests/test_plugin_board_links.py`.
+
 ### Changed (Struktur, cont.)
 - **Reine kipy-Helfer aus `ipc_tools` nach `utils/ipc_board.py`.**
   `layer_to_enum` / `find_net` / `board_default_via_nm` (vorher

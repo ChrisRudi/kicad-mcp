@@ -57,7 +57,7 @@ class TestBusyRetry:
             get_footprints=_busy_once,
             get_nets=lambda: [],
             get_enabled_layers=lambda: [])
-        refs, _nets, _layers = board_links.board_targets(board)
+        refs, _nets, _layers, _pins = board_links.board_targets(board)
         assert refs == {"R1"}  # retried, link survived
 
 
@@ -91,19 +91,27 @@ class TestBoardTargetsFromFile:
     def test_parses_refs_nets_layers(self, tmp_path):
         p = tmp_path / "board.kicad_pcb"
         p.write_text(self._PCB, encoding="utf-8")
-        refs, nets, layers = board_links.board_targets_from_file(str(p))
+        refs, nets, layers, _pins = board_links.board_targets_from_file(str(p))
         assert refs == {"R_GATE_PD1", "R_FAULT1"}
         assert {"GND", "+3V3", "VCC"} <= nets and "" not in nets
         assert {"F.Cu", "B.Cu", "F.SilkS"} <= layers
 
+    def test_parses_pins_per_ref(self, tmp_path):
+        p = tmp_path / "board.kicad_pcb"
+        p.write_text(self._PCB, encoding="utf-8")
+        _refs, _nets, _layers, pins = board_links.board_targets_from_file(str(p))
+        # R_GATE_PD1 has pad "1"; R_FAULT1 has no pads → absent from the map.
+        assert pins.get("R_GATE_PD1") == {"1"}
+        assert "R_FAULT1" not in pins
+
     def test_missing_file_yields_empty(self):
         assert board_links.board_targets_from_file("/nope/x.kicad_pcb") == (
-            set(), set(), set())
+            set(), set(), set(), {})
 
     def test_fallback_output_linkifies(self, tmp_path):
         p = tmp_path / "b.kicad_pcb"
         p.write_text(self._PCB, encoding="utf-8")
-        refs, nets, layers = board_links.board_targets_from_file(str(p))
+        refs, nets, layers, _pins = board_links.board_targets_from_file(str(p))
         segs = board_links.tokenize("| R_GATE_PD1 | 100k | auf F.Cu, Netz GND |",
                                     refs, nets, layers)
         links = {t for _c, t in segs if t}
@@ -171,6 +179,37 @@ class TestPinLinks:
     def test_unknown_ref_pin_not_linked(self):
         segs = board_links.tokenize("X9.7 nicht am Board", known_refs={"U1"})
         assert all(t is None for _, t in segs)
+
+    # -- verified pins (known_pins): only real pads linkify --------------------
+
+    def test_verified_pin_links_when_pad_exists(self):
+        segs = board_links.tokenize("U1.2 messen", known_refs={"U1"},
+                                    known_pins={"U1": {"1", "2", "3"}})
+        assert ("U1.2", ("pin", ("U1", "2"))) in segs
+
+    def test_verified_pin_dead_link_suppressed(self):
+        # U1.5V3 looks like a pin but 5V3 is not a pad of U1 → NOT a link, and
+        # the bare ref U1 must not swallow it either (the '.5V3' stays plain).
+        segs = board_links.tokenize("U1.5V3 ist eine Schiene", known_refs={"U1"},
+                                    known_pins={"U1": {"1", "2"}})
+        assert all(k != "pin" for _c, t in segs if t for (k, _v) in [t])
+        assert "".join(c for c, _ in segs) == "U1.5V3 ist eine Schiene"
+
+    def test_verified_prose_pin_suppressed_when_absent(self):
+        # pin 99 does not exist → no PIN link (the bare ref U1 may still link).
+        segs = board_links.tokenize("pin 99 of U1", known_refs={"U1"},
+                                    known_pins={"U1": {"1", "2"}})
+        assert all(k != "pin" for _c, t in segs if t for (k, _v) in [t])
+
+    def test_verified_pin_case_insensitive(self):
+        segs = board_links.tokenize("J3.a1 prüfen", known_refs={"J3"},
+                                    known_pins={"J3": {"A1", "A2"}})
+        assert ("J3.a1", ("pin", ("J3", "a1"))) in segs
+
+    def test_permissive_without_pin_map(self):
+        # No known_pins → legacy permissive behaviour (ref known ⇒ pin links).
+        segs = board_links.tokenize("U1.99 legacy", known_refs={"U1"})
+        assert ("U1.99", ("pin", ("U1", "99"))) in segs
 
     def test_empty_targets_is_all_plain(self):
         assert board_links.tokenize("nix hier", known_refs=set()) == [
@@ -300,14 +339,14 @@ class TestBoardTargets:
         # 3, 34 → F.Cu, B.Cu via the real BoardLayer enum
         board = _FakeBoard(refs=["R1", "U2"], nets=["GND", "VCC"],
                            layers=[3, 34])
-        refs, nets, layers = board_links.board_targets(board)
+        refs, nets, layers, _pins = board_links.board_targets(board)
         assert refs == {"R1", "U2"} and nets == {"GND", "VCC"}
         assert layers == {"F.Cu", "B.Cu"}
 
     def test_survives_partial_failures(self):
         board = _FakeBoard(refs=["R1"], nets=["GND"])
         board.get_nets = lambda: (_ for _ in ()).throw(RuntimeError("x"))
-        refs, nets, layers = board_links.board_targets(board)
+        refs, nets, layers, _pins = board_links.board_targets(board)
         assert refs == {"R1"} and nets == set() and layers == set()
 
 
@@ -383,9 +422,15 @@ def _pos_item(x_mm, y_mm):
         x=int(x_mm * 1_000_000), y=int(y_mm * 1_000_000)))
 
 
+def _track_item(x_mm, y_mm):
+    return SimpleNamespace(start=SimpleNamespace(
+        x=int(x_mm * 1_000_000), y=int(y_mm * 1_000_000)))
+
+
 class _CoordBoard:
-    def __init__(self, footprints=(), vias=(), pads=()):
+    def __init__(self, footprints=(), vias=(), pads=(), tracks=()):
         self._fps, self._vias, self._pads = footprints, vias, pads
+        self._tracks = tracks
         self.selection = None
         self.cleared = False
 
@@ -397,6 +442,9 @@ class _CoordBoard:
 
     def get_pads(self):
         return list(self._pads)
+
+    def get_tracks(self):
+        return list(self._tracks)
 
     def clear_selection(self):
         self.cleared = True
@@ -430,6 +478,26 @@ class TestSelectCoord:
                                         radius_mm=5.0) is not None
         assert board_links.select_coord(client, board, 0.0, 0.0,
                                         radius_mm=4.9) is None
+
+    def test_default_radius_covers_sparse_area(self):
+        # An element 15 mm away used to fall outside the old 8 mm cap and the
+        # coord link silently did nothing; the 25 mm default now resolves it.
+        near = _pos_item(15.0, 0.0)
+        board = _CoordBoard(footprints=[near])
+        client = _FakeClient()
+        assert board_links.select_coord(client, board, 0.0, 0.0) is not None
+        assert board.selection == [near]
+        # still bounded — an explicit tight radius refuses it
+        board2 = _CoordBoard(footprints=[_pos_item(15.0, 0.0)])
+        assert board_links.select_coord(_FakeClient(), board2, 0.0, 0.0,
+                                        radius_mm=8.0) is None
+
+    def test_track_start_is_an_anchor(self):
+        board = _CoordBoard(tracks=[_track_item(2.0, 0.0)])
+        client = _FakeClient()
+        d = board_links.select_coord(client, board, 0.0, 0.0)
+        assert d is not None and abs(d - 2.0) < 0.01
+        assert board.selection and client.actions
 
 
 class TestConnectDiagnostics:

@@ -57,6 +57,7 @@ class ClaudeChatPanel(wx.Panel):
         self._refs: set = set()
         self._nets: set = set()
         self._layers: set = set()
+        self._pins: dict = {}  # ref -> {padnumber}, so pin links are verified
         self._links: list = []  # (start, end, kind, value)
 
         self.SetBackgroundColour(wx.Colour(theme.BACKGROUND))
@@ -185,7 +186,8 @@ class ClaudeChatPanel(wx.Panel):
         rendered = 0
         marks: list = []
         for chunk, target in board_links.tokenize(text + "\n\n", self._refs,
-                                                   self._nets, self._layers):
+                                                   self._nets, self._layers,
+                                                   known_pins=self._pins):
             if target is None:
                 self._write(chunk, style["text_color"])
                 continue
@@ -238,25 +240,26 @@ class ClaudeChatPanel(wx.Panel):
         refs: set = set()
         nets: set = set()
         layers: set = set()
+        pins: dict = {}
         try:
             _client, board = board_links.connect()
-            refs, nets, layers = board_links.board_targets(board)
+            refs, nets, layers, pins = board_links.board_targets(board)
         except Exception:
             pass
         if not (refs or nets or layers) and self._pcb_path:
-            refs, nets, layers = board_links.board_targets_from_file(
+            refs, nets, layers, pins = board_links.board_targets_from_file(
                 self._pcb_path)
         if not (refs or nets or layers):
             return
         summary = board_links.board_summary(refs, nets, layers)
         extent = (board_links.board_extent_mm_from_file(self._pcb_path)
                   if self._pcb_path else None)
-        wx.CallAfter(self._on_summary, refs, nets, layers, summary, extent)
+        wx.CallAfter(self._on_summary, refs, nets, layers, pins, summary, extent)
 
-    def _on_summary(self, refs, nets, layers, summary, extent) -> None:
+    def _on_summary(self, refs, nets, layers, pins, summary, extent) -> None:
         if not self:
             return
-        self._refs, self._nets, self._layers = refs, nets, layers
+        self._refs, self._nets, self._layers, self._pins = refs, nets, layers, pins
         for line in banner.summary_lines(summary, extent):
             self._write(line + "\n", theme.FOREGROUND)
         self._write("\n", theme.FOREGROUND)
@@ -371,9 +374,10 @@ class ClaudeChatPanel(wx.Panel):
         # the links silently breaking was undiagnosable before.
         try:
             _client, board = board_links.connect()
-            refs, nets, layers = board_links.board_targets(board)
+            refs, nets, layers, pins = board_links.board_targets(board)
             result["_refs"], result["_nets"], result["_layers"] = (
                 refs, nets, layers)
+            result["_pins"] = pins
             result["_link_counts"] = (len(refs), len(nets), len(layers))
             result["_link_source"] = "live"
         except Exception as exc:
@@ -389,10 +393,11 @@ class ClaudeChatPanel(wx.Panel):
         # can't resolve the board (the classic multi-instance case). Clicks still
         # need live IPC, but the answer stops looking link-dead.
         if not result.get("_refs") and self._pcb_path:
-            refs, nets, layers = board_links.board_targets_from_file(self._pcb_path)
+            refs, nets, layers, pins = board_links.board_targets_from_file(self._pcb_path)
             if refs or nets or layers:
                 result["_refs"], result["_nets"], result["_layers"] = (
                     refs, nets, layers)
+                result["_pins"] = pins
                 result["_link_counts"] = (len(refs), len(nets), len(layers))
                 result["_link_source"] = "disk"
                 # Preserve WHY live IPC failed (kipy missing? API off?
@@ -447,6 +452,7 @@ class ClaudeChatPanel(wx.Panel):
             self._refs = result["_refs"]
             self._nets = result.get("_nets") or set()
             self._layers = result.get("_layers") or set()
+            self._pins = result.get("_pins") or {}
         mcp_status = result.get("mcp_status") or ""
         if mcp_status.startswith("failed"):
             self._append(
