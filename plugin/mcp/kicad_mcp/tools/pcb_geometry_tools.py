@@ -411,8 +411,14 @@ def _zone_block(
 
 def _insert_before_root_close(pcb_text: str, blob: str) -> str:
     """Insert ``blob`` just before the final closing ``)`` of the
-    ``(kicad_pcb …)`` root expression."""
-    last = pcb_text.rstrip().rfind(")")
+    ``(kicad_pcb …)`` root expression.
+
+    ``rfind(")")`` already skips trailing whitespace (it is not ``)``), so the
+    former ``pcb_text.rstrip()`` was a redundant full-copy of the multi-MB board
+    text on every call — costly when a batch inserts N vias in a loop. Dropping
+    it is behaviourally identical (same index) and halves the per-insert copy.
+    """
+    last = pcb_text.rfind(")")
     return pcb_text[:last] + blob + pcb_text[last:]
 
 

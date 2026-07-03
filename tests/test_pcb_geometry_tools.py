@@ -551,3 +551,18 @@ class TestStringFormPcb:
         # Indexed-form table lines must not appear at the top.
         from kicad_mcp.utils.pcb_net_format import pcb_net_format
         assert pcb_net_format(text) == "string"
+
+
+def test_insert_before_root_close_equivalence():
+    """The rstrip()-free _insert_before_root_close inserts before the final
+    ')' identically regardless of trailing whitespace (the redundant full-copy
+    rstrip was removed for the batch-via hot path)."""
+    blob = "(via X)"
+    for tail in ("", "\n", "  \n\t", "\n\n  "):
+        text = "(kicad_pcb\n\t(foo)\n)" + tail
+        out = pgt._insert_before_root_close(text, blob)
+        # blob sits immediately before the final root-closing ')'
+        assert out == "(kicad_pcb\n\t(foo)\n" + blob + ")" + tail
+        # equivalence with the old rstrip()-based index computation
+        last_old = text.rstrip().rfind(")")
+        assert out == text[:last_old] + blob + text[last_old:]

@@ -34,21 +34,30 @@ _ORDER: list[str] = []
 _KEY_MEMO: dict[str, str] = {}
 _LOCK = threading.RLock()
 _MAX_ENTRIES = 5
+# Bound the path→key memo so a long-lived server that touches many distinct
+# absolute paths cannot grow it without limit. On overflow we drop the whole
+# memo (it rebuilds lazily and cheaply) rather than track per-entry LRU.
+_KEY_MEMO_MAX = 512
 
 
 def _key(path: str) -> str:
     """Canonical cache key: absolute realpath (symlinks resolved), so a
     relative path, an absolute path and a symlink to the same file all
     share one cache entry. Memoized — realpath is the dominant cost of a
-    cache hit."""
-    k = _KEY_MEMO.get(path)
-    if k is not None:
-        return k
+    cache hit. The realpath resolution (which touches the filesystem) runs
+    outside the lock; only the small memo dict op is guarded."""
+    with _LOCK:
+        k = _KEY_MEMO.get(path)
+        if k is not None:
+            return k
     k = os.path.realpath(os.path.abspath(path))
     # Only memoize absolute inputs — a relative path resolves against the
     # current working directory, which can change between calls.
     if os.path.isabs(path):
-        _KEY_MEMO[path] = k
+        with _LOCK:
+            if len(_KEY_MEMO) >= _KEY_MEMO_MAX:
+                _KEY_MEMO.clear()
+            _KEY_MEMO[path] = k
     return k
 
 
@@ -77,19 +86,27 @@ def get_text(path: str, encoding: str = "utf-8") -> str:
     Raises OSError if the file does not exist (same as ``open``).
     """
     key = _key(path)
+    # Stat outside the lock — it touches no shared state, and a cache hit only
+    # needs the dict op under the lock.
+    fp = _fingerprint(key)
     with _LOCK:
-        fp = _fingerprint(key)
         entry = _CACHE.get(key)
         if entry is not None and entry["fp"] == fp:
             _touch(key)
             return entry["text"]
-        with open(key, encoding=encoding) as fh:
-            text = fh.read()
-        # Re-stat: the read itself does not change mtime, but a parallel
-        # writer might have; capture the fingerprint of what we just read.
-        _CACHE[key] = {"text": text, "fp": _fingerprint(key)}
+    # Miss: read OUTSIDE the lock. On a cold cloud-synced disk this read can be
+    # tens of seconds; holding the lock across it would serialize every other
+    # cache user against one slow read. Two threads racing the same miss both
+    # read and the last store wins (identical bytes for one fingerprint).
+    with open(key, encoding=encoding) as fh:
+        text = fh.read()
+    # Re-stat: the read itself does not change mtime, but a parallel writer
+    # might have; capture the fingerprint of what we just read.
+    read_fp = _fingerprint(key)
+    with _LOCK:
+        _CACHE[key] = {"text": text, "fp": read_fp}
         _touch(key)
-        return text
+    return text
 
 
 def put_text(path: str, text: str) -> None:

@@ -8,6 +8,20 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Performance (cont.)
+- **`file_cache` hält den Lock nicht mehr über den Disk-Read.** `get_text`
+  serialisierte bei einem Cache-Miss den (auf Cloud-Disks zig Sekunden langen)
+  `open().read()` gegen jeden anderen Cache-Zugriff. Jetzt Double-Checked-
+  Locking: `stat` + Miss-Read laufen außerhalb des Locks, nur die Dict-Ops sind
+  geschützt. Zusätzlich ist der `_KEY_MEMO` (path→realpath) jetzt auf 512
+  Einträge gedeckelt (Drop-wholesale + Lazy-Rebuild) statt unbegrenzt zu wachsen.
+- **Via-Batch: redundante Multi-MB-Vollkopie pro Via entfernt.**
+  `_insert_before_root_close` rief `pcb_text.rstrip()` — eine Kopie des ganzen
+  Board-Texts — nur um das letzte `)` zu finden; `rfind(")")` überspringt
+  Trailing-Whitespace ohnehin. Verhalten identisch, halbiert die Kopierlast pro
+  Insert (spürbar bei N-Via-Tranchen). Tests in `test_pcb_geometry_tools.py`,
+  `test_file_cache.py`.
+
 ### Fixed (Quality)
 - **Board-Open-Guard-Bypass in 8 Mutations-Stellen geschlossen.**
   `add_vias_to_pcb`, `add_zone_pour_to_pcb`, weitere Geometrie-Writes und die

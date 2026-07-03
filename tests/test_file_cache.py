@@ -137,3 +137,18 @@ class TestErrors:
     def test_missing_file_raises(self, tmp_path):
         with pytest.raises(OSError):
             fc.get_text(str(tmp_path / "nope.kicad_pcb"))
+
+
+def test_key_memo_is_bounded(tmp_path):
+    """The path->key memo must not grow without bound in a long-lived server;
+    on overflow it drops wholesale and rebuilds lazily (P8)."""
+    fc.invalidate()  # also clears _KEY_MEMO
+    real = tmp_path / "b.kicad_pcb"
+    real.write_text("(kicad_pcb)")
+    # Feed more distinct absolute paths than the cap; use distinct symlinks so
+    # each input string memoizes a separate entry.
+    for i in range(fc._KEY_MEMO_MAX + 10):
+        link = tmp_path / f"l{i}.kicad_pcb"
+        os.symlink(real, link)
+        fc._key(str(link))
+    assert len(fc._KEY_MEMO) <= fc._KEY_MEMO_MAX
