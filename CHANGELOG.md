@@ -8,6 +8,29 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Quality)
+- **Board-Open-Guard-Bypass in 8 Mutations-Stellen geschlossen.**
+  `add_vias_to_pcb`, `add_zone_pour_to_pcb`, weitere Geometrie-Writes und die
+  drei `via_promote`-Writes schrieben mit rohem `open(...,"w")` + `put_text` und
+  umgingen so den zentralen `write_text`-Chokepoint — sie hätten das GUI-Save
+  eines offen im KiCad-Editor liegenden Boards überschreiben können. Jetzt alle
+  über `write_text` (→ `BoardOpenError`, wie der PCB-Text-Patcher).
+- **`generate_project`: Multi-Sheet-Fehler wird nicht mehr verschluckt.**
+  `except Exception: pass` fiel still auf Single-Sheet zurück — ein echter Bug
+  im Multi-Sheet-Build lieferte dem Nutzer unbemerkt ein anderes Ergebnis als
+  angefordert. Fehler wird jetzt geloggt und als `multisheet_fallback` im
+  Result gemeldet; partieller Output wird verworfen.
+- **File-Deskriptor-Leaks im Renderer.** `pcb_render_tools` las PCB- und
+  SVG-Dateien via `open(...).read()` ohne `with` → FDs akkumulierten im
+  langlebigen Warm-Server. Jetzt `with`-gekapselt.
+- **`validate_project` folgt der `success`-Konvention.** Result trägt jetzt
+  `success` (lief der Check) zusätzlich zum domänenspezifischen `valid` — ohne
+  bestehende `valid`-Consumer zu brechen.
+- **Toter/irreführender Code entfernt.** Unerreichbarer Block nach `return` in
+  `server.create_server`, auskommentierte Preload-Kruft, und das nachweislich
+  ungenutzte generische `KiCadAppContext.cache`-Feld (echtes Caching lebt in
+  `cache/file_cache.py` + Warm-Daemons) — klärt, wo State wirklich liegt.
+
 ### Performance
 - **PCB-Read-Tools laden das Board nicht mehr pro Call neu.**
   `list_pcb_footprints`, `analyze_pcb_nets` und `find_tracks_by_net` liefen alle

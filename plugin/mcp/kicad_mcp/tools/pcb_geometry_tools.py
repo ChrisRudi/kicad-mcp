@@ -36,7 +36,7 @@ from typing import Any, Callable
 
 from mcp.server.fastmcp import FastMCP
 
-from kicad_mcp.cache import get_text, put_text
+from kicad_mcp.cache import get_text, write_text
 from kicad_mcp.utils.path_env import to_local_path
 from kicad_mcp.utils.pcb_geometry import pcb_local_to_world
 from kicad_mcp.utils.pcb_net_format import ensure_net_tag, pcb_net_format
@@ -770,9 +770,10 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
             chosen_via_layers = via_pair
         text = _insert_before_root_close(text, blob)
 
-        with open(pcb_path, "w", encoding="utf-8") as fh:
-            fh.write(text)
-        put_text(pcb_path, text)
+        # write_text runs the board-open guard (raises BoardOpenError if the
+        # .kicad_pcb is open in a running KiCad GUI) — a raw open()+put_text
+        # would silently race the editor's save. Same chokepoint as pcb_patch.
+        write_text(pcb_path, text)
 
         return {
             "success": True,
@@ -902,9 +903,7 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
         if not result.get("success"):
             return result
         if not dry_run:
-            with open(pcb_path, "w", encoding="utf-8") as fh:
-                fh.write(new_text)
-            put_text(pcb_path, new_text)
+            write_text(pcb_path, new_text)  # board-open guard (see above)
         return {"dry_run": dry_run, **result}
 
     @mcp.tool()
@@ -982,9 +981,7 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
         if not result.get("success"):
             return result
         if not dry_run:
-            with open(pcb_path, "w", encoding="utf-8") as fh:
-                fh.write(new_text)
-            put_text(pcb_path, new_text)
+            write_text(pcb_path, new_text)  # board-open guard (see above)
         return {"dry_run": dry_run, **result}
 
     @mcp.tool()
@@ -1055,9 +1052,7 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
             placed.append(result)
 
         if not dry_run:
-            with open(pcb_path, "w", encoding="utf-8") as fh:
-                fh.write(text)
-            put_text(pcb_path, text)
+            write_text(pcb_path, text)  # board-open guard (see above)
         return {"success": True, "count": len(placed), "vias": placed,
                 "dry_run": dry_run}
 
@@ -1104,9 +1099,7 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
             include_net_name_line=(net_fmt == "index"),
         )
         text = _insert_before_root_close(text, blob)
-        with open(pcb_path, "w", encoding="utf-8") as fh:
-            fh.write(text)
-        put_text(pcb_path, text)
+        write_text(pcb_path, text)  # board-open guard (see above)
         return {
             "success": True,
             "pcb_path": pcb_path,

@@ -105,15 +105,11 @@ def create_server() -> FastMCP:
     """Create and configure the KiCad MCP server."""
     logging.info("Initializing KiCad MCP server")
 
-    # Try to set up KiCad Python path - Removed
-    # kicad_modules_available = setup_kicad_python_path()
-    kicad_modules_available = False # Set to False as we removed the setup logic
-
-    # if kicad_modules_available:
-    #     print("KiCad Python modules successfully configured")
-    # else:
-    # Always print this now, as we rely on CLI
-    logging.info("KiCad Python module setup removed; relying on kicad-cli for external operations.")
+    # No in-process KiCad Python (SWIG pcbnew) path setup: external KiCad
+    # operations go through kicad-cli, and the read tools lazy-import pcbnew on
+    # first use. The flag is kept (read by e.g. bom_tools) and stays False.
+    kicad_modules_available = False
+    logging.info("Relying on kicad-cli for external KiCad operations.")
 
     # Build a lifespan callable with the kwarg baked in (FastMCP 2.x dropped lifespan_kwargs)
     lifespan_factory = functools.partial(kicad_lifespan, kicad_modules_available=kicad_modules_available)
@@ -163,9 +159,6 @@ def create_server() -> FastMCP:
 
     logging.info("Server initialization complete")
     return mcp
-
-
-    # Signal handlers are set up in register_signal_handlers
 
 
 def setup_logging() -> None:

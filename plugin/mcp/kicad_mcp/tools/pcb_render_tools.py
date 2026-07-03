@@ -56,7 +56,8 @@ def _edge_bbox(pcb_text: str):
 def _ensure_svg(pcb_path: str, layers: str) -> tuple[str, tuple]:
     """Export (and cache by path+mtime+layers) the whole-board SVG.
     Returns (svg_path, edge_bbox)."""
-    text = open(pcb_path, encoding="utf-8").read()
+    with open(pcb_path, encoding="utf-8") as _fh:
+        text = _fh.read()
     bbox = _edge_bbox(text)
     if bbox is None:
         raise ValueError("could not determine Edge.Cuts bounding box")
@@ -93,7 +94,8 @@ def _render(pcb_path: str, cx: float, cy: float, window_mm: float,
             px: int, layers: str, out_path: str) -> dict:
     svg_path, (minx, miny, _, _) = _ensure_svg(pcb_path, layers)
     cairosvg = _load_cairosvg()
-    svg = open(svg_path, encoding="utf-8").read()
+    with open(svg_path, encoding="utf-8") as _fh:
+        svg = _fh.read()
     vx, vy = cx - minx - window_mm / 2.0, cy - miny - window_mm / 2.0
     svg = re.sub(r'width="[^"]*mm" height="[^"]*mm" viewBox="[^"]*"',
                  f'width="{px}" height="{px}" '

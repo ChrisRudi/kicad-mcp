@@ -33,7 +33,7 @@ from kicad_mcp.tools.via_promote_worker import (
     MARK as _MARK,
     run as _run_in_process,  # cold in-process path, re-exported for unit tests
 )
-from kicad_mcp.cache import get_text, put_text
+from kicad_mcp.cache import get_text, write_text
 from kicad_mcp.utils.path_env import to_local_path
 
 _HAS_PCBNEW = importlib.util.find_spec("pcbnew") is not None
@@ -174,9 +174,7 @@ def via_retype_impl(pcb_path: str, uuids, new_type: str = "blind",
               "new_type": new_type, "changed": n, "dry_run": dry_run,
               "wrote": False}
     if not dry_run and n:
-        with open(pcb_path, "w", encoding="utf-8") as fh:
-            fh.write(new_text)
-        put_text(pcb_path, new_text)
+        write_text(pcb_path, new_text)  # board-open guard (blocks write if GUI has it open)
         result["wrote"] = True
     return result
 
@@ -232,9 +230,7 @@ def via_resize_impl(pcb_path: str, size: float, drill=None, uuids=None,
               "scope": "all" if not uuids else len(set(uuids)),
               "changed": n, "dry_run": dry_run, "wrote": False}
     if not dry_run and n:
-        with open(pcb_path, "w", encoding="utf-8") as fh:
-            fh.write(new_text)
-        put_text(pcb_path, new_text)
+        write_text(pcb_path, new_text)  # board-open guard (blocks write if GUI has it open)
         result["wrote"] = True
     return result
 
@@ -287,9 +283,7 @@ def via_promote_impl(pcb_path: str, clearance_mm: float = 0.2,
             text = get_text(pcb_path)
             new_text, n = _promote_layers_text(text, uuids)
             if n:
-                with open(pcb_path, "w", encoding="utf-8") as fh:
-                    fh.write(new_text)
-                put_text(pcb_path, new_text)
+                write_text(pcb_path, new_text)  # board-open guard (see above)
                 report["wrote"] = True
             report["applied"] = n
     return report

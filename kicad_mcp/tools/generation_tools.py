@@ -7,6 +7,7 @@ from JSON specifications, plus benchmarking and quality analysis.
 """
 
 import json
+import logging
 import os
 import re
 import subprocess
@@ -20,6 +21,8 @@ from kicad_mcp.generators.schematic_scorer import score_schematic
 from kicad_mcp.generators.validator import validate_all
 from kicad_mcp.utils.path_env import to_local_path
 from kicad_mcp.utils.wsl_path import to_windows_path
+
+logger = logging.getLogger(__name__)
 
 
 def _run_drc(sch_path: str, ctx=None) -> dict | None:
@@ -143,6 +146,7 @@ def register_generation_tools(mcp: FastMCP) -> None:
         # Generate files
         # 6.1: Check if multi-sheet is needed
         sch_files = {}
+        multisheet_error = None
         try:
             from kicad_mcp.generators.schematic.multisheet import (
                 build_root_sheet,
@@ -186,8 +190,15 @@ def register_generation_tools(mcp: FastMCP) -> None:
 
                 if ctx:
                     ctx.info(f"Multi-sheet: {len(groups)} sub-sheets generated")
-        except Exception:
-            pass  # Fall back to single-sheet
+        except Exception as exc:
+            # Multi-sheet build failed — fall back to single-sheet, but do NOT
+            # swallow the reason: a real bug here would otherwise silently hand
+            # the user a different (single-sheet) result than requested. Record
+            # it so the caller can see the degradation in the result.
+            multisheet_error = str(exc)
+            logger.warning("Multi-sheet build failed, using single-sheet: %s",
+                           exc, exc_info=True)
+            sch_files = {}  # discard any partial multi-sheet output
 
         if not sch_files:
             sch_content = build_schematic(parts_data, nets_data, project_name,
@@ -240,6 +251,8 @@ def register_generation_tools(mcp: FastMCP) -> None:
         if drc_result:
             result["drc"] = drc_result
             result["erc_clean"] = drc_result["error_count"] == 0
+        if multisheet_error:
+            result["multisheet_fallback"] = multisheet_error
         return result
 
     @mcp.tool()

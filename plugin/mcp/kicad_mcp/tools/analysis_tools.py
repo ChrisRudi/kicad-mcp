@@ -32,11 +32,14 @@ def register_analysis_tools(mcp: FastMCP) -> None:
             project_path: Path to the ``.kicad_pro`` file.
 
         Returns:
-            ``{valid: bool, path, issues: [...] | None, files_found: [...]}``
+            ``{success: bool, valid: bool, path, issues: [...] | None,
+            files_found: [...]}`` — ``success`` follows the project-wide tool
+            convention (did the check run), ``valid`` is the domain verdict.
         """
         project_path = to_local_path(project_path)
         if not os.path.exists(project_path):
-            return {"valid": False, "error": f"Project not found: {project_path}"}
+            return {"success": False, "valid": False,
+                    "error": f"Project not found: {project_path}"}
 
         issues = []
         files = get_project_files(project_path)
@@ -59,6 +62,7 @@ def register_analysis_tools(mcp: FastMCP) -> None:
             issues.append(f"Error reading project file: {str(e)}")
 
         return {
+            "success": True,  # the check ran; `valid` carries the verdict
             "valid": len(issues) == 0,
             "path": project_path,
             "issues": issues if issues else None,
