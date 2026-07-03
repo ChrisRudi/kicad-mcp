@@ -73,7 +73,11 @@ Handplatzierung.
 - **Ablauf:** einmal lesen (Netze, Pad-Positionen, Footprint-Größen) → **im Kopf
   lösen** (der Agent entwirrt durch Reasoning, geprüft an einem *nicht-mutierenden*
   `evaluate_layout`-Scorer: Kreuzungen + Überlappung) → **Geister-Vorschau der
-  ganzen Lösung** → auf „übernehmen" **ein** Batch-Move. Das Board wird während
+  ganzen Lösung** → auf „übernehmen" **ein** Batch-Move.
+  - **Fundament gebaut ✅:** der `evaluate_layout`-Scorer (Tool #177,
+    `utils/placement_eval.py`) steht headless + getestet — Signalnetz-Kreuzungen,
+    Überlappung, Wirelength. Offen: Trigger-Erkennung, Geister-Vorschau, das
+    finale Anordnen. Das Board wird während
   des Denkens **null mal** angefasst — genau das Anti-Toolcall-Explosion-Prinzip.
 - **Ehrliche Grenze:** Reale Netz-Graphen sind meist **nicht-planar** — „null
   Kreuzungen" ist dann mathematisch unmöglich (dafür gibt es Layer und Vias). Der

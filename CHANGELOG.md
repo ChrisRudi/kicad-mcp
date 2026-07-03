@@ -8,6 +8,17 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Super-Feature „Entwirren" — Fundament)
+- **`evaluate_layout` — non-mutating Platzierungs-Scorer** (Tool #177). Der
+  „Notizzettel" hinter der Ratsnest-Entkreuzung: bewertet eine *hypothetische*
+  Footprint-Anordnung, **ohne das Board zu berühren** — Signalnetz-Kreuzungen
+  (Ratsnest via MST pro Netz, echter CCW-Segment-Schnitt), Footprint-Überlappung
+  und Wirelength. Power-/GND-Netze werden auto-ausgeschlossen (werden Kupfer­fläche,
+  keine Luftlinie). So kann der Agent „durch Nachdenken lösen" (vorschlagen →
+  bewerten → verfeinern) und erst die *finale* Lösung in einem Zug anordnen.
+  Reiner Kern in `utils/placement_eval.py` (footgun-sichere Rotation über
+  `pcb_local_to_world`), Tests in `tests/test_placement_eval.py`.
+
 ### Added (Plugin — Interaktion)
 - **Glaskasten-Zug: der Agent-Zug spricht Board-Sprache statt Tool-Namen.** Der
   Transkript- und Statuszeilen-Stream zeigt jetzt „6× Via gesetzt" /
