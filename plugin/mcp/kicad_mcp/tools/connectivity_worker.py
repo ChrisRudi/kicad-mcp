@@ -93,13 +93,19 @@ def _cluster_pad_ids(conn: Any, pad: Any) -> set:
     return ids
 
 
-def _net_clusters(conn: Any, pads: list, netcode: int) -> list:
-    """List of clusters (each a set of pad-ids) for one net."""
-    remaining = {_pad_id(p): p for p in pads if p.GetNetCode() == netcode}
+def _net_clusters(conn: Any, net_pads: list, pad_ids: dict) -> list:
+    """List of clusters (each a set of pad-ids) for one net.
+
+    ``net_pads`` are the pads already known to be on this net (grouped once by
+    the caller — see ``_compute_overview``), and ``pad_ids`` maps ``id(pad) ->
+    "REF.NUM"`` for the board's pads so the stable pad identity is computed once
+    per pad instead of once per (net × pad). This turns the overview from
+    O(nets × all_pads) into O(all_pads + connectivity)."""
+    remaining = {pad_ids[id(p)]: p for p in net_pads}
     clusters = []
     while remaining:
         _, seed = next(iter(remaining.items()))
-        ids = (_cluster_pad_ids(conn, seed) & set(remaining)) | {_pad_id(seed)}
+        ids = (_cluster_pad_ids(conn, seed) & set(remaining)) | {pad_ids[id(seed)]}
         clusters.append(ids)
         for i in ids:
             remaining.pop(i, None)
@@ -203,13 +209,23 @@ def _compute_overview(board) -> dict:
     conn.RecalculateRatsnest()
     unconnected = conn.GetUnconnectedCount(False)
     pads = _all_pads(board)
+    # Compute the stable pad id once per board pad, and group pads by netcode in
+    # a single pass — instead of re-scanning every pad (with 3 SWIG calls each)
+    # once per net. Only nets with >=2 pads can possibly fragment, so the rest
+    # are skipped entirely. Same output, O(pads + connectivity) not O(nets×pads).
+    pad_ids = {id(p): _pad_id(p) for p in pads}
+    pads_by_net: dict[int, list] = {}
+    for p in pads:
+        pads_by_net.setdefault(p.GetNetCode(), []).append(p)
     nets = board.GetNetInfo()
     fragmented = []
-    for code in range(nets.GetNetCount()):
+    for code, net_pads in pads_by_net.items():
+        if code == 0 or len(net_pads) < 2:
+            continue  # net 0 = unconnected; a <2-pad net cannot be fragmented
         ni = nets.GetNetItem(code)
-        if not ni or code == 0:
+        if not ni:
             continue
-        cl = _net_clusters(conn, pads, code)
+        cl = _net_clusters(conn, net_pads, pad_ids)
         if len(cl) > 1:
             sizes = sorted((len(c) for c in cl), reverse=True)
             fragmented.append({"net": ni.GetNetname(), "clusters": len(cl), "group_sizes": sizes})
@@ -238,6 +254,15 @@ def _compute_pad(board, ref_pad: str) -> dict:
     }
 
 
+def _clusters_for_net(conn: Any, board: Any, netcode: int) -> list:
+    """Clusters of one net on ``board`` — groups the net's pads and builds the
+    id map for ``_net_clusters`` (single-net query, so O(pads))."""
+    pads = _all_pads(board)
+    pad_ids = {id(p): _pad_id(p) for p in pads}
+    net_pads = [p for p in pads if p.GetNetCode() == netcode]
+    return _net_clusters(conn, net_pads, pad_ids)
+
+
 def _compute_whatif(board, x_mm: float, y_mm: float, ref_pad: str) -> dict:
     """Remove the nearest via/track in memory and report orphaned pads.
     Mutates the in-memory board (caller must drop it from any cache)."""
@@ -246,13 +271,12 @@ def _compute_whatif(board, x_mm: float, y_mm: float, ref_pad: str) -> dict:
         return {"success": False, "error": "no via/track found on board"}
     conn = board.GetConnectivity()
     kind, net, netcode = item.GetClass(), item.GetNetname(), item.GetNetCode()
-    pads = _all_pads(board)
-    before = _net_clusters(conn, pads, netcode)
+    before = _clusters_for_net(conn, board, netcode)
     main_before = max(before, key=len) if before else set()
     board.Remove(item)
     board.BuildConnectivity()
     conn2 = board.GetConnectivity()
-    after = _net_clusters(conn2, _all_pads(board), netcode)
+    after = _clusters_for_net(conn2, board, netcode)
     main_after = max(after, key=len) if after else set()
     orphaned = sorted(main_before - main_after)
     result = {

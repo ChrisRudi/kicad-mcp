@@ -9,6 +9,17 @@ the first tag ships.
 ## [Unreleased]
 
 ### Performance (cont.)
+- **`check_connectivity` (overview) von O(nets×pads) auf O(pads+conn).**
+  `_compute_overview` scannte pro Netz **alle** Board-Pads und rief `_pad_id`
+  (3 SWIG-Calls) je Pad — auf einem Mainboard (z.B. 2000 Pads × 500 Netze)
+  ~10⁶ Pad-Iterationen mit SWIG-Übergängen, obwohl das Tool als „billiger"
+  Verify beworben wird. Jetzt: Pads einmal nach netcode gruppiert, `_pad_id` je
+  Board-Pad einmal memoisiert, Netze mit <2 Pads (nicht fragmentierbar)
+  übersprungen. Output identisch. Headless-Test `test_connectivity_overview.py`
+  (Fakes statt pcbnew), plus `whatif` auf den geteilten `_clusters_for_net`-
+  Helper umgestellt.
+
+### Performance (cont.)
 - **`file_cache` hält den Lock nicht mehr über den Disk-Read.** `get_text`
   serialisierte bei einem Cache-Miss den (auf Cloud-Disks zig Sekunden langen)
   `open().read()` gegen jeden anderen Cache-Zugriff. Jetzt Double-Checked-
