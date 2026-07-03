@@ -1,7 +1,26 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.2.26**
+Aktuelle Version: **0.6.0**
+
+---
+
+## 🆕 Neu in 0.6.0 — Super-Features (Bedeutung statt nur Geometrie)
+
+Neue Werkzeuge, die Claude im Chat nutzen kann — Dinge, die KiCad selbst nie
+könnte:
+
+- **🛡️ Design-Wächter** (`audit_design`) — findet stille Fehler jenseits des ERC:
+  I²C-Bus ohne Pull-ups, Quarz ohne Load-Caps, IC-Versorgungspin ohne (oder mit
+  zu weit entfernter) Entkopplung, Reset ohne Pull-up.
+- **🚌 Bus-Radar** (`list_bus_members`) — listet alle Teilnehmer + Pins eines
+  Busses (I²C, SPI, UART …) als eine Bedeutungseinheit.
+- **💰 BOM-Konsolidierung** (`consolidate_bom`) — legt fast-gleiche R/C-Werte auf
+  E-Reihen-Standardwerte zusammen → weniger Feeder, günstigere Bestückung.
+- **🏭 Fab-Standardteile** (`suggest_preferred_parts`) — mappt R/C aufs
+  No-Load-Fee-Teil des Fertigers (JLCPCB Basic …) und schätzt die Ersparnis.
+- **🔎 Test-Punkt-Wächter** (`audit_test_points`) — meldet kritische Netze
+  (Versorgung, Reset, Clock, Bus) ohne Prüfpunkt-/Stecker-Zugang.
 
 ---
 
