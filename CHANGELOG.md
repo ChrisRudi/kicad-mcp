@@ -8,6 +8,23 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (libngspice-Backend + Menü-Hover, Plugin 0.8.1)
+- **`run_spice_sim` Backend 2 — KiCads mitgeliefertes libngspice:** Eeschemas
+  Simulator ist GUI-only (keine Eeschema-IPC, kein kicad-cli-sim), aber seine
+  Engine liegt als `libngspice-0.dll`/`libngspice.so` jedem KiCad bei.
+  `find_libngspice()` (Env `KICAD_MCP_LIBNGSPICE` → KiCad-bin/../lib →
+  ctypes.util.find_library) + `run_libngspice()`: ctypes-Runner in einem
+  ISOLIERTEN Kindprozess (ControlledExit-Callback gegen ngspices exit();
+  Absturz/Timeout kann den Warm-Server nicht reißen), skalare Ergebnis-
+  Vektoren via ngSpice_CurPlot/AllVecs/Get_Vec_Info direkt als `values`.
+  Backend-Reihenfolge: ngspice-CLI → libngspice → ehrlicher Hinweis;
+  `backend`-Feld im Result. Simulation braucht damit auf normalen
+  KiCad-Installationen keine Extra-Software.
+- **Gruppen-Menü Hover:** EVT_MENU_HIGHLIGHT zeigt den Tooltip des
+  gehighlighteten Features live in der Statuszeile — kompakte Gruppen
+  bleiben, die Erklärung pro Feature ist ohne Klick sichtbar.
+  Version 0.8.0 → 0.8.1.
+
 ### Added (GUI 0.8.0 — Mehrsprachigkeit, Gruppen, Chips, Session, Einstellungen)
 - **`plugin/i18n.py` (neu):** Auto-Sprachwahl (Einstellung → KiCads
   `kicad_common.json` system.language → Locale → en); Deutsch bleibt

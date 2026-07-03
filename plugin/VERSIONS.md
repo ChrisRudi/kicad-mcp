@@ -1,7 +1,25 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.8.0**
+Aktuelle Version: **0.8.1**
+
+---
+
+## 📈 Neu in 0.8.1 — Simulation ohne Extra-Installation + Hover im Gruppen-Menü
+
+- **Simulation nutzt jetzt KiCads eigene ngspice-Bibliothek.** Warum überhaupt
+  „zusätzlich ngspice", wenn KiCad simulieren kann? Weil Eeschemas Simulator
+  ein reines GUI-Feature ist — KiCad 10 bietet dafür keine API und kein
+  CLI-Kommando, für Claude war er unerreichbar. Die **Bibliothek** dahinter
+  (`libngspice`, liegt jedem KiCad bei) ist aber erreichbar: `run_spice_sim`
+  lädt sie jetzt direkt (isoliert in einem Kindprozess, damit ein
+  Simulations-Absturz nie den Tool-Server mitreißt). Ein separates
+  ngspice-Binary ist damit **nicht mehr nötig** — es bleibt als bevorzugtes
+  Backend, falls installiert.
+- **Gruppen-Menü mit Hover-Erklärung:** Die kompakte Gruppen-Darstellung
+  bleibt — aber wenn du im aufgeklappten Menü über einem Feature stehst,
+  zeigt die Statuszeile unten sofort dessen Beschreibung. Kein Klick nötig,
+  um zu wissen, was ein Button tut.
 
 ---
 

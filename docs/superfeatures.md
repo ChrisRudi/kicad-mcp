@@ -41,7 +41,7 @@ Prompt benennt seine Grenze. Die wichtigsten v1-Grenzen im Überblick:
 |---|---|---|
 | 🔀 Pin-Tausch | Kreuzungs-Analyse + Swap-Vorschläge; Umsetzung Go-gated (Schaltplan nur bei geschlossenem Eeschema) | Pinmux-Wissen aus dem Modell, nicht aus einer Mux-Datenbank |
 | 👁️ Mitdenken | Ein Klick = ein Review der Handänderungen (`live_summarize_user_changes`) | kein Dauer-Beobachten — IPC liefert keine Events |
-| 📈 Simulation | echtes ngspice über `run_spice_sim` (Deck baut der Agent); analytischer Fallback + Deck zum Kopieren | braucht installiertes ngspice-Binary (`KICAD_MCP_NGSPICE`) |
+| 📈 Simulation | echtes ngspice über `run_spice_sim` — nutzt **KiCads mitgeliefertes libngspice** (Eeschemas Simulator-Kern) oder ein ngspice-Binary; analytischer Fallback | Eeschemas GUI-Simulator selbst hat keine API — es läuft dieselbe Engine, nur headless |
 | 🧬 SPICE-Modelle | Modell-Suche per WebSearch + fertige Sim.*-Eintragungen | Einträge schreiben nur nach Go, Eeschema zu |
 | 🛒 Sourcing | WebSearch-Verfügbarkeit/Preise + pin-kompatible Alternativen | Momentaufnahme, kein Live-Katalog |
 | 📷 Foto→Schaltung | Bild per Read analysieren, Netz-Hypothesen mit Konfidenz | verdeckte Lagen bleiben unsichtbar |
@@ -369,13 +369,17 @@ SPICE und **erklärt das Ergebnis in Klartext** statt nur Kurven auszuspucken.
 **Warum KiCad das nicht kann:** es kann ngspice *starten*, aber weder die Frage
 noch das Ergebnis interpretieren.
 
-- **Gebaut ✅ (0.7.6):** `run_spice_sim` (Tool #185) führt ein komplettes
-  SPICE-Deck in ngspice `-b` aus (Discovery: `KICAD_MCP_NGSPICE` → PATH →
-  KiCad-bin) und liefert Werte/Fehler strukturiert; das Deck baut der Agent
-  aus `extract_schematic_netlist`. Ohne installiertes ngspice fällt der
-  Button ehrlich auf analytische Analyse + Deck zum Kopieren zurück.
-  **Grenze:** das Deck muss selbstständig sein — Hersteller-Modelle besorgt
-  der 🧬-Button.
+- **Gebaut ✅ (0.7.6, Backend 2 in 0.8.1):** `run_spice_sim` (Tool #185)
+  führt ein komplettes SPICE-Deck aus — über ein ngspice-Binary
+  (`KICAD_MCP_NGSPICE` → PATH → KiCad-bin) **oder über KiCads
+  mitgeliefertes `libngspice`** (dieselbe Engine, mit der Eeschemas
+  Simulator läuft; per ctypes in einem isolierten Kindprozess, damit ein
+  Konvergenz-Absturz nie den Warm-Server reißt). Auf einer normalen
+  KiCad-Installation ist damit KEINE Extra-Software nötig. Warum nicht
+  Eeschemas Simulator direkt: Eeschema hat in KiCad 10 keine IPC-API und
+  kicad-cli kein sim-Kommando. Ohne beide Backends fällt der Button ehrlich
+  auf analytische Analyse + Deck zum Kopieren zurück. **Grenze:** das Deck
+  muss selbstständig sein — Hersteller-Modelle besorgt der 🧬-Button.
 
 ### 🧬 Simulationsmodelle ergänzen  · ✅
 Findet und **hängt das passende SPICE-Modell je Bauteil an**, damit die Simulation

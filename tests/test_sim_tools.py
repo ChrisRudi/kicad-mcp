@@ -162,3 +162,88 @@ def test_tmpfile_cleaned_up(server, fake_ngspice, tmp_path):
     after = set(glob.glob(os.path.join(tempfile.gettempdir(),
                                        "kicad_mcp_*.cir")))
     assert after <= before  # kein liegengebliebenes Deck
+
+
+class TestFindLibngspice:
+    def test_env_override(self, tmp_path, monkeypatch):
+        lib = tmp_path / "libngspice-0.dll"
+        lib.write_text("")
+        monkeypatch.setenv(sim_tools.LIBNGSPICE_ENV, str(lib))
+        assert sim_tools.find_libngspice() == str(lib)
+
+    def test_kicad_bin_dll_found(self, tmp_path, monkeypatch):
+        monkeypatch.delenv(sim_tools.LIBNGSPICE_ENV, raising=False)
+        bindir = tmp_path / "bin"
+        bindir.mkdir()
+        (bindir / "libngspice-0.dll").write_text("")
+        monkeypatch.setattr(sim_tools, "kicad_paths",
+                            lambda: {"kicad_cli": str(bindir / "kicad-cli")})
+        assert sim_tools.find_libngspice() == str(bindir / "libngspice-0.dll")
+
+    def test_none_when_absent(self, monkeypatch):
+        monkeypatch.delenv(sim_tools.LIBNGSPICE_ENV, raising=False)
+        monkeypatch.setattr(sim_tools, "kicad_paths",
+                            lambda: {"kicad_cli": ""})
+        import ctypes.util
+        monkeypatch.setattr(ctypes.util, "find_library", lambda n: None)
+        assert sim_tools.find_libngspice() is None
+
+
+class TestRunLibngspice:
+    def test_happy_json(self):
+        import json as _json
+        from types import SimpleNamespace
+
+        def _run(cmd, **kw):
+            assert cmd[0] and cmd[1] == "-c" and cmd[3].endswith(".so")
+            assert "v1 in 0" in kw["input"]
+            return SimpleNamespace(returncode=0, stderr="", stdout=_json.dumps(
+                {"rc_circ": 0, "rc_run": 0,
+                 "values": {"v(out)": 2.5}, "output": "ok"}))
+
+        res = sim_tools.run_libngspice("/x/libngspice.so", "v1 in 0 dc 5",
+                                       30, _run=_run)
+        assert res["values"]["v(out)"] == 2.5
+
+    def test_dead_runner_reported(self):
+        from types import SimpleNamespace
+        res = sim_tools.run_libngspice(
+            "/x.so", "deck", 30,
+            _run=lambda *a, **k: SimpleNamespace(returncode=139, stdout="",
+                                                 stderr="segfault"))
+        assert "starb" in res["error"]
+
+    def test_bad_json_reported(self):
+        from types import SimpleNamespace
+        res = sim_tools.run_libngspice(
+            "/x.so", "deck", 30,
+            _run=lambda *a, **k: SimpleNamespace(returncode=0,
+                                                 stdout="garbage", stderr=""))
+        assert "kein JSON" in res["error"]
+
+
+class TestLibBackendInTool:
+    def test_fallback_to_kicad_lib(self, server, monkeypatch):
+        monkeypatch.setattr(sim_tools, "find_ngspice", lambda **kw: None)
+        monkeypatch.setattr(sim_tools, "find_libngspice",
+                            lambda: "/kicad/bin/libngspice-0.dll")
+        monkeypatch.setattr(
+            sim_tools, "run_libngspice",
+            lambda lib, deck, t: {"rc_circ": 0, "rc_run": 0,
+                                  "values": {"v(out)": 2.5},
+                                  "output": "No. of Data Rows : 1"})
+        out = _call(server, netlist=_DECK)
+        assert out["success"] is True
+        assert out["backend"] == "libngspice (KiCad)"
+        assert out["values"]["v(out)"] == 2.5
+
+    def test_no_backend_names_both(self, server, monkeypatch):
+        monkeypatch.setattr(sim_tools, "find_ngspice", lambda **kw: None)
+        monkeypatch.setattr(sim_tools, "find_libngspice", lambda: None)
+        out = _call(server, netlist=_DECK)
+        assert out["success"] is False
+        assert "libngspice" in out["error"] and "ngspice" in out["error"]
+
+    def test_cli_backend_labelled(self, server, fake_ngspice):
+        out = _call(server, netlist=_DECK)
+        assert out["success"] and out["backend"] == "ngspice-cli"

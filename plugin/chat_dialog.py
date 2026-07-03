@@ -962,18 +962,37 @@ class ClaudeChatPanel(wx.Panel):
         root.Add(bar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
 
     def _popup_feature_menu(self, anchor_btn, feats) -> None:
-        """Das Kategorie-Menü: ein Eintrag pro Feature, Klick dispatcht."""
+        """Das Kategorie-Menü: ein Eintrag pro Feature, Klick dispatcht.
+
+        Hover-Erklärung OHNE Klick: während die Maus über einem Menüpunkt
+        steht (EVT_MENU_HIGHLIGHT), zeigt die Statuszeile unten live den
+        Tooltip des Features — die kompakte Gruppen-Darstellung bleibt, die
+        Beschreibung geht trotzdem nicht verloren."""
         from . import superfeatures
         menu = wx.Menu()
+        tips = {}
         for feat in feats:
             item = menu.Append(wx.ID_ANY, tr(feat.label))
-            item.SetHelp(feat.tooltip)
+            tips[item.GetId()] = tr(feat.tooltip)
             if feat.status == superfeatures.SOON:
                 item.Enable(False)
             self.Bind(wx.EVT_MENU,
                       lambda _e, f=feat: self._on_superfeature(f), item)
-        anchor_btn.PopupMenu(menu)
-        menu.Destroy()
+
+        def _on_highlight(evt):
+            tip = tips.get(evt.GetMenuId())
+            if tip and not self._busy:
+                self._set_status(tip, theme.DIM)
+            evt.Skip()
+
+        self.Bind(wx.EVT_MENU_HIGHLIGHT, _on_highlight)
+        try:
+            anchor_btn.PopupMenu(menu)
+        finally:
+            self.Unbind(wx.EVT_MENU_HIGHLIGHT, handler=_on_highlight)
+            menu.Destroy()
+            if not self._busy:  # Statuszeile wieder freigeben
+                self._set_status(theme.STATUS_READY, theme.DIM)
 
     def _on_superfeature(self, feat) -> None:
         """Click on a Super-Feature button. SHIPPED features dispatch their
