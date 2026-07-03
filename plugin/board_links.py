@@ -594,6 +594,27 @@ def _zoom_to_selection(client: Any) -> None:
             continue
 
 
+# KiCad's native undo. The canonical name is ``common.Interactive.undo``
+# (verified against KiCad's common/tool/actions.cpp); the others are defensive
+# fallbacks across versions. One undo pops the agent's last commit (KiCad groups
+# a batch — e.g. 6 vias — into a single undo step), which is exactly "take back
+# what Claude just did" right after a turn.
+_UNDO_ACTIONS = ("common.Interactive.undo", "common.Control.undo",
+                 "pcbnew.EditorControl.undo")
+
+
+def undo(client: Any) -> bool:
+    """Trigger KiCad's native undo in the running editor. Returns True if an
+    action fired. Best-effort across action-name variants."""
+    for action in _UNDO_ACTIONS:
+        try:
+            call(lambda a=action: client.run_action(a))
+            return True
+        except Exception:
+            continue
+    return False
+
+
 def _item_xy_mm(item: Any) -> Optional[tuple]:
     """An item's anchor point in mm: its ``position`` (footprint/via/pad), or a
     track's ``start`` as a fallback so routing can also anchor a coordinate."""

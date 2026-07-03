@@ -500,6 +500,23 @@ class TestSelectCoord:
         assert board.selection and client.actions
 
 
+class TestUndo:
+    def test_undo_fires_kicad_action(self):
+        client = _FakeClient()
+        assert board_links.undo(client) is True
+        # canonical KiCad undo action (verified against actions.cpp)
+        assert client.actions == ["common.Interactive.undo"]
+
+    def test_undo_false_when_no_action_succeeds(self, monkeypatch):
+        monkeypatch.setattr(board_links.time, "sleep", lambda *_a: None)
+
+        class _Bad:
+            def run_action(self, _a):
+                raise RuntimeError("KiCad is busy and cannot respond")
+
+        assert board_links.undo(_Bad()) is False
+
+
 class TestConnectDiagnostics:
     """connect() must turn the multi-instance API state (KiCad reachable but
     GetOpenDocuments unhandled because two instances share the socket) into an

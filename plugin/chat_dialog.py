@@ -59,6 +59,7 @@ class ClaudeChatPanel(wx.Panel):
         self._layers: set = set()
         self._pins: dict = {}  # ref -> {padnumber}, so pin links are verified
         self._links: list = []  # (start, end, kind, value)
+        self._turn_changes: list = []  # board targets the agent changed this turn
 
         self.SetBackgroundColour(wx.Colour(theme.BACKGROUND))
         root = wx.BoxSizer(wx.VERTICAL)
@@ -128,6 +129,16 @@ class ClaudeChatPanel(wx.Panel):
         self._status.SetForegroundColour(wx.Colour(theme.DIM))
         self._status.SetFont(self._mono)
         foot.Add(self._status, 1, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 8)
+        # Always-available safety net: undo the last board change (KiCad Ctrl+Z).
+        # Right after an agent turn that is its last commit, so "take back what
+        # Claude just did" is one click away — no need to find the PCB window.
+        undo_btn = wx.Button(self, label="↶ Rückgängig")
+        undo_btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
+        undo_btn.SetForegroundColour(wx.Colour(theme.DIM))
+        undo_btn.SetToolTip("Letzte Board-Änderung rückgängig (KiCad Ctrl+Z)")
+        undo_btn.Bind(wx.EVT_BUTTON, lambda e: threading.Thread(
+            target=self._undo_worker, daemon=True).start())
+        foot.Add(undo_btn, 0, wx.RIGHT, 6)
         if self._on_open_setup:
             setup_btn = wx.Button(self, label="Einrichtung / Update")
             setup_btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
@@ -326,6 +337,7 @@ class ClaudeChatPanel(wx.Panel):
         self._append("user", prompt)
         self._proc = None
         self._stopped = False
+        self._turn_changes = []  # fresh receipt per turn
         self._set_busy(True)
         threading.Thread(
             target=self._worker, args=(prompt, extra_args, include_sel),
@@ -366,7 +378,7 @@ class ClaudeChatPanel(wx.Panel):
             claude_cmd=self._plan.claude_cmd,
             extra_args=extra_args,
             on_status=lambda s: wx.CallAfter(self._on_activity, s),
-            on_tool=lambda n: wx.CallAfter(self._on_tool, n),
+            on_tool=lambda n, i: wx.CallAfter(self._on_tool, n, i),
             on_proc=lambda p: wx.CallAfter(self._on_proc, p),
         )
         # Refresh the board's refs/nets/layers so this reply can be linkified.
@@ -434,10 +446,18 @@ class ClaudeChatPanel(wx.Panel):
         """The bridge handed us the live process — store it for the Stopp button."""
         self._proc = proc
 
-    def _on_tool(self, name: str) -> None:
-        """Append one streamed tool call to the transcript (dim ⚙ line)."""
-        if self:
-            self._write(f"  ⚙ {name}\n", theme.DIM)
+    def _on_tool(self, name: str, tool_input: dict = None) -> None:
+        """Append one streamed tool call to the transcript in board language
+        (``⚙ 6× Via gesetzt`` instead of the raw ``add_vias_to_pcb`` slug) and
+        collect what it changed for the end-of-turn "[zeigen]" receipt."""
+        if not self:
+            return
+        from . import claude_bridge
+        self._write(f"  ⚙ {claude_bridge.describe_tool(name, tool_input)}\n",
+                    theme.DIM)
+        for tgt in claude_bridge.changed_targets(name, tool_input):
+            if tgt not in self._turn_changes:
+                self._turn_changes.append(tgt)
 
     def _on_reply(self, result: dict) -> None:
         if not self:  # panel destroyed while Claude was thinking
@@ -464,10 +484,40 @@ class ClaudeChatPanel(wx.Panel):
             self._session_id = result.get("session_id") or self._session_id
             rendered = self._append_claude(result.get("text") or "(keine Antwort)")
             self._write_link_status(result, rendered)
+            self._write_change_receipt()
         else:
             self._append("error", result.get("error") or "unbekannt")
         self._set_busy(False)
         self._in.SetFocus()
+
+    def _write_change_receipt(self) -> None:
+        """Glass-box receipt: after a turn that changed the board, list what was
+        touched and offer a clickable "📍 zeigen" that selects it all in the
+        editor (reuses the P4 ``markall`` link path). Silent when nothing
+        changed (read-only turn)."""
+        changes = self._turn_changes
+        if not changes:
+            return
+        labels = []
+        for kind, value in changes:
+            if kind == "coord":
+                labels.append(f"({value[0]}, {value[1]})")
+            elif kind == "pin":
+                labels.append(f"{value[0]}.{value[1]}")
+            else:
+                labels.append(str(value))
+        # de-dupe labels while keeping order, cap the visible list
+        seen, shown = set(), []
+        for lb in labels:
+            if lb not in seen:
+                seen.add(lb)
+                shown.append(lb)
+        head = ", ".join(shown[:8]) + (" …" if len(shown) > 8 else "")
+        self._write(f"  ✎ geändert: {head}  ", theme.DIM)
+        self._write_link("📍 zeigen", "markall", list(changes))
+        self._write("  ", theme.DIM)
+        self._write_link("↶ zurück", "undo", None)
+        self._write("\n", theme.DIM)
 
     def _write_link_status(self, result: dict, rendered: int) -> None:
         """One always-on dim line that makes the cross-probe link state a FACT,
@@ -534,6 +584,9 @@ class ClaudeChatPanel(wx.Panel):
         if kind == "markall":  # P4: select every named element at once
             threading.Thread(target=self._mark_all_worker, args=(value,),
                              daemon=True).start()
+            return
+        if kind == "undo":  # change receipt: take back the agent's last commit
+            threading.Thread(target=self._undo_worker, daemon=True).start()
             return
         # P5 (Dok 1): Ctrl/⌘-click accumulates selection instead of replacing it.
         add = bool(evt.CmdDown() or evt.ControlDown())
@@ -607,6 +660,20 @@ class ClaudeChatPanel(wx.Panel):
                     msg = self._augment_inspect(board, value, msg)
         except Exception as exc:
             msg = f"Auswahl fehlgeschlagen: {exc}"
+        wx.CallAfter(self._flash_status, msg)
+
+    def _undo_worker(self) -> None:
+        """Trigger KiCad's native undo in the running editor (the change-receipt
+        "↶ zurück" and the footer button). One undo pops the agent's last commit
+        right after a turn. Off the GUI thread; status-flashes the outcome."""
+        from . import board_links
+        try:
+            client, _board = board_links.connect()
+            ok = board_links.undo(client)
+            msg = ("↶ Rückgängig gemacht" if ok
+                   else "Rückgängig nicht möglich (Editor?)")
+        except Exception as exc:
+            msg = f"Rückgängig fehlgeschlagen: {exc}"
         wx.CallAfter(self._flash_status, msg)
 
     def _mark_all_worker(self, marks: list) -> None:

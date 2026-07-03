@@ -145,9 +145,10 @@ class TestStreamParsing:
         assert claude_bridge.mcp_status_from_init(ok) == "connected"
         assert claude_bridge.mcp_status_from_init(bad) == "failed: kicad-mcp"
 
-    def test_describe_tool_use_shows_short_name(self):
+    def test_describe_tool_use_shows_board_language(self):
+        # status bar narrates in board language, not the raw tool slug
         ev = claude_bridge.parse_stream_event(_TOOL)
-        assert "list_pcb_footprints" in claude_bridge.describe_event(ev)
+        assert claude_bridge.describe_event(ev) == "liest die Bauteile …"
 
     def test_extract_text(self):
         ev = claude_bridge.parse_stream_event(_TEXT)
@@ -158,6 +159,60 @@ class TestStreamParsing:
         assert claude_bridge.tool_names(ev) == ["list_pcb_footprints"]
         assert claude_bridge.tool_names(
             claude_bridge.parse_stream_event(_TEXT)) == []
+
+    def test_tool_calls_carry_input(self):
+        ev = claude_bridge.parse_stream_event(_ev(
+            type="assistant", message={"content": [
+                {"type": "tool_use", "name": "mcp__kicad-mcp__add_vias_to_pcb",
+                 "input": {"vias": [{"x_mm": 1}, {"x_mm": 2}]}}]}))
+        calls = claude_bridge.tool_calls(ev)
+        assert calls == [("add_vias_to_pcb", {"vias": [{"x_mm": 1}, {"x_mm": 2}]})]
+
+
+class TestDescribeTool:
+    def test_mutation_with_count(self):
+        assert claude_bridge.describe_tool(
+            "add_vias_to_pcb", {"vias": [1, 2, 3, 4, 5, 6]}) == "6× Via gesetzt"
+
+    def test_count_from_json_string_arg(self):
+        # MCP tools take JSON-string args → the list may arrive as a string
+        assert claude_bridge.describe_tool(
+            "add_vias_to_pcb", {"vias": "[{}, {}]"}) == "2× Via gesetzt"
+
+    def test_mutation_without_count_defaults_to_phrase(self):
+        assert claude_bridge.describe_tool("ipc_route_pin_to_pin", {}) == \
+            "Leiterbahn verlegt"
+
+    def test_read_tool_is_calm(self):
+        assert claude_bridge.describe_tool("check_connectivity", {}) == \
+            "prüft die Konnektivität"
+
+    def test_unknown_tool_humanised_not_slug(self):
+        assert claude_bridge.describe_tool("some_new_tool", {}) == "some new tool"
+
+
+class TestChangedTargets:
+    def test_via_batch_yields_coords_and_nets(self):
+        got = claude_bridge.changed_targets(
+            "add_vias_to_pcb",
+            {"vias": [{"x_mm": 10.0, "y_mm": 5.0, "net_name": "GND"},
+                      {"x_mm": 12.0, "y_mm": 5.0, "net_name": "GND"}]})
+        assert ("net", "GND") in got
+        assert ("coord", (10.0, 5.0)) in got and ("coord", (12.0, 5.0)) in got
+
+    def test_move_yields_refs(self):
+        got = claude_bridge.changed_targets(
+            "move_components", {"moves": [{"ref": "R12"}, {"reference": "U3"}]})
+        assert ("ref", "R12") in got and ("ref", "U3") in got
+
+    def test_pin_route_yields_pins(self):
+        got = claude_bridge.changed_targets(
+            "ipc_route_pin_to_pin",
+            {"from_ref": "U1", "from_pin": 3, "to_ref": "R5", "to_pin": "2"})
+        assert ("pin", ("U1", "3")) in got and ("pin", ("R5", "2")) in got
+
+    def test_read_tool_contributes_nothing(self):
+        assert claude_bridge.changed_targets("check_connectivity", {}) == []
 
 
 # --- ask (streaming turn) -------------------------------------------------
@@ -172,13 +227,14 @@ class TestAsk:
                               _popen=_popen_for(proc))
         assert r["ok"] and r["text"] == "42 Vias" and r["session_id"] == "S1"
         assert r["mcp_status"] == "connected"
-        assert any("list_pcb_footprints" in s for s in statuses)
+        assert any("liest die Bauteile" in s for s in statuses)
 
     def test_on_tool_and_on_proc_callbacks(self, monkeypatch):
         monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
         tools, procs = [], []
         proc = _FakeProc([_INIT_OK, _TOOL, _TEXT, _RESULT])
-        claude_bridge.ask("x", "/proj", "/m.json", on_tool=tools.append,
+        claude_bridge.ask("x", "/proj", "/m.json",
+                          on_tool=lambda n, i: tools.append(n),
                           on_proc=procs.append, _popen=_popen_for(proc))
         assert tools == ["list_pcb_footprints"]  # streamed tool call surfaced
         assert procs == [proc]                    # live process handed back

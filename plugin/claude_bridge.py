@@ -214,7 +214,8 @@ def describe_event(ev: dict) -> Optional[str]:
         blocks = (ev.get("message") or {}).get("content") or []
         for b in blocks:
             if isinstance(b, dict) and b.get("type") == "tool_use":
-                return f"Tool {_tool_short_name(b.get('name', ''))} …"
+                return describe_tool(_tool_short_name(b.get("name", "")),
+                                     b.get("input")) + " …"
         if any(isinstance(b, dict) and b.get("type") == "text"
                for b in blocks):
             return "formuliert die Antwort …"
@@ -241,6 +242,129 @@ def tool_names(ev: dict) -> list[str]:
     return [_tool_short_name(b.get("name", ""))
             for b in blocks
             if isinstance(b, dict) and b.get("type") == "tool_use"]
+
+
+def tool_calls(ev: dict) -> list:
+    """``[(short_name, input_dict), …]`` for every tool the assistant invokes
+    in this event — the input lets the panel narrate in board language and
+    collect what changed (see :func:`describe_tool` / :func:`changed_targets`)."""
+    if ev.get("type") != "assistant":
+        return []
+    blocks = (ev.get("message") or {}).get("content") or []
+    out = []
+    for b in blocks:
+        if isinstance(b, dict) and b.get("type") == "tool_use":
+            inp = b.get("input")
+            out.append((_tool_short_name(b.get("name", "")),
+                        inp if isinstance(inp, dict) else {}))
+    return out
+
+
+def _as_list(val) -> list:
+    """A tool arg that is a list, or a JSON-string list, else []. MCP tools take
+    JSON-string args, so ``"[{...}]"`` and ``[{...}]`` must both count."""
+    if isinstance(val, list):
+        return val
+    if isinstance(val, str) and val.strip().startswith("["):
+        try:
+            parsed = json.loads(val)
+            return parsed if isinstance(parsed, list) else []
+        except Exception:
+            return []
+    return []
+
+
+# What the agent DID, in the board owner's language — keyed by MCP tool.
+# ``(template, count_key)``: a ``{n}`` in the template is filled from the length
+# of the ``count_key`` input list (defaulting to 1); ``None`` = no count.
+_TOOL_VERBS = {
+    "add_vias_to_pcb": ("{n}× Via gesetzt", "vias"),
+    "add_via_to_pcb": ("Via gesetzt", None),
+    "move_components": ("{n}× Bauteil verschoben", "moves"),
+    "ipc_move_items": ("{n}× Element verschoben", "uuids"),
+    "live_move_footprint": ("Bauteil verschoben", None),
+    "ipc_set_footprint_pose": ("Bauteil neu platziert", None),
+    "ipc_route_pin_to_pin": ("Leiterbahn verlegt", None),
+    "add_track_to_pcb": ("Leiterbahn verlegt", None),
+    "add_arc_to_pcb": ("Bogen verlegt", None),
+    "ipc_route_power_ring": ("Power-Ring verlegt", None),
+    "ipc_markup_to_tracks": ("Markup in Kupfer umgesetzt", None),
+    "add_zone_pour_to_pcb": ("Kupferfläche (Zone) gelegt", None),
+    "ipc_add_zone_pour": ("Kupferfläche (Zone) gelegt", None),
+    "ipc_remove_items": ("{n}× Element entfernt", "uuids"),
+    "ipc_set_track_width": ("Track-Breite gesetzt", None),
+    "set_properties": ("Eigenschaft gesetzt", None),
+    "via_promote": ("Vias optimiert", None),
+}
+# Read/verify tools — a single calm "reads/checks" line, no alarm.
+_TOOL_READS = {
+    "list_pcb_footprints": "liest die Bauteile",
+    "analyze_pcb_nets": "liest die Netze",
+    "find_tracks_by_net": "liest die Leiterbahnen",
+    "check_connectivity": "prüft die Konnektivität",
+    "run_drc_check": "prüft die Design-Regeln (DRC)",
+    "ipc_run_drc": "prüft die Design-Regeln (DRC)",
+    "run_erc": "prüft den Schaltplan (ERC)",
+    "pcb_render": "rendert das Layout",
+    "ipc_get_selection": "liest deine Auswahl",
+    "ipc_inspect_item": "inspiziert ein Element",
+}
+
+
+def describe_tool(name: str, tool_input=None) -> str:
+    """One short German line in board language for a tool call — what the agent
+    is doing, not the raw tool name. Falls back to a humanised tool name for
+    tools not in the tables, so nothing ever shows a bare ``mcp__…`` slug."""
+    inp = tool_input if isinstance(tool_input, dict) else {}
+    if name in _TOOL_VERBS:
+        template, count_key = _TOOL_VERBS[name]
+        if "{n}" in template:
+            n = len(_as_list(inp.get(count_key))) or 1
+            return template.format(n=n)
+        return template
+    if name in _TOOL_READS:
+        return _TOOL_READS[name]
+    return name.replace("_", " ")
+
+
+def changed_targets(name: str, tool_input=None) -> list:
+    """Clickable board targets a *mutation* tool touched, as ``(kind, value)``
+    tuples in the panel's link format (``("ref","R12")`` / ``("net","GND")`` /
+    ``("coord",(x,y))`` / ``("pin",(ref,pin))``). Feeds the "[zeigen]" affordance
+    on a change receipt so the user can see exactly what the agent changed.
+    Read-only tools contribute nothing (not in ``_TOOL_VERBS``)."""
+    if name not in _TOOL_VERBS:
+        return []
+    inp = tool_input if isinstance(tool_input, dict) else {}
+    out: list = []
+
+    def add(t):
+        if t not in out:
+            out.append(t)
+
+    def from_obj(o):
+        if not isinstance(o, dict):
+            return
+        for k in ("ref", "reference", "component"):
+            if isinstance(o.get(k), str) and o[k]:
+                add(("ref", o[k]))
+        for k in ("net_name", "net"):
+            if isinstance(o.get(k), str) and o[k]:
+                add(("net", o[k]))
+        if o.get("x_mm") is not None and o.get("y_mm") is not None:
+            try:
+                add(("coord", (float(o["x_mm"]), float(o["y_mm"]))))
+            except (TypeError, ValueError):
+                pass
+
+    from_obj(inp)
+    for key in ("vias", "moves", "items", "components"):
+        for o in _as_list(inp.get(key)):
+            from_obj(o)
+    for ref_k, pin_k in (("from_ref", "from_pin"), ("to_ref", "to_pin")):
+        if isinstance(inp.get(ref_k), str) and inp.get(pin_k) is not None:
+            add(("pin", (inp[ref_k], str(inp[pin_k]))))
+    return out
 
 
 # -- child-process lifecycle ---------------------------------------------------
@@ -381,12 +505,13 @@ def ask(
     claude_cmd: Optional[list[str]] = None,
     extra_args: Optional[list[str]] = None,
     on_status: Optional[Callable[[str], None]] = None,
-    on_tool: Optional[Callable[[str], None]] = None,
+    on_tool: Optional[Callable[[str, dict], None]] = None,
     on_proc: Optional[Callable[[Any], None]] = None,
     _popen=subprocess.Popen,
 ) -> dict[str, Any]:
     """Run one chat turn, streaming progress via ``on_status(text)`` and each
-    tool call via ``on_tool(name)``.
+    tool call via ``on_tool(name, tool_input)`` (input lets the panel narrate in
+    board language and collect what changed).
 
     Returns ``{ok, text, session_id, error, mcp_status}``. The turn is only
     aborted when claude is SILENT for ``idle_timeout`` seconds (or exceeds the
@@ -479,9 +604,9 @@ def _run_turn(proc, out, idle_timeout, max_seconds, on_status, on_tool=None):
             except Exception:
                 pass
         if on_tool:
-            for name in tool_names(ev):
+            for name, inp in tool_calls(ev):
                 try:
-                    on_tool(name)
+                    on_tool(name, inp)
                 except Exception:
                     pass
         if ev.get("type") == "assistant":

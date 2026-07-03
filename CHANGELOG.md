@@ -8,6 +8,24 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Plugin — Interaktion)
+- **Glaskasten-Zug: der Agent-Zug spricht Board-Sprache statt Tool-Namen.** Der
+  Transkript- und Statuszeilen-Stream zeigt jetzt „6× Via gesetzt" /
+  „prüft die Konnektivität" statt roher Slugs wie `add_vias_to_pcb`
+  (`claude_bridge.describe_tool`, gespeist aus dem Tool-Input via
+  `tool_calls`). Nach einem Zug, der das Board geändert hat, erscheint eine
+  **Änderungs-Quittung** „✎ geändert: R12, GND, (120.5, 84.0)" mit einem
+  klickbaren **📍 zeigen** (markiert alle geänderten Elemente im Editor;
+  `changed_targets` + der bestehende `markall`-Pfad).
+- **Undo sichtbar: „↶ zurück" pro Quittung + Footer-Button „↶ Rückgängig".**
+  Löst KiCads natives Undo im laufenden Editor aus (`board_links.undo` →
+  `run_action("common.Interactive.undo")`, Action-Name gegen KiCads
+  `actions.cpp` verifiziert). Ein Undo nimmt den letzten Agent-Commit zurück
+  (KiCad bündelt eine Tranche zu einem Schritt) — „nimm zurück, was Claude
+  gerade tat" ist ein Klick entfernt, ohne das PCB-Fenster zu suchen.
+- Tests: `tests/test_plugin_bridge.py` (describe_tool/changed_targets/
+  tool_calls), `tests/test_plugin_board_links.py` (undo).
+
 ### Fixed (Plugin — Chat-Links)
 - **Tote Chat-Links, die nicht ins Board sprangen, behoben.** Manche
   unterstrichenen Stellen taten beim Klick nichts, weil der Tokenizer nach
