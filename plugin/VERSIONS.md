@@ -1,7 +1,30 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.7.1**
+Aktuelle Version: **0.7.2**
+
+---
+
+## 🧶 Neu in 0.7.2 — Entwirren aktiv, klare Auswahl-Regel, Optionen-Dropdown
+
+- **🧶 Entwirren ist live** (das achte aktive Super-Feature): Ein Klick liest das
+  Board einmal, entwirrt die Bauteil-Platzierung **im Kopf** (geprüft am
+  Kreuzungs-Scorer, ohne das Board anzufassen), zeigt dir den Plan mit
+  Score vorher → nachher — und ordnet erst nach deinem **Go** alles in einem
+  Zug an.
+- **Eine Auswahl-Regel für alle Super-Features:** Nichts markiert → das Feature
+  wirkt aufs **ganze Board**. Etwas markiert → das Panel zeigt beim Klick an,
+  worauf der Zug wirkt („🎯 Wirkt auf deine Auswahl: R1, C3, U2") und das
+  Feature beschränkt sich genau darauf. Der separate Button „Auswahl
+  entwirren" ist damit überflüssig und entfällt.
+- **Aktive Features sind jetzt ORANGE beschriftet** — auf einen Blick sichtbar,
+  was echt klickbar ist; „kommt bald" bleibt gedimmt.
+- **Claude-Optionen mit Dropdown:** Neben dem Freitextfeld gibt es jetzt eine
+  Auswahl sinnvoller Schalter (Modell Sonnet/Opus/Haiku, Fast-Modus,
+  Fallback-Modell). Die Liste wird **dynamisch** aus `claude --help` deiner
+  installierten Version gefiltert — es wird nie ein Schalter angeboten, den
+  deine CLI nicht kennt. Auswahl ersetzt einen vorhandenen Schalter gleichen
+  Namens statt ihn zu doppeln.
 
 ---
 

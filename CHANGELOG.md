@@ -8,6 +8,32 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Entwirren v1 + globale Auswahl-Regel + Optionen-Dropdown, Plugin 0.7.2)
+- **🧶 Entwirren SHIPPED (v1):** der Button orchestriert den im Roadmap-Doc
+  beschriebenen Ablauf — EINMAL lesen (`list_pcb_footprints` +
+  `analyze_pcb_nets`), im Kopf entwirren, Kandidat gegen den nicht-mutierenden
+  `evaluate_layout`-Scorer prüfen (max. 3 Durchgänge), Plan mit Score
+  vorher → nachher zeigen, erst nach ausdrücklichem Go EIN gebündelter
+  Live-Move + EIN `check_connectivity`. Ehrliche Grenze dokumentiert
+  (Text-Vorschau statt Geister-Vorschau; Trigger-Erkennung offen).
+- **Selektions-Scoping ist jetzt der globale Vertrag jedes Buttons:** ohne
+  Auswahl boardweit, mit Auswahl nur die markierten Bauteile — das Panel
+  zeigt beim Klick sichtbar an, worauf der Zug wirkt
+  (`_selection_scope_line`, „🎯 Wirkt auf deine Auswahl: …"). Der separate
+  Roadmap-Eintrag `scoped_untangle` entfällt (Regel statt Extra-Feature);
+  Guard-Test `test_scoped_untangle_is_gone`.
+- **Aktive Buttons orange:** SHIPPED-Features tragen `CLAUDE_ORANGE`,
+  SOON bleibt gedimmt — der Roadmap-Streifen zeigt den echten Stand.
+- **`plugin/claude_options.py` (neu) + Optionen-Dropdown:** kuratierte
+  sinnvolle CLI-Schalter (Modell Sonnet/Opus/Haiku, `--fast`,
+  `--fallback-model`), dynamisch gegen `claude --help` der installierten
+  CLI gefiltert (nie ein unbekanntes Flag anbieten; von
+  `build_command` reservierte Flags ausgeschlossen). `apply_switch` ersetzt
+  ein vorhandenes Flag gleichen Namens statt zu duplizieren; Hilfe-Text
+  wird einmal pro Sitzung im Hintergrund gelesen, bei Fehlschlag bleibt
+  das Dropdown einfach verborgen (Freitextfeld unverändert nutzbar).
+  Tests: `test_plugin_claude_options.py`. Plugin-Version 0.7.1 → 0.7.2.
+
 ### Added (Super-Features aktiviert — 7 Buttons live, Plugin 0.7.1)
 - **Die ersten 7 Super-Feature-Buttons sind verdrahtet** — bisher stand die
   ganze Leiste auf `SOON`, obwohl die Backend-Tools seit 0.6.0 ausgeliefert

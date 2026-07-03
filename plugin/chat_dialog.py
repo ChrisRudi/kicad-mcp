@@ -116,6 +116,18 @@ class ClaudeChatPanel(wx.Panel):
         self._opts.SetFont(self._mono)
         self._opts.SetHint("Claude-Optionen, z. B. --model sonnet  (optional)")
         opt.Add(self._opts, 1, wx.EXPAND | wx.RIGHT, 6)
+        # Dropdown with sensible switches, dynamically filtered against the
+        # installed CLI (claude --help, parsed once in the background).
+        # Selecting merges the switch into the free-text field (same-flag
+        # values are swapped, not duplicated). Hidden if nothing is available.
+        self._opt_choice = wx.Choice(self, choices=["⚙ Option wählen …"])
+        self._opt_choice.SetSelection(0)
+        self._opt_choice.Bind(wx.EVT_CHOICE, self._on_pick_option)
+        self._opt_choice.Hide()
+        self._opt_switches: list = []  # index-aligned with dropdown entries
+        opt.Add(self._opt_choice, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
+        threading.Thread(target=self._load_option_choices,
+                         daemon=True).start()
         # P1 (Dok 1): include the live editor selection as context for the turn,
         # so "was ist das?" works without typing a reference.
         self._include_selection = wx.CheckBox(self, label="🔗 Auswahl einbeziehen")
@@ -363,6 +375,36 @@ class ClaudeChatPanel(wx.Panel):
             target=self._worker, args=(prompt, extra_args, include_sel),
             daemon=True
         ).start()
+
+    def _load_option_choices(self) -> None:
+        """Background: read ``claude --help`` once, then populate the options
+        dropdown with the curated switches this CLI actually supports."""
+        from . import claude_options
+        try:
+            options = claude_options.cached_options(self._plan.claude_cmd)
+        except Exception:
+            options = []
+        if options:
+            wx.CallAfter(self._show_option_choices, options)
+
+    def _show_option_choices(self, options: list) -> None:
+        if not self:  # panel died while the help call ran
+            return
+        self._opt_switches = [switch for _label, switch in options]
+        self._opt_choice.Set(["⚙ Option wählen …"]
+                             + [label for label, _switch in options])
+        self._opt_choice.SetSelection(0)
+        self._opt_choice.Show()
+        self.Layout()
+
+    def _on_pick_option(self, _evt) -> None:
+        """Dropdown pick → merge the switch into the free-text options."""
+        from . import claude_options
+        idx = self._opt_choice.GetSelection() - 1  # entry 0 is the placeholder
+        if 0 <= idx < len(self._opt_switches):
+            self._opts.SetValue(claude_options.apply_switch(
+                self._opts.GetValue(), self._opt_switches[idx]))
+        self._opt_choice.SetSelection(0)  # reset to placeholder
 
     def _on_stop(self, _evt) -> None:
         """User pressed Stopp — kill the running turn now."""
