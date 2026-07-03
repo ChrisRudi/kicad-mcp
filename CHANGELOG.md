@@ -8,6 +8,22 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Super-Feature „Design-Wächter")
+- **`audit_bus_rules` — semantische Bus-Checks jenseits des ERC** (Tool #180).
+  Erste Regel: **I²C-Bus ohne Pull-ups** — für jeden per Bus-Inferenz gefundenen
+  I²C-Bus wird geprüft, ob SDA/SCL je einen Pull-up-Widerstand gegen eine
+  Versorgung haben (I²C ist open-drain → braucht sie). Ein klassischer stiller
+  Fehler, den KiCads ERC **nicht** fängt. Komponiert `bus_infer` +
+  `pcb_board_parse` + `placement_eval.is_power_net` (Synergie statt Neubau).
+  Tests: `test_design_rules_tools.py`.
+
+### Changed (Projekt-Regel)
+- **CLAUDE.md: „nur bauen, was KiCad NICHT kann".** Grundregel dokumentiert —
+  keine Funktion nachbauen, die KiCad bereits enthält (ERC/DRC-Basics, Router,
+  PCB-Calculator-Formeln); stattdessen KiCads Vorhandenes nutzen und semantisch
+  darüber hinausgehen. Plus die zwei Querschnitts-Verträge (selektions-fähig +
+  maximale Code-Synergie).
+
 ### Added (Super-Feature „Bus-Radar")
 - **`list_bus_members` — semantische Bus-Erkennung** (Tool #179). KiCad kennt
   Einzelnetze, nicht *Busse*; dieses Tool gruppiert die Netze eines Boards zu

@@ -136,6 +136,10 @@ Stützung, ein Reset-Pin ohne Pull-up … Regeln, die *Absicht* verstehen.
 
 - **Warum KiCad das nicht kann:** KiCads ERC prüft Netz-Syntax, nicht die Absicht
   der Schaltung.
+- **Erste Regel gebaut ✅:** `audit_bus_rules` (Tool #180) — I²C-Bus ohne Pull-ups
+  (open-drain → braucht sie), gefunden über Bus-Inferenz. Komponiert
+  `bus_infer` + `pcb_board_parse` + `is_power_net`, headless getestet. Weitere
+  Regeln (SPI-CS-Pull-ups, Reset-Pull-up, Load-Caps …) setzen hier an.
 
 ### 🔀 Pin-Tausch — GPIO ans Routing anpassen  · 🔜
 **Sorte:** Freiheitsgrade nutzen. Der „das kann KiCad *niemals*"-Leuchtturm.

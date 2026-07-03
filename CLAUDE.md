@@ -89,6 +89,24 @@ aller Tranchen.
    (Pfade als WSL-Pfade übergeben). Tool-Count in `test_tool_audit.py` mitbumpen,
    CHANGELOG-Eintrag, pylint 0/0.
 
+## Was wir bauen — Super-Feature-Ethos
+
+Roadmap + volle Beschreibungen in `docs/superfeatures.md`; Single Source der
+Feature-Metadaten (GUI-Buttons) in `plugin/superfeatures.py`.
+
+**Grundregel: nur bauen, was KiCad NICHT kann** — die semantische Schicht
+(Bedeutung, Funktion, externes Wissen: Busse, Datenblätter, Ampacity, Pin-Mux,
+Kosten …). **Keine Funktion nachbauen, die KiCad bereits enthält** — kein
+zweites ERC/DRC-Basics, kein eigener Router, keine PCB-Calculator-Formel als
+Selbstzweck. Stattdessen KiCads Vorhandenes *nutzen* (kicad-cli / IPC / die
+bestehenden MCP-Tools) und **darüber hinausgehen** (semantisch, board-weit,
+selektions-bezogen). Ein „semantischer ERC" prüft nur, was KiCads ERC eben
+NICHT prüft (fehlende Pull-ups, Entkopplungs-Nähe, Bus-Regeln, Load-Caps).
+
+Zwei Querschnitts-Verträge für jedes Feature: **(a)** wirkt auch auf die aktuelle
+Selektion (`ipc_get_selection`); **(b)** maximale **Synergie** — vorhandenen Code
+wiederverwenden (geteilte Parser/Helfer in `utils/`), nicht neu bauen.
+
 ## Tool wählen statt selbst parsen
 
 Für jede KiCad-Operation **erst ein MCP-Tool suchen**, nicht Read/Bash/Regex nachbauen —

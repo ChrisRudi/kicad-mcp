@@ -60,6 +60,7 @@ from kicad_mcp.tools.docs_tools import register_docs_tools
 from kicad_mcp.tools.pinout_tools import register_pinout_tools
 from kicad_mcp.tools.placement_tools import register_placement_tools
 from kicad_mcp.tools.bus_tools import register_bus_tools
+from kicad_mcp.tools.design_rules_tools import register_design_rules_tools
 
 # --- Resource registrars ---------------------------------------------------
 from kicad_mcp.resources.projects import register_project_resources
@@ -119,6 +120,7 @@ TOOL_REGISTRARS: list[Registrar] = [
     register_pinout_tools,
     register_placement_tools,
     register_bus_tools,
+    register_design_rules_tools,
 ]
 
 RESOURCE_REGISTRARS: list[Registrar] = [
