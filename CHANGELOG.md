@@ -8,6 +8,25 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed
+- **DRC-Subprozess konnte den Server unbegrenzt aufhängen.**
+  `tools/drc_impl/cli_drc.py` rief `subprocess.run` **ohne** Timeout auf; bei
+  gesperrter/korrupter `.kicad_pcb` oder einem kalten Cloud-Read (~80 s) hing
+  der Call endlos und blockierte den MCP-Server. Jetzt: ein **größen-adaptiver,
+  konfigurierbarer** Timeout statt eines fixen Werts — DRC läuft auf großen
+  Boards legitim minutenlang (KiCad #17434, kein `--refill-zones` im Default),
+  also darf kein kurzer Fixwert echte Arbeit killen. Budget =
+  `drc_base (300 s) + Boardgröße_MB × drc_per_mb (45 s)`, gedeckelt auf
+  `drc_max (1800 s)`; Override via `KICAD_MCP_DRC_TIMEOUT_S` (Sekunden, oder
+  `none`/`0`/`off` = kein Timeout). `subprocess.TimeoutExpired` wird als
+  sauberes `{"success": False, "error": …}` zurückgegeben.
+- **DRC blockierte den async-Event-Loop.** Der blockierende `subprocess.run`
+  lief direkt im Loop-Thread (`run_drc_via_cli` ist `async`) → ein
+  minutenlanger DRC fror den ganzen Server ein. Jetzt via `asyncio.to_thread`
+  ausgelagert (Timeout wird an `subprocess.run` durchgereicht, Kind wird bei
+  Ablauf sauber gekillt). Neuer Helper `config.drc_timeout_seconds`; Tests in
+  `tests/test_drc_timeout.py`.
+
 ## [0.5.1] — 2026-06-30
 
 ### Security / Privacy

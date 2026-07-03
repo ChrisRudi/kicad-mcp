@@ -2,6 +2,7 @@
 """
 Design Rule Check (DRC) implementation using KiCad command-line interface.
 """
+import asyncio
 import json
 import logging
 import os
@@ -11,6 +12,7 @@ from typing import Any
 
 from fastmcp import Context
 
+from kicad_mcp.config import drc_timeout_seconds
 from kicad_mcp.utils.kicad_cli import find_kicad_cli
 
 logger = logging.getLogger(__name__)
@@ -59,8 +61,35 @@ async def run_drc_via_cli(pcb_file: str, ctx: Context | None = None) -> dict[str
                 pcb_file
             ]
 
-            logger.info(f"Running command: {' '.join(cmd)}")
-            process = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            # Size-adaptive, env-overridable budget: DRC on a large board can
+            # legitimately run for minutes, so we must not kill it early — but we
+            # still cap it to catch a true hang (locked/corrupt board). Run the
+            # blocking subprocess off the event loop so a long DRC does not freeze
+            # the whole MCP server for its entire duration.
+            timeout_s = drc_timeout_seconds(pcb_file)
+            logger.info(
+                "Running command (timeout=%s s): %s",
+                "none" if timeout_s is None else f"{timeout_s:.0f}",
+                " ".join(cmd),
+            )
+            try:
+                process = await asyncio.to_thread(
+                    subprocess.run,
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=timeout_s,
+                )
+            except subprocess.TimeoutExpired:
+                logger.error("DRC timed out after %s s", timeout_s)
+                results["error"] = (
+                    f"DRC timed out after {timeout_s:.0f}s. The board may be very "
+                    "large or the file locked; raise the budget via the "
+                    "KICAD_MCP_DRC_TIMEOUT_S env var (seconds, or 'none' to "
+                    "disable) and retry."
+                )
+                return results
 
             # Check if the command was successful
             if process.returncode != 0:

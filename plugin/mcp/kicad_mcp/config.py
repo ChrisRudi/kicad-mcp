@@ -261,7 +261,54 @@ TIMEOUT_CONSTANTS = {
     "kicad_cli_export": 30.0,  # Timeout for KiCad CLI export operations
     "application_open": 10.0,  # Timeout for opening applications (e.g., KiCad)
     "subprocess_default": 30.0,  # Default timeout for subprocess operations
+    # DRC is *not* like a quick export: kicad-cli pcb drc loads the board and
+    # runs the full rule check + connectivity, which is minutes on large boards
+    # (KiCad issue #17434), and a cold read on a cloud-synced disk alone costs
+    # ~80 s. A fixed short timeout would kill legitimate work, so the DRC budget
+    # is generous and *scales with board size* (see ``drc_timeout_seconds``).
+    "drc_base": 300.0,        # floor: small board, worst-case cold read + check
+    "drc_per_mb": 45.0,       # added per MB of .kicad_pcb (grows with complexity)
+    "drc_max": 1800.0,        # hard ceiling — only to catch a true infinite hang
 }
+
+# Env override for the DRC timeout. An explicit positive number wins over the
+# size-adaptive budget; ``0`` / ``none`` / ``off`` disables the timeout entirely
+# (power users who accept the hang risk for an enormous board).
+DRC_TIMEOUT_ENV = "KICAD_MCP_DRC_TIMEOUT_S"
+
+
+def drc_timeout_seconds(pcb_path: str | None = None) -> float | None:
+    """Resolve the DRC subprocess timeout in seconds.
+
+    Precedence:
+      1. ``KICAD_MCP_DRC_TIMEOUT_S`` — an explicit positive number is used
+         verbatim; ``0`` / ``none`` / ``off`` returns ``None`` (no timeout).
+      2. Otherwise a size-adaptive budget: ``drc_base + size_mb * drc_per_mb``,
+         clamped to ``drc_max``. A missing/unstattable path falls back to
+         ``drc_base`` so the caller still gets a sane finite budget.
+
+    Returns the timeout in seconds, or ``None`` for "no timeout".
+    """
+    raw = os.environ.get(DRC_TIMEOUT_ENV, "").strip().lower()
+    if raw:
+        if raw in ("0", "none", "off"):
+            return None
+        try:
+            val = float(raw)
+            if val > 0:
+                return val
+        except ValueError:
+            pass  # malformed override → fall through to the adaptive budget
+
+    base = TIMEOUT_CONSTANTS["drc_base"]
+    size_mb = 0.0
+    if pcb_path:
+        try:
+            size_mb = os.path.getsize(pcb_path) / (1024 * 1024)
+        except OSError:
+            size_mb = 0.0
+    budget = base + size_mb * TIMEOUT_CONSTANTS["drc_per_mb"]
+    return min(budget, TIMEOUT_CONSTANTS["drc_max"])
 
 # Progress percentage milestones for long-running operations
 # Provides consistent progress reporting across different tools
