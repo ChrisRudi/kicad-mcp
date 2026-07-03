@@ -8,6 +8,28 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Links tot + „Kein eindeutiges Board" nach Folge-Abfragen, Plugin 0.7.8)
+- **Geister-Editor-Bug:** `_require_editor` las den TRANSIENTEN
+  "no handler for GetOpenDocuments" (KiCad-GUI kurz busy bei
+  Folge-Abfragen) als „Editor fehlt" und spawnte einen zweiten, detachten
+  Editor — zwei Instanzen auf dem IPC-Bus machen jeden `GetOpenDocuments`
+  mehrdeutig, alle Cross-Probe-Links sterben mit „Kein eindeutiges Board",
+  bis das Schattenfenster gefunden und geschlossen wird. Dreifach-Fix:
+  - `_docs_with_transient_retry`: Handler-Fehler werden mit Backoff (3×)
+    wiederholt, bevor ihnen geglaubt wird; Bus-down wird weiter sauber
+    gemeldet statt in einen Launch zu laufen.
+  - `KICAD_MCP_NO_AUTO_OPEN=1`: das Plugin setzt den Schalter für seinen
+    Server (stdio-Config-Env UND Warm-Server-Spawn) — im GUI-Betrieb ist
+    Auto-Open grundsätzlich falsch; headless/standalone bleibt es erhalten.
+  - Selbstheilung: `board_links.connect()` reapt bei der
+    Multi-Instanz-Signatur zuerst die im Spawned-Registry verzeichneten
+    MCP-Editoren (`claude_bridge.reap_spawned_editors`) und verbindet
+    einmal neu — die Links heilen mitten in der Sitzung, statt bis
+    KiCad-Neustart tot zu bleiben. Tests: Transient-Retry/Env-Gate
+    (`test_ipc_auto_open.py`), Connect-Self-Heal
+    (`test_plugin_board_links.py`), Env-Durchreichung (bridge/manager).
+    Version 0.7.7 → 0.7.8.
+
 ### Added (Super-Feature „Schutzklassen" — IEC-60664-Normwerte, Plugin 0.7.7)
 - **`get_safety_spacing` — geforderte Kriech-/Luftstrecke je Spannungsgrenze**
   (Tool #186, neue Familie `tools/safety_tools.py`). Die IEC-60664-1-Tabellen

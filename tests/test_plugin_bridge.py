@@ -468,6 +468,9 @@ class TestMcpConfig:
         assert "sys.path[:0] = ['/repo']" in srv["args"][1]
         assert "kicad_mcp.server" in srv["args"][1]
         assert srv["env"]["PYTHONPATH"] == "/repo"  # belt-and-suspenders
+        # Chat läuft in der KiCad-GUI: der Server darf nie einen zweiten
+        # Editor auto-spawnen (Geister-Instanz = alle Links tot).
+        assert srv["env"]["KICAD_MCP_NO_AUTO_OPEN"] == "1"
 
     def test_bootstrap_includes_deps_dir_and_escapes_windows_paths(self):
         import ast

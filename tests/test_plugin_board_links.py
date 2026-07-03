@@ -827,3 +827,42 @@ class TestAddSelection:
         client = _FakeClient()
         board_links.select_pin(client, board, "U1B", "33", add=True)
         assert board.cleared is False
+
+
+class TestConnectSelfHeal:
+    """'Kein eindeutiges Board' mitten in der Sitzung: stammt die zweite
+    Instanz von einem MCP-gespawnten Geister-Editor, wird sie weggeräumt und
+    der Connect einmal wiederholt — die Links heilen sich selbst."""
+
+    def test_reap_then_retry_succeeds(self, monkeypatch):
+        attempts = {"n": 0}
+
+        def _flaky_connect():
+            attempts["n"] += 1
+            if attempts["n"] == 1:
+                raise board_links.BoardUnavailable("Kein eindeutiges Board …")
+            return ("client", "board")
+
+        monkeypatch.setattr(board_links, "_connect_once", _flaky_connect)
+        got = board_links.connect(_reap=lambda: 1, _sleep=lambda s: None)
+        assert got == ("client", "board") and attempts["n"] == 2
+
+    def test_nothing_to_reap_raises_original(self, monkeypatch):
+        monkeypatch.setattr(
+            board_links, "_connect_once",
+            lambda: (_ for _ in ()).throw(
+                board_links.BoardUnavailable("Kein eindeutiges Board …")))
+        with pytest.raises(board_links.BoardUnavailable):
+            board_links.connect(_reap=lambda: 0, _sleep=lambda s: None)
+
+    def test_reap_failure_is_safe(self, monkeypatch):
+        monkeypatch.setattr(
+            board_links, "_connect_once",
+            lambda: (_ for _ in ()).throw(
+                board_links.BoardUnavailable("Kein eindeutiges Board …")))
+
+        def _boom():
+            raise OSError("taskkill fehlt")
+
+        with pytest.raises(board_links.BoardUnavailable):
+            board_links.connect(_reap=_boom, _sleep=lambda s: None)

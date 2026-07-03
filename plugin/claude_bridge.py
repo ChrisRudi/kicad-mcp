@@ -473,6 +473,14 @@ def _reap_spawned_editors() -> int:
     return killed
 
 
+def reap_spawned_editors() -> int:
+    """Public wrapper: kill MCP-spawned detached editors (see the private
+    helper). ``board_links.connect`` uses this to SELF-HEAL the "Kein
+    eindeutiges Board" state mid-session — a stray shadow editor on the IPC
+    bus kills every cross-probe link until it is gone."""
+    return _reap_spawned_editors()
+
+
 def terminate_all() -> int:
     """Kill every in-flight claude turn + its MCP child. Returns how many.
 

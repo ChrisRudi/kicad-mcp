@@ -264,6 +264,9 @@ def ensure_running(
     env = dict(os.environ)
     env["KICAD_MCP_HTTP_TOKEN"] = token
     env["PYTHONUNBUFFERED"] = "1"
+    # Chat läuft in der KiCad-GUI: der warme Server darf NIE einen zweiten
+    # Editor auto-spawnen (zwei Instanzen auf dem Bus = alle Links tot).
+    env["KICAD_MCP_NO_AUTO_OPEN"] = "1"
     # belt-and-suspenders for pythons that DO honor it (bootstrap is in-process)
     env["PYTHONPATH"] = mcp_root + (os.pathsep + deps_dir if deps_dir else "")
     try:

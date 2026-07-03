@@ -233,6 +233,50 @@ def _project_path_from_other_editor(client, want_doc_type: str) -> Optional[str]
     return os.path.join(proj_dir, proj_name + suffix)
 
 
+# Markers (lowercased) in a kipy error that mean "the API answered, but the
+# editor's document handler is not registered" — the ONLY case where an
+# auto-launch could help. Everything else = bus down, don't launch into it.
+_HANDLER_ERR_MARKERS = ("no handler", "ras_invalid", "not open")
+
+# The KiCad plugin sets this env for its spawned server: the chat runs INSIDE
+# the KiCad GUI, so auto-launching a second (detached) editor is always wrong
+# there — it puts two instances on the IPC bus and every cross-probe link dies
+# with "Kein eindeutiges Board" until the shadow window is closed.
+_NO_AUTO_OPEN_ENV = "KICAD_MCP_NO_AUTO_OPEN"
+
+
+def _auto_open_disabled() -> bool:
+    return os.environ.get(_NO_AUTO_OPEN_ENV, "").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
+def _docs_with_transient_retry(fetch, attempts: int = 3, _sleep=time.sleep):
+    """``get_open_documents`` with backoff for the TRANSIENT handler race.
+
+    Under contention (several chat turns back-to-back, GUI busy with zone
+    fill/redraw) KiCad can answer with the same "no handler for
+    GetOpenDocuments" signature that also means "editor really not open".
+    Treating the transient case as "not open" is what used to auto-spawn a
+    shadow editor. So: retry a few times with backoff before believing it.
+
+    Returns ``(docs, None)`` on success or ``(None, last_handler_error)``
+    when the handler error persists. Non-handler errors are re-raised
+    (bus down — the caller reports, never launches).
+    """
+    last = None
+    for i in range(attempts):
+        try:
+            return fetch(), None
+        except Exception as exc:
+            msg = str(exc).lower()
+            if not any(m in msg for m in _HANDLER_ERR_MARKERS):
+                raise
+            last = exc
+            if i < attempts - 1:
+                _sleep(0.5 * (2 ** i))
+    return None, last
+
+
 def _require_editor(
     doc_type: str,
     *,
@@ -298,22 +342,37 @@ def _require_editor(
         return {"success": False, "error": f"Cannot reach KiCad: {exc}"}
 
     try:
-        if call_with_retry(lambda: client.get_open_documents(doc_const),
-                           "require_editor"):
-            return None  # already open — no auto-launch needed
+        docs, handler_err = _docs_with_transient_retry(
+            lambda: call_with_retry(
+                lambda: client.get_open_documents(doc_const),
+                "require_editor"))
     except Exception as exc:
-        # Differentiate "the bus is down" from "the editor's IPC handler
-        # is not registered". The latter is exactly the case where
-        # auto-launch helps; the former means we have nothing to talk to.
-        msg = str(exc).lower()
-        if "no handler" in msg or "ras_invalid" in msg or "not open" in msg:
-            # SCH handler dead / not yet registered — fall through to launch.
-            pass
-        else:
-            return {
-                "success": False,
-                "error": f"KiCad IPC bus is not reachable: {exc}",
-            }
+        # Non-handler error = the bus itself is down — nothing to launch at.
+        return {
+            "success": False,
+            "error": f"KiCad IPC bus is not reachable: {exc}",
+        }
+    if docs:
+        return None  # already open — no auto-launch needed
+
+    # From here on an auto-LAUNCH would happen. When the MCP server runs
+    # under the KiCad plugin the board IS the open GUI — spawning a second,
+    # detached editor puts two instances on the IPC bus and breaks every
+    # cross-probe link with "Kein eindeutiges Board" until the user finds
+    # and closes the shadow window. The plugin therefore sets
+    # KICAD_MCP_NO_AUTO_OPEN=1; headless/standalone use keeps auto-open.
+    if _auto_open_disabled():
+        tail = f" [Technisch: {handler_err}]" if handler_err else ""
+        return {
+            "success": False,
+            "error": (
+                f"Kein {doc_type}-Dokument über die KiCad-API erreichbar und "
+                "Auto-Open ist deaktiviert (KICAD_MCP_NO_AUTO_OPEN=1 — der "
+                "Chat läuft in der KiCad-GUI; ein zweiter Editor würde die "
+                "Board-Links brechen). Öffne das Dokument im laufenden "
+                f"KiCad und versuche es erneut.{tail}"
+            ),
+        }
 
     project_file = ""
     if project_path:

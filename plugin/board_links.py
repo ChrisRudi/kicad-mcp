@@ -347,18 +347,9 @@ def board_unavailable_message(exc_text: str, kicad_version=None,
         f"(erkannt: KiCad {kv}, kipy {kipy_version or '?'}).{tail}")
 
 
-def connect():
-    """Open an IPC client (generous timeout); returns ``(client, board)``.
-
-    The 15 s timeout + busy-retry survive contention with the now-connected
-    MCP server — the 2 s default silently failed every cross-probe link.
-
-    Raises :class:`BoardUnavailable` (actionable message) when the API is
-    reachable but no board resolves — the hallmark of multiple KiCad instances
-    on one socket. That breaks every link and the only fix is the user closing
-    the extra instance, so we surface it clearly instead of leaking a cryptic
-    ApiError into the diagnostic line.
-    """
+def _connect_once():
+    """One connect attempt; raises :class:`BoardUnavailable` on the
+    multi-instance signature (see :func:`connect`)."""
     from kipy import KiCad  # lazy: only inside KiCad
     client = KiCad(timeout_ms=_CONNECT_TIMEOUT_MS)
     try:
@@ -377,6 +368,35 @@ def connect():
             raise BoardUnavailable(board_unavailable_message(
                 f"{type(exc).__name__}: {exc}", kv, kipyv, coupled)) from exc
         raise
+
+
+def connect(_reap=None, _sleep=time.sleep):
+    """Open an IPC client (generous timeout); returns ``(client, board)``.
+
+    The 15 s timeout + busy-retry survive contention with the now-connected
+    MCP server — the 2 s default silently failed every cross-probe link.
+
+    Raises :class:`BoardUnavailable` (actionable message) when the API is
+    reachable but no board resolves — the hallmark of multiple KiCad instances
+    on one socket. SELF-HEAL first: if the extra instance is an editor the MCP
+    server itself spawned (recorded in the spawned-editors registry), it is
+    reaped and the connect retried once — that is exactly the "links died
+    mid-session, board is open" case; user-opened extra windows still surface
+    the actionable message. ``_reap``/``_sleep`` injectable for tests.
+    """
+    try:
+        return _connect_once()
+    except BoardUnavailable:
+        if _reap is None:
+            from .claude_bridge import reap_spawned_editors as _reap
+        try:
+            reaped = _reap()
+        except Exception:
+            reaped = 0
+        if not reaped:
+            raise
+        _sleep(1.0)  # give KiCad's API router a beat to drop the dead peer
+        return _connect_once()
 
 
 def _enum_to_canonical(enum_int: int) -> Optional[str]:

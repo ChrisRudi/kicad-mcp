@@ -106,6 +106,7 @@ class TestEnsureRunning:
         env = calls[0][1]["env"]
         assert env["KICAD_MCP_HTTP_TOKEN"] == first["token"]
         assert env["PYTHONUNBUFFERED"] == "1"
+        assert env["KICAD_MCP_NO_AUTO_OPEN"] == "1"  # GUI-Modus: nie spawnen
 
         second = server_manager.ensure_running(**kwargs)
         assert second["ok"] and second["reused"]

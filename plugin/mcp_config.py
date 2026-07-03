@@ -136,7 +136,12 @@ def build_mcp_config(mcp_root: str, python_exe: str,
                 "type": "stdio",
                 "command": python_exe,
                 "args": ["-c", server_bootstrap_code(mcp_root, deps_dir)],
-                "env": {"PYTHONPATH": pythonpath, "PYTHONUNBUFFERED": "1"},
+                # NO_AUTO_OPEN: the chat runs INSIDE the KiCad GUI — the
+                # server must never auto-spawn a second (detached) editor;
+                # that puts two instances on the IPC bus and kills every
+                # cross-probe link with "Kein eindeutiges Board".
+                "env": {"PYTHONPATH": pythonpath, "PYTHONUNBUFFERED": "1",
+                        "KICAD_MCP_NO_AUTO_OPEN": "1"},
                 "timeout": MCP_STARTUP_TIMEOUT_MS,
             }
         }

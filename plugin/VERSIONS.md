@@ -1,7 +1,25 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.7.7**
+Aktuelle Version: **0.7.8**
+
+---
+
+## 🩹 Neu in 0.7.8 — „Kein eindeutiges Board" nach Folge-Abfragen behoben
+
+- **Der Bug:** Nach mehreren Abfragen hintereinander starben plötzlich alle
+  Klick-Links der früheren Antworten und unten stand „Kein eindeutiges Board"
+  — obwohl das Board offen war. **Ursache:** War KiCads API während schneller
+  Folge-Abfragen kurz beschäftigt, hielt der Tool-Server das für „kein Editor
+  offen" und startete unsichtbar einen ZWEITEN Editor. Zwei Instanzen auf dem
+  API-Bus → jede Board-Abfrage mehrdeutig → alle Links tot.
+- **Dreifach behoben:** (1) Der Server wartet bei so einem kurzen Aussetzer
+  jetzt mit Backoff, statt sofort zu starten. (2) Läuft der Chat im
+  KiCad-Plugin, ist das Auto-Starten eines Editors komplett gesperrt
+  (`KICAD_MCP_NO_AUTO_OPEN=1`, setzt das Plugin automatisch). (3) Taucht die
+  Geister-Instanz doch auf, **heilen sich die Links selbst**: Beim nächsten
+  Klick wird der vom Server gestartete Editor erkannt, beendet und die
+  Verbindung neu aufgebaut.
 
 ---
 

@@ -393,3 +393,60 @@ class TestRequireEditor:
         assert spawn_calls["n"] == 0, "must not spawn a second editor instance"
         assert out.get("already_running") is True
         assert "already running" in out["error"]
+
+
+class TestTransientHandlerRetry:
+    """Der Bug 'Links tot nach Folge-Abfragen': ein TRANSIENTER 'no handler'
+    (GUI busy) darf nicht als 'Editor fehlt' gelesen werden und einen
+    Geister-Editor spawnen — erst Backoff, dann glauben."""
+
+    def test_transient_then_success_no_launch_signal(self):
+        calls = {"n": 0}
+
+        def fetch():
+            calls["n"] += 1
+            if calls["n"] < 3:
+                raise RuntimeError("ApiError: no handler available for "
+                                   "GetOpenDocuments")
+            return ["doc"]
+
+        docs, err = ipc_tools._docs_with_transient_retry(
+            fetch, _sleep=lambda s: None)
+        assert docs == ["doc"] and err is None
+        assert calls["n"] == 3
+
+    def test_persistent_handler_error_reported_not_raised(self):
+        def fetch():
+            raise RuntimeError("no handler available")
+
+        docs, err = ipc_tools._docs_with_transient_retry(
+            fetch, _sleep=lambda s: None)
+        assert docs is None and "no handler" in str(err)
+
+    def test_bus_down_reraises(self):
+        def fetch():
+            raise RuntimeError("connection refused")
+
+        with pytest.raises(RuntimeError, match="connection refused"):
+            ipc_tools._docs_with_transient_retry(fetch, _sleep=lambda s: None)
+
+    def test_empty_docs_pass_through_without_retry(self):
+        calls = {"n": 0}
+
+        def fetch():
+            calls["n"] += 1
+            return []
+
+        docs, err = ipc_tools._docs_with_transient_retry(
+            fetch, _sleep=lambda s: None)
+        assert docs == [] and err is None and calls["n"] == 1
+
+
+class TestAutoOpenDisabled:
+    def test_env_values(self, monkeypatch):
+        for val, want in (("1", True), ("true", True), ("YES", True),
+                          ("0", False), ("", False)):
+            monkeypatch.setenv(ipc_tools._NO_AUTO_OPEN_ENV, val)
+            assert ipc_tools._auto_open_disabled() is want
+        monkeypatch.delenv(ipc_tools._NO_AUTO_OPEN_ENV, raising=False)
+        assert ipc_tools._auto_open_disabled() is False
