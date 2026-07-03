@@ -8,6 +8,22 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (Struktur, cont.)
+- **Reine kipy-Helfer aus `ipc_tools` nach `utils/ipc_board.py`.**
+  `layer_to_enum` / `find_net` / `board_default_via_nm` (vorher
+  `ipc_tools._*`, quer importiert von `ipc_interact_tools` und
+  `ipc_markup_tools`) leben jetzt in `utils/` — sie sind rein (nur kipy-Protos +
+  Board-Objekt), also risikoloser Move. Verbleibende Kopplung
+  (`_connect_kicad`/`_require_editor`, 29/184 Z. Editor-Auto-Launch + Presence-
+  Beacon) bleibt bewusst im Tool-Modul: untestbar ohne KiCad-GUI, zu riskant für
+  diesen Durchgang.
+- **Ratchet-Test gegen cross-tool Private-Imports** (`test_no_cross_tool_
+  private_import.py`). Blockt jeden **neuen** Import eines `_`-privaten Namens
+  aus einem anderen `tools/`-Modul (die Wurzel der „God-Module"/„heimliche
+  Shared-Library"-Befunde); die verbleibenden bekannten Fälle sind mit
+  Begründung + Auflösungsort in einer Allowlist eingefroren, sodass die
+  Kopplung nur noch schrumpfen kann. Relative Imports werden aufgelöst.
+
 ### Changed (Struktur)
 - **Geteilte Parser aus Tool-Modulen nach `utils/` gezogen** (beseitigt
   quer-über-Layer importierte private Namen, u.a. eine generators→tools-

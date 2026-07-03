@@ -24,11 +24,13 @@ from kicad_mcp.utils.kicad_cli import find_kicad_cli
 from kicad_mcp.utils.path_env import to_local_path
 
 from .ipc_tools import (
-    _board_default_via_nm,
     _connect_kicad,
-    _find_net,
-    _layer_to_enum,
     _require_editor,
+)
+from kicad_mcp.utils.ipc_board import (
+    board_default_via_nm as _board_default_via_nm,
+    find_net as _find_net,
+    layer_to_enum as _layer_to_enum,
 )
 
 

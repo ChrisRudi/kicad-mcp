@@ -69,7 +69,8 @@ def register_ipc_markup_tools(mcp: FastMCP) -> None:
             unsupported shapes (polygons/circles). On error
             ``{success: False, error: "<text>"}``.
         """
-        from kicad_mcp.tools.ipc_tools import _connect_kicad, _layer_to_enum
+        from kicad_mcp.tools.ipc_tools import _connect_kicad
+        from kicad_mcp.utils.ipc_board import layer_to_enum as _layer_to_enum
         from kicad_mcp.utils import ipc_session
 
         src_enum = _layer_to_enum(source_layer)
