@@ -8,8 +8,11 @@ Falls back to S-expression text parsing when pcbnew is not importable.
 
 
 # pylint: disable=unsubscriptable-object  # find_node() returns list|None; if-checks suffice
+import asyncio
 import importlib.util
 import logging
+import os
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -280,7 +283,66 @@ def _sexpr_board_dimensions(tree: list) -> dict[str, float]:
 # Unified extraction: pcbnew first, sexpr fallback
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Parsed-extraction cache (path + mtime + size fingerprint)
+# ---------------------------------------------------------------------------
+# The read tools (list_pcb_footprints / analyze_pcb_nets / find_tracks_by_net)
+# all funnel through _extract_all, and a typical "look at this board" flow calls
+# several of them back-to-back on the *same, unchanged* file. Without a cache
+# each call pays a full pcbnew.LoadBoard (~1 s local, and the cold read on a
+# cloud-synced disk is ~80 s — see CLAUDE.md). We memoize the *parsed result*
+# by a cheap on-disk fingerprint (mtime_ns + size): an unchanged board is a
+# dict lookup, a GUI-saved / mutated board (mtime changes) reloads fresh. The
+# cached dicts are treated read-only by every caller (they build new lists),
+# so sharing one instance across calls is safe.
+_EXTRACT_CACHE: "dict[str, tuple[tuple[int, int], dict[str, Any]]]" = {}
+_EXTRACT_ORDER: list[str] = []
+_EXTRACT_LOCK = threading.Lock()
+_EXTRACT_MAX = 4
+
+
+def _extract_fingerprint(pcb_path: str) -> tuple[int, int]:
+    """Cheap staleness fingerprint: (mtime_ns, size). Raises OSError if absent."""
+    st = os.stat(pcb_path)
+    return (st.st_mtime_ns, st.st_size)
+
+
+def _extract_touch(key: str) -> None:
+    """LRU bookkeeping; caller holds _EXTRACT_LOCK."""
+    if key in _EXTRACT_ORDER:
+        _EXTRACT_ORDER.remove(key)
+    _EXTRACT_ORDER.append(key)
+    while len(_EXTRACT_ORDER) > _EXTRACT_MAX:
+        _EXTRACT_CACHE.pop(_EXTRACT_ORDER.pop(0), None)
+
+
 def _extract_all(pcb_path: str) -> dict[str, Any]:
+    """Cached wrapper around :func:`_extract_all_uncached`.
+
+    Serves the parsed extraction from an in-process cache when the board's
+    (mtime_ns, size) fingerprint is unchanged, so consecutive read tools on the
+    same unchanged file load the board once instead of once per call. Falls
+    straight through to a fresh parse if the file cannot be stat'd (the parse
+    then raises the real "not found" error the callers expect)."""
+    try:
+        fp = _extract_fingerprint(pcb_path)
+    except OSError:
+        return _extract_all_uncached(pcb_path)
+    key = os.path.realpath(pcb_path)
+    with _EXTRACT_LOCK:
+        cached = _EXTRACT_CACHE.get(key)
+        if cached is not None and cached[0] == fp:
+            _extract_touch(key)
+            return cached[1]
+    # Parse outside the lock — a slow LoadBoard must not serialize other paths.
+    data = _extract_all_uncached(pcb_path)
+    with _EXTRACT_LOCK:
+        _EXTRACT_CACHE[key] = (fp, data)
+        _extract_touch(key)
+    return data
+
+
+def _extract_all_uncached(pcb_path: str) -> dict[str, Any]:
     """Extract footprints, nets, tracks, vias, dimensions from a PCB file."""
     if _HAS_PCBNEW:
         try:
@@ -350,7 +412,7 @@ def register_pcb_tools(mcp: FastMCP) -> None:
             return {"success": False, "error": f"PCB file not found: {pcb_path}"}
 
         try:
-            data = _extract_all(pcb_path)
+            data = await asyncio.to_thread(_extract_all, pcb_path)
             footprints = data["footprints"]
 
             if layer_filter:
@@ -402,7 +464,7 @@ def register_pcb_tools(mcp: FastMCP) -> None:
             return {"success": False, "error": f"PCB file not found: {pcb_path}"}
 
         try:
-            data = _extract_all(pcb_path)
+            data = await asyncio.to_thread(_extract_all, pcb_path)
             nets = data["nets"]
             tracks = data["tracks"]
             vias = data["vias"]
@@ -476,7 +538,7 @@ def register_pcb_tools(mcp: FastMCP) -> None:
             return {"success": False, "error": f"PCB file not found: {pcb_path}"}
 
         try:
-            data = _extract_all(pcb_path)
+            data = await asyncio.to_thread(_extract_all, pcb_path)
             nets = data["nets"]
             tracks = data["tracks"]
             vias = data["vias"]

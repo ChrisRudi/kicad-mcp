@@ -8,6 +8,21 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Performance
+- **PCB-Read-Tools laden das Board nicht mehr pro Call neu.**
+  `list_pcb_footprints`, `analyze_pcb_nets` und `find_tracks_by_net` liefen alle
+  über `_extract_all` → `pcbnew.LoadBoard` bei **jedem** Aufruf; der typische
+  „Board angucken"-Flow (3–5 Reads hintereinander) zahlte jeden Load neu
+  (~1 s lokal, ~80 s kalt auf Cloud-Disk). Jetzt cached `_extract_all` das
+  geparste Ergebnis per `(mtime_ns, size)`-Fingerprint (LRU, 4 Boards):
+  unverändertes Board = Dict-Lookup, GUI-gespeichertes/mutiertes Board
+  (mtime ändert sich) lädt frisch nach — selbstkorrigierend, keine explizite
+  Invalidierung nötig. Große Boards werden so **einmal** geladen statt N-mal.
+- **Board-Load blockiert nicht mehr den async-Event-Loop.** Der sekundenlange
+  (kalt minutenlange) `_extract_all` lief direkt im Loop-Thread der `async`
+  Read-Tools und fror bei einem langsamen Load den ganzen Server ein. Jetzt via
+  `asyncio.to_thread` ausgelagert. Tests: `tests/test_pcb_extract_cache.py`.
+
 ### Fixed
 - **DRC-Subprozess konnte den Server unbegrenzt aufhängen.**
   `tools/drc_impl/cli_drc.py` rief `subprocess.run` **ohne** Timeout auf; bei
