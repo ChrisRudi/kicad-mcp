@@ -297,11 +297,28 @@ Feeder oder Bestellmengen — das ist Fertigungs-Wissen über der Netzliste.
 *Gebaut:* `consolidate_bom` (headless) über den geteilten `pcb_board_parse` +
 `utils/bom_consolidate` (kanonischer SI-Parser inkl. `4k7`/`4n7`-Infix-Notation).
 
-### 🛒 Bauteil-Optimierung gegen JLCPCB / Mouser  · 🔜
-Prüft **Verfügbarkeit und Preis** gegen JLCPCB/Mouser, bevorzugt
-**JLCPCB-Basic-Teile** (günstigere Bestückung) und findet **pin-kompatible
-Alternativen** für abgekündigte oder nicht-lagernde Teile. **Warum KiCad das nicht
-kann:** kein Wissen über Distributoren, Lagerbestand oder Preise.
+### 🏭 Fab-Standardteile — No-Load-Fee-Teile bevorzugen  · 🔜
+Große Bestücker halten eine **Hausbibliothek** und verlangen für jeden
+Bauteiltyp **außerhalb** davon eine **Feeder-Ladegebühr** (JLCPCB **Basic** vs
+**Extended** ~3 $/Typ, Seeed **OPL**, Aisler **Push-Parts** …). Bei 15 Extended-
+Typen sind das schnell ~45 $ nur an Ladegebühren, die mit Vorzugsteilen
+**wegfallen**. Dieses Feature mappt jeden R/C-Wert+Bauform auf das Vorzugsteil des
+Fertigers und schätzt die gesparte Gebühr. **Fab-agnostisch** gebaut: je Fertiger
+ein **datierter Snapshot** (`resources/data/fab_parts_<provider>.json`) + ein
+Eintrag in der Provider-Registry — neuer Fertiger = JSON + eine Zeile, kein Tool-
+Umbau. Läuft ideal **nach** der BOM-Konsolidierung (erst Werte zusammenlegen,
+dann aufs Vorzugsteil mappen). Selektions-fähig. **Warum KiCad das nicht kann:**
+kein Wissen über Fab-Kataloge, Lagerbestand oder Ladegebühren. *Gebaut:*
+`suggest_preferred_parts` (headless, `provider=jlcpcb`) über den geteilten
+`pcb_board_parse` (Footprint-ID → Bauform) + `utils/fab_parts`. Der Snapshot ist
+kuratierte Seed-Abdeckung mit Datum + Disclaimer, nicht der Live-Katalog — vor
+Bestellung Lager prüfen.
+
+### 🛒 Bauteil-Sourcing — Verfügbarkeit, Preis & Alternativen  · 🔜
+Prüft **live Verfügbarkeit und Preis** gegen Distributoren und findet
+**pin-kompatible Alternativen** für abgekündigte oder nicht-lagernde Teile — der
+**Live-Netz**-Teil über die offline Fab-Standardteil-Prüfung hinaus. **Warum KiCad
+das nicht kann:** kein Wissen über Distributoren, Lagerbestand oder Preise.
 
 ## Kreativ / grenzüberschreitend
 

@@ -28,8 +28,9 @@ def parse_pcb_footprints(pcb_text: str, with_bbox: bool = False) -> dict[str, An
             the audit callers pay nothing for it.
 
     Returns:
-        ``{"footprints": [{ref, value, anchor:(x,y), rot, layer, flipped,
-        bbox?, pads:[{pad, lx, ly, x, y, net}]}, …]}``.
+        ``{"footprints": [{ref, value, fpid, anchor:(x,y), rot, layer, flipped,
+        bbox?, pads:[{pad, lx, ly, x, y, net}]}, …]}``. ``fpid`` is the footprint
+        library id (e.g. ``"Resistor_SMD:R_0402_1005Metric"``) or ``""``.
     """
     fps: list[dict[str, Any]] = []
     i = 0
@@ -50,6 +51,8 @@ def parse_pcb_footprints(pcb_text: str, with_bbox: bool = False) -> dict[str, An
                     break
             j += 1
         block = pcb_text[idx:j]
+        fpid_m = re.match(r'\s*\(footprint\s+"([^"]*)"', block)
+        fpid = fpid_m.group(1) if fpid_m else ""
         ref_m = re.search(r'\(property "Reference" "([^"]+)"', block)
         val_m = re.search(r'\(property "Value" "([^"]*)"', block)
         if not ref_m:
@@ -90,6 +93,7 @@ def parse_pcb_footprints(pcb_text: str, with_bbox: bool = False) -> dict[str, An
         fp: dict[str, Any] = {
             "ref": ref,
             "value": val_m.group(1) if val_m else "",
+            "fpid": fpid,
             "anchor": (fx, fy),
             "rot": frot,
             "layer": layer,

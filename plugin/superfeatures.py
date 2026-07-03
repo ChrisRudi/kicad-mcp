@@ -316,14 +316,27 @@ FEATURES: tuple[SuperFeature, ...] = (
               "Fertigungs-Wissen über der Netzliste."),
     ),
     SuperFeature(
+        key="preferred_parts",
+        label="🏭 Fab-Standardteile",
+        name="Fab-Standardteile — No-Load-Fee-Teile bevorzugen (JLCPCB/Seeed/…)",
+        status=SOON,
+        tooltip=("Bestücker verlangen pro Bauteiltyp außerhalb ihrer Hausbibliothek "
+                 "eine Feeder-Ladegebühr (JLCPCB Basic vs Extended, Seeed OPL …). "
+                 "Mappt jeden R/C-Wert+Bauform auf das Vorzugsteil des Fertigers "
+                 "und schätzt die gesparte Gebühr. Fab-agnostisch: ein datierter "
+                 "Snapshot je Fertiger."),
+        moat=("KiCad hat kein Wissen über Distributoren, Fab-Kataloge, "
+              "Lagerbestand oder Ladegebühren."),
+    ),
+    SuperFeature(
         key="bom_sourcing",
         label="🛒 Bauteil-Sourcing",
-        name="Bauteil-Optimierung gegen JLCPCB / Mouser",
+        name="Bauteil-Sourcing — Verfügbarkeit, Preis & Alternativen",
         status=SOON,
-        tooltip=("Prüft Verfügbarkeit und Preis gegen JLCPCB/Mouser, bevorzugt "
-                 "JLCPCB-Basic-Teile (günstigere Bestückung) und findet "
-                 "pin-kompatible Alternativen für abgekündigte oder "
-                 "nicht-lagernde Teile."),
+        tooltip=("Prüft live Verfügbarkeit und Preis gegen Distributoren und "
+                 "findet pin-kompatible Alternativen für abgekündigte oder "
+                 "nicht-lagernde Teile (der Live-Netz-Teil über die "
+                 "offline Fab-Standardteil-Prüfung hinaus)."),
         moat=("KiCad hat kein Wissen über Distributoren, Lagerbestand oder "
               "Preise."),
     ),

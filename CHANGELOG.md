@@ -8,6 +8,25 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Super-Feature „Fab-Standardteile" — No-Load-Fee-Teile, fab-agnostisch)
+- **`suggest_preferred_parts` — R/C aufs Vorzugsteil des Fertigers mappen**
+  (Tool #182). Bestücker verlangen eine Feeder-Ladegebühr pro Bauteiltyp
+  außerhalb ihrer Hausbibliothek (JLCPCB Basic vs Extended ~3 $/Typ, Seeed OPL,
+  Aisler Push-Parts …). Das Tool mappt jeden R/C-Wert+Bauform auf das Vorzugsteil
+  und schätzt die gesparte Gebühr (`load_fee × Typen-mit-Vorzugsteil`, als obere
+  Schranke ausgewiesen). Reine Analyse; `refs`-Filter für die Selektion.
+  - **Fab-agnostisch** über eine Provider-Registry (`utils/fab_parts.PROVIDERS`,
+    gleiches Single-Source-Muster wie `design_rules.RULES`): je Fertiger ein
+    datierter Snapshot `resources/data/fab_parts_<provider>.json`. Neuer Fertiger
+    = JSON + eine Registry-Zeile, kein Tool-Umbau. V1: `jlcpcb`.
+  - Snapshot = kuratierte Seed-Abdeckung mit `snapshot_date` + `disclaimer`
+    (beide im Result), **nicht** der Live-Katalog — Tool sagt „vor Bestellung
+    Lager prüfen".
+  - Synergie: liest Werte+Bauform über den geteilten `pcb_board_parse` (neu:
+    Footprint-Lib-ID als `fpid` → Bauform via `extract_package`), Value-Parsing
+    über `bom_consolidate` (so matchen `4k7` und `4.7k` dieselbe Snapshot-Zeile).
+    Läuft nach `consolidate_bom`. Tests: `test_fab_parts.py`. Tool-Count 181→182.
+
 ### Added (Super-Feature „BOM-Konsolidierung" — E-Reihe standardisieren)
 - **`consolidate_bom` — fast-gleiche R/C-Werte auf E-Reihe zusammenlegen**
   (Tool #181). Jeder eigene R/C-Wert = eine BOM-Zeile, Rolle und Bestückungs-
