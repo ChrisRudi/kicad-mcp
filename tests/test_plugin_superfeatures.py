@@ -17,6 +17,13 @@ def test_registry_is_non_empty_and_untangle_leads():
     assert feats[0].key == "untangle"
 
 
+def test_scoped_untangle_is_gone():
+    # Selection scoping is the GLOBAL contract of every button (no selection =
+    # whole board, selection = only the marked parts) — a separate "Auswahl
+    # entwirren" entry would suggest the others can't do it.
+    assert sf.get("scoped_untangle") is None
+
+
 def test_keys_are_unique():
     keys = [f.key for f in sf.all_features()]
     assert len(keys) == len(set(keys))
@@ -54,6 +61,7 @@ def test_get_resolves_and_missing_is_none():
 # The features whose backing MCP tools have shipped — keep in sync when the
 # next one goes live. Value = the tool name its click-prompt must invoke.
 SHIPPED_TOOL = {
+    "untangle": "evaluate_layout",
     "semantic_erc": "audit_design",
     "bus_radar": "list_bus_members",
     "test_points": "audit_test_points",

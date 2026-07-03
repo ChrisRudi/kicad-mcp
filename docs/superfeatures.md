@@ -40,8 +40,14 @@ aktuelle KiCad-Selektion** — der Nutzer markiert Teile im Editor, das Feature
 wirkt genau darauf (`ipc_get_selection`). „Stromtragfähigkeit der *markierten*
 Bahnen", „Datenblatt-Abgleich des *markierten* ICs", „simuliere den *markierten*
 Teilschaltkreis", „source die *markierten* Bauteile". In der Registry ist das der
-Vertrag `selection_aware = True` (Default), im GUI landet es später als Umschalter
-„ganzes Board ↔ nur Auswahl". Kein Feature ohne diese Fähigkeit.
+Vertrag `selection_aware = True` (Default). Kein Feature ohne diese Fähigkeit.
+
+**Die Regel ist global und automatisch (seit 0.7.2):** ohne Selektion wirkt der
+Button aufs **ganze Board**; ist etwas markiert, zeigt das Panel beim Klick an,
+*worauf* der Zug wirkt („🎯 Wirkt auf deine Auswahl: R1, C3, U2"), und das
+Feature beschränkt sich exakt darauf. Deshalb gibt es **keine separaten
+„Auswahl …"-Features** — das Scoping ist Grundverhalten jedes Buttons, kein
+eigener Roadmap-Eintrag.
 
 ---
 
@@ -61,7 +67,7 @@ Diese Interaktions-Bausteine sind live und tragen die Super-Features:
 
 ## Die Features
 
-### 🧶 Entwirren — Ratsnest-Entkreuzung fürs Routing  · 🔜
+### 🧶 Entwirren — Ratsnest-Entkreuzung fürs Routing  · ✅
 **Sorte:** Bedeutung ableiten + Freiheitsgrade nutzen.
 
 KiCad kippt beim „Update PCB from Schematic" alle Footprints als überlappenden
@@ -72,13 +78,18 @@ Handplatzierung.
 
 - **Ablauf:** einmal lesen (Netze, Pad-Positionen, Footprint-Größen) → **im Kopf
   lösen** (der Agent entwirrt durch Reasoning, geprüft an einem *nicht-mutierenden*
-  `evaluate_layout`-Scorer: Kreuzungen + Überlappung) → **Geister-Vorschau der
-  ganzen Lösung** → auf „übernehmen" **ein** Batch-Move.
-  - **Fundament gebaut ✅:** der `evaluate_layout`-Scorer (Tool #177,
-    `utils/placement_eval.py`) steht headless + getestet — Signalnetz-Kreuzungen,
-    Überlappung, Wirelength. Offen: Trigger-Erkennung, Geister-Vorschau, das
-    finale Anordnen. Das Board wird während
-  des Denkens **null mal** angefasst — genau das Anti-Toolcall-Explosion-Prinzip.
+  `evaluate_layout`-Scorer: Kreuzungen + Überlappung) → **Plan mit Score
+  vorher → nachher** → auf „Go" **ein** Batch-Move.
+  - **Gebaut ✅ (v1, 0.7.2):** der GUI-Button orchestriert genau diesen Ablauf —
+    einmal lesen, im Kopf entwirren, Kandidat gegen den `evaluate_layout`-Scorer
+    (Tool #177, `utils/placement_eval.py`: Signalnetz-Kreuzungen, Überlappung,
+    Wirelength) prüfen, Plan als Text-Vorschau zeigen, erst nach ausdrücklichem
+    Go EIN gebündelter Live-Move. Mit Selektion wirkt es nur auf die markierten
+    Bauteile (Rest = fixer Anker). **Ehrliche Grenze:** die Vorschau ist Text
+    (Ref → Zielkoordinate + Score), noch keine Geister-Vorschau auf dem Board;
+    Trigger-Erkennung („frisch synchronisierter Haufen") ist offen. Das Board
+    wird während des Denkens **null mal** angefasst — genau das
+    Anti-Toolcall-Explosion-Prinzip.
 - **Ehrliche Grenze:** Reale Netz-Graphen sind meist **nicht-planar** — „null
   Kreuzungen" ist dann mathematisch unmöglich (dafür gibt es Layer und Vias). Der
   Optimierer läuft bis **Plateau** („kein Durchgang verbessert mehr"), nicht bis
@@ -93,10 +104,8 @@ Handplatzierung.
 - **Warum KiCad das nicht kann:** kein Erstplatzierer; Kreuzungs-Minimierung
   erfordert Reasoning über die ganze Topologie.
 
-### 🧶 Auswahl entwirren  · 🔜
-Wie „Entwirren", aber **nur auf die markierten Bauteile**; der Rest des Boards
-bleibt als fixer Anker stehen. Für gezieltes Aufräumen einer Baugruppe, ohne die
-schon platzierten Teile anzufassen.
+*(„Auswahl entwirren" ist kein eigenes Feature mehr — das Selektions-Scoping ist
+seit 0.7.2 Grundverhalten **jedes** Buttons, siehe Querschnitts-Prinzip oben.)*
 
 ### 🚌 Bus-Radar — Bus-Teilnehmer finden  · ✅
 **Sorte:** Bedeutung ableiten. Das Fundament-Feature, das viele andere speist.

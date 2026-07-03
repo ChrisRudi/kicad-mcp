@@ -713,8 +713,10 @@ class ClaudeChatPanel(wx.Panel):
             btn = wx.Button(self, label=feat.label, style=wx.BU_EXACTFIT)
             btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
             soon = feat.status == superfeatures.SOON
+            # live features carry the brand orange so "klickbar & echt" is
+            # visible at a glance; roadmap entries stay dimmed
             btn.SetForegroundColour(
-                wx.Colour(theme.DIM if soon else theme.FOREGROUND))
+                wx.Colour(theme.DIM if soon else theme.CLAUDE_ORANGE))
             btn.SetToolTip(("🔜 Kommt bald — " if soon else "") + feat.tooltip)
             btn.Bind(wx.EVT_BUTTON, lambda _e, f=feat: self._on_superfeature(f))
             bar.Add(btn, 0, wx.ALL, 2)
@@ -732,6 +734,9 @@ class ClaudeChatPanel(wx.Panel):
                                  "klicken.", theme.CLAUDE_ORANGE)
                 return
             self._write(f"\n✨ {feat.name}\n", theme.CLAUDE_ORANGE, bold=True)
+            # global selection contract: SHOW what the feature will act on —
+            # the marked parts, or the whole board when nothing is selected
+            self._write(f"  {self._selection_scope_line()}\n", theme.DIM)
             self._dispatch_prompt(feat.prompt, include_sel=True)
             return
         self._write(f"\n✨ {feat.name}", theme.CLAUDE_ORANGE, bold=True)
@@ -741,6 +746,26 @@ class ClaudeChatPanel(wx.Panel):
         if getattr(feat, "selection_aware", False):
             self._write("  Wirkt aufs ganze Board oder auf deine aktuelle "
                         "Auswahl.\n", theme.DIM)
+
+    def _selection_scope_line(self) -> str:
+        """One transcript line naming what a Super-Feature will act on: the
+        selected refs/nets, or the whole board for an empty selection.
+        Best-effort — an unreachable editor just reads as board-wide."""
+        from . import board_links
+        try:
+            _client, board = board_links.connect()
+            items = board_links.get_selection(board)
+        except Exception:
+            items = []
+        names = []
+        for it in items or []:
+            label = it.get("reference") or it.get("net")
+            if label and label not in names:
+                names.append(label)
+        if names:
+            shown = ", ".join(names[:12]) + (" …" if len(names) > 12 else "")
+            return f"🎯 Wirkt auf deine Auswahl: {shown}"
+        return "🎯 Wirkt boardweit (keine Auswahl im Editor)"
 
     def _mark_all_worker(self, marks: list) -> None:
         """P4 (Dok 1): select every named board element together (first replaces

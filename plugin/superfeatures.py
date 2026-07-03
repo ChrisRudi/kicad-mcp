@@ -65,23 +65,37 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="untangle",
         label="🧶 Entwirren",
         name="Entwirren — Ratsnest-Entkreuzung fürs Routing",
-        status=SOON,
-        tooltip=("Ordnet den frisch synchronisierten Bauteil-Haufen so an, dass "
-                 "sich die Luftlinien möglichst wenig kreuzen — ein sauberer, "
-                 "routbarer Startpunkt. Zeigt erst die Vorschau, ordnet dann in "
-                 "einem Zug an."),
+        status=SHIPPED,
+        tooltip=("Ordnet den Bauteil-Haufen so an, dass sich die Luftlinien "
+                 "möglichst wenig kreuzen — ein sauberer, routbarer "
+                 "Startpunkt. Zeigt erst den Plan mit Score, ordnet nach "
+                 "deinem Go in einem Zug an."),
         moat=("KiCad hat keinen Erstplatzierer; Kreuzungen zu minimieren "
               "erfordert Reasoning über die ganze Netz-Topologie."),
+        prompt=("Entwirren: Ziel ist ein kreuzungsarmer, routbarer "
+                "Platzierungs-Startpunkt. Steht oben im Kontext eine Auswahl, "
+                "entwirre NUR diese Bauteile (der Rest des Boards ist fixer "
+                "Anker), sonst das ganze Board. Ablauf strikt: (1) EINMAL "
+                "lesen: list_pcb_footprints und analyze_pcb_nets für die "
+                ".kicad_pcb im Projektordner (per Glob finden, nicht "
+                "nachfragen). (2) Entwirre IM KOPF: minimiere Kreuzungen der "
+                "Signal-Luftlinien (GND/Power zählen nicht — sie werden "
+                "Kupferflächen), keine Footprint-Überlappungen, kompakt "
+                "bleiben. (3) Prüfe Ist-Stand und deinen Kandidaten mit dem "
+                "nicht-mutierenden evaluate_layout (hypothetische Positionen; "
+                "maximal 3 Bewertungs-Durchgänge, Board bleibt unberührt). "
+                "(4) Zeige mir den Plan kompakt — welches Bauteil wohin (Ref, "
+                "(x, y) in mm), Score vorher → nachher (signal_crossings, "
+                "overlaps, wirelength_mm) — und WARTE auf mein Go; ist der "
+                "Rest nicht-planar (Layer/Vias nötig), sage das ehrlich. "
+                "(5) Erst nach dem Go: alles in EINEM gebündelten Zug über "
+                "die Live-Tools umsetzen (Board ist offen: ipc_*-Tools, "
+                "Moves bündeln), danach genau EIN check_connectivity. Kein "
+                "pcb_render zwischendrin."),
     ),
-    SuperFeature(
-        key="scoped_untangle",
-        label="🧶 Auswahl entwirren",
-        name="Auswahl entwirren",
-        status=SOON,
-        tooltip=("Nur die markierten Bauteile entkreuzen; der Rest des Boards "
-                 "bleibt als fixer Anker stehen."),
-        moat="Selektions-bezogene, kreuzungs-minimierende Platzierung fehlt KiCad.",
-    ),
+    # (kein eigenes "Auswahl entwirren"-Feature: Selektion-Scoping ist der
+    #  GLOBALE Vertrag jedes Buttons — ohne Auswahl boardweit, mit Auswahl nur
+    #  die markierten Bauteile. Das Panel zeigt beim Klick an, was gilt.)
     SuperFeature(
         key="bus_radar",
         label="🚌 Bus-Radar",
