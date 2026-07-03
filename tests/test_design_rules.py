@@ -7,13 +7,13 @@ from __future__ import annotations
 from kicad_mcp.utils import design_rules as dr
 
 
-def _fp(ref, value, pads):
-    """pads: list of (padname, netname)."""
+def _fp(ref, value, pads, at=(10, 10)):
+    """pads: list of (padname, netname). ``at`` = footprint anchor (mm)."""
     pad_lines = "\n".join(
         f'\t\t(pad "{pn}" smd rect (at {i} 0) (layers "F.Cu") (net {i+1} "{net}"))'
         for i, (pn, net) in enumerate(pads))
     return (f'\t(footprint "X" (layer "F.Cu")\n\t\t(uuid "{ref}")\n'
-            f'\t\t(at 10 10 0)\n'
+            f'\t\t(at {at[0]} {at[1]} 0)\n'
             f'\t\t(property "Reference" "{ref}" (at 0 0 0))\n'
             f'\t\t(property "Value" "{value}" (at 0 0 0))\n{pad_lines}\n\t)')
 
@@ -73,6 +73,45 @@ def test_crystal_detected_by_value_when_ref_not_Y():
     bad = _board(_fp("U9", "8MHz XTAL", [("1", "OSC_IN"), ("2", "OSC_OUT")]))
     issues = dr.run_rules(dr.build_context(bad), only={"crystal_load_caps"})
     assert {i["net"] for i in issues} == {"OSC_IN", "OSC_OUT"}
+
+
+def test_decoupling_rule_missing_and_far():
+    # U1 VCC pin, cap C1 close by on VCC↔GND → clean
+    ok = _board(
+        _fp("U1", "MCU", [("1", "VCC"), ("2", "GND")], at=(10, 10)),
+        _fp("C1", "100nF", [("1", "VCC"), ("2", "GND")], at=(10, 11)))
+    assert dr.run_rules(dr.build_context(ok), only={"decoupling"}) == []
+
+    # no cap on the rail at all → warning (ic_pin_no_decoupling)
+    missing = _board(
+        _fp("U1", "MCU", [("1", "VCC"), ("2", "GND")], at=(10, 10)))
+    iss = dr.run_rules(dr.build_context(missing), only={"decoupling"})
+    assert [i["rule"] for i in iss] == ["ic_pin_no_decoupling"]
+
+    # cap exists but 20 mm away → info (ic_pin_decoupling_far)
+    far = _board(
+        _fp("U1", "MCU", [("1", "VCC"), ("2", "GND")], at=(10, 10)),
+        _fp("C1", "100nF", [("1", "VCC"), ("2", "GND")], at=(30, 10)))
+    iss = dr.run_rules(dr.build_context(far), only={"decoupling"})
+    assert [i["rule"] for i in iss] == ["ic_pin_decoupling_far"]
+    assert iss[0]["distance_mm"] >= 3.0
+
+
+def test_reset_pullup_rule():
+    # NRST pulled to VCC via R1 → clean
+    ok = _board(
+        _fp("U1", "MCU", [("1", "NRST"), ("2", "GND")]),
+        _fp("R1", "10k", [("1", "NRST"), ("2", "VCC")]),
+        # give VCC enough fan-out to read as a supply rail
+        _fp("U2", "REG", [("1", "VCC"), ("2", "VCC"), ("3", "VCC")]))
+    assert dr.run_rules(dr.build_context(ok), only={"reset_pullup"}) == []
+
+    # bare NRST net, no pull-up → info
+    bad = _board(
+        _fp("U1", "MCU", [("1", "NRST"), ("2", "GND")]),
+        _fp("J1", "HDR", [("1", "NRST")]))
+    iss = dr.run_rules(dr.build_context(bad), only={"reset_pullup"})
+    assert [i["net"] for i in iss] == ["NRST"]
 
 
 def test_run_all_rules_combines():

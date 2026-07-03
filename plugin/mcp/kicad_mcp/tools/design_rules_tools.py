@@ -25,9 +25,11 @@ def register_design_rules_tools(mcp: FastMCP) -> None:
 
         The Design-Wächter: reasons about design *intent*, not net syntax. The
         board is parsed once and every registered rule runs against it. Current
-        rules: I²C bus without pull-ups; crystal terminal without a load cap.
-        Use this to catch silent bugs that pass ERC/DRC. New rules are added in
-        ``utils/design_rules.RULES`` and appear here automatically.
+        rules: I²C bus without pull-ups; crystal terminal without a load cap;
+        IC supply pin without (or with a far-away) decoupling cap; active-low
+        reset net without a pull-up. Use this to catch silent bugs that pass
+        ERC/DRC. New rules are added in ``utils/design_rules.RULES`` and appear
+        here automatically.
 
         Args:
             pcb_path: Path to a ``.kicad_pcb`` file (WSL or Windows path).

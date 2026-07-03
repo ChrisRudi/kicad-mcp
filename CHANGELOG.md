@@ -19,6 +19,14 @@ the first tag ships.
   - **Regel 1 — I²C-Bus ohne Pull-ups** (open-drain → braucht sie).
   - **Regel 2 — Quarz ohne Load-Caps** (jeder XIN/XOUT-Terminal braucht ein C
     gegen GND; Quarz per `Y*`-Ref oder Value erkannt).
+  - **Regel 3 — IC-Versorgungspin ohne/mit entfernter Entkopplung.** Board-weit:
+    je IC-Supply-Pin den nächsten Bypass-Cap (`C*` von Rail gegen GND) über die
+    Pad-Welt-Koordinaten suchen — kein Cap → `warning`, Cap > 3 mm entfernt →
+    `info` mit Distanz. Liest dieselbe Intent wie `audit_power_tree`, aber ohne
+    Re-Parse (nutzt die neuen `pad_xy`-Welt-Koords im `BoardContext`).
+  - **Regel 4 — Active-Low-Reset ohne Pull-up** (`NRST`/`RESET`/`MR`/`POR` …):
+    Reset-Netz ohne erkennbaren Pull-up gegen eine Supply → `info` (ein
+    Supervisor/Debug-Probe darf es treiben, daher nicht `warning`).
   - Komponiert `bus_infer` + `pcb_board_parse` + `placement_eval.is_power_net`
     (Synergie statt Neubau). Tests: `test_design_rules.py`,
     `test_design_rules_tools.py`.
