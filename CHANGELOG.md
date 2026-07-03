@@ -8,6 +8,22 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (http-Env steckte stdio-Pfade an — Errno 10048, Plugin 0.8.3)
+- **Erster Feld-Report des 0.8.x-Warm-Modus:** Diagnose-Probe FAIL mit
+  `[Errno 10048] bind 127.0.0.1:8331`. Wurzel: `parse_args` liest
+  `KICAD_MCP_TRANSPORT` als Fallback — im http-Modus erbten auch Prozesse,
+  die stdio sprechen MÜSSEN (Diagnose-Probe, stdio-Fallback-Server der
+  Bridge), das http-Env, banden den Default-Port 8331 (belegt/kollidierend)
+  und beantworteten nie den stdio-Handshake → „MCP nicht verbunden" trotz
+  intaktem Server. Fix — Transport überall explizit gepinnt:
+  - `build_mcp_config` env-Block: `KICAD_MCP_TRANSPORT=stdio` (Config-Env
+    schlägt vererbtes Env bei Claude-Spawns).
+  - `build_probe_cmd`: `--transport stdio` (argv schlägt Env) + Doppel-Pin
+    im Probe-Env; Diagnose-Überschrift benennt den stdio-Startpfad.
+  - Warm-Server unverändert explizit `--transport streamable-http` auf
+    `pick_free_port` — nichts bindet mehr implizit 8331.
+  Tests: Probe-Pin (auch unter http-Env), Config-Pin. Version 0.8.2 → 0.8.3.
+
 ### Added (E2E-Loop durchs Produkt, Plugin 0.8.2)
 - **`plugin/e2e_runner.py` (neu):** iteriert die SHIPPED-Features der
   Registry und schickt jeden Button-Prompt + `[E2E-TESTMODUS]`-Zusatz

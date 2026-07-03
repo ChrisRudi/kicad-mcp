@@ -140,8 +140,14 @@ def build_mcp_config(mcp_root: str, python_exe: str,
                 # server must never auto-spawn a second (detached) editor;
                 # that puts two instances on the IPC bus and kills every
                 # cross-probe link with "Kein eindeutiges Board".
+                # KICAD_MCP_TRANSPORT wird GEPINNT: im http-Modus trägt der
+                # Plugin-Prozess transport=http im Env — ein per stdio-Config
+                # gespawnter Server (Fallback!) würde das erben, http auf
+                # Port 8331 binden und nie stdio sprechen (Feld-Befund
+                # 0.8.2: Errno 10048 in der Diagnose-Probe).
                 "env": {"PYTHONPATH": pythonpath, "PYTHONUNBUFFERED": "1",
-                        "KICAD_MCP_NO_AUTO_OPEN": "1"},
+                        "KICAD_MCP_NO_AUTO_OPEN": "1",
+                        "KICAD_MCP_TRANSPORT": "stdio"},
                 "timeout": MCP_STARTUP_TIMEOUT_MS,
             }
         }

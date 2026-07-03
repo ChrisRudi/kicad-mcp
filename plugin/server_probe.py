@@ -56,9 +56,15 @@ def init_request() -> str:
 def build_probe_cmd(kicad_py: str, mcp_root: str,
                     deps_dir: "str | None" = None) -> list:
     """Launch EXACTLY like the MCP config does: ``-c`` bootstrap with
-    in-process sys.path (KiCad's Python proved to ignore PYTHONPATH)."""
+    in-process sys.path (KiCad's Python proved to ignore PYTHONPATH).
+
+    ``--transport stdio`` ist GEPINNT: die Probe testet den stdio-Handshake —
+    mit KICAD_MCP_TRANSPORT=http im Plugin-Env würde der gespawnte Server
+    sonst http auf Port 8331 binden (belegt → Errno 10048) und nie auf
+    stdio antworten. argv schlägt den Env-Fallback von parse_args."""
     return [kicad_py, "-c",
-            mcp_config.server_bootstrap_code(mcp_root, deps_dir)]
+            mcp_config.server_bootstrap_code(mcp_root, deps_dir),
+            "--transport", "stdio"]
 
 
 def error_tail(stderr: str, lines: int = 3) -> str:
@@ -165,6 +171,7 @@ def probe_server(kicad_py: Optional[str], mcp_root: str,
         deps_dir = deps.active_deps_dir()
     # belt-and-suspenders only — the bootstrap sets sys.path in-process
     env["PYTHONPATH"] = mcp_root + (os.pathsep + deps_dir if deps_dir else "")
+    env["KICAD_MCP_TRANSPORT"] = "stdio"  # Doppel-Pin zum argv (Feld 0.8.2)
     t0 = time.perf_counter()
     try:
         proc = _popen(build_probe_cmd(kicad_py, mcp_root, deps_dir),

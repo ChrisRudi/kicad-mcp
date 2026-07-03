@@ -89,6 +89,21 @@ class TestProbeServer:
         assert root in seen["cmd"][2] and "/plug/_deps" in seen["cmd"][2]
         assert "kicad_mcp.server" in seen["cmd"][2]
         assert seen["env"]["PYTHONPATH"] == root + os.pathsep + "/plug/_deps"
+        # Transport ist GEPINNT (argv + Env): mit KICAD_MCP_TRANSPORT=http im
+        # Plugin-Env band der gespawnte Server sonst http:8331 (Errno 10048)
+        # statt den stdio-Handshake zu beantworten (Feld-Befund 0.8.2).
+        assert seen["cmd"][-2:] == ["--transport", "stdio"]
+        assert seen["env"]["KICAD_MCP_TRANSPORT"] == "stdio"
+
+    def test_probe_pins_stdio_even_under_http_env(self, root, monkeypatch):
+        monkeypatch.setenv("KICAD_MCP_TRANSPORT", "http")
+        seen = {}
+        server_probe.probe_server(
+            "/k/py", root, _popen=_popen_for(_FakeProc(stdout=_OK_REPLY),
+                                             capture=seen),
+            deps_dir="/plug/_deps")
+        assert seen["cmd"][-2:] == ["--transport", "stdio"]
+        assert seen["env"]["KICAD_MCP_TRANSPORT"] == "stdio"
 
     def test_missing_package_named_precisely(self, tmp_path):
         # "Error while finding module specification" == kicad_mcp missing

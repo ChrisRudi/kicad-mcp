@@ -115,7 +115,8 @@ def collect(mcp_root: str, project_dir: str, _run=subprocess.run) -> str:
     add("")
     add(_transport_section())
     add("")
-    add("--- MCP-Server-Probe (Start exakt wie durch Claude) ---")
+    add("--- MCP-Server-Probe (stdio-Startpfad — auch im http-Modus "
+        "der Fallback) ---")
     add(f"PYTHONPATH: {pythonpath}")
     res = server_probe.probe_server(py, mcp_root)
     secs = res.get("seconds", 0.0)

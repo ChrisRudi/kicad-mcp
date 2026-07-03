@@ -471,6 +471,10 @@ class TestMcpConfig:
         # Chat läuft in der KiCad-GUI: der Server darf nie einen zweiten
         # Editor auto-spawnen (Geister-Instanz = alle Links tot).
         assert srv["env"]["KICAD_MCP_NO_AUTO_OPEN"] == "1"
+        # stdio-Config pinnt den Transport: der Fallback-Server darf das
+        # http-Env des Plugins nicht erben (sonst bindet er Port 8331 statt
+        # stdio zu sprechen — Feld-Befund 0.8.2).
+        assert srv["env"]["KICAD_MCP_TRANSPORT"] == "stdio"
 
     def test_bootstrap_includes_deps_dir_and_escapes_windows_paths(self):
         import ast

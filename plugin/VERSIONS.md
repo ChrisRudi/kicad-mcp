@@ -1,7 +1,23 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.8.2**
+Aktuelle Version: **0.8.3**
+
+---
+
+## 🩹 Neu in 0.8.3 — Warm-Modus steckte den stdio-Fallback an (erster Feld-Report!)
+
+- **Der Befund aus deiner Diagnose (danke!):** Mit eingeschaltetem Warm-Server
+  (`http`) schlug die Diagnose-Probe rot fehl — `Errno 10048`, Port 8331
+  belegt. Ursache: Der Transport-Schalter wirkt über die Umgebung und war
+  „ansteckend" — auch Prozesse, die ausdrücklich stdio sprechen sollten
+  (die Diagnose-Probe und der automatische stdio-Fallback des Chats), erbten
+  `http`, versuchten Port 8331 zu binden und antworteten nie auf stdio.
+- **Fix: Transport wird überall explizit festgenagelt.** Die stdio-Config
+  pinnt `KICAD_MCP_TRANSPORT=stdio` in ihrem Env-Block, die Probe startet
+  mit `--transport stdio` (Argument schlägt Umgebung) — der Warm-Server
+  selbst nutzt weiterhin seinen eigenen freien Port, nie starr 8331.
+  Diagnose-Probe und stdio-Fallback funktionieren damit auch im http-Modus.
 
 ---
 
