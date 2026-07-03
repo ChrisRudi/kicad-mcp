@@ -25,7 +25,7 @@ Dependencies
 ------------
 * ``xml.etree.ElementTree`` (stdlib) for SVG header parsing/rewriting.
 * ``cairosvg`` via the shared loader in
-  ``kicad_mcp.tools.cli_export_tools._ensure_cairosvg`` (lazy install).
+  ``kicad_mcp.utils.svg_render.ensure_cairosvg`` (lazy install).
 
 The SVG-unit ↔ mm conversion is read defensively from the SVG header's
 ``width`` (e.g. ``297.000mm``) and the existing ``viewBox`` extents. If
@@ -186,12 +186,12 @@ def render_region_to_png(
     Falls back to rendering the whole sheet if header-parse fails or the
     bbox is outside the sheet extent.
     """
-    from kicad_mcp.tools.cli_export_tools import _ensure_cairosvg  # lazy
+    from kicad_mcp.utils.svg_render import ensure_cairosvg  # lazy
 
     if not os.path.isfile(svg_path):
         return {"success": False, "error": f"SVG not found: {svg_path}"}
 
-    cairosvg = _ensure_cairosvg()
+    cairosvg = ensure_cairosvg()
     svg_text, meta = crop_svg_to_region(svg_path, bbox_mm, padding_mm)
     os.makedirs(os.path.dirname(os.path.abspath(output_png)) or ".", exist_ok=True)
     try:

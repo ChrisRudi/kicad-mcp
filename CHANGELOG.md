@@ -8,6 +8,18 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (Struktur)
+- **Geteilte Parser aus Tool-Modulen nach `utils/` gezogen** (beseitigt
+  quer-über-Layer importierte private Namen, u.a. eine generators→tools-
+  Inversion):
+  - `utils/schematic_parse.py` — `parse_schematic` / `extract_components`
+    (vorher `schematic_tools._parse_*`, quer importiert von `review_tools`).
+  - `utils/svg_render.py` — `ensure_cairosvg` / `svg_to_png` /
+    `ensure_cairo_dll_searchable` (vorher `cli_export_tools._*`, quer importiert
+    von `export_tools` **und** `generators/review/_svg_crop` — Letzteres eine
+    Aufwärts-Inversion). Tool-Module importieren die Funktionen jetzt aus
+    `utils/`; kein Verhaltens- oder Signatur-Wechsel.
+
 ### Performance (cont.)
 - **`check_connectivity` (overview) von O(nets×pads) auf O(pads+conn).**
   `_compute_overview` scannte pro Netz **alle** Board-Pads und rief `_pad_id`

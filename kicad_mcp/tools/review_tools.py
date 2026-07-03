@@ -88,12 +88,12 @@ def _is_local_pdf(maybe_path: str) -> bool:
 def _load_schematic_components(schematic_path: str) -> list[dict[str, Any]]:
     """Return the list ``list_schematic_components`` would return — without
     going through the MCP layer (avoids async / FastMCP coupling)."""
-    from kicad_mcp.tools.schematic_tools import _extract_components, _parse_schematic
+    from kicad_mcp.utils.schematic_parse import extract_components, parse_schematic
 
-    tree = _parse_schematic(schematic_path)
+    tree = parse_schematic(schematic_path)
     # This helper's callers read per-symbol Datasheet/extra props, so request
     # them explicitly (list_schematic_components is lean-by-default now).
-    return _extract_components(tree, include_pins=True, include_properties=True)
+    return extract_components(tree, include_pins=True, include_properties=True)
 
 
 def _index_components(components: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:

@@ -191,8 +191,8 @@ async def generate_thumbnail_with_cli(pcb_file: str, ctx: Context | None = None)
             # Convert SVG to PNG (SVGs from KiCad are too large for MCP transport)
             png_file = output_file.replace('.svg', '.png')
             try:
-                from kicad_mcp.tools.cli_export_tools import _svg_to_png
-                png_data = _svg_to_png(output_file, scale=2.0)
+                from kicad_mcp.utils.svg_render import svg_to_png
+                png_data = svg_to_png(output_file, scale=2.0)
                 with open(png_file, 'wb') as pf:
                     pf.write(png_data)
                 logger.info(f"Converted SVG to PNG: {png_file}")
