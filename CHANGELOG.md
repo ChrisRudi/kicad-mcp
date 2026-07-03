@@ -8,6 +8,16 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Super-Feature „Bus-Radar")
+- **`list_bus_members` — semantische Bus-Erkennung** (Tool #179). KiCad kennt
+  Einzelnetze, nicht *Busse*; dieses Tool gruppiert die Netze eines Boards zu
+  Bussen und listet je Bus die Netze + Pins (`REF.PAD`): Protokoll-Vokabular
+  (I²C = SDA+SCL, SPI = MOSI/MISO/SCK, UART, USB, CAN, SWD/JTAG), nummerierte
+  Busse (`D0..D7`) und Differential-Paare (`X_P`/`X_N`). Filter per Bus-Label
+  oder Member-Netz („was ist auf SDA?"). Fundament für Gruppen-Platzierung/
+  -Routing. Reine Inferenz in `utils/bus_infer.py`; Pins über den geteilten
+  `utils/pcb_board_parse`. Tests: `test_bus_infer.py`, `test_bus_tools.py`.
+
 ### Added (Super-Feature „Entwirren" — Fundament)
 - **`get_board_layout` — Board → Scorer-Eingabe** (Tool #178, Read-Seite). Liest
   ein `.kicad_pcb` einmal in die `evaluate_layout`-Form (Footprint-Pose +

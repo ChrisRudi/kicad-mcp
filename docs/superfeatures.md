@@ -109,6 +109,10 @@ Leitungen" erst möglich.
 
 - **Warum KiCad das nicht kann:** es sieht Netze, keine Busse als
   Bedeutungseinheit (Schaltplan-Bus-Aliase ausgenommen — die enden am PCB).
+- **Erste Stufe gebaut ✅:** `list_bus_members` (Tool #179, `utils/bus_infer.py`)
+  erkennt Protokoll-Busse (I²C/SPI/UART/USB/CAN/SWD/JTAG), nummerierte Busse und
+  Diff-Paare aus den Netznamen und listet Netze + Pins je Bus — headless getestet.
+  Offen: Gruppen-Platzierung/-Routing darauf aufsetzen.
 
 ### 📄 Datenblatt-Abgleich  · 🔜
 **Sorte:** externes Wissen. Das sichtbare Flaggschiff.
