@@ -79,7 +79,7 @@ def test_tool_count_matches_readme(tool_list):
     2026-05-30; exact lock lives in test_tool_audit.test_tool_count_locked).
     Drift outside this band either way is suspicious."""
     n = len(tool_list)
-    assert 120 <= n <= 180, f"Unexpected tool count {n} — expected ~144"
+    assert 120 <= n <= 190, f"Unexpected tool count {n} — expected ~144"
 
 
 def test_no_duplicate_tool_names(tool_list):

@@ -282,6 +282,21 @@ Findet und **hängt das passende SPICE-Modell je Bauteil an**, damit die Simulat
 das nicht kann:** es verlangt manuelle Modell-Zuordnung und weiß nicht, welches
 Modell zu welchem Bauteil passt.
 
+### 💰 BOM-Konsolidierung — E-Reihe standardisieren, Feeder sparen  · 🔜
+Jeder eigene R/C-Wert ist eine eigene BOM-Zeile, Rolle und Bestückungs-Feeder.
+Boards sammeln über die Zeit **fast-gleiche Werte** an — 10k neben 10,2k neben
+9,1k — die denselben Job tun. Dieses Feature **snappt** jeden Wert auf den
+nächsten **E-Reihen-Wert** (E6/E12/E24 …) und zeigt, welche Zeilen sich
+**zusammenlegen** lassen: weniger Feeder beim Bestücker (Rüstkosten), größere
+Stückzahlen (besserer Preis) — und zwar **ohne** ein Bauteil über eine sichere
+Toleranz (Default 5 %) zu verschieben. Werte, deren nächster Standardwert weiter
+weg liegt, werden ehrlich als *nicht konsolidierbar* ausgewiesen statt still
+verbogen. Schlägt vor, ändert nichts. Selektions-fähig: nur die markierten
+Bauteile werten. **Warum KiCad das nicht kann:** KiCad kennt weder E-Reihen noch
+Feeder oder Bestellmengen — das ist Fertigungs-Wissen über der Netzliste.
+*Gebaut:* `consolidate_bom` (headless) über den geteilten `pcb_board_parse` +
+`utils/bom_consolidate` (kanonischer SI-Parser inkl. `4k7`/`4n7`-Infix-Notation).
+
 ### 🛒 Bauteil-Optimierung gegen JLCPCB / Mouser  · 🔜
 Prüft **Verfügbarkeit und Preis** gegen JLCPCB/Mouser, bevorzugt
 **JLCPCB-Basic-Teile** (günstigere Bestückung) und findet **pin-kompatible

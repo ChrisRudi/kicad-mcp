@@ -319,12 +319,13 @@ def test_allowlist_has_no_obsolete_entries(tool_list):
 # 2026-06-09: -5 — FreeRouting/autoroute removed entirely (autoroute_tools.py
 # deleted): install_autorouter, autoroute_pcb, check_autorouter_status,
 # export_pcb_dsn, import_pcb_ses.
-EXPECTED_TOOL_COUNT = 180  # +ipc_interact G1-G6 (15) + ipc_draw_sketch_legend
+EXPECTED_TOOL_COUNT = 181  # +ipc_interact G1-G6 (15) + ipc_draw_sketch_legend
 # 2026-06-13: +1 (ipc_markup_to_tracks — markup-layer User.9 → copper tracks)
 # 2026-07-03: +1 (evaluate_layout — non-mutating placement scorer for Entwirren)
 # 2026-07-03: +1 (get_board_layout — read board into evaluate_layout shape)
 # 2026-07-03: +1 (list_bus_members — Bus-Radar: semantic bus grouping)
 # 2026-07-03: +1 (audit_design — Design-Wächter: semantic rule registry)
+# 2026-07-03: +1 (consolidate_bom — BOM-Konsolidierung: E-series feeder cut)
 # 2026-06-14: +1 (add_vias_to_pcb — batch via placement, one read+write)
 # 2026-06-15: +3 (normalize_footprint_libid, refresh_pinfunctions,
 #                 replace_footprint_canonical — footprint resync)

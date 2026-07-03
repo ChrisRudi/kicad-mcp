@@ -304,6 +304,18 @@ FEATURES: tuple[SuperFeature, ...] = (
               "Modell zu welchem Bauteil passt."),
     ),
     SuperFeature(
+        key="bom_consolidate",
+        label="💰 BOM-Konsolidierung",
+        name="BOM-Konsolidierung — E-Reihe standardisieren, Feeder sparen",
+        status=SOON,
+        tooltip=("Fasst fast-gleiche R/C-Werte (10k neben 10,2k neben 9,1k) auf "
+                 "Standard-E-Reihen-Werte zusammen — weniger Bestückungs-Feeder "
+                 "und günstigere Stückzahlen, ohne ein Bauteil über die Toleranz "
+                 "zu verschieben. Schlägt vor, ändert nicht."),
+        moat=("KiCad kennt weder E-Reihen noch Feeder/Bestellmengen — das ist "
+              "Fertigungs-Wissen über der Netzliste."),
+    ),
+    SuperFeature(
         key="bom_sourcing",
         label="🛒 Bauteil-Sourcing",
         name="Bauteil-Optimierung gegen JLCPCB / Mouser",

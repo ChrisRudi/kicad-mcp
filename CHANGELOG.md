@@ -8,6 +8,22 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Super-Feature „BOM-Konsolidierung" — E-Reihe standardisieren)
+- **`consolidate_bom` — fast-gleiche R/C-Werte auf E-Reihe zusammenlegen**
+  (Tool #181). Jeder eigene R/C-Wert = eine BOM-Zeile, Rolle und Bestückungs-
+  Feeder. Das Tool snappt jeden Wert auf den nächsten E-Reihen-Wert
+  (`E6`…`E96`, Default `E24`) und meldet, welche Zeilen sich zusammenlegen lassen
+  — weniger Feeder (Rüstkosten), größere Stückzahlen — **ohne** ein Bauteil über
+  `max_shift_pct` (Default 5 %) zu verschieben. Werte, deren nächster Standardwert
+  weiter weg liegt, kommen als `unmergeable` zurück statt still verbogen zu
+  werden. Reine Analyse (schlägt vor, ändert nicht), `refs`-Filter für die
+  Selektion.
+  - Neuer kanonischer SI-Value-Parser in `utils/bom_consolidate.py`
+    (Ohm/Farad), der die Infix-Notation `4k7`=4,7 kΩ / `4n7`=4,7 nF korrekt liest
+    — die tuple-Parser in `component_utils` lesen `4k7` als 4 kΩ falsch.
+  - Synergie: liest die Werte über den geteilten `pcb_board_parse` (kein
+    Re-Parse). Tests: `test_bom_consolidate.py`. Registry + Tool-Count 180→181.
+
 ### Added (Super-Feature „Design-Wächter" — persistente Regel-Registry)
 - **`audit_design` — semantische Design-Checks jenseits des ERC, registry-getrieben**
   (Tool #180). Die Regeln leben als **persistente Registry** in
