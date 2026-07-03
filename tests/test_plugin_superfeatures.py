@@ -94,6 +94,7 @@ SHIPPED_TOOL = {
     "mlcc_derating": "list_pcb_footprints",
     "silk_cleanup": "list_pcb_footprints",
     "datasheet_circuit": "extract_circuit_from_pdf",
+    "protection_class": "get_safety_spacing",
 }
 
 

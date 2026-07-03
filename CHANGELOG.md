@@ -8,6 +8,27 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Super-Feature „Schutzklassen" — IEC-60664-Normwerte, Plugin 0.7.7)
+- **`get_safety_spacing` — geforderte Kriech-/Luftstrecke je Spannungsgrenze**
+  (Tool #186, neue Familie `tools/safety_tools.py`). Die IEC-60664-1-Tabellen
+  leben als kuratierter, DATIERTER Snapshot in
+  `resources/data/safety_spacing_iec60664.json` (F.1 Stoßspannung je
+  Nennspannung/OVC, F.2 Luftstrecke Fall A inkl. PD-Minima 0,2/0,8 mm, F.4
+  Kriechstrecke je PD/Materialgruppe; Werte gegen publizierte Normauszüge
+  quergeprüft, u. a. BS EN 60335-1 Tab. 15/16/18). Regeln: verstärkte
+  Isolierung = Kriechweg ×2 + Stoßspannung eine Vorzugsstufe höher; F.7
+  (Kriechweg ≥ Luftstrecke); konservativ nächste Tabellenzeile, keine
+  Interpolation. Lookup-Kern pur in `utils/safety_spacing.py`.
+- **🔌 Schutzklassen-Button (34. Feature):** Schutzklasse I/II/III nach
+  IEC 61140 klären → Spannungs-Domänen aus `analyze_pcb_nets` → geforderte
+  Abstände je Grenze aus `get_safety_spacing` (Klasse II ⇒ reinforced) →
+  Ist-Abstände messen (`center_item_clearance`) → Urteil mit Koordinaten.
+  Der ⚡ Sicherheitsabstände-Prompt nutzt jetzt ebenfalls die Snapshot-Werte
+  statt Modell-Gedächtnis. Disclaimer in jedem Ergebnis: Richtwerte /
+  Vorprüfung, keine Zertifizierung. Tests: `test_safety_spacing.py`
+  (Norm-Fixpunkte 230 V→2,5 kV→1,5/2,5 mm, verstärkt 2,0/5,0 mm, PD-Minima,
+  SELV-Zeilen, Fehlerpfade). Tool-Count 185→186, Version 0.7.6 → 0.7.7.
+
 ### Added (echte SPICE-Ausführung + Entwirren-Geister-Vorschau, Plugin 0.7.6)
 - **`run_spice_sim` — ngspice-Batch-Ausführung** (Tool #185, neue Familie
   `tools/sim_tools.py`). Bewusst dumm: führt ein SELBSTSTÄNDIGES SPICE-Deck

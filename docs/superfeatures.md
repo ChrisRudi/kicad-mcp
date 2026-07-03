@@ -46,7 +46,7 @@ Prompt benennt seine Grenze. Die wichtigsten v1-Grenzen im Überblick:
 | 🛒 Sourcing | WebSearch-Verfügbarkeit/Preise + pin-kompatible Alternativen | Momentaufnahme, kein Live-Katalog |
 | 📷 Foto→Schaltung | Bild per Read analysieren, Netz-Hypothesen mit Konfidenz | verdeckte Lagen bleiben unsichtbar |
 | 〰️ Impedanz | IPC-2141-/Microstrip-Näherungen aus dem Stackup (`pcb_eval`) | Näherung, kein Feldlöser — Fab-Rechner gegenprüfen |
-| ⚡ Sicherheitsabstände | Domänen-Erkennung + gezielte Abstands-Messung gegen IEC-62368-Richtwerte | Ingenieurs-Vorprüfung, keine Zertifizierung |
+| ⚡ Sicherheitsabstände / 🔌 Schutzklassen | Domänen-Erkennung + Messung gegen die IEC-60664-Snapshot-Werte aus `get_safety_spacing` | Ingenieurs-Vorprüfung, keine Zertifizierung; Produktnormen können abweichen |
 | 🏭 DFM / 💰 Kosten | Prüfung/Schätzung gegen Fab-Regeln bzw. Kostentreiber aus `get_board_stats`/`analyze_bom` | Regelstand = Modellwissen mit Datum; Kosten = Größenordnung |
 | 🌡️ Thermik/Betriebstemp., 📐 Slew, ⌚ Load-Caps, 📉 MLCC | Physik-Formeln mit offengelegten Annahmen; Datenblatt-Werte aus `docs/` oder per Nachfrage | typische Werte ehrlich als „typisch" markiert |
 | 🔤 Silk, 📐 Anordnen | Plan → Go → EIN gebündelter Live-Zug | Geometrie-, nicht Optik-Urteil (Render nur am Ende auf Wunsch) |
@@ -436,6 +436,23 @@ das nicht kann:** keine Bild-Wahrnehmung. Reine Multimodal-Arbeit.
 **Fundament da:** `circuit_block` (Datenblatt-Spec → Schaltungsblock). Aus dem
 Datenblatt die **typische Applikationsschaltung** generieren. **Warum KiCad das
 nicht kann:** es liest keine Datenblätter.
+
+### 🔌 Schutzklassen — Isolationskonzept nach IEC 61140/60664  · ✅
+Bestimmt die **Schutzklasse** des Geräts (I: geerdet + Basisisolierung, II:
+doppelte/verstärkte Isolierung, III: SELV/PELV) und prüft das Isolationskonzept:
+je Spannungsgrenze holt der Agent die **geforderten Kriech-/Luftstrecken** aus
+`get_safety_spacing` (Tool #186) und stellt sie gegen die gemessenen
+Ist-Abstände. **Warum KiCad das nicht kann:** Schutzklassen und Normtabellen
+sind reines Norm-Wissen außerhalb der Geometrie.
+
+- **Gebaut ✅ (0.7.7):** `get_safety_spacing` — die IEC-60664-1-Tabellen
+  (F.1 Stoßspannung je OVC, F.2 Luftstrecke inkl. PD-Minima, F.4 Kriechstrecke
+  je PD/Materialgruppe) als **kuratierter, datierter Snapshot**
+  (`resources/data/safety_spacing_iec60664.json`, Werte gegen publizierte
+  Normauszüge quergeprüft), verstärkte Isolierung = Kriechweg ×2 +
+  Stoßspannungs-Stufe höher, F.7-Regel (Kriechweg ≥ Luftstrecke) eingebaut.
+  **Grenze:** Richtwerte für die Ingenieurs-Vorprüfung — Produktnormen
+  (62368-1/60335-1/60601-1) können abweichen; keine Zertifizierung.
 
 ### ⚡ Sicherheitsabstände — Creepage & Clearance  · ✅
 Prüft **Kriech- und Luftstrecken** zwischen Netzspannung und Kleinspannung gegen

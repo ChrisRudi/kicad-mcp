@@ -1,0 +1,77 @@
+{
+  "source": "IEC 60664-1:2007 (Richtwerte, Tabellen F.1/F.2/F.4); Querschecks: BS EN 60335-1 Tab. 15/16/18, Wuerth/TI-Appnotes",
+  "snapshot_date": "2026-07-03",
+  "disclaimer": "Kuratierte Richtwerte fuer die Ingenieurs-Vorpruefung — KEINE Zertifizierung. Produktnormen (IEC 62368-1, 60335-1, 60601-1) koennen strengere/abweichende Werte fordern; fuer die Zulassung gilt die gekaufte Norm.",
+  "impulse_voltage_kv": {
+    "comment": "Tabelle F.1: Bemessungs-Stossspannung (kV) je Netz-Nennspannung Leiter-Neutral (<= V) und Ueberspannungskategorie I-IV.",
+    "rows": [
+      {"nominal_v_max": 50,   "I": 0.33, "II": 0.5, "III": 0.8, "IV": 1.5},
+      {"nominal_v_max": 100,  "I": 0.5,  "II": 0.8, "III": 1.5, "IV": 2.5},
+      {"nominal_v_max": 150,  "I": 0.8,  "II": 1.5, "III": 2.5, "IV": 4.0},
+      {"nominal_v_max": 300,  "I": 1.5,  "II": 2.5, "III": 4.0, "IV": 6.0},
+      {"nominal_v_max": 600,  "I": 2.5,  "II": 4.0, "III": 6.0, "IV": 8.0},
+      {"nominal_v_max": 1000, "I": 4.0,  "II": 6.0, "III": 8.0, "IV": 12.0}
+    ]
+  },
+  "clearance_mm": {
+    "comment": "Tabelle F.2 (Fall A, inhomogenes Feld): Luftstrecke (mm) je Bemessungs-Stossspannung (kV). Minima je Verschmutzungsgrad gelten zusaetzlich.",
+    "rows": [
+      {"impulse_kv": 0.33, "mm": 0.01},
+      {"impulse_kv": 0.4,  "mm": 0.02},
+      {"impulse_kv": 0.5,  "mm": 0.04},
+      {"impulse_kv": 0.6,  "mm": 0.06},
+      {"impulse_kv": 0.8,  "mm": 0.10},
+      {"impulse_kv": 1.0,  "mm": 0.15},
+      {"impulse_kv": 1.2,  "mm": 0.25},
+      {"impulse_kv": 1.5,  "mm": 0.5},
+      {"impulse_kv": 2.0,  "mm": 1.0},
+      {"impulse_kv": 2.5,  "mm": 1.5},
+      {"impulse_kv": 3.0,  "mm": 2.0},
+      {"impulse_kv": 4.0,  "mm": 3.0},
+      {"impulse_kv": 5.0,  "mm": 4.0},
+      {"impulse_kv": 6.0,  "mm": 5.5},
+      {"impulse_kv": 8.0,  "mm": 8.0},
+      {"impulse_kv": 10.0, "mm": 11.0},
+      {"impulse_kv": 12.0, "mm": 14.0}
+    ],
+    "min_mm_by_pollution_degree": {"1": 0.0, "2": 0.2, "3": 0.8},
+    "note_product_standards": "Geraetenormen (z. B. IEC 60335-1) klemmen kleine Luftstrecken oft auf >= 0.5 mm."
+  },
+  "creepage_mm": {
+    "comment": "Tabelle F.4: Kriechstrecke (mm) je Arbeitsspannung (RMS, <= V), Verschmutzungsgrad (PD) und Materialgruppe (MG I: CTI>=600, II: 400-599, III: 100-399). PD1-Spalte = beliebige MG.",
+    "rows": [
+      {"v_max": 10,   "pd1": 0.08,  "pd2": {"I": 0.40, "II": 0.40, "III": 0.40}, "pd3": {"I": 1.00, "II": 1.00, "III": 1.00}},
+      {"v_max": 12.5, "pd1": 0.09,  "pd2": {"I": 0.42, "II": 0.42, "III": 0.42}, "pd3": {"I": 1.05, "II": 1.05, "III": 1.05}},
+      {"v_max": 16,   "pd1": 0.10,  "pd2": {"I": 0.45, "II": 0.45, "III": 0.45}, "pd3": {"I": 1.10, "II": 1.10, "III": 1.10}},
+      {"v_max": 20,   "pd1": 0.11,  "pd2": {"I": 0.48, "II": 0.48, "III": 0.48}, "pd3": {"I": 1.20, "II": 1.20, "III": 1.20}},
+      {"v_max": 25,   "pd1": 0.125, "pd2": {"I": 0.50, "II": 0.50, "III": 0.50}, "pd3": {"I": 1.25, "II": 1.25, "III": 1.25}},
+      {"v_max": 32,   "pd1": 0.14,  "pd2": {"I": 0.53, "II": 0.53, "III": 0.53}, "pd3": {"I": 1.30, "II": 1.30, "III": 1.30}},
+      {"v_max": 40,   "pd1": 0.16,  "pd2": {"I": 0.56, "II": 0.80, "III": 1.10}, "pd3": {"I": 1.40, "II": 1.60, "III": 1.80}},
+      {"v_max": 50,   "pd1": 0.18,  "pd2": {"I": 0.60, "II": 0.85, "III": 1.20}, "pd3": {"I": 1.50, "II": 1.70, "III": 1.90}},
+      {"v_max": 63,   "pd1": 0.20,  "pd2": {"I": 0.63, "II": 0.90, "III": 1.25}, "pd3": {"I": 1.60, "II": 1.80, "III": 2.00}},
+      {"v_max": 80,   "pd1": 0.22,  "pd2": {"I": 0.67, "II": 0.95, "III": 1.30}, "pd3": {"I": 1.70, "II": 1.90, "III": 2.10}},
+      {"v_max": 100,  "pd1": 0.25,  "pd2": {"I": 0.71, "II": 1.00, "III": 1.40}, "pd3": {"I": 1.80, "II": 2.00, "III": 2.20}},
+      {"v_max": 125,  "pd1": 0.28,  "pd2": {"I": 0.75, "II": 1.05, "III": 1.50}, "pd3": {"I": 1.90, "II": 2.10, "III": 2.40}},
+      {"v_max": 160,  "pd1": 0.32,  "pd2": {"I": 0.80, "II": 1.10, "III": 1.60}, "pd3": {"I": 2.00, "II": 2.20, "III": 2.50}},
+      {"v_max": 200,  "pd1": 0.42,  "pd2": {"I": 1.00, "II": 1.40, "III": 2.00}, "pd3": {"I": 2.50, "II": 2.80, "III": 3.20}},
+      {"v_max": 250,  "pd1": 0.56,  "pd2": {"I": 1.25, "II": 1.80, "III": 2.50}, "pd3": {"I": 3.20, "II": 3.60, "III": 4.00}},
+      {"v_max": 320,  "pd1": 0.75,  "pd2": {"I": 1.60, "II": 2.20, "III": 3.20}, "pd3": {"I": 4.00, "II": 4.50, "III": 5.00}},
+      {"v_max": 400,  "pd1": 1.00,  "pd2": {"I": 2.00, "II": 2.80, "III": 4.00}, "pd3": {"I": 5.00, "II": 5.60, "III": 6.30}},
+      {"v_max": 500,  "pd1": 1.30,  "pd2": {"I": 2.50, "II": 3.60, "III": 5.00}, "pd3": {"I": 6.30, "II": 7.10, "III": 8.00}},
+      {"v_max": 630,  "pd1": 1.80,  "pd2": {"I": 3.20, "II": 4.50, "III": 6.30}, "pd3": {"I": 8.00, "II": 9.00, "III": 10.0}},
+      {"v_max": 800,  "pd1": 2.40,  "pd2": {"I": 4.00, "II": 5.60, "III": 8.00}, "pd3": {"I": 10.0, "II": 11.0, "III": 12.5}},
+      {"v_max": 1000, "pd1": 3.20,  "pd2": {"I": 5.00, "II": 7.10, "III": 10.0}, "pd3": {"I": 12.5, "II": 14.0, "III": 16.0}}
+    ]
+  },
+  "insulation_rules": {
+    "basic": "Tabellenwerte direkt (Basisisolierung).",
+    "reinforced_creepage_factor": 2.0,
+    "reinforced_clearance": "Stossspannung eine Stufe hoeher in der Vorzugsreihe (0.33/0.5/0.8/1.5/2.5/4/6/8/12 kV).",
+    "double": "Doppelte Isolierung = Basis + zusaetzliche Isolierung; je Schicht Basiswerte, gesamt wie verstaerkt bewerten."
+  },
+  "protection_classes_iec61140": {
+    "I":   "Schutzleiter (PE) + Basisisolierung: L/N gegen geerdete beruehrbaren Teile mit Basis-Abstaenden.",
+    "II":  "Keine PE-Verbindung: doppelte oder verstaerkte Isolierung zwischen Primaerseite und beruehrbaren Teilen (verstaerkte Abstaende).",
+    "III": "SELV/PELV (<= 50 V AC / 120 V DC): keine gefaehrliche Spannung; nur Funktionsisolierung noetig."
+  }
+}

@@ -711,6 +711,39 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "stoppe. Kein pcb_render.")
     ),
     SuperFeature(
+        key="protection_class",
+        label="🔌 Schutzklassen",
+        name="Schutzklassen — Isolationskonzept nach IEC 61140/60664",
+        status=SHIPPED,
+        tooltip=("Prüft das Isolationskonzept des Geräts: Schutzklasse I/II/"
+                 "III bestimmen, geforderte Kriech-/Luftstrecken je "
+                 "Spannungsgrenze aus dem IEC-60664-Snapshot holen "
+                 "(get_safety_spacing) und gegen die Ist-Abstände stellen."),
+        moat=("KiCad kennt weder Schutzklassen noch Normtabellen — welche "
+              "Abstände eine 230-V-Grenze braucht, ist reines Norm-Wissen."),
+        prompt=("Schutzklassen-Review: (1) Kläre die Schutzklasse des Geräts "
+                "nach IEC 61140 — Klasse I (geerdet, Basisisolierung), "
+                "Klasse II (doppelte/verstärkte Isolierung, keine Erde), "
+                "Klasse III (SELV/PELV) — frage mich, falls nicht aus dem "
+                "Design erkennbar. (2) Bestimme aus analyze_pcb_nets die "
+                "Spannungs-Domänen (Netz/HV, PE/geerdet, SELV) und die "
+                "Grenzen dazwischen. (3) Hole die GEFORDERTEN Abstände je "
+                "Grenze mit get_safety_spacing (working_voltage_v, "
+                "nominal_mains_v; insulation=basic für Klasse-I-Grenzen "
+                "gegen PE, reinforced für Klasse-II-Grenzen zu berührbaren "
+                "Teilen; Default PD 2, Materialgruppe IIIa für FR-4, OVC II "
+                "— nenne die gewählten Parameter). Die Werte kommen aus dem "
+                "datierten IEC-60664-Snapshot des Tools, NICHT aus deinem "
+                "Gedächtnis. (4) Miss die IST-Abstände an den kritischen "
+                "Übergängen (center_item_clearance bzw. Track-/Pad-"
+                "Koordinaten) und urteile je Grenze: erfüllt / verletzt, "
+                "mit Ist vs. Soll in mm und Koordinaten. EHRLICH: "
+                "Ingenieurs-Vorprüfung, keine Zertifizierung; Kriechwege "
+                "über Slots nähere ich nur geometrisch. Steht oben eine "
+                "Auswahl, nur dieser Bereich. Keine Änderung, kein "
+                "pcb_render."),
+    ),
+    SuperFeature(
         key="safety_spacing",
         label="⚡ Sicherheitsabstände",
         name="Sicherheitsabstände — Creepage & Clearance",
@@ -728,8 +761,10 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "als kürzeste Distanz zwischen den Domänen — miss gezielt mit "
                 "center_item_clearance bzw. aus den Track-/Pad-Koordinaten — "
                 "und die Kriechstrecke entlang der Oberfläche inkl. "
-                "Slots/Fräsungen. (3) Vergleiche gegen IEC-62368-Richtwerte "
-                "für Spannung und Verschmutzungsgrad — nenne die Werte und "
+                "Slots/Fräsungen. (3) Hole die GEFORDERTEN Werte mit "
+                "get_safety_spacing (Arbeitsspannung, nominal_mains_v, "
+                "Verschmutzungsgrad, Materialgruppe, insulation) — datierter "
+                "IEC-60664-Snapshot statt Gedächtnis — und vergleiche. "
                 "EHRLICH: das ist eine Ingenieurs-Vorprüfung, keine "
                 "Zertifizierung. Befunde mit Koordinaten. Steht oben eine "
                 "Auswahl, nur dieser Bereich. Keine Änderung, kein pcb_render.")

@@ -1,7 +1,26 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.7.6**
+Aktuelle Version: **0.7.7**
+
+---
+
+## 🔌 Neu in 0.7.7 — Schutzklassen (34. Super-Feature, Normwerte als Werkzeug)
+
+- **🔌 Schutzklassen ist live** (Werkzeug Nr. 186, `get_safety_spacing`): Prüft
+  das Isolationskonzept deines Geräts — Schutzklasse I/II/III nach IEC 61140
+  bestimmen, dann je Spannungsgrenze die **geforderten Kriech- und
+  Luftstrecken** nachschlagen: Netz-Nennspannung + Überspannungskategorie →
+  Stoßspannung → Luftstrecke; Arbeitsspannung + Verschmutzungsgrad +
+  Materialgruppe (FR-4 = IIIa) → Kriechstrecke; Klasse II automatisch mit
+  verstärkten Werten (Kriechweg ×2, Stoßspannungs-Stufe höher).
+- **Die Normzahlen stecken als datierter Snapshot im Werkzeug** (IEC-60664-1-
+  Tabellen F.1/F.2/F.4, gegen publizierte Normauszüge quergeprüft) — nicht im
+  Modellgedächtnis. Beispiel 230-V-Netz, OVC II, FR-4: Basis 1,5 mm Luft /
+  2,5 mm Kriechweg; Klasse II verstärkt 2,0 / 5,0 mm.
+- Auch der ⚡ Sicherheitsabstände-Button nutzt jetzt diese Snapshot-Werte statt
+  Gedächtnis-Richtwerte. Ehrlich bleibt: Ingenieurs-Vorprüfung, keine
+  Zertifizierung — Produktnormen (62368-1, 60335-1, 60601-1) können abweichen.
 
 ---
 
