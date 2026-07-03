@@ -186,7 +186,7 @@ class TestForceFlag:
                       + frt.MARK_END)
             stderr = ""
 
-        def fake_run(cmd, input=None, **kw):
+        def fake_run(cmd, input=None, **kw):  # pylint: disable=redefined-builtin  # must match subprocess.run(input=...)
             captured["payload"] = _json.loads(input)
             return FakeProc()
 
