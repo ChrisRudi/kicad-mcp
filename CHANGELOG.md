@@ -8,6 +8,32 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (GUI 0.8.0 — Mehrsprachigkeit, Gruppen, Chips, Session, Einstellungen)
+- **`plugin/i18n.py` (neu):** Auto-Sprachwahl (Einstellung → KiCads
+  `kicad_common.json` system.language → Locale → en); Deutsch bleibt
+  Quellsprache, `tr()` übersetzt über einen Katalog (fehlende Einträge
+  fallen sichtbar auf Deutsch zurück). Antwortsprache des Agenten folgt via
+  System-Prompt-Zusatz (`build_command(language=…)`).
+- **`plugin/settings.py` (neu):** persistente GUI-Einstellungen
+  (`settings.json` im State-Dir) → `apply_env()` setzt
+  KICAD_MCP_TRANSPORT/NGSPICE/MAX_TURNS beim Panel-Start; hand-gesetzte Env
+  behält Vorrang. Einstellungs-Dialog im Einrichtungs-Fenster
+  (Sprache/Transport/ngspice/Max-Schritte).
+- **Super-Feature-Leiste gruppiert:** `SuperFeature.category` +
+  `CATEGORIES`/`by_category()`; sechs Gruppen-Buttons mit Popup-Menü statt
+  34 Einzelbuttons.
+- **Chat-Panel:** mehrzeilige Eingabe (Enter=senden, Shift+Enter=Umbruch,
+  Paste bleibt vollständig, wächst bis 5 Zeilen); Antwort-Chips aus dem
+  neuen `[[CHOICES: …]]`-Marker (Verhaltensregel 9 + `parse_choices`) und
+  📋-Copy-Chips je Codeblock (`extract_code_blocks`); Session pro Projekt
+  (`.kicad-mcp/chat_session.json`, ↺-Hinweis im Banner, 🆕-Button);
+  Ampel-Zeile MCP/IPC/ngspice im Fuß; Freitext-Optionsfeld entfernt
+  (⚙-Dropdown pflegt den internen Schalter-Zustand, Reset-Eintrag,
+  aktive Schalter sichtbar); Hover-Erklärung für „Auswahl einbeziehen".
+- Tests: `test_plugin_i18n_settings.py` (Sprachwahl, Katalog-Vollständigkeit
+  für Labels/Gruppen, Settings-Roundtrip/Env-Vorrang, Choices-/Codeblock-
+  Parser, Sprachzusatz im Kommando). Version 0.7.8 → 0.8.0.
+
 ### Fixed (Links tot + „Kein eindeutiges Board" nach Folge-Abfragen, Plugin 0.7.8)
 - **Geister-Editor-Bug:** `_require_editor` las den TRANSIENTEN
   "no handler for GetOpenDocuments" (KiCad-GUI kurz busy bei

@@ -23,6 +23,9 @@ import wx  # KiCad ships wxPython; only importable inside KiCad
 from . import banner
 from . import chat_theme as theme
 from . import claude_bridge
+from . import i18n
+from . import settings as plugin_settings
+from .i18n import tr
 from .version import __version__
 
 
@@ -45,10 +48,22 @@ class ClaudeChatPanel(wx.Panel):
         # argv for this machine (native Windows, native Linux, or WSL-bridge).
         self._plan = plan
         self._on_open_setup = on_open_setup  # reopen Einrichtung/Update panel
+        # Persistente Einstellungen → Env (Transport/ngspice/Max-Turns) und
+        # Sprache — VOR allem anderen, damit Turn-Spawns sie erben.
+        try:
+            plugin_settings.apply_env()
+            i18n.set_lang(i18n.detect_lang(
+                plugin_settings.load().get("language", "auto")))
+        except Exception:
+            pass
         # Path of the .kicad_pcb open in this pcbnew instance — used as the disk
         # fallback for linkification when live IPC can't resolve the board.
         self._pcb_path = self._discover_board_path()
-        self._session_id = None
+        # Session pro Projekt: die letzte Unterhaltung wird fortgesetzt
+        # (claude --resume), statt mit jedem Panel-Open den Kontext zu
+        # verlieren. 🆕-Button beginnt bewusst neu.
+        self._session_id = self._load_session_id()
+        self._cli_switches = ""   # aktive CLI-Schalter (nur via ⚙-Dropdown)
         self._busy = False
         self._proc = None       # live claude process of the running turn
         self._stopped = False   # set when the user pressed Stopp
@@ -81,21 +96,36 @@ class ClaudeChatPanel(wx.Panel):
         chevron.SetForegroundColour(wx.Colour(theme.CLAUDE_ORANGE))
         chevron.SetFont(self._mono.Bold())
         row.Add(chevron, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
-        self._in = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
+        # Mehrzeilig: Enter sendet, Shift+Enter bricht um, mehrzeiliges
+        # Einfügen bleibt VOLLSTÄNDIG erhalten (die alte einzeilige Box hat
+        # eingefügte Prompts an der ersten Zeile abgeschnitten). Wächst mit
+        # dem Inhalt bis ~5 Zeilen.
+        self._in = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_RICH2)
         self._in.SetBackgroundColour(wx.Colour(theme.SURFACE))
         self._in.SetForegroundColour(wx.Colour(theme.FOREGROUND))
         self._in.SetFont(self._mono)
-        self._in.SetHint("Frag Claude etwas über dieses Board …")
-        self._in.Bind(wx.EVT_TEXT_ENTER, self._on_send)
+        self._in.SetHint(tr("Frag Claude etwas über dieses Board …"))
+        self._in_line_px = self._in.GetCharHeight() + 10
+        self._in.SetMinSize(wx.Size(-1, self._in_line_px))
+        self._in.Bind(wx.EVT_KEY_DOWN, self._on_input_key)
+        self._in.Bind(wx.EVT_TEXT, self._on_input_grow)
         row.Add(self._in, 1, wx.EXPAND | wx.RIGHT, 6)
-        self._send = wx.Button(self, label="Senden")
+        self._send = wx.Button(self, label=tr("Senden"))
         self._send.SetBackgroundColour(wx.Colour(theme.SURFACE))
         self._send.SetForegroundColour(wx.Colour(theme.FOREGROUND))
         row.Add(self._send, 0)
         self._send.Bind(wx.EVT_BUTTON, self._on_send)
+        new_btn = wx.Button(self, label=tr("🆕 Neu"), style=wx.BU_EXACTFIT)
+        new_btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
+        new_btn.SetForegroundColour(wx.Colour(theme.DIM))
+        new_btn.SetToolTip(tr(
+            "Neue Unterhaltung beginnen (der bisherige Verlauf bleibt "
+            "sichtbar, aber Claude startet ohne Kontext)"))
+        new_btn.Bind(wx.EVT_BUTTON, self._on_new_conversation)
+        row.Add(new_btn, 0, wx.LEFT, 6)
         # Stopp button — usable WHILE Claude thinks (the input is disabled then),
         # so a too-long turn can be cancelled. Hidden until a turn is running.
-        self._stop = wx.Button(self, label="Stopp")
+        self._stop = wx.Button(self, label=tr("Stopp"))
         self._stop.SetBackgroundColour(wx.Colour(theme.SURFACE))
         self._stop.SetForegroundColour(wx.Colour(theme.ERROR_RED))
         self._stop.Bind(wx.EVT_BUTTON, self._on_stop)
@@ -103,36 +133,37 @@ class ClaudeChatPanel(wx.Panel):
         row.Add(self._stop, 0, wx.LEFT, 6)
         root.Add(row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
-        # Raw Claude Code CLI switches (e.g. "--model sonnet"), shlex-split and
-        # appended to every turn's command. Empty = plain defaults.
+        # CLI-Schalter NUR über das Dropdown (kuratiert + dynamisch gegen
+        # claude --help gefiltert) — das Freitextfeld ist weg: es war ein
+        # Fehlerkanal (Tippfehler = toter Zug) und doppelte das Dropdown.
+        # Auswahl merged in den internen Zustand (gleiches Flag wird ersetzt);
+        # das dimme Label daneben zeigt, was aktiv ist.
         opt = wx.BoxSizer(wx.HORIZONTAL)
-        opt_lbl = wx.StaticText(self, label="⚑")
-        opt_lbl.SetForegroundColour(wx.Colour(theme.DIM))
-        opt_lbl.SetFont(self._mono)
-        opt.Add(opt_lbl, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 6)
-        self._opts = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
-        self._opts.SetBackgroundColour(wx.Colour(theme.SURFACE))
-        self._opts.SetForegroundColour(wx.Colour(theme.DIM))
-        self._opts.SetFont(self._mono)
-        self._opts.SetHint("Claude-Optionen, z. B. --model sonnet  (optional)")
-        opt.Add(self._opts, 1, wx.EXPAND | wx.RIGHT, 6)
-        # Dropdown with sensible switches, dynamically filtered against the
-        # installed CLI (claude --help, parsed once in the background).
-        # Selecting merges the switch into the free-text field (same-flag
-        # values are swapped, not duplicated). Hidden if nothing is available.
-        self._opt_choice = wx.Choice(self, choices=["⚙ Option wählen …"])
+        self._opt_choice = wx.Choice(self, choices=[tr("⚙ Option wählen …")])
         self._opt_choice.SetSelection(0)
         self._opt_choice.Bind(wx.EVT_CHOICE, self._on_pick_option)
         self._opt_choice.Hide()
         self._opt_switches: list = []  # index-aligned with dropdown entries
-        opt.Add(self._opt_choice, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
+        opt.Add(self._opt_choice, 0,
+                wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 6)
+        self._opt_active = wx.StaticText(self, label="")
+        self._opt_active.SetForegroundColour(wx.Colour(theme.DIM))
+        self._opt_active.SetFont(self._mono)
+        opt.Add(self._opt_active, 1,
+                wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
         threading.Thread(target=self._load_option_choices,
                          daemon=True).start()
         # P1 (Dok 1): include the live editor selection as context for the turn,
         # so "was ist das?" works without typing a reference.
-        self._include_selection = wx.CheckBox(self, label="🔗 Auswahl einbeziehen")
+        self._include_selection = wx.CheckBox(
+            self, label=tr("🔗 Auswahl einbeziehen"))
         self._include_selection.SetForegroundColour(wx.Colour(theme.DIM))
         self._include_selection.SetFont(self._mono)
+        self._include_selection.SetToolTip(tr(
+            "Hängt deine aktuelle Editor-Auswahl als Kontext an jede getippte "
+            "Nachricht — 'das hier'/'die markierten' funktioniert dann ohne "
+            "Referenzen zu tippen. Die ✨-Buttons nutzen die Auswahl immer "
+            "(markiert = nur darauf, sonst boardweit)."))
         opt.Add(self._include_selection, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
         root.Add(opt, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
@@ -147,6 +178,16 @@ class ClaudeChatPanel(wx.Panel):
             pass
 
         foot = wx.BoxSizer(wx.HORIZONTAL)
+        # Chips-Zeile: Entscheidungs-Buttons ([[CHOICES: …]]-Marker der
+        # Antwort) und 📋-Copy-Buttons für Codeblöcke. Versteckt, bis eine
+        # Antwort sie füllt; jede neue Nachricht räumt sie weg.
+        self._chips = wx.WrapSizer(wx.HORIZONTAL)
+        self._chip_row = wx.Panel(self)
+        self._chip_row.SetBackgroundColour(wx.Colour(theme.BACKGROUND))
+        self._chip_row.SetSizer(self._chips)
+        self._chip_row.Hide()
+        root.Add(self._chip_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
+
         self._status = wx.StaticText(self, label=theme.STATUS_READY)
         self._status.SetForegroundColour(wx.Colour(theme.DIM))
         self._status.SetFont(self._mono)
@@ -154,6 +195,20 @@ class ClaudeChatPanel(wx.Panel):
         # Always-available safety net: undo the last board change (KiCad Ctrl+Z).
         # Right after an agent turn that is its last commit, so "take back what
         # Claude just did" is one click away — no need to find the PCB window.
+        # Ampel-Zeile: „läuft es gerade?" ohne Diagnose-Report — MCP
+        # (letzter Zug), IPC (Link-Fähigkeit), ngspice (Simulation).
+        self._lights = wx.StaticText(self, label="")
+        self._lights.SetFont(self._mono)
+        self._lights.SetForegroundColour(wx.Colour(theme.DIM))
+        self._lights.SetToolTip(
+            tr("Status des Tool-Servers (letzter Zug)") + " · "
+            + tr("Live-Verbindung zur KiCad-GUI (Links/Selektion)") + " · "
+            + tr("SPICE-Simulator gefunden? (für 📈 Simulation)"))
+        foot.Add(self._lights, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
+        self._light_state = {"mcp": None, "ipc": None, "ngspice": None}
+        threading.Thread(target=self._probe_ngspice_light,
+                         daemon=True).start()
+
         undo_btn = wx.Button(self, label="↶ Rückgängig")
         undo_btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
         undo_btn.SetForegroundColour(wx.Colour(theme.DIM))
@@ -263,6 +318,9 @@ class ClaudeChatPanel(wx.Panel):
                          banner.recommend_mailto())
         self._write("\n\n", theme.FOREGROUND)
         self._write(banner.interaction_guide() + "\n\n", theme.FOREGROUND)
+        if self._session_id:  # Session pro Projekt wurde fortgesetzt
+            self._write("↺ " + tr("Unterhaltung aus letzter Sitzung "
+                                  "fortgesetzt.") + "\n\n", theme.DIM)
         threading.Thread(target=self._summary_worker, daemon=True).start()
 
     def _summary_worker(self) -> None:
@@ -350,8 +408,125 @@ class ClaudeChatPanel(wx.Panel):
         if not prompt:
             return
         self._in.SetValue("")
+        self._on_input_grow(None)
         self._dispatch_prompt(prompt,
                               include_sel=self._include_selection.GetValue())
+
+    def _on_input_key(self, evt) -> None:
+        """Enter = senden, Shift+Enter = Zeilenumbruch (mehrzeilige Box)."""
+        if evt.GetKeyCode() in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER) \
+                and not evt.ShiftDown():
+            self._on_send(None)
+            return
+        evt.Skip()
+
+    def _on_input_grow(self, _evt) -> None:
+        """Eingabefeld wächst mit dem Inhalt (1..5 Zeilen)."""
+        lines = min(5, max(1, self._in.GetNumberOfLines()))
+        want = self._in_line_px * lines
+        if self._in.GetMinSize().height != want:
+            self._in.SetMinSize(wx.Size(-1, want))
+            self.Layout()
+
+    # ---- Session pro Projekt --------------------------------------------
+    def _session_file(self) -> str:
+        return os.path.join(self._plan.run_cwd, ".kicad-mcp",
+                            "chat_session.json")
+
+    def _load_session_id(self):
+        try:
+            import json as _json
+            with open(self._session_file(), encoding="utf-8") as fh:
+                sid = (_json.load(fh) or {}).get("session_id")
+            return sid or None
+        except Exception:
+            return None
+
+    def _save_session_id(self) -> None:
+        try:
+            import json as _json
+            path = self._session_file()
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as fh:
+                _json.dump({"session_id": self._session_id}, fh)
+        except Exception:
+            pass
+
+    def _on_new_conversation(self, _evt) -> None:
+        if self._busy:
+            return
+        self._session_id = None
+        try:
+            os.remove(self._session_file())
+        except Exception:
+            pass
+        self._clear_chips()
+        self._write("\n— " + tr("Neue Unterhaltung begonnen.") + "\n",
+                    theme.DIM)
+
+    # ---- Chips (Entscheidungen + Codeblock-Kopieren) ---------------------
+    def _clear_chips(self) -> None:
+        for child in list(self._chip_row.GetChildren()):
+            child.Destroy()
+        self._chips.Clear()
+        self._chip_row.Hide()
+        self.Layout()
+
+    def _add_chip(self, label: str, handler) -> None:
+        btn = wx.Button(self._chip_row, label=label, style=wx.BU_EXACTFIT)
+        btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
+        btn.SetForegroundColour(wx.Colour(theme.CLAUDE_ORANGE))
+        btn.Bind(wx.EVT_BUTTON, handler)
+        self._chips.Add(btn, 0, wx.ALL, 2)
+
+    def _show_reply_chips(self, choices: list, code_blocks: list) -> None:
+        self._clear_chips()
+        if not choices and not code_blocks:
+            return
+        for option in choices:
+            self._add_chip(
+                option,
+                lambda _e, o=option: (self._clear_chips(),
+                                      self._dispatch_prompt(o)))
+        for i, code in enumerate(code_blocks, 1):
+            label = "📋 Code" + (f" {i}" if len(code_blocks) > 1 else "")
+            self._add_chip(label,
+                           lambda _e, c=code: self._copy_to_clipboard(c))
+        self._chip_row.Show()
+        self.Layout()
+
+    def _copy_to_clipboard(self, text: str) -> None:
+        try:
+            if wx.TheClipboard.Open():
+                wx.TheClipboard.SetData(wx.TextDataObject(text))
+                wx.TheClipboard.Close()
+                self._flash_status(tr("📋 kopiert"))
+        except Exception:
+            pass
+
+    # ---- Ampel-Zeile ------------------------------------------------------
+    def _probe_ngspice_light(self) -> None:
+        import shutil as _shutil
+        found = bool(os.environ.get("KICAD_MCP_NGSPICE")
+                     or _shutil.which("ngspice")
+                     or _shutil.which("ngspice.exe"))
+        wx.CallAfter(self._set_light, "ngspice", found)
+
+    def _set_light(self, key: str, ok) -> None:
+        if not self:
+            return
+        self._light_state[key] = ok
+        parts = []
+        for name in ("mcp", "ipc", "ngspice"):
+            state = self._light_state[name]
+            dot = "○" if state is None else ("●" if state else "●")
+            parts.append(f"{dot} {tr(name.upper() if name != 'ngspice' else 'ngspice')}")
+        self._lights.SetLabel("  ".join(parts))
+        # Farbe: alles ok → dim; irgendwo rot → Fehlerfarbe zieht den Blick.
+        any_bad = any(v is False for v in self._light_state.values())
+        self._lights.SetForegroundColour(
+            wx.Colour(theme.ERROR_RED if any_bad else theme.DIM))
+        self._lights.Refresh()
 
     def _dispatch_prompt(self, prompt: str, include_sel: bool = True) -> None:
         """Start one chat turn with ``prompt`` — the shared path for typed
@@ -361,11 +536,9 @@ class ClaudeChatPanel(wx.Panel):
         super-feature)."""
         if self._busy:
             return
-        try:
-            extra_args = shlex.split(self._opts.GetValue().strip())
-        except ValueError:  # unbalanced quotes in the options field
-            self._append("error", "Optionen unlesbar (Anführungszeichen?).")
-            return
+        self._clear_chips()
+        extra_args = shlex.split(self._cli_switches) if self._cli_switches \
+            else []
         self._append("user", prompt)
         self._proc = None
         self._stopped = False
@@ -391,20 +564,28 @@ class ClaudeChatPanel(wx.Panel):
         if not self:  # panel died while the help call ran
             return
         self._opt_switches = [switch for _label, switch in options]
-        self._opt_choice.Set(["⚙ Option wählen …"]
-                             + [label for label, _switch in options])
+        self._opt_choice.Set([tr("⚙ Option wählen …")]
+                             + [label for label, _switch in options]
+                             + [tr("— Optionen zurücksetzen")])
         self._opt_choice.SetSelection(0)
         self._opt_choice.Show()
         self.Layout()
 
     def _on_pick_option(self, _evt) -> None:
-        """Dropdown pick → merge the switch into the free-text options."""
+        """Dropdown pick → merge the switch into the INTERNAL switch state
+        (das Freitextfeld ist weg); letzter Eintrag setzt alles zurück."""
         from . import claude_options
         idx = self._opt_choice.GetSelection() - 1  # entry 0 is the placeholder
-        if 0 <= idx < len(self._opt_switches):
-            self._opts.SetValue(claude_options.apply_switch(
-                self._opts.GetValue(), self._opt_switches[idx]))
+        if idx == len(self._opt_switches):  # „zurücksetzen"
+            self._cli_switches = ""
+        elif 0 <= idx < len(self._opt_switches):
+            self._cli_switches = claude_options.apply_switch(
+                self._cli_switches, self._opt_switches[idx])
+        self._opt_active.SetLabel(
+            (tr("Aktive Optionen: ") + self._cli_switches)
+            if self._cli_switches else "")
         self._opt_choice.SetSelection(0)  # reset to placeholder
+        self.Layout()
 
     def _on_stop(self, _evt) -> None:
         """User pressed Stopp — kill the running turn now."""
@@ -439,6 +620,7 @@ class ClaudeChatPanel(wx.Panel):
             session_id=self._session_id,
             claude_cmd=self._plan.claude_cmd,
             extra_args=extra_args,
+            language=i18n.reply_language_name(),
             on_status=lambda s: wx.CallAfter(self._on_activity, s),
             on_tool=lambda n, i: wx.CallAfter(self._on_tool, n, i),
             on_proc=lambda p: wx.CallAfter(self._on_proc, p),
@@ -526,7 +708,7 @@ class ClaudeChatPanel(wx.Panel):
             return
         self._proc = None
         if self._stopped:  # user pressed Stopp — show that, ignore the rest
-            self._append("error", "⏹ Abgebrochen.")
+            self._append("error", tr("⏹ Abgebrochen."))
             self._set_busy(False)
             self._in.SetFocus()
             return
@@ -546,11 +728,22 @@ class ClaudeChatPanel(wx.Panel):
             )
         if result.get("ok"):
             self._session_id = result.get("session_id") or self._session_id
-            rendered = self._append_claude(result.get("text") or "(keine Antwort)")
+            self._save_session_id()  # Session pro Projekt fortsetzbar
+            text = result.get("text") or "(keine Antwort)"
+            text, choices = claude_bridge.parse_choices(text)
+            rendered = self._append_claude(text)
             self._write_link_status(result, rendered)
             self._write_change_receipt()
+            self._show_reply_chips(
+                choices, claude_bridge.extract_code_blocks(text))
         else:
             self._append("error", result.get("error") or "unbekannt")
+        # Ampeln: MCP aus dem Turn-Status, IPC aus der Link-Fähigkeit.
+        mcp_ok = not (result.get("mcp_status") or "").startswith("failed")
+        self._set_light("mcp", mcp_ok if result.get("mcp_status") else None)
+        self._set_light("ipc", not result.get("_link_error")
+                        if ("_link_error" in result or result.get("_refs")
+                            is not None) else None)
         self._set_busy(False)
         self._in.SetFocus()
 
@@ -746,23 +939,41 @@ class ClaudeChatPanel(wx.Panel):
         dimmed and print their pitch on click, ``SHIPPED`` ones will dispatch to
         a live handler (wired in ``_on_superfeature``)."""
         from . import superfeatures
+        # Gruppen-Leiste statt 34-Button-Wand: ein Button je Kategorie öffnet
+        # ein Menü seiner Features — eine Zeile statt vier, und das Transkript
+        # behält seine Höhe. Menüpunkt-Klick dispatcht wie zuvor der Button.
         bar = wx.WrapSizer(wx.HORIZONTAL)
-        tag = wx.StaticText(self, label="✨ Super-Features")
+        tag = wx.StaticText(self, label=tr("✨ Super-Features"))
         tag.SetForegroundColour(wx.Colour(theme.CLAUDE_ORANGE))
         tag.SetFont(self._mono)
         bar.Add(tag, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 6)
-        for feat in superfeatures.all_features():
-            btn = wx.Button(self, label=feat.label, style=wx.BU_EXACTFIT)
+        for cat_key, cat_label in superfeatures.CATEGORIES:
+            feats = superfeatures.by_category(cat_key)
+            if not feats:
+                continue
+            btn = wx.Button(self, label=tr(cat_label) + " ▾",
+                            style=wx.BU_EXACTFIT)
             btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
-            soon = feat.status == superfeatures.SOON
-            # live features carry the brand orange so "klickbar & echt" is
-            # visible at a glance; roadmap entries stay dimmed
-            btn.SetForegroundColour(
-                wx.Colour(theme.DIM if soon else theme.CLAUDE_ORANGE))
-            btn.SetToolTip(("🔜 Kommt bald — " if soon else "") + feat.tooltip)
-            btn.Bind(wx.EVT_BUTTON, lambda _e, f=feat: self._on_superfeature(f))
+            btn.SetForegroundColour(wx.Colour(theme.CLAUDE_ORANGE))
+            btn.SetToolTip(" · ".join(tr(f.label) for f in feats))
+            btn.Bind(wx.EVT_BUTTON,
+                     lambda _e, b=btn, fl=feats: self._popup_feature_menu(b, fl))
             bar.Add(btn, 0, wx.ALL, 2)
         root.Add(bar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
+
+    def _popup_feature_menu(self, anchor_btn, feats) -> None:
+        """Das Kategorie-Menü: ein Eintrag pro Feature, Klick dispatcht."""
+        from . import superfeatures
+        menu = wx.Menu()
+        for feat in feats:
+            item = menu.Append(wx.ID_ANY, tr(feat.label))
+            item.SetHelp(feat.tooltip)
+            if feat.status == superfeatures.SOON:
+                item.Enable(False)
+            self.Bind(wx.EVT_MENU,
+                      lambda _e, f=feat: self._on_superfeature(f), item)
+        anchor_btn.PopupMenu(menu)
+        menu.Destroy()
 
     def _on_superfeature(self, feat) -> None:
         """Click on a Super-Feature button. SHIPPED features dispatch their
@@ -772,8 +983,7 @@ class ClaudeChatPanel(wx.Panel):
         from . import superfeatures
         if feat.status == superfeatures.SHIPPED and getattr(feat, "prompt", ""):
             if self._busy:  # _flash_status is a no-op while busy → _set_status
-                self._set_status("⏳ Es läuft noch ein Zug — danach nochmal "
-                                 "klicken.", theme.CLAUDE_ORANGE)
+                self._set_status(tr("⏳ Es läuft noch ein Zug — danach nochmal klicken."), theme.CLAUDE_ORANGE)
                 return
             self._write(f"\n✨ {feat.name}\n", theme.CLAUDE_ORANGE, bold=True)
             # global selection contract: SHOW what the feature will act on —
@@ -806,8 +1016,8 @@ class ClaudeChatPanel(wx.Panel):
                 names.append(label)
         if names:
             shown = ", ".join(names[:12]) + (" …" if len(names) > 12 else "")
-            return f"🎯 Wirkt auf deine Auswahl: {shown}"
-        return "🎯 Wirkt boardweit (keine Auswahl im Editor)"
+            return tr("🎯 Wirkt auf deine Auswahl: ") + shown
+        return tr("🎯 Wirkt boardweit (keine Auswahl im Editor)")
 
     def _mark_all_worker(self, marks: list) -> None:
         """P4 (Dok 1): select every named board element together (first replaces

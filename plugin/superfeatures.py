@@ -57,6 +57,7 @@ class SuperFeature:
     moat: str
     selection_aware: bool = True
     prompt: str = ""
+    category: str = ""
 
 
 # Order = display order. "Entwirren" leads — it is the current focus.
@@ -96,6 +97,7 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "Moves bündeln), danach genau EIN check_connectivity und EIN "
                 "ipc_clear_markers — die Vorschau wird auch bei Ablehnung "
                 "weggeräumt. Kein pcb_render zwischendrin."),
+        category="layout",
     ),
     # (kein eigenes "Auswahl entwirren"-Feature: Selektion-Scoping ist der
     #  GLOBALE Vertrag jedes Buttons — ohne Auswahl boardweit, mit Auswahl nur
@@ -117,6 +119,7 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "Liste je Bus die Teilnehmer als Ref.Pin mit den EXAKTEN "
                 "Netznamen aus der Tool-Ausgabe. Keine Board-Änderung, kein "
                 "pcb_render."),
+        category="verstehen",
     ),
     SuperFeature(
         key="datasheet_diff",
@@ -142,6 +145,7 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "frage, welches IC ich reviewen will. Fehlt das PDF des "
                 "gewählten ICs, sage das ehrlich statt zu raten. Keine "
                 "Board-Änderung, kein pcb_render."),
+        category="verstehen",
     ),
     SuperFeature(
         key="semantic_erc",
@@ -159,6 +163,7 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "zusammen (kritisch zuerst), nenne Bauteile und Netze mit "
                 "ihren EXAKTEN Namen und schlage je Befund die konkrete "
                 "Abhilfe vor. Keine Board-Änderung, kein pcb_render."),
+        category="verstehen",
     ),
     SuperFeature(
         key="test_points",
@@ -178,6 +183,7 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "blinden Netze mit EXAKTEN Namen und je blindem Netz einen "
                 "konkreten Prüfpunkt-Vorschlag (wo, warum dort). Keine "
                 "Board-Änderung, kein pcb_render."),
+        category="verstehen",
     ),
     SuperFeature(
         key="pin_swap",
@@ -202,7 +208,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "am Schaltplan UND am PCB ändert. (4) Erst nach meinem Go: "
                 "Schaltplan über die Schaltplan-Tools (z. B. connect_pins) "
                 "ändern — NUR bei geschlossenem Eeschema — und die PCB-Netze "
-                "nachziehen; danach EIN check_connectivity. Kein pcb_render.")
+                "nachziehen; danach EIN check_connectivity. Kein pcb_render."),
+        category="layout",
     ),
     SuperFeature(
         key="explain_board",
@@ -223,6 +230,7 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "Teilschaltkreis und seine Rolle im Board. Benenne Bauteile "
                 "und Netze mit ihren EXAKTEN Namen. Keine Board-Änderung, "
                 "kein pcb_render."),
+        category="verstehen",
     ),
     SuperFeature(
         key="nl_navigation",
@@ -242,7 +250,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "des Boards (Versorgungen, Busse, auffällige Signale) und "
                 "nenne drei Beispiel-Fragen, die ich dir direkt stellen kann "
                 "('Welcher Pin treibt …?', 'Was liegt sonst auf U1.7?'). Keine "
-                "Board-Änderung, kein pcb_render.")
+                "Board-Änderung, kein pcb_render."),
+        category="verstehen",
     ),
     SuperFeature(
         key="select_place",
@@ -265,7 +274,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "compute_pad_world_positions, nie selbst rechnen) und erst "
                 "nach meinem Go alles in EINEM gebündelten Zug über die Live- "
                 "Tools umsetzen (ipc_move_items / ipc_set_footprint_pose). "
-                "Kein pcb_render.")
+                "Kein pcb_render."),
+        category="layout",
     ),
     SuperFeature(
         key="polar_board",
@@ -291,6 +301,7 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "eine Auswahl, schlage konkret vor, wie genau diese Bauteile "
                 "auf einen Ring kämen (nur Vorschlag). Ändere NICHTS ohne "
                 "mein Go. Kein pcb_render."),
+        category="layout",
     ),
     SuperFeature(
         key="sketch_layer",
@@ -312,6 +323,7 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "sofort ausführen. Ist der Layer leer, sage das in einem Satz "
                 "und erkläre kurz, wofür er da ist (du zeichnest Absichten, "
                 "der Agent Vorschläge/Marker). Kein pcb_render."),
+        category="layout",
     ),
     SuperFeature(
         key="sketch_conductor",
@@ -329,6 +341,7 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "(dry_run=false, Ziel F.Cu, sofern ich nichts anderes sage) in "
                 "Kupfer um — das ist ein einziger Undo-Schritt — und berichte "
                 "created/skipped aus dem Tool-Result. Kein pcb_render."),
+        category="layout",
     ),
     SuperFeature(
         key="watch_mode",
@@ -348,7 +361,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "Gibt es nichts zu berichten, sage das ehrlich in einem Satz. "
                 "Ein Klick = ein Review — die IPC-API liefert keine Events, "
                 "ein Dauer-Beobachten gibt es also (noch) nicht. Keine Board- "
-                "Änderung, kein pcb_render.")
+                "Änderung, kein pcb_render."),
+        category="verstehen",
     ),
 
     # -- Elektrik & Fertigung (DFM) -------------------------------------------
@@ -378,6 +392,7 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "IPC-2221, Temperaturanstieg default 10 K, 1 oz Kupfer — "
                 "nenne die Parameter im Bericht. Keine Board-Änderung, kein "
                 "pcb_render."),
+        category="elektrik",
     ),
     SuperFeature(
         key="xtal_caps",
@@ -399,7 +414,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "≈ 3–5 pF — Rechenweg und Annahmen offenlegen. (3) Urteil je "
                 "Quarz: passt / zu groß / zu klein, mit empfohlenem E-Reihen- "
                 "Wert. Steht oben eine Auswahl, prüfe nur deren Quarze. Keine "
-                "Board-Änderung, kein pcb_render.")
+                "Board-Änderung, kein pcb_render."),
+        category="elektrik",
     ),
     SuperFeature(
         key="via_cost",
@@ -419,6 +435,7 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "ließen, auf welchen Netzen (EXAKTE Namen) und was das für die "
                 "Fertigung bedeutet. Ändere NICHTS — die Umsetzung machst du "
                 "erst nach meinem ausdrücklichen Go. Kein pcb_render."),
+        category="fertigung",
     ),
     SuperFeature(
         key="thermal",
@@ -439,7 +456,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "Maßnahmen vor: Kühl-Kupferfläche, Thermal-Vias "
                 "(Anzahl/Raster), Abstand zu empfindlichen Nachbarn — als "
                 "Vorschlag mit Koordinaten. KEINE Umsetzung ohne mein Go. "
-                "Steht oben eine Auswahl, nur diese Bauteile. Kein pcb_render.")
+                "Steht oben eine Auswahl, nur diese Bauteile. Kein pcb_render."),
+        category="elektrik",
     ),
     SuperFeature(
         key="operating_temp",
@@ -462,7 +480,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "(Default 25 °C; Gehäuse?). Berichte je Bauteil Tj und die "
                 "Derating-Reserve bis Tj_max und markiere kritische Fälle. "
                 "Steht oben eine Auswahl, nur diese Bauteile. Keine Board- "
-                "Änderung, kein pcb_render.")
+                "Änderung, kein pcb_render."),
+        category="elektrik",
     ),
     SuperFeature(
         key="slew_rate",
@@ -483,7 +502,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "docs/ oder von mir erfragen; Rechenweg und Annahmen "
                 "offenlegen. Urteil je Stufe: reicht / Grenzfall / zu langsam, "
                 "mit der Konsequenz (Verzerrung, Timing, EMV). Steht oben eine "
-                "Auswahl, nur diese Bauteile. Keine Änderung, kein pcb_render.")
+                "Auswahl, nur diese Bauteile. Keine Änderung, kein pcb_render."),
+        category="elektrik",
     ),
     SuperFeature(
         key="impedance",
@@ -505,7 +525,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "Feldlöser — für die Fertigung den Stackup-Rechner des "
                 "Fertigers gegenprüfen. Steht oben eine Auswahl mit Tracks, "
                 "bewerte deren Ist-Breite gegen das Ziel. Keine Änderung, kein "
-                "pcb_render.")
+                "pcb_render."),
+        category="elektrik",
     ),
     SuperFeature(
         key="dfm_check",
@@ -529,7 +550,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "mit Datum, nicht als Live-Katalog. Berichte nur echte DFM- "
                 "Risiken mit Koordinaten/Refs und dem konkreten Fix. Steht "
                 "oben eine Auswahl, nur dieser Bereich. Keine Änderung, kein "
-                "pcb_render.")
+                "pcb_render."),
+        category="fertigung",
     ),
     SuperFeature(
         key="cost_estimate",
@@ -550,7 +572,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "sortiert und zwei bis drei konkrete Hebel — z. B. Via- "
                 "Optimierung oder BOM-Konsolidierung, dafür gibt es hier "
                 "Buttons. Zahlen EHRLICH als Größenordnung kennzeichnen, kein "
-                "Live-Preis. Keine Änderung, kein pcb_render.")
+                "Live-Preis. Keine Änderung, kein pcb_render."),
+        category="fertigung",
     ),
 
     # -- Simulation & Beschaffung ---------------------------------------------
@@ -577,7 +600,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "ngspice fehlt: analysiere ANALYTISCH (Kleinsignal, RC/RL-"
                 "Eckfrequenzen, OpAmp-Idealmodell) mit offenem Rechenweg und "
                 "liefere das Deck als Codeblock zum Kopieren. Keine Änderung "
-                "am Projekt, kein pcb_render.")
+                "am Projekt, kein pcb_render."),
+        category="simulation",
     ),
     SuperFeature(
         key="sim_models",
@@ -599,7 +623,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "Eintragung für KiCads Simulationsfelder (Sim.Library / "
                 "Sim.Name / Sim.Pins) zum Übernehmen. R/L/C brauchen keine "
                 "Modelle. Ins Schaltplan-File eintragen nur nach meinem Go und "
-                "nur bei geschlossenem Eeschema. Kein pcb_render.")
+                "nur bei geschlossenem Eeschema. Kein pcb_render."),
+        category="simulation",
     ),
     SuperFeature(
         key="bom_consolidate",
@@ -619,6 +644,7 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "kompakt: Ist-Werte → E-Reihen-Zielwert, betroffene Refs, "
                 "gesparte Feeder/Werte-Typen. Es sind reine VORSCHLÄGE — "
                 "ändere nichts am Board. Kein pcb_render."),
+        category="fertigung",
     ),
     SuperFeature(
         key="preferred_parts",
@@ -639,6 +665,7 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "diese Referenzen. Zeige je Mapping Ist-Teil → Vorzugsteil und "
                 "die geschätzte gesparte Ladegebühr, mit Summe am Ende. Reine "
                 "Vorschläge — ändere nichts am Board. Kein pcb_render."),
+        category="fertigung",
     ),
     SuperFeature(
         key="bom_sourcing",
@@ -662,7 +689,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "Größenordnung, Quelle mit Link, gegebenenfalls Alternative "
                 "mit Begründung (Pinout/Specs). EHRLICH: Web-Momentaufnahme — "
                 "vor der Bestellung selbst verifizieren. Keine Änderung, kein "
-                "pcb_render.")
+                "pcb_render."),
+        category="fertigung",
     ),
 
     # -- Kreativ / grenzüberschreitend ----------------------------------------
@@ -686,7 +714,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "add_schematic_symbols einen Schaltplan-Startpunkt — erst nach "
                 "deinem Go. Ist kein Bild genannt, sage in einem Satz, wie es "
                 "geht, und stoppe. EHRLICH: verdeckte Leiterbahnen und "
-                "Innenlagen kann ein Foto nicht zeigen. Kein pcb_render.")
+                "Innenlagen kann ein Foto nicht zeigen. Kein pcb_render."),
+        category="kreativ",
     ),
     SuperFeature(
         key="datasheet_circuit",
@@ -708,7 +737,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "apply_circuit_block in den Schaltplan — NUR bei geschlossenem "
                 "Eeschema (KiCad 10 hat kein Live-Schaltplan-API). Ist kein "
                 "IC/PDF genannt, sage in einem Satz, was ich brauche, und "
-                "stoppe. Kein pcb_render.")
+                "stoppe. Kein pcb_render."),
+        category="kreativ",
     ),
     SuperFeature(
         key="protection_class",
@@ -742,6 +772,7 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "über Slots nähere ich nur geometrisch. Steht oben eine "
                 "Auswahl, nur dieser Bereich. Keine Änderung, kein "
                 "pcb_render."),
+        category="elektrik",
     ),
     SuperFeature(
         key="safety_spacing",
@@ -767,7 +798,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "IEC-60664-Snapshot statt Gedächtnis — und vergleiche. "
                 "EHRLICH: das ist eine Ingenieurs-Vorprüfung, keine "
                 "Zertifizierung. Befunde mit Koordinaten. Steht oben eine "
-                "Auswahl, nur dieser Bereich. Keine Änderung, kein pcb_render.")
+                "Auswahl, nur dieser Bereich. Keine Änderung, kein pcb_render."),
+        category="elektrik",
     ),
     SuperFeature(
         key="firmware_map",
@@ -789,7 +821,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "Netznamen als Kommentar, und liefere Konsistenz-Hinweise mit "
                 "(z. B. UART-TX auf einem Input-only-Pin, Strapping-Pins "
                 "belegt). Keine Datei-Schreibung, keine Board-Änderung, kein "
-                "pcb_render.")
+                "pcb_render."),
+        category="kreativ",
     ),
     SuperFeature(
         key="mlcc_derating",
@@ -814,7 +847,8 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "effektiv unter ~50 % nominal (Klassiker: 10 µF/6,3 V an 5 V ≈ "
                 "4 µF) und schlage größere Bauform oder Spannungsklasse vor. "
                 "Steht oben eine Auswahl, nur diese Kondensatoren. Keine "
-                "Änderung, kein pcb_render.")
+                "Änderung, kein pcb_render."),
+        category="elektrik",
     ),
     SuperFeature(
         key="silk_cleanup",
@@ -836,9 +870,28 @@ FEATURES: tuple[SuperFeature, ...] = (
                 "um, gebündelt über die Live-Tools (ipc_move_items auf die "
                 "Text-Elemente). EHRLICH: ohne Render prüfe ich Geometrie, "
                 "nicht Optik — auf Wunsch ein pcb_render NACH Abschluss aller "
-                "Änderungen. Steht oben eine Auswahl, nur deren Referenzen.")
+                "Änderungen. Steht oben eine Auswahl, nur deren Referenzen."),
+        category="layout",
     ),
 )
+
+
+# Anzeige-Gruppen der Button-Leiste (Reihenfolge = GUI-Reihenfolge). Ein
+# Gruppen-Button öffnet ein Menü seiner Features — 34 Einzelbuttons haben dem
+# Transkript die Höhe gestohlen und nichts stach mehr heraus.
+CATEGORIES: tuple = (
+    ("verstehen", "🔎 Verstehen & Prüfen"),
+    ("layout", "🧶 Layout & Skizze"),
+    ("elektrik", "⚡ Elektrik & Norm"),
+    ("fertigung", "🏭 Fertigung & Kosten"),
+    ("simulation", "📈 Simulation"),
+    ("kreativ", "🪄 Kreativ & Brücken"),
+)
+
+
+def by_category(category: str) -> list:
+    """Features einer Anzeige-Gruppe, in Registry-Reihenfolge."""
+    return [f for f in FEATURES if f.category == category]
 
 
 def all_features() -> tuple[SuperFeature, ...]:

@@ -1,7 +1,39 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.7.8**
+Aktuelle Version: **0.8.0**
+
+---
+
+## 🎛️ Neu in 0.8.0 — das große GUI-Update
+
+- **🌍 Automatische Mehrsprachigkeit:** Das Panel spricht jetzt Deutsch ODER
+  Englisch — automatisch nach KiCads Sprach-Einstellung bzw. System-Locale
+  (umstellbar in den Einstellungen). Auch Claudes Antworten folgen der
+  gewählten Sprache.
+- **📦 Super-Features gruppiert:** Statt der 34-Button-Wand gibt es sechs
+  Gruppen-Buttons (Verstehen & Prüfen · Layout & Skizze · Elektrik & Norm ·
+  Fertigung & Kosten · Simulation · Kreativ & Brücken) — Klick öffnet das
+  Menü der Gruppe. Eine Zeile statt vier, das Transkript hat wieder Platz.
+- **⌨️ Mehrzeilige Eingabe:** Enter sendet, Shift+Enter bricht um — und
+  eingefügte mehrzeilige Prompts kommen jetzt VOLLSTÄNDIG an (vorher wurde
+  an der ersten Zeile abgeschnitten).
+- **🔘 Antwort-Chips:** Wartet Claude auf eine Entscheidung, erscheinen
+  Klick-Buttons unter der Antwort („Go" / „Verwerfen" / Varianten) — kein
+  Tippen mehr. Enthält die Antwort Code (SPICE-Deck, Firmware-Header),
+  gibt es 📋-Kopier-Buttons je Block.
+- **↺ Unterhaltung überlebt:** Die Session wird pro Projekt gemerkt — Panel
+  schließen und wieder öffnen setzt das Gespräch fort. „🆕 Neu" startet
+  bewusst frisch.
+- **🚦 Ampel-Zeile:** MCP · IPC · ngspice als Status-Punkte im Fuß — „läuft
+  es gerade?" auf einen Blick, ohne Diagnose-Report.
+- **⚙️ Einstellungen im Einrichtungs-Fenster:** Sprache, Transport
+  (stdio/Warm-Server), ngspice-Pfad und Schritt-Limit als GUI-Seite statt
+  Umgebungsvariablen. Hand-gesetzte Env-Variablen behalten Vorrang.
+- **Aufgeräumt:** Das Freitext-Optionsfeld ist weg — Claude-Optionen laufen
+  nur noch über das kuratierte ⚙-Dropdown (mit „zurücksetzen"-Eintrag und
+  sichtbarer Anzeige der aktiven Schalter); „🔗 Auswahl einbeziehen" erklärt
+  sich jetzt per Hover.
 
 ---
 

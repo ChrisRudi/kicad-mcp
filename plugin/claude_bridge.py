@@ -22,6 +22,7 @@ import atexit
 import json
 import os
 import queue
+import re
 import shutil
 import subprocess
 import threading
@@ -118,7 +119,13 @@ BEHAVIOR_SYSTEM_PROMPT = (
     "Reference (R12, U8); Netze mit dem EXAKTEN Netznamen aus der Tool-Ausgabe "
     "(nicht paraphrasieren, nicht übersetzen, kein führender Slash); Layer "
     "kanonisch (F.Cu, B.Cu, In1.Cu); Pins als <ref>.<pin> (U1.33); Koordinaten "
-    "als (x, y) in mm. Übernimm Namen aus Tool-Ergebnissen WÖRTLICH."
+    "als (x, y) in mm. Übernimm Namen aus Tool-Ergebnissen WÖRTLICH. "
+    "(9) Wartest du am Ende deiner Antwort auf eine ENTSCHEIDUNG von mir "
+    "(ein Go/Verwerfen, oder eine Wahl zwischen 2-4 Varianten), beende die "
+    "Antwort mit einer eigenen letzten Zeile EXAKT im Format "
+    "[[CHOICES: Option1|Option2]] (kurze Wörter, empfohlene Option zuerst; "
+    "kein Text nach dieser Zeile). Das Panel macht daraus Klick-Buttons. "
+    "Nur bei echten Entscheidungen — nie bei offenen Fragen."
 )
 
 # Hard cap on agentic turns so a stuck task can't loop for the whole idle
@@ -159,12 +166,18 @@ def build_command(
     mcp_config_path: str,
     session_id: Optional[str],
     extra_args: Optional[list[str]] = None,
+    language: str = "",
 ) -> list[str]:
     """Build the ``claude`` argv for one chat turn (stream-json output).
 
     ``extra_args`` are raw Claude Code CLI switches the user supplied (e.g.
     ``["--model", "sonnet"]``); appended last so they can extend the turn.
+    ``language`` (e.g. "Deutsch"/"English") pins the REPLY language — the
+    GUI is auto-multilingual, so the agent must answer in the GUI language.
     """
+    system_prompt = BEHAVIOR_SYSTEM_PROMPT
+    if language:
+        system_prompt += f" Antworte IMMER in dieser Sprache: {language}."
     cmd = list(claude) + [
         "-p", prompt,
         "--mcp-config", mcp_config_path,
@@ -172,7 +185,7 @@ def build_command(
         "--dangerously-skip-permissions",  # headless: no TTY to approve tools
         # one tool name PER value (NOT comma-joined) — see the constant's note
         "--disallowedTools", *FORBIDDEN_BUILTIN_TOOLS,
-        "--append-system-prompt", BEHAVIOR_SYSTEM_PROMPT,
+        "--append-system-prompt", system_prompt,
         "--output-format", "stream-json",
         "--verbose",                      # claude requires it for stream-json
     ]
@@ -184,6 +197,38 @@ def build_command(
     if extra_args:
         cmd += list(extra_args)
     return cmd
+
+
+# -- reply post-processing (chips) ---------------------------------------------
+
+# The agent ends decision questions with "[[CHOICES: Go|Verwerfen]]" (behavior
+# rule 9) — the panel strips the marker and renders click buttons instead.
+_CHOICES_RE = re.compile(r"\n?\s*\[\[CHOICES:\s*([^\]]+?)\s*\]\]\s*$")
+
+_CODE_BLOCK_RE = re.compile(r"```[^\n`]*\n(.*?)```", re.DOTALL)
+
+
+def parse_choices(text: str) -> "tuple[str, list[str]]":
+    """Split a reply into (text without marker, decision options).
+
+    Returns the original text and ``[]`` when no marker is present. Options
+    are pipe-separated, trimmed, empty ones dropped, capped at 4 (the rule
+    says 2-4 — a runaway list would explode the chip row).
+    """
+    text = text or ""
+    m = _CHOICES_RE.search(text)
+    if not m:
+        return text, []
+    options = [o.strip() for o in m.group(1).split("|") if o.strip()][:4]
+    if len(options) < 2:  # a single "option" is not a decision — keep text
+        return text, []
+    return text[:m.start()].rstrip(), options
+
+
+def extract_code_blocks(text: str) -> list:
+    """Every fenced ``` code block body in a reply (for 📋-copy chips)."""
+    return [m.group(1).rstrip("\n")
+            for m in _CODE_BLOCK_RE.finditer(text or "") if m.group(1).strip()]
 
 
 # -- stream-json parsing -------------------------------------------------------
@@ -572,6 +617,7 @@ def ask(
     on_status: Optional[Callable[[str], None]] = None,
     on_tool: Optional[Callable[[str, dict], None]] = None,
     on_proc: Optional[Callable[[Any], None]] = None,
+    language: str = "",
     _popen=subprocess.Popen,
 ) -> dict[str, Any]:
     """Run one chat turn, streaming progress via ``on_status(text)`` and each
@@ -592,7 +638,8 @@ def ask(
         out["error"] = ("Claude Code (claude) nicht gefunden. Installiere "
                         "Claude Code und melde dich einmal an (claude login).")
         return out
-    cmd = build_command(claude, prompt, mcp_config_path, session_id, extra_args)
+    cmd = build_command(claude, prompt, mcp_config_path, session_id, extra_args,
+                        language=language)
     env = dict(os.environ)
     # The FIRST cold start (167 tools + pandas/numpy out of a freshly-written
     # _deps, with Windows Defender scanning each new .pyd) can blow past

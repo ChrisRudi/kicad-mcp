@@ -1,0 +1,204 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Auto-Mehrsprachigkeit für das Plugin-GUI (Deutsch/Englisch).
+
+Design: **Deutsch ist die Quellsprache** — alle Strings im Code bleiben
+deutsch, ``tr()`` übersetzt beim Rendern über einen Katalog nach Englisch.
+Fehlt ein Eintrag, bleibt der deutsche Text stehen (graceful degradation
+statt Platzhalter-Salat); der Katalog wächst inkrementell.
+
+Sprachwahl (AUTO): explizite Einstellung (``settings.json`` → language) →
+KiCads eigene Sprach-Einstellung (``kicad_common.json`` → system.language) →
+OS-Locale → Englisch. Deutschsprachige Umgebung ⇒ ``de``, alles andere ⇒
+``en``. Die Antwortsprache des Agenten folgt derselben Wahl
+(``claude_bridge`` hängt eine Sprachanweisung an den System-Prompt).
+
+Pure/stdlib (kein wx) — headless testbar.
+"""
+
+from __future__ import annotations
+
+import json
+import locale
+import os
+from typing import Optional
+
+LANG_AUTO = "auto"
+LANG_DE = "de"
+LANG_EN = "en"
+
+_current: Optional[str] = None  # resolved language, cached per process
+
+
+def _lang_from_kicad_common(common_path: Optional[str]) -> Optional[str]:
+    """KiCads eingestellte Sprache aus kicad_common.json (oder None)."""
+    if not common_path or not os.path.isfile(common_path):
+        return None
+    try:
+        with open(common_path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        raw = str(((data.get("system") or {}).get("language")) or "").strip()
+    except Exception:
+        return None
+    if not raw or raw.lower() in ("default", ""):
+        return None
+    return LANG_DE if raw.lower().startswith("de") else LANG_EN
+
+
+def _lang_from_locale() -> str:
+    for probe in (os.environ.get("LC_ALL"), os.environ.get("LANG")):
+        if probe:
+            return LANG_DE if probe.lower().startswith("de") else LANG_EN
+    try:
+        loc = locale.getlocale()[0] or ""
+    except Exception:
+        loc = ""
+    return LANG_DE if str(loc).lower().startswith("de") else LANG_EN
+
+
+def detect_lang(setting: str = LANG_AUTO,
+                common_path: Optional[str] = None) -> str:
+    """Resolve ``de``/``en``: Einstellung → KiCad-Sprache → Locale → en."""
+    setting = (setting or LANG_AUTO).strip().lower()
+    if setting in (LANG_DE, LANG_EN):
+        return setting
+    return _lang_from_kicad_common(common_path) or _lang_from_locale()
+
+
+def set_lang(lang: str) -> None:
+    """Fix the process-wide language (called once at panel start)."""
+    global _current
+    _current = LANG_DE if (lang or "").lower().startswith("de") else LANG_EN
+
+
+def get_lang() -> str:
+    global _current
+    if _current is None:
+        _current = detect_lang()
+    return _current
+
+
+def reply_language_name() -> str:
+    """Der Sprachname für die Agent-Anweisung („Antworte auf …")."""
+    return "Deutsch" if get_lang() == LANG_DE else "English"
+
+
+def tr(text: str) -> str:
+    """German source string → current language (EN via catalog, else as-is)."""
+    if get_lang() == LANG_DE:
+        return text
+    return _EN.get(text, text)
+
+
+# --------------------------------------------------------------------------- #
+# Katalog Deutsch → Englisch. Quellsprache = exakt der String im Code.
+# Fehlende Einträge fallen sichtbar (aber funktional) auf Deutsch zurück.
+# --------------------------------------------------------------------------- #
+_EN: dict = {
+    # --- Chat-Chrome -----------------------------------------------------
+    "Frag Claude etwas über dieses Board …":
+        "Ask Claude about this board …",
+    "Senden": "Send",
+    "Stopp": "Stop",
+    "🆕 Neu": "🆕 New",
+    "Neue Unterhaltung beginnen (der bisherige Verlauf bleibt sichtbar, "
+    "aber Claude startet ohne Kontext)":
+        "Start a fresh conversation (the transcript stays visible, but "
+        "Claude starts without context)",
+    "⚙ Option wählen …": "⚙ Choose option …",
+    "🔗 Auswahl einbeziehen": "🔗 Include selection",
+    "Hängt deine aktuelle Editor-Auswahl als Kontext an jede getippte "
+    "Nachricht — 'das hier'/'die markierten' funktioniert dann ohne "
+    "Referenzen zu tippen. Die ✨-Buttons nutzen die Auswahl immer "
+    "(markiert = nur darauf, sonst boardweit).":
+        "Attaches your current editor selection as context to every typed "
+        "message — 'this'/'the selected ones' then works without typing "
+        "references. The ✨ buttons always use the selection "
+        "(selected = scoped, otherwise board-wide).",
+    "✨ Super-Features": "✨ Super features",
+    "⏹ Abgebrochen.": "⏹ Cancelled.",
+    "⏳ Es läuft noch ein Zug — danach nochmal klicken.":
+        "⏳ A turn is still running — click again afterwards.",
+    "🎯 Wirkt auf deine Auswahl: ": "🎯 Acting on your selection: ",
+    "🎯 Wirkt boardweit (keine Auswahl im Editor)":
+        "🎯 Acting board-wide (nothing selected in the editor)",
+    "Unterhaltung aus letzter Sitzung fortgesetzt.":
+        "Resumed the conversation from your last session.",
+    "Neue Unterhaltung begonnen.": "Started a new conversation.",
+    "📋 kopiert": "📋 copied",
+    "Aktive Optionen: ": "Active options: ",
+    "— Optionen zurücksetzen": "— Reset options",
+    "formuliert die Antwort …": "writing the reply …",
+    "MCP verbunden — Claude liest dein Board …":
+        "MCP connected — Claude is reading your board …",
+    "⚠ MCP NICHT verbunden!": "⚠ MCP NOT connected!",
+    "Tool-Ergebnis erhalten …": "tool result received …",
+    "Bereit.": "Ready.",
+
+    # --- Ampel-Zeile ------------------------------------------------------
+    "MCP": "MCP",
+    "IPC": "IPC",
+    "ngspice": "ngspice",
+    "Status des Tool-Servers (letzter Zug)": "Tool-server status (last turn)",
+    "Live-Verbindung zur KiCad-GUI (Links/Selektion)":
+        "Live connection to the KiCad GUI (links/selection)",
+    "SPICE-Simulator gefunden? (für 📈 Simulation)":
+        "SPICE simulator found? (for 📈 Simulation)",
+
+    # --- Gruppen der Super-Feature-Leiste --------------------------------
+    "🔎 Verstehen & Prüfen": "🔎 Understand & Check",
+    "🧶 Layout & Skizze": "🧶 Layout & Sketch",
+    "⚡ Elektrik & Norm": "⚡ Electrical & Standards",
+    "🏭 Fertigung & Kosten": "🏭 Manufacturing & Cost",
+    "📈 Simulation": "📈 Simulation",
+    "🪄 Kreativ & Brücken": "🪄 Creative & Bridges",
+
+    # --- Feature-Labels ----------------------------------------------------
+    "🧶 Entwirren": "🧶 Untangle",
+    "🚌 Bus-Radar": "🚌 Bus radar",
+    "📄 Datenblatt-Abgleich": "📄 Datasheet diff",
+    "🛡️ Design-Wächter": "🛡️ Design guard",
+    "🔎 Test-Punkt-Wächter": "🔎 Test-point guard",
+    "🔀 Pin-Tausch": "🔀 Pin swap",
+    "💡 Board erklären": "💡 Explain board",
+    "🧭 Netz-Navigator": "🧭 Net navigator",
+    "📐 Ausrichten & Anordnen": "📐 Align & arrange",
+    "⊙ Polar-Board": "⊙ Polar board",
+    "🖊️ Skizzen-Layer": "🖊️ Sketch layer",
+    "✏️ Skizzen-Dirigent": "✏️ Sketch conductor",
+    "👁️ Mitdenken-Modus": "👁️ Watch mode",
+    "🔥 Stromtragfähigkeit": "🔥 Ampacity",
+    "⌚ Quarz-Load-Caps": "⌚ Crystal load caps",
+    "🔩 Via-Optimierung": "🔩 Via optimizer",
+    "🌡️ Thermik": "🌡️ Thermals",
+    "🌡️ Betriebstemperatur": "🌡️ Operating temp",
+    "📐 Slew-Rate": "📐 Slew rate",
+    "〰️ Impedanz": "〰️ Impedance",
+    "🏭 DFM-Check": "🏭 DFM check",
+    "💰 Kosten-Schätzer": "💰 Cost estimator",
+    "🧬 SPICE-Modelle": "🧬 SPICE models",
+    "💰 BOM-Konsolidierung": "💰 BOM consolidation",
+    "🏭 Fab-Standardteile": "🏭 Fab preferred parts",
+    "🛒 Bauteil-Sourcing": "🛒 Part sourcing",
+    "📷 Foto→Schaltung": "📷 Photo→schematic",
+    "📄 Datenblatt→Schaltung": "📄 Datasheet→circuit",
+    "⚡ Sicherheitsabstände": "⚡ Safety spacing",
+    "🔌 Schutzklassen": "🔌 Protection classes",
+    "💾 Firmware-Pinmap": "💾 Firmware pinmap",
+    "📉 MLCC-Derating": "📉 MLCC derating",
+    "🔤 Silk-Aufräumen": "🔤 Silk cleanup",
+
+    # --- Einstellungen (Setup-Dialog) -------------------------------------
+    "Einstellungen": "Settings",
+    "Sprache:": "Language:",
+    "Automatisch": "Automatic",
+    "Transport:": "Transport:",
+    "stdio (Server pro Nachricht)": "stdio (server per message)",
+    "Warm-Server (http, empfohlen nach Validierung)":
+        "Warm server (http, recommended once validated)",
+    "ngspice-Pfad:": "ngspice path:",
+    "(leer = automatisch suchen)": "(empty = auto-detect)",
+    "Max. Schritte pro Nachricht:": "Max steps per message:",
+    "Einstellungen speichern": "Save settings",
+    "Gespeichert — gilt ab dem nächsten Chat-Zug.":
+        "Saved — takes effect from the next chat turn.",
+}

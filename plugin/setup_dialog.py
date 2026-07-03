@@ -13,6 +13,8 @@ import wx  # KiCad ships wxPython
 
 from . import deps, env_resolve, installer, ipc_setup, mcp_config, preflight, \
     runtime_env, server_probe, terminal, updater
+from . import settings as plugin_settings
+from .i18n import tr
 from .version import __version__
 
 _ICON = {preflight.OK: ("✓", wx.Colour(0, 140, 0)),
@@ -57,6 +59,9 @@ class SetupDialog(wx.Dialog):
         diag = wx.Button(self._panel, label="Diagnose")
         diag.Bind(wx.EVT_BUTTON, lambda e: self._show_diagnose())
         bar.Add(diag, 0, wx.RIGHT, 8)
+        settings_btn = wx.Button(self._panel, label=tr("Einstellungen"))
+        settings_btn.Bind(wx.EVT_BUTTON, lambda e: self._show_settings())
+        bar.Add(settings_btn, 0, wx.RIGHT, 8)
         bar.AddStretchSpacer()
         self._start = wx.Button(self._panel, label="Chat starten")
         self._start.Bind(wx.EVT_BUTTON, self._on_start)
@@ -120,6 +125,69 @@ class SetupDialog(wx.Dialog):
             self._enable_ipc()
         elif fix == "install_deps":
             self._install_deps()
+
+    def _show_settings(self) -> None:
+        """Einstellungen (Sprache, Transport, ngspice, Max-Schritte) —
+        GUI-gepflegt statt Env-Handarbeit; gespeichert in settings.json und
+        beim nächsten Chat-Zug wirksam (settings.apply_env beim Panel-Start).
+        Hand-gesetzte Env-Variablen behalten Vorrang."""
+        values = plugin_settings.load()
+        dlg = wx.Dialog(self, title=tr("Einstellungen"), size=(460, 300),
+                        style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        panel = wx.Panel(dlg)
+        grid = wx.FlexGridSizer(cols=2, vgap=8, hgap=8)
+        grid.AddGrowableCol(1, 1)
+
+        grid.Add(wx.StaticText(panel, label=tr("Sprache:")), 0,
+                 wx.ALIGN_CENTER_VERTICAL)
+        lang = wx.Choice(panel, choices=[tr("Automatisch"), "Deutsch",
+                                         "English"])
+        lang.SetSelection({"auto": 0, "de": 1, "en": 2}.get(
+            values.get("language", "auto"), 0))
+        grid.Add(lang, 1, wx.EXPAND)
+
+        grid.Add(wx.StaticText(panel, label=tr("Transport:")), 0,
+                 wx.ALIGN_CENTER_VERTICAL)
+        transport = wx.Choice(panel, choices=[
+            tr("stdio (Server pro Nachricht)"),
+            tr("Warm-Server (http, empfohlen nach Validierung)")])
+        transport.SetSelection(1 if values.get("transport") == "http" else 0)
+        grid.Add(transport, 1, wx.EXPAND)
+
+        grid.Add(wx.StaticText(panel, label=tr("ngspice-Pfad:")), 0,
+                 wx.ALIGN_CENTER_VERTICAL)
+        ngspice = wx.TextCtrl(panel, value=values.get("ngspice_path", ""))
+        ngspice.SetHint(tr("(leer = automatisch suchen)"))
+        grid.Add(ngspice, 1, wx.EXPAND)
+
+        grid.Add(wx.StaticText(panel,
+                               label=tr("Max. Schritte pro Nachricht:")), 0,
+                 wx.ALIGN_CENTER_VERTICAL)
+        turns = wx.SpinCtrl(panel, min=0, max=500,
+                            initial=int(values.get("max_turns") or 0))
+        grid.Add(turns, 1, wx.EXPAND)
+
+        note = wx.StaticText(panel, label="")
+        save = wx.Button(panel, label=tr("Einstellungen speichern"))
+
+        def _save(_evt):
+            plugin_settings.save({
+                "language": {0: "auto", 1: "de", 2: "en"}[lang.GetSelection()],
+                "transport": "http" if transport.GetSelection() == 1 else "",
+                "ngspice_path": ngspice.GetValue().strip(),
+                "max_turns": int(turns.GetValue()),
+            })
+            note.SetLabel(tr("Gespeichert — gilt ab dem nächsten Chat-Zug."))
+            panel.Layout()
+
+        save.Bind(wx.EVT_BUTTON, _save)
+        outer = wx.BoxSizer(wx.VERTICAL)
+        outer.Add(grid, 1, wx.EXPAND | wx.ALL, 12)
+        outer.Add(save, 0, wx.LEFT | wx.RIGHT, 12)
+        outer.Add(note, 0, wx.ALL, 12)
+        panel.SetSizer(outer)
+        dlg.ShowModal()
+        dlg.Destroy()
 
     def _show_diagnose(self) -> None:
         """Collect the full diagnosis report (runs the server probe — can take
