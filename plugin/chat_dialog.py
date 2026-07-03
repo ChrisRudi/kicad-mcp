@@ -486,8 +486,10 @@ class ClaudeChatPanel(wx.Panel):
         if mcp_status.startswith("failed"):
             self._append(
                 "error",
-                "MCP nicht verbunden (" + mcp_status + ") — Antwort kam OHNE "
-                "Board-Tools. Einrichtung öffnen und 'Erneut prüfen'.",
+                "MCP nicht verbunden (" + mcp_status + ") — auch nach "
+                "automatischem Neuversuch kein Board-Tool-Server. Meist hilft "
+                "ein KiCad-Neustart (wärmt den Server), sonst Einrichtung → "
+                "'Erneut prüfen'.",
             )
         if result.get("ok"):
             self._session_id = result.get("session_id") or self._session_id

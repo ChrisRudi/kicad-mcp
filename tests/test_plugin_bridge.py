@@ -63,6 +63,19 @@ def _popen_for(proc, capture=None):
     return _popen
 
 
+def _popen_seq(procs, calls=None):
+    """A _popen returning ``procs`` in order, one per call — exercises the
+    cold-start retry in ``ask`` (attempt 1, attempt 2, …). ``calls['n']``
+    counts spawns."""
+    it = iter(procs)
+
+    def _popen(cmd, **kw):
+        if calls is not None:
+            calls["n"] = calls.get("n", 0) + 1
+        return next(it)
+    return _popen
+
+
 # --- build_command ------------------------------------------------------------
 
 class TestBuildCommand:
@@ -247,13 +260,47 @@ class TestAsk:
                           _popen=_popen_for(_FakeProc([_RESULT]), seen))
         assert seen["cmd"][-2:] == ["--model", "sonnet"]
 
-    def test_failed_mcp_is_reported(self, monkeypatch):
+    def test_failed_mcp_retried_then_reported(self, monkeypatch):
+        # default = 1 retry; both cold starts fail → still reported failed,
+        # and the spawn happened twice (self-heal attempt was made).
         monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
-        proc = _FakeProc([_INIT_BAD, _RESULT])
+        monkeypatch.delenv("KICAD_MCP_CONNECT_RETRIES", raising=False)
+        calls = {}
+        procs = [_FakeProc([_INIT_BAD, _RESULT]),
+                 _FakeProc([_INIT_BAD, _RESULT])]
         r = claude_bridge.ask("x", "/proj", "/m.json",
-                              _popen=_popen_for(proc))
-        assert r["ok"] is True
+                              _popen=_popen_seq(procs, calls))
         assert r["mcp_status"].startswith("failed")
+        assert calls["n"] == 2  # cold-start was retried once
+
+    def test_failed_mcp_retry_recovers(self, monkeypatch):
+        # attempt 1 fails to connect (no board tools), attempt 2 (warm) works.
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        monkeypatch.delenv("KICAD_MCP_CONNECT_RETRIES", raising=False)
+        calls = {}
+        procs = [_FakeProc([_INIT_BAD]),
+                 _FakeProc([_INIT_OK, _TEXT, _RESULT])]
+        r = claude_bridge.ask("x", "/proj", "/m.json",
+                              _popen=_popen_seq(procs, calls))
+        assert r["ok"] and r["mcp_status"] == "connected"
+        assert r["text"] == "42 Vias" and calls["n"] == 2
+
+    def test_connected_first_try_does_not_respawn(self, monkeypatch):
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        calls = {}
+        procs = [_FakeProc([_INIT_OK, _TEXT, _RESULT])]
+        r = claude_bridge.ask("x", "/proj", "/m.json",
+                              _popen=_popen_seq(procs, calls))
+        assert r["ok"] and calls["n"] == 1  # no needless second cold start
+
+    def test_retry_disabled_via_env(self, monkeypatch):
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        monkeypatch.setenv("KICAD_MCP_CONNECT_RETRIES", "0")
+        calls = {}
+        procs = [_FakeProc([_INIT_BAD, _RESULT])]
+        r = claude_bridge.ask("x", "/proj", "/m.json",
+                              _popen=_popen_seq(procs, calls))
+        assert r["mcp_status"].startswith("failed") and calls["n"] == 1
 
     def test_max_turns_hit_gives_friendly_note(self, monkeypatch):
         monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])

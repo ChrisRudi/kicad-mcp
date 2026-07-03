@@ -1,7 +1,19 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.6.0**
+Aktuelle Version: **0.6.1**
+
+---
+
+## 🩹 Neu in 0.6.1 — MCP-Kaltstart heilt sich selbst
+
+- **„MCP nicht verbunden" verschwindet meistens von allein.** Der Tool-Server
+  wird pro Nachricht frisch gestartet; der **erste** Start nach Update/Neustart
+  ist langsam (Windows Defender scannt jede neue `.pyd`) und lief manchmal in
+  einen stillen Fehlschlag — Antwort dann **ohne** Board-Werkzeuge. Neu: schlägt
+  der Start fehl, wird der Zug **automatisch einmal neu gestartet** (der zweite
+  Start ist warm und klappt fast immer). Sicher, weil ein Zug ohne Tool-Server
+  am Board nichts geändert hat. Abschaltbar via `KICAD_MCP_CONNECT_RETRIES=0`.
 
 ---
 

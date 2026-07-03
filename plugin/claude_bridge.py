@@ -136,6 +136,23 @@ def max_turns() -> int:
     return DEFAULT_MAX_TURNS
 
 
+# Auto-retries when the MCP server fails to connect on a turn. Such a turn ran
+# ZERO board tools (they were never in the schema) → it did nothing to the board
+# → re-running it is side-effect-free. The first attempt after an update/restart
+# is the slow one (Windows Defender scans each freshly-written .pyd); the retry
+# hits a warm cache and almost always connects. Bounded; env-overridable, 0=off.
+_MCP_RETRY_ENV = "KICAD_MCP_CONNECT_RETRIES"
+DEFAULT_MCP_RETRIES = 1
+
+
+def mcp_connect_retries() -> int:
+    """Cold-start retry count (``KICAD_MCP_CONNECT_RETRIES`` or the default)."""
+    raw = os.environ.get(_MCP_RETRY_ENV, "").strip()
+    if raw.isdigit():
+        return int(raw)
+    return DEFAULT_MCP_RETRIES
+
+
 def build_command(
     claude: list[str],
     prompt: str,
@@ -536,6 +553,29 @@ def ask(
     # the one-time cold start; warm starts are unaffected. User override wins.
     env.setdefault("MCP_TIMEOUT", "300000")  # ms — matches the config timeout
     env.setdefault("PYTHONUNBUFFERED", "1")
+
+    # Self-heal the cold-start race: if the MCP server failed to connect, the
+    # turn ran no board tools (safe to re-run) and the retry usually catches a
+    # now-warm start. Bounded by ``mcp_connect_retries()``.
+    result = dict(out)
+    for attempt in range(1 + mcp_connect_retries()):
+        result = _spawn_and_run(cmd, project_dir, env, dict(out), idle_timeout,
+                                max_seconds, on_status, on_tool, on_proc, _popen)
+        if not str(result.get("mcp_status") or "").startswith("failed"):
+            break
+        if attempt == 0 and on_status:
+            try:
+                on_status("MCP-Server-Kaltstart verpasst — neuer Versuch …")
+            except Exception:
+                pass
+    return result
+
+
+def _spawn_and_run(cmd, project_dir, env, out, idle_timeout, max_seconds,
+                   on_status, on_tool, on_proc, _popen) -> dict[str, Any]:
+    """One spawn+drive attempt. Split out of :func:`ask` so a failed MCP
+    cold-start can be retried — a failed-MCP turn touched no board tools, so
+    re-running it cannot double-mutate the board."""
     try:
         proc = _popen(
             cmd, cwd=project_dir, stdin=subprocess.DEVNULL,
