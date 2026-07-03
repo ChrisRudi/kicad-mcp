@@ -29,6 +29,28 @@ Die Super-Features gruppieren sich in drei Sorten:
 - 🔜 **kommt bald** (`SOON`) — entworfen und beschrieben, noch nicht gebaut. Der
   Button ist schon da: Hover zeigt die Kurzbeschreibung, ein Klick den Pitch.
 
+## Stand 0.7.5 — alle 33 Features aktiv (v1)
+
+Seit 0.7.5 dispatcht **jeder** Button einen kanonischen, geführten Auftrag
+(Registry-Feld `prompt`). „Aktiv" heißt v1, nicht Endausbau — die Ehrlichkeits-
+Verträge gelten überall: Mutationen nur nach ausdrücklichem **Go**, Annahmen
+werden offengelegt, bei Unsicherheit wird **gefragt statt geraten**, und jeder
+Prompt benennt seine Grenze. Die wichtigsten v1-Grenzen im Überblick:
+
+| Feature | v1-Umfang | Ehrliche Grenze |
+|---|---|---|
+| 🔀 Pin-Tausch | Kreuzungs-Analyse + Swap-Vorschläge; Umsetzung Go-gated (Schaltplan nur bei geschlossenem Eeschema) | Pinmux-Wissen aus dem Modell, nicht aus einer Mux-Datenbank |
+| 👁️ Mitdenken | Ein Klick = ein Review der Handänderungen (`live_summarize_user_changes`) | kein Dauer-Beobachten — IPC liefert keine Events |
+| 📈 Simulation | analytische Schaltungsanalyse aus der Netzliste + SPICE-Deck zum Kopieren | keine numerische SPICE-Ausführung |
+| 🧬 SPICE-Modelle | Modell-Suche per WebSearch + fertige Sim.*-Eintragungen | Einträge schreiben nur nach Go, Eeschema zu |
+| 🛒 Sourcing | WebSearch-Verfügbarkeit/Preise + pin-kompatible Alternativen | Momentaufnahme, kein Live-Katalog |
+| 📷 Foto→Schaltung | Bild per Read analysieren, Netz-Hypothesen mit Konfidenz | verdeckte Lagen bleiben unsichtbar |
+| 〰️ Impedanz | IPC-2141-/Microstrip-Näherungen aus dem Stackup (`pcb_eval`) | Näherung, kein Feldlöser — Fab-Rechner gegenprüfen |
+| ⚡ Sicherheitsabstände | Domänen-Erkennung + gezielte Abstands-Messung gegen IEC-62368-Richtwerte | Ingenieurs-Vorprüfung, keine Zertifizierung |
+| 🏭 DFM / 💰 Kosten | Prüfung/Schätzung gegen Fab-Regeln bzw. Kostentreiber aus `get_board_stats`/`analyze_bom` | Regelstand = Modellwissen mit Datum; Kosten = Größenordnung |
+| 🌡️ Thermik/Betriebstemp., 📐 Slew, ⌚ Load-Caps, 📉 MLCC | Physik-Formeln mit offengelegten Annahmen; Datenblatt-Werte aus `docs/` oder per Nachfrage | typische Werte ehrlich als „typisch" markiert |
+| 🔤 Silk, 📐 Anordnen | Plan → Go → EIN gebündelter Live-Zug | Geometrie-, nicht Optik-Urteil (Render nur am Ende auf Wunsch) |
+
 Die GUI-Button-Leiste liest diese Liste aus `plugin/superfeatures.py`. Jedes
 neue Feature wird dort *ergänzt statt verstreut* — so wächst die Roadmap
 kontrolliert, und die Kopplung „Doc ↔ GUI ↔ Code" bleibt an einer Stelle.
@@ -177,7 +199,7 @@ kritischen Netze.
   Selektions-fähig (`refs`). Nächste Stufe: Vorschlag, *wo* ein Test-Punkt hin
   soll (nächste freie Stelle am Netz).
 
-### 🔀 Pin-Tausch — GPIO ans Routing anpassen  · 🔜
+### 🔀 Pin-Tausch — GPIO ans Routing anpassen  · ✅
 **Sorte:** Freiheitsgrade nutzen. Der „das kann KiCad *niemals*"-Leuchtturm.
 
 Viele MCU-Pins sind **funktional austauschbar** (jeder GPIO kann die LED sein,
@@ -202,13 +224,13 @@ der Verbindungen, keines der Funktion.
   `analyze_pcb_nets` und erklärt Blöcke/Fluss mit klickbaren Ref-/Netznamen;
   mit Selektion gezielt den markierten Teilschaltkreis.
 
-### 🧭 Netz-Navigator — Fragen in normaler Sprache  · 🔜
+### 🧭 Netz-Navigator — Fragen in normaler Sprache  · ✅
 „Welcher Pin treibt Motor-Enable?", „was liegt sonst auf U1.7?", „wo geht 3V3
 überall hin?" — **semantische** Netz-/Pin-Navigation, die direkt ins Board
 markiert. **Warum KiCad das nicht kann:** es zeigt Netze an, sucht aber nicht nach
 Bedeutung.
 
-### 📐 Ausrichten & Anordnen  · 🔜
+### 📐 Ausrichten & Anordnen  · ✅
 Markierte Bauteile per Satz ordnen: **bündig ausrichten, im Raster verteilen,
 spiegeln, als Array anordnen, um U1 gruppieren** — mit der korrekten Rotations-
 (KiCad-CW) und B.Cu-Spiegel-Mathematik, an der man von Hand fummelt. **Warum KiCad
@@ -229,7 +251,7 @@ gezeichnete Absicht.
   hinaus (Rechteck = Keepout, `GND`-Pfeil = Fläche + Stitching, Zahl =
   Breite, geschlossene Polygone/Kreise = Zonen) ist noch offen.
 
-### 👁️ Mitdenken-Modus — Live-Assistenz beim Routen  · 🔜
+### 👁️ Mitdenken-Modus — Live-Assistenz beim Routen  · ✅
 Während *du* von Hand routest, kommentiert Claude **live** über den Live-Diff:
 Clearance-Unterschreitung, gerade fragmentierte Netze, DRC-Risiken —
 Copilot-Stil, ohne Prompt. **Warum KiCad das nicht kann:** es hat kein
@@ -285,7 +307,7 @@ ist Design-Absicht, nicht Geometrie.
   Chart (konservativ); Zonen/Polygone werden (noch) nicht bewertet, nur
   Track-Segmente.
 
-### ⌚ Quarz-Load-Caps — richtige Lastkapazität berechnen  · 🔜
+### ⌚ Quarz-Load-Caps — richtige Lastkapazität berechnen  · ✅
 Berechnet die **Load-Kondensatoren** für einen Quarz aus dessen Datenblatt-`CL`
 und der geschätzten Streukapazität (`C = 2·(CL − Cstray)`) und prüft, ob die
 verbauten Werte passen — ein extrem häufiger, stiller Fehler. **Warum KiCad das
@@ -303,49 +325,49 @@ bewertet aber weder ihre Fertigungskosten noch ihre Notwendigkeit.
   ausdrückliches Go. **Ehrliche Grenze:** „überflüssige Vias finden" und
   via-ärmere Routing-Vorschläge sind noch offen.
 
-### 🌡️ Thermik — Verlustleistungs-Hotspots  · 🔜
+### 🌡️ Thermik — Verlustleistungs-Hotspots  · ✅
 Findet **Hotspots** (Regler, MOSFETs, Shunts) und schlägt Kühl-Kupfer,
 Thermal-Vias und Abstände vor. **Warum KiCad das nicht kann:** kein
 Verlustleistungs-/Wärmemodell.
 
-### 🌡️ Betriebstemperatur — Junction-Temp & Derating-Reserve  · 🔜
+### 🌡️ Betriebstemperatur — Junction-Temp & Derating-Reserve  · ✅
 Schätzt die reale **Betriebs-/Sperrschichttemperatur** je Bauteil
 (`Tj = Ta + P·θ`) aus Verlustleistung, Umgebungstemperatur und Wärmewiderstand —
 und wie viel **Derating-Reserve** bleibt. Ergänzt „Thermik" (Hotspots) um die
 harte Zahl. **Warum KiCad das nicht kann:** kein Modell für Wärmewiderstand,
 Umgebung oder Verlustleistung.
 
-### 📐 Slew-Rate — schafft der Verstärker/Treiber das Signal?  · 🔜
+### 📐 Slew-Rate — schafft der Verstärker/Treiber das Signal?  · ✅
 Rechnet, ob ein **OpAmp/Treiber die geforderte Signalflanke schafft**
 (Slew-Rate-Limit) bzw. die **Flankensteilheit** digitaler Signale — relevant für
 Verzerrung, Timing und EMV. **Warum KiCad das nicht kann:** es rechnet kein
 dynamisches Signalverhalten aus Bauteil-Specs.
 
-### 〰️ Impedanz — controlled impedance aus dem Stackup  · 🔜
+### 〰️ Impedanz — controlled impedance aus dem Stackup  · ✅
 Berechnet **Breite und Abstand für eine Ziel-Impedanz** (USB, Ethernet, RF) aus
 dem Lagenaufbau. **Warum KiCad das nicht kann:** es rechnet keine Impedanz aus
 Stackup + Geometrie.
 
-### 🏭 DFM-Check — Fertigbarkeit gegen echte Fab-Regeln  · 🔜
+### 🏭 DFM-Check — Fertigbarkeit gegen echte Fab-Regeln  · ✅
 Prüft gegen die Regeln eines **konkreten Fertigers** (min. Track/Space, Annular
 Ring, Acid Traps, Silk-über-Pad) — nicht nur generisches DRC, sondern „ist das für
 JLCPCB 2-Lagen zu aggressiv?". **Warum KiCad das nicht kann:** sein DRC kennt
 keine fertiger-spezifischen DFM-Regeln oder deren Begründung.
 
-### 💰 Kosten-Schätzer — was macht das Board teuer  · 🔜
+### 💰 Kosten-Schätzer — was macht das Board teuer  · ✅
 Grobe **Fertigungskosten** aus Boardfläche, Lagenzahl, Via-Anzahl und BOM — plus
 was die Kosten treibt. **Warum KiCad das nicht kann:** kein Kostenmodell.
 
 ## Simulation & Beschaffung
 
-### 📈 Simulation — Verhalten & Bandbreite verstehen  · 🔜
+### 📈 Simulation — Verhalten & Bandbreite verstehen  · ✅
 **Fundament da:** LTspice↔KiCad-Konverter (`generators/ltspice2kicad`). Simuliert
 Schaltungsverhalten (Verstärker-**Bandbreite**, Frequenzgang, Arbeitspunkt) über
 SPICE und **erklärt das Ergebnis in Klartext** statt nur Kurven auszuspucken.
 **Warum KiCad das nicht kann:** es kann ngspice *starten*, aber weder die Frage
 noch das Ergebnis interpretieren.
 
-### 🧬 Simulationsmodelle ergänzen  · 🔜
+### 🧬 Simulationsmodelle ergänzen  · ✅
 Findet und **hängt das passende SPICE-Modell je Bauteil an**, damit die Simulation
 überhaupt läuft — der lästige manuelle Schritt vor jeder Simulation. **Warum KiCad
 das nicht kann:** es verlangt manuelle Modell-Zuordnung und weiß nicht, welches
@@ -383,7 +405,7 @@ kein Wissen über Fab-Kataloge, Lagerbestand oder Ladegebühren. *Gebaut:*
 kuratierte Seed-Abdeckung mit Datum + Disclaimer, nicht der Live-Katalog — vor
 Bestellung Lager prüfen.
 
-### 🛒 Bauteil-Sourcing — Verfügbarkeit, Preis & Alternativen  · 🔜
+### 🛒 Bauteil-Sourcing — Verfügbarkeit, Preis & Alternativen  · ✅
 Prüft **live Verfügbarkeit und Preis** gegen Distributoren und findet
 **pin-kompatible Alternativen** für abgekündigte oder nicht-lagernde Teile — der
 **Live-Netz**-Teil über die offline Fab-Standardteil-Prüfung hinaus. **Warum KiCad
@@ -395,34 +417,34 @@ Die Sorte, bei der ein Layout-Tool endgültig aussteigt — weil sie Wahrnehmung
 externes Wissen oder die Brücke in andere Welten (Firmware, Fertigung, Physik)
 braucht.
 
-### 📷 Foto → Schaltung  · 🔜
+### 📷 Foto → Schaltung  · ✅
 Zieh ein **Foto einer echten Platine** rein — Bauteile, Beschriftungen,
 Leiterbahnen werden erkannt und Netzliste/Schaltplan rekonstruiert. **Warum KiCad
 das nicht kann:** keine Bild-Wahrnehmung. Reine Multimodal-Arbeit.
 
-### 📄 Datenblatt → Applikationsschaltung  · 🔜
+### 📄 Datenblatt → Applikationsschaltung  · ✅
 **Fundament da:** `circuit_block` (Datenblatt-Spec → Schaltungsblock). Aus dem
 Datenblatt die **typische Applikationsschaltung** generieren. **Warum KiCad das
 nicht kann:** es liest keine Datenblätter.
 
-### ⚡ Sicherheitsabstände — Creepage & Clearance  · 🔜
+### ⚡ Sicherheitsabstände — Creepage & Clearance  · ✅
 Prüft **Kriech- und Luftstrecken** zwischen Netzspannung und Kleinspannung gegen
 Sicherheitsnormen (IEC 62368) — der Bereich, in dem ein Fehler *gefährlich* ist.
 **Warum KiCad das nicht kann:** kein Isolations-/Spannungsmodell, keine Normen.
 
-### 💾 Firmware-Pinmap — Pinbelegung als Code  · 🔜
+### 💾 Firmware-Pinmap — Pinbelegung als Code  · ✅
 Exportiert die MCU-Pinbelegung als **Firmware-Header/Config** (C, DeviceTree,
 ESPHome) — die Brücke Hardware ↔ Software, konsistent in beide Richtungen. Paart
 sich stark mit **Pin-Tausch**. **Warum KiCad das nicht kann:** es hat kein Modell
 der Firmware-Seite.
 
-### 📉 MLCC-Derating — echte Kapazität unter DC-Bias  · 🔜
+### 📉 MLCC-Derating — echte Kapazität unter DC-Bias  · ✅
 Rechnet die *effektive* Kapazität eines Keramik-Cs unter **DC-Bias und
 Temperatur**: ein 10 µF/6,3 V an 5 V ist real oft nur ~4 µF — ein berüchtigter,
 stiller Fehler. **Warum KiCad das nicht kann:** es kennt nur den Nennwert, nicht
 das reale Bauteilverhalten.
 
-### 🔤 Silkscreen aufräumen — Referenzen lesbar machen  · 🔜
+### 🔤 Silkscreen aufräumen — Referenzen lesbar machen  · ✅
 Rückt Reference-Designatoren so, dass sie **lesbar** sind: nicht unter
 Bauteilen/Pads, konsistent orientiert, nah am richtigen Teil. **Warum KiCad das
 nicht kann:** es kann Text verschieben, aber nicht Lesbarkeit *beurteilen*.

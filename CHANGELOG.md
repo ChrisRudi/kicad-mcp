@@ -8,6 +8,33 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (ALLE Super-Features aktiv — 33/33 Buttons live, Plugin 0.7.5)
+- **Die letzten 20 Features auf SHIPPED mit geführten v1-Prompts** — kein neues
+  Tool nötig (Grundregel: keine Calculator-Formeln als Selbstzweck — Physik-
+  Rechnungen sind LLM-Stärke, die Tools liefern die Fakten): `pin_swap`
+  (Swap-Vorschläge, Umsetzung Go-gated via `connect_pins`, Eeschema zu),
+  `nl_navigation` (`analyze_pcb_nets`), `select_place` (Plan→Go→EIN Zug via
+  `ipc_move_items`), `watch_mode` (Ein-Klick-Review via
+  `live_summarize_user_changes`; ehrlich: kein Event-Dauerauge),
+  `xtal_caps` (`audit_design` + C=2·(CL−Cstray) offen gerechnet),
+  `thermal` (`audit_power_tree`), `operating_temp` (Tj=Ta+P·θJA),
+  `slew_rate`, `impedance` (Stackup via `pcb_eval`, IPC-2141-Näherung —
+  kein Feldlöser), `dfm_check` (`run_drc_check`+`get_board_stats` gegen
+  Fab-Regeln als datierter Wissensstand), `cost_estimate`, `simulate`
+  (analytisch + SPICE-Deck zum Kopieren; ehrlich: keine numerische
+  Ausführung), `sim_models` + `bom_sourcing` (WebSearch),
+  `photo_reverse` (Bild via Read, Netz-Hypothesen mit Konfidenz),
+  `safety_spacing` (`center_item_clearance` gegen IEC-62368-Richtwerte —
+  Vorprüfung, keine Zertifizierung), `firmware_map` (Pinmap als
+  C-Header/DeviceTree/ESPHome-Codeblock), `mlcc_derating`, `silk_cleanup`
+  (Plan→Go→gebündelter Live-Zug), `datasheet_circuit`
+  (`extract_circuit_from_pdf`→Vorschau→Go→`apply_circuit_block`).
+- Gemeinsame Verträge in jedem Prompt: Selektion respektieren, Mutation nur
+  nach Go, Annahmen offenlegen, bei Unsicherheit fragen statt raten, kein
+  Render zwischendrin, Grenze benannt. `SHIPPED_TOOL`-Guard-Test deckt jetzt
+  alle 33; docs/superfeatures.md: alle Marker ✅ + „Stand 0.7.5"-Tabelle der
+  v1-Grenzen. Plugin-Version 0.7.4 → 0.7.5.
+
 ### Added (Super-Feature „Stromtragfähigkeit" — IPC-2221-Ampacity, Plugin 0.7.4)
 - **`check_ampacity` — Leiterbahn-Breite vs. Design-Strom** (Tool #184, in der
   `pcb_tools`-Familie, nutzt den gecachten `_extract_all`-Reader). KiCad kennt

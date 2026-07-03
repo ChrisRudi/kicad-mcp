@@ -1,7 +1,32 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.7.4**
+Aktuelle Version: **0.7.5**
+
+---
+
+## ✨ Neu in 0.7.5 — ALLE 33 Super-Features aktiv
+
+Die komplette Leiste ist jetzt orange: jeder Button startet einen fertigen,
+geführten Auftrag. Neu dazugekommen (v1):
+
+- **🔀 Pin-Tausch** (Vorschläge; Umsetzung nur nach Go), **🧭 Netz-Navigator**,
+  **📐 Ausrichten & Anordnen** (Plan → Go → ein Zug), **👁️ Mitdenken-Review**
+  (bewertet deine letzten Handänderungen), **🔤 Silk-Aufräumen**.
+- **⌚ Quarz-Load-Caps**, **🌡️ Thermik**, **🌡️ Betriebstemperatur**,
+  **📐 Slew-Rate**, **〰️ Impedanz**, **📉 MLCC-Derating** — Physik mit
+  offengelegten Annahmen; Datenblatt-Werte aus `docs/` oder per Nachfrage.
+- **🏭 DFM-Check**, **💰 Kosten-Schätzer**, **⚡ Sicherheitsabstände**
+  (IEC-62368-Vorprüfung), **💾 Firmware-Pinmap** (C-Header/DeviceTree/ESPHome
+  zum Kopieren).
+- **📈 Simulation** (analytisch + SPICE-Deck zum Kopieren — ehrlich: noch keine
+  numerische SPICE-Ausführung), **🧬 SPICE-Modelle** und **🛒 Bauteil-Sourcing**
+  (beide mit Web-Suche), **📄 Datenblatt→Schaltung** (PDF → Schaltungsblock,
+  Einbau nach Go), **📷 Foto→Schaltung** (Foto ins Projekt legen, Pfad nennen).
+
+Überall gilt: Mutationen nur nach deinem **Go**, Annahmen werden offengelegt,
+bei Unsicherheit wird gefragt statt geraten, jede v1-Grenze steht im Bericht
+(Details: `docs/superfeatures.md`, Abschnitt „Stand 0.7.5").
 
 ---
 

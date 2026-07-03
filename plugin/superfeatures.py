@@ -179,11 +179,26 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="pin_swap",
         label="🔀 Pin-Tausch",
         name="Pin-Tausch — GPIO ans Routing anpassen",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Legt funktional gleichwertige GPIOs/Pins um, damit das "
                  "Routing kreuzungsfrei wird — Schaltplan und PCB werden "
                  "kohärent nachgezogen."),
         moat="KiCad hat kein Konzept funktional austauschbarer Pins (Pinmux).",
+        prompt=(
+                "Pin-Tausch: NUR VORSCHLAGEN — nichts ändern ohne mein "
+                "ausdrückliches Go. (1) Lies EINMAL list_pcb_footprints und "
+                "analyze_pcb_nets für die .kicad_pcb im Projektordner (per "
+                "Glob finden); steht oben eine Auswahl, betrachte nur deren "
+                "Netze/Bauteile. (2) Finde Routing-Kreuzungen, die sich durch "
+                "Umlegen funktional gleichwertiger Pins lösen ließen (GPIOs, "
+                "freie Gatter/OpAmp-Hälften) — nutze dein Pinmux-Wissen zum "
+                "konkreten Controller und sage ehrlich, wenn du die "
+                "Austauschbarkeit eines Pins nicht sicher weißt. (3) Zeige je "
+                "Vorschlag: Netz X von Pin A nach Pin B, warum, und was sich "
+                "am Schaltplan UND am PCB ändert. (4) Erst nach meinem Go: "
+                "Schaltplan über die Schaltplan-Tools (z. B. connect_pins) "
+                "ändern — NUR bei geschlossenem Eeschema — und die PCB-Netze "
+                "nachziehen; danach EIN check_connectivity. Kein pcb_render.")
     ),
     SuperFeature(
         key="explain_board",
@@ -209,20 +224,44 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="nl_navigation",
         label="🧭 Netz-Navigator",
         name="Netz-Navigator — Fragen in normaler Sprache",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Frag in normaler Sprache: welcher Pin treibt Motor-Enable, "
                  "was liegt sonst auf U1.7 — semantische Netz-/Pin-Suche."),
         moat="KiCad zeigt Netze an, sucht aber nicht nach *Bedeutung*.",
+        prompt=(
+                "Netz-Navigator: Steht oben im Kontext eine Auswahl, erkläre "
+                "semantisch, was daran hängt: lies EINMAL analyze_pcb_nets "
+                "(bei Bedarf find_tracks_by_net für einzelne Netze) und "
+                "beschreibe Funktion und Partner der markierten Pins/Netze in "
+                "normaler Sprache — mit EXAKTEN, klickbaren Ref-/Netznamen. "
+                "Ohne Auswahl: gib eine kompakte semantische Netz-Landkarte "
+                "des Boards (Versorgungen, Busse, auffällige Signale) und "
+                "nenne drei Beispiel-Fragen, die ich dir direkt stellen kann "
+                "('Welcher Pin treibt …?', 'Was liegt sonst auf U1.7?'). Keine "
+                "Board-Änderung, kein pcb_render.")
     ),
     SuperFeature(
         key="select_place",
         label="📐 Ausrichten & Anordnen",
         name="Ausrichten & Anordnen",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Markierte Bauteile per Satz ordnen: bündig ausrichten, im "
                  "Raster verteilen, spiegeln, als Array — mit korrekter "
                  "Rotations- und B.Cu-Mathematik."),
         moat="KiCad hat kein sprachgesteuertes, absicht-basiertes Anordnen.",
+        prompt=(
+                "Ausrichten & Anordnen: Arbeite auf der Auswahl oben im "
+                "Kontext; ist nichts markiert, sage in EINEM Satz, dass ich "
+                "zuerst Bauteile markieren soll, und stoppe. Geht die "
+                "gewünschte Anordnung nicht aus meiner Nachricht hervor, frage "
+                "EINMAL kurz (bündig ausrichten / im Raster verteilen / auf "
+                "Kreis / an Bauteil X ausrichten). Dann: Plan zeigen (Ref → "
+                "Zielposition (x, y) in mm; KiCad-CW-Rotation und B.Cu- "
+                "Spiegelung korrekt — Welt-Koordinaten über "
+                "compute_pad_world_positions, nie selbst rechnen) und erst "
+                "nach meinem Go alles in EINEM gebündelten Zug über die Live- "
+                "Tools umsetzen (ipc_move_items / ipc_set_footprint_pose). "
+                "Kein pcb_render.")
     ),
     SuperFeature(
         key="polar_board",
@@ -291,10 +330,21 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="watch_mode",
         label="👁️ Mitdenken-Modus",
         name="Mitdenken-Modus — Live-Assistenz beim Routen",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Während du von Hand routest, kommentiert Claude live: "
                  "Clearance-Unterschreitung, fragmentierte Netze, DRC-Risiken."),
         moat="KiCad hat kein mitlaufendes, verstehendes Assistenz-Auge.",
+        prompt=(
+                "Mitdenken-Review: Rufe live_summarize_user_changes auf und "
+                "fasse zusammen, was seit dem letzten Stand von Hand am "
+                "offenen Board geändert wurde. Bewerte die Änderungen "
+                "fachlich: Clearance-Risiken, fragmentierte oder unfertige "
+                "Netze, DRC-Gefahren, fragwürdige Track-Breiten — mit EXAKTEN "
+                "Refs/Netznamen. Steht oben eine Auswahl, fokussiere darauf. "
+                "Gibt es nichts zu berichten, sage das ehrlich in einem Satz. "
+                "Ein Klick = ein Review — die IPC-API liefert keine Events, "
+                "ein Dauer-Beobachten gibt es also (noch) nicht. Keine Board- "
+                "Änderung, kein pcb_render.")
     ),
 
     # -- Elektrik & Fertigung (DFM) -------------------------------------------
@@ -329,12 +379,23 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="xtal_caps",
         label="⌚ Quarz-Load-Caps",
         name="Quarz-Load-Caps — richtige Lastkapazität berechnen",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Berechnet die korrekten Load-Kondensatoren für einen Quarz "
                  "aus dessen Datenblatt-CL und der geschätzten Streukapazität "
                  "(C = 2·(CL − Cstray)) und prüft, ob die verbauten Werte passen."),
         moat=("KiCad kennt weder den CL-Wert eines Quarzes noch die "
               "Load-Cap-Formel."),
+        prompt=(
+                "Quarz-Load-Caps: (1) Rufe audit_design für die .kicad_pcb im "
+                "Projektordner auf (per Glob finden) und nimm daraus die "
+                "Quarz-Befunde (fehlende Load-Caps). (2) Für vorhandene Load- "
+                "Caps: lies die verbauten Werte aus den Bauteil-Values, hole "
+                "das CL des Quarzes aus dem Datenblatt (docs/<Value>.pdf) oder "
+                "frage mich danach, und rechne C = 2·(CL − Cstray) mit Cstray "
+                "≈ 3–5 pF — Rechenweg und Annahmen offenlegen. (3) Urteil je "
+                "Quarz: passt / zu groß / zu klein, mit empfohlenem E-Reihen- "
+                "Wert. Steht oben eine Auswahl, prüfe nur deren Quarze. Keine "
+                "Board-Änderung, kein pcb_render.")
     ),
     SuperFeature(
         key="via_cost",
@@ -359,60 +420,133 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="thermal",
         label="🌡️ Thermik",
         name="Thermik — Verlustleistungs-Hotspots",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Findet Verlustleistungs-Hotspots (Regler, MOSFETs, Shunts) "
                  "und schlägt Kühl-Kupfer, Thermal-Vias und Abstände vor."),
         moat="KiCad hat kein Verlustleistungs- oder Wärmemodell.",
+        prompt=(
+                "Thermik: Lies EINMAL list_pcb_footprints und rufe "
+                "audit_power_tree für die .kicad_pcb auf (per Glob finden). "
+                "Identifiziere die Verlustleistungs-Kandidaten (Linearregler, "
+                "MOSFETs, Shunts, Treiber, Gleichrichter) und schätze je "
+                "Kandidat die Verlustleistung aus Rolle und Rails — lege deine "
+                "Annahmen offen und frage bei den Top-Kandidaten nach den "
+                "realen Strömen, wenn unklar. Schlage je Hotspot konkrete "
+                "Maßnahmen vor: Kühl-Kupferfläche, Thermal-Vias "
+                "(Anzahl/Raster), Abstand zu empfindlichen Nachbarn — als "
+                "Vorschlag mit Koordinaten. KEINE Umsetzung ohne mein Go. "
+                "Steht oben eine Auswahl, nur diese Bauteile. Kein pcb_render.")
     ),
     SuperFeature(
         key="operating_temp",
         label="🌡️ Betriebstemperatur",
         name="Betriebstemperatur — Junction-Temp & Derating-Reserve",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Schätzt die reale Betriebs-/Sperrschichttemperatur je Bauteil "
                  "(Tj = Ta + P·θ) aus Verlustleistung, Umgebungstemperatur und "
                  "Wärmewiderstand — und wie viel Derating-Reserve bleibt."),
         moat=("KiCad hat kein Modell für Wärmewiderstand, Umgebung oder "
               "Verlustleistung."),
+        prompt=(
+                "Betriebstemperatur: Lies EINMAL list_pcb_footprints für die "
+                ".kicad_pcb (per Glob finden) und bestimme die thermisch "
+                "relevanten Bauteile (Regler, MOSFETs, Leistungswiderstände, "
+                "LED-Treiber). Rechne je Bauteil Tj = Ta + P·θJA: P aus "
+                "Rolle/Rails geschätzt (Annahmen offenlegen), θJA aus dem "
+                "Datenblatt in docs/ oder aus typischen Package-Werten (dann "
+                "ehrlich als 'typisch' kennzeichnen), Ta von mir erfragen "
+                "(Default 25 °C; Gehäuse?). Berichte je Bauteil Tj und die "
+                "Derating-Reserve bis Tj_max und markiere kritische Fälle. "
+                "Steht oben eine Auswahl, nur diese Bauteile. Keine Board- "
+                "Änderung, kein pcb_render.")
     ),
     SuperFeature(
         key="slew_rate",
         label="📐 Slew-Rate",
         name="Slew-Rate — schafft der Verstärker/Treiber das Signal?",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Rechnet, ob ein OpAmp/Treiber die geforderte Signalflanke "
                  "schafft (Slew-Rate-Limit) bzw. die Flankensteilheit digitaler "
                  "Signale — relevant für Verzerrung, Timing und EMV."),
         moat=("KiCad rechnet kein dynamisches Signalverhalten aus Bauteil-Specs."),
+        prompt=(
+                "Slew-Rate: Lies EINMAL list_schematic_components für den "
+                "Schaltplan im Projektordner (per Glob finden) und finde "
+                "Verstärker, Treiber und Komparatoren. Frage nach dem Signal "
+                "(Amplitude, Frequenz bzw. Flankenzeit), falls nicht genannt. "
+                "Rechne je Stufe, ob die Slew-Rate reicht: SR_nötig ≈ 2π·f·V̂ "
+                "für Sinus bzw. ΔV/Δt für Flanken — SR aus dem Datenblatt in "
+                "docs/ oder von mir erfragen; Rechenweg und Annahmen "
+                "offenlegen. Urteil je Stufe: reicht / Grenzfall / zu langsam, "
+                "mit der Konsequenz (Verzerrung, Timing, EMV). Steht oben eine "
+                "Auswahl, nur diese Bauteile. Keine Änderung, kein pcb_render.")
     ),
     SuperFeature(
         key="impedance",
         label="〰️ Impedanz",
         name="Impedanz — controlled impedance aus dem Stackup",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Berechnet Breite und Abstand für eine definierte Impedanz "
                  "(USB, Ethernet, RF) aus dem Lagenaufbau."),
         moat="KiCad rechnet keine Impedanz aus Stackup und Geometrie.",
+        prompt=(
+                "Impedanz: Lies den Lagenaufbau über pcb_eval vom warmen Board "
+                "(Stackup: Lagen, Dielektrika-Dicken, εr, Kupferdicken); sind "
+                "dort keine Stackup-Daten gepflegt, frage mich nach Lagenzahl, "
+                "Dicken und εr. Frage nach dem Ziel, falls unklar (USB 90 Ω "
+                "diff, Ethernet 100 Ω diff, RF 50 Ω single-ended …), und "
+                "rechne Breite und ggf. Paar-Abstand mit den üblichen "
+                "Näherungen (IPC-2141 / Microstrip / Stripline) — Rechenweg "
+                "offenlegen. EHRLICH: das sind Näherungsformeln, kein "
+                "Feldlöser — für die Fertigung den Stackup-Rechner des "
+                "Fertigers gegenprüfen. Steht oben eine Auswahl mit Tracks, "
+                "bewerte deren Ist-Breite gegen das Ziel. Keine Änderung, kein "
+                "pcb_render.")
     ),
     SuperFeature(
         key="dfm_check",
         label="🏭 DFM-Check",
         name="DFM-Check — Fertigbarkeit gegen echte Fab-Regeln",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Prüft die Fertigbarkeit gegen die Regeln eines konkreten "
                  "Fertigers (min. Track/Space, Annular Ring, Acid Traps, "
                  "Silk-über-Pad) — nicht nur generisches DRC."),
         moat=("KiCads DRC kennt keine fertiger-spezifischen DFM-Regeln oder "
               "deren Begründung."),
+        prompt=(
+                "DFM-Check: Frage zuerst kurz nach Fertiger und Prozess (z. B. "
+                "JLCPCB 2-Lagen Standard), falls nicht genannt. Dann: (1) "
+                "run_drc_check für die .kicad_pcb (per Glob finden) für die "
+                "generischen Verstöße, (2) get_board_stats für minimale "
+                "Breiten, Via-Größen und Lagenzahl, (3) vergleiche gegen die "
+                "publizierten Regeln dieses Fertigers aus deinem Wissen (min "
+                "Track/Space, Via-Drill/Annular-Ring, Silk-über-Pad, Acid "
+                "Traps) — kennzeichne die Regelwerte ehrlich als Wissensstand "
+                "mit Datum, nicht als Live-Katalog. Berichte nur echte DFM- "
+                "Risiken mit Koordinaten/Refs und dem konkreten Fix. Steht "
+                "oben eine Auswahl, nur dieser Bereich. Keine Änderung, kein "
+                "pcb_render.")
     ),
     SuperFeature(
         key="cost_estimate",
         label="💰 Kosten-Schätzer",
         name="Kosten-Schätzer — was macht das Board teuer",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Grobe Fertigungskosten aus Boardfläche, Lagenzahl, Via-Anzahl "
                  "und BOM — plus was die Kosten treibt."),
         moat="KiCad hat kein Kostenmodell.",
+        prompt=(
+                "Kosten-Schätzer: Rufe get_board_stats und analyze_bom für das "
+                "Projekt auf (Pfade per Glob finden). Schätze die "
+                "Fertigungskosten als Größenordnung: Boardfläche × Lagenzahl "
+                "(Basispreis), Via-Anzahl und -Typen (Blind/Buried = teuer), "
+                "Sonderprozesse (kleinste Breite/Drill unter Fab-Standard?), "
+                "BOM-Seite (Anzahl unterschiedlicher Werte = Feeder-Kosten, "
+                "Extended-Teile = Ladegebühren). Zeige die Kostentreiber "
+                "sortiert und zwei bis drei konkrete Hebel — z. B. Via- "
+                "Optimierung oder BOM-Konsolidierung, dafür gibt es hier "
+                "Buttons. Zahlen EHRLICH als Größenordnung kennzeichnen, kein "
+                "Live-Preis. Keine Änderung, kein pcb_render.")
     ),
 
     # -- Simulation & Beschaffung ---------------------------------------------
@@ -420,23 +554,47 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="simulate",
         label="📈 Simulation",
         name="Simulation — Verhalten & Bandbreite verstehen",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Simuliert das Schaltungsverhalten (z. B. Verstärker-Bandbreite, "
                  "Frequenzgang, Arbeitspunkt) über SPICE und erklärt das Ergebnis "
                  "in Klartext — statt nur Kurven auszuspucken."),
         moat=("KiCad kann ngspice starten, aber weder die *Frage* noch das "
               "*Ergebnis* interpretieren."),
+        prompt=(
+                "Simulation (analytisch, v1): Rufe extract_schematic_netlist "
+                "für den Schaltplan auf (per Glob finden); steht oben eine "
+                "Auswahl, analysiere nur diesen Teilschaltkreis. Frage, was "
+                "mich interessiert (Arbeitspunkt, Verstärkung/Bandbreite, "
+                "Filter-Eckfrequenz, Zeitverhalten), falls unklar. Analysiere "
+                "ANALYTISCH aus der Netzliste: Kleinsignalmodell, RC/RL- "
+                "Eckfrequenzen, OpAmp-Idealmodell plus relevante Datenblatt- "
+                "Limits — und erkläre das Ergebnis in Klartext mit Rechenweg. "
+                "EHRLICH: das ist Schaltungsanalyse per Reasoning, keine "
+                "numerische SPICE-Ausführung; für harte Zahlen liefere ich dir "
+                "die Netzliste als SPICE-Deck zum Kopieren für "
+                "LTspice/ngspice. Keine Änderung, kein pcb_render.")
     ),
     SuperFeature(
         key="sim_models",
         label="🧬 SPICE-Modelle",
         name="Simulationsmodelle ergänzen",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Findet und hängt das passende SPICE-Modell je Bauteil an, damit "
                  "die Simulation überhaupt läuft — der lästige manuelle Schritt "
                  "vor jeder Simulation."),
         moat=("KiCad verlangt manuelle Modell-Zuordnung und weiß nicht, welches "
               "Modell zu welchem Bauteil passt."),
+        prompt=(
+                "SPICE-Modelle: Lies list_schematic_components für den "
+                "Schaltplan (per Glob finden); steht oben eine Auswahl, nur "
+                "diese Bauteile. Ermittle je aktivem Bauteil (Transistoren, "
+                "Dioden, OpAmps, Regler), welches SPICE-Modell passt: suche "
+                "per WebSearch nach Hersteller-Modellen (.lib/.subckt) und "
+                "liefere je Bauteil Modellname, Download-Link und die "
+                "Eintragung für KiCads Simulationsfelder (Sim.Library / "
+                "Sim.Name / Sim.Pins) zum Übernehmen. R/L/C brauchen keine "
+                "Modelle. Ins Schaltplan-File eintragen nur nach meinem Go und "
+                "nur bei geschlossenem Eeschema. Kein pcb_render.")
     ),
     SuperFeature(
         key="bom_consolidate",
@@ -481,13 +639,25 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="bom_sourcing",
         label="🛒 Bauteil-Sourcing",
         name="Bauteil-Sourcing — Verfügbarkeit, Preis & Alternativen",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Prüft live Verfügbarkeit und Preis gegen Distributoren und "
                  "findet pin-kompatible Alternativen für abgekündigte oder "
                  "nicht-lagernde Teile (der Live-Netz-Teil über die "
                  "offline Fab-Standardteil-Prüfung hinaus)."),
         moat=("KiCad hat kein Wissen über Distributoren, Lagerbestand oder "
               "Preise."),
+        prompt=(
+                "Bauteil-Sourcing: Rufe analyze_bom für das Projekt auf (per "
+                "Glob finden); steht oben eine Auswahl, nur diese Bauteile. "
+                "Prüfe per WebSearch Verfügbarkeit und Preislage der "
+                "KRITISCHEN Teile (ICs, Spezialbauteile — nicht jeden "
+                "10k-Widerstand) bei Distributoren (LCSC, Mouser, Digi-Key) "
+                "und finde für schlecht lieferbare oder abgekündigte Teile "
+                "pin-kompatible Alternativen. Liefere je Teil: Status, Preis- "
+                "Größenordnung, Quelle mit Link, gegebenenfalls Alternative "
+                "mit Begründung (Pinout/Specs). EHRLICH: Web-Momentaufnahme — "
+                "vor der Bestellung selbst verifizieren. Keine Änderung, kein "
+                "pcb_render.")
     ),
 
     # -- Kreativ / grenzüberschreitend ----------------------------------------
@@ -495,65 +665,138 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="photo_reverse",
         label="📷 Foto→Schaltung",
         name="Foto → Schaltung — reverse-engineer aus einem Bild",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Zieh ein Foto einer echten Platine rein — der Agent erkennt "
                  "Bauteile, Beschriftungen und Leiterbahnen und rekonstruiert "
                  "Netzliste/Schaltplan als Ausgangspunkt."),
         moat="KiCad hat keine Bild-Wahrnehmung — das ist reine Multimodal-Arbeit.",
+        prompt=(
+                "Foto → Schaltung: Bitte lege das Platinen-Foto als Bilddatei "
+                "in den Projektordner und nenne mir den Dateinamen — Bilder "
+                "kann ich über Read ansehen. Dann: (1) Read auf das Bild; "
+                "identifiziere Bauteile, Aufdrucke und sichtbare Leiterbahnen; "
+                "(2) rekonstruiere daraus Stückliste und Netz-Hypothesen als "
+                "Tabelle mit Konfidenz je Verbindung (sichtbar vs. vermutet); "
+                "(3) auf Wunsch baue ich daraus per generate_schematic / "
+                "add_schematic_symbols einen Schaltplan-Startpunkt — erst nach "
+                "deinem Go. Ist kein Bild genannt, sage in einem Satz, wie es "
+                "geht, und stoppe. EHRLICH: verdeckte Leiterbahnen und "
+                "Innenlagen kann ein Foto nicht zeigen. Kein pcb_render.")
     ),
     SuperFeature(
         key="datasheet_circuit",
         label="📄 Datenblatt→Schaltung",
         name="Datenblatt → Applikationsschaltung",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Aus dem Datenblatt eines ICs die typische Applikationsschaltung "
                  "generieren (Entkopplung, externe Bauteile, Referenz) — als "
                  "fertigen Schaltungsblock."),
         moat=("KiCad liest keine Datenblätter und kennt keine "
               "Applikationsschaltungen."),
+        prompt=(
+                "Datenblatt → Schaltung: Nenne mir das IC oder lege sein "
+                "Datenblatt als docs/<Value>.pdf ins Projekt. Dann: (1) "
+                "extract_circuit_from_pdf auf die Seite mit der "
+                "Applikationsschaltung (bzw. extract_pdf_tables für die Pin- "
+                "Tabelle), (2) zeige den erkannten Schaltungsblock (Bauteile, "
+                "Werte, Verbindungen) als Vorschau, (3) erst nach deinem Go: "
+                "apply_circuit_block in den Schaltplan — NUR bei geschlossenem "
+                "Eeschema (KiCad 10 hat kein Live-Schaltplan-API). Ist kein "
+                "IC/PDF genannt, sage in einem Satz, was ich brauche, und "
+                "stoppe. Kein pcb_render.")
     ),
     SuperFeature(
         key="safety_spacing",
         label="⚡ Sicherheitsabstände",
         name="Sicherheitsabstände — Creepage & Clearance",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Prüft Kriech- und Luftstrecken zwischen Netz-Bereichen "
                  "(Netzspannung ↔ Kleinspannung) gegen Sicherheitsnormen "
                  "(IEC 62368) — inkl. Slots und Isolationsbarrieren."),
         moat=("KiCad hat kein Isolations-/Spannungsmodell und keine "
               "Sicherheitsnormen."),
+        prompt=(
+                "Sicherheitsabstände: (1) Bestimme aus analyze_pcb_nets die "
+                "Spannungs-Domänen (Netzspannung/HV vs. Kleinspannung — aus "
+                "Netznamen und Bauteilrollen; frage nach der Arbeitsspannung, "
+                "wenn unklar). (2) Prüfe die kritischen Übergänge: Luftstrecke "
+                "als kürzeste Distanz zwischen den Domänen — miss gezielt mit "
+                "center_item_clearance bzw. aus den Track-/Pad-Koordinaten — "
+                "und die Kriechstrecke entlang der Oberfläche inkl. "
+                "Slots/Fräsungen. (3) Vergleiche gegen IEC-62368-Richtwerte "
+                "für Spannung und Verschmutzungsgrad — nenne die Werte und "
+                "EHRLICH: das ist eine Ingenieurs-Vorprüfung, keine "
+                "Zertifizierung. Befunde mit Koordinaten. Steht oben eine "
+                "Auswahl, nur dieser Bereich. Keine Änderung, kein pcb_render.")
     ),
     SuperFeature(
         key="firmware_map",
         label="💾 Firmware-Pinmap",
         name="Firmware-Pinmap — Pinbelegung als Code exportieren",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Exportiert die MCU-Pinbelegung als Firmware-Header/Config "
                  "(C, DeviceTree, ESPHome …) — schlägt die Brücke Hardware ↔ "
                  "Software, in beide Richtungen konsistent."),
         moat=("KiCad hat kein Modell der Firmware-Seite; die Pin-Semantik lebt "
               "außerhalb des Layouts."),
+        prompt=(
+                "Firmware-Pinmap: Rufe extract_schematic_netlist auf (per Glob "
+                "finden) und baue für den Controller (Auswahl oben = dieser; "
+                "sonst der Haupt-Controller des Boards) die Pinbelegung Pin → "
+                "Netz → Funktion. Frage kurz nach dem Zielformat, falls nicht "
+                "genannt: C-Header (#define), DeviceTree-Overlay oder ESPHome- "
+                "YAML. Erzeuge den Export als Codeblock zum Kopieren, mit den "
+                "Netznamen als Kommentar, und liefere Konsistenz-Hinweise mit "
+                "(z. B. UART-TX auf einem Input-only-Pin, Strapping-Pins "
+                "belegt). Keine Datei-Schreibung, keine Board-Änderung, kein "
+                "pcb_render.")
     ),
     SuperFeature(
         key="mlcc_derating",
         label="📉 MLCC-Derating",
         name="MLCC-Derating — echte Kapazität unter DC-Bias",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Rechnet die *effektive* Kapazität eines Keramik-Cs unter "
                  "DC-Bias und Temperatur (der berüchtigte DC-Bias-Effekt): ein "
                  "10 µF/6,3 V an 5 V ist real oft nur ~4 µF."),
         moat=("KiCad kennt nur den Nennwert, nicht das Spannungs-/Temperatur- "
               "Verhalten realer Bauteile."),
+        prompt=(
+                "MLCC-Derating: Lies EINMAL list_pcb_footprints (per Glob "
+                "finden) und finde die Keramik-Kondensatoren samt Value, "
+                "Bauform und dem Netz, an dem sie hängen; leite die DC-Bias- "
+                "Spannung aus dem Rail-Namen ab (3V3, 5V, 12V … — frage bei "
+                "unklaren Rails nach). Schätze je kritischem MLCC die "
+                "effektive Kapazität unter Bias anhand typischer Derating- "
+                "Kurven je Dielektrikum und Bauform (X5R/X7R; 0402 verliert "
+                "mehr als 0805) — kennzeichne das EHRLICH als 'typisch', exakt "
+                "geht nur mit der Hersteller-Kurve. Melde alle Fälle mit "
+                "effektiv unter ~50 % nominal (Klassiker: 10 µF/6,3 V an 5 V ≈ "
+                "4 µF) und schlage größere Bauform oder Spannungsklasse vor. "
+                "Steht oben eine Auswahl, nur diese Kondensatoren. Keine "
+                "Änderung, kein pcb_render.")
     ),
     SuperFeature(
         key="silk_cleanup",
         label="🔤 Silk-Aufräumen",
         name="Silkscreen aufräumen — Referenzen lesbar machen",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Rückt Reference-Designatoren so, dass sie lesbar sind: nicht "
                  "unter Bauteilen/Pads, konsistent orientiert, nah am richtigen "
                  "Teil — die mühsame Fleißarbeit am Ende jedes Layouts."),
         moat=("KiCad kann Text verschieben, aber nicht *Lesbarkeit* beurteilen."),
+        prompt=(
+                "Silk-Aufräumen: Lies EINMAL list_pcb_footprints (per Glob "
+                "finden) und identifiziere Referenz-Beschriftungen, die "
+                "unleserlich liegen: unter oder auf Bauteilkörpern, über Pads "
+                "von Nachbarn, kollidierend oder uneinheitlich rotiert — "
+                "bewerte das aus Positionen und Bauteilgrößen. Zeige den "
+                "Aufräum-Plan (Ref → neue Textposition und Rotation, "
+                "einheitliche Leserichtung) und setze ihn erst nach meinem Go "
+                "um, gebündelt über die Live-Tools (ipc_move_items auf die "
+                "Text-Elemente). EHRLICH: ohne Render prüfe ich Geometrie, "
+                "nicht Optik — auf Wunsch ein pcb_render NACH Abschluss aller "
+                "Änderungen. Steht oben eine Auswahl, nur deren Referenzen.")
     ),
 )
 
