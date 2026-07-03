@@ -106,6 +106,18 @@ FEATURES: tuple[SuperFeature, ...] = (
         moat="KiCads ERC prüft Netz-Syntax, nicht die *Absicht* der Schaltung.",
     ),
     SuperFeature(
+        key="test_points",
+        label="🔎 Test-Punkt-Wächter",
+        name="Test-Punkt-Wächter — probe-bar für Bring-up & Serientest?",
+        status=SOON,
+        tooltip=("Rankt Netze nach Test-Wichtigkeit (Versorgung, Reset, Clock, "
+                 "Bus) und meldet, welche kritischen Netze keinen Prüfpunkt/"
+                 "Stecker-Zugang haben — die blinden Flecken für Flying-Probe/"
+                 "Nadeladapter und Bring-up. Zeigt Abdeckung in %."),
+        moat=("KiCad kennt Netze, aber nicht ihre *Wichtigkeit* für den Test — "
+              "das ist Fertigungs-/Bring-up-Wissen."),
+    ),
+    SuperFeature(
         key="pin_swap",
         label="🔀 Pin-Tausch",
         name="Pin-Tausch — GPIO ans Routing anpassen",

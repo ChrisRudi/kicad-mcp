@@ -144,6 +144,24 @@ Stützung, ein Reset-Pin ohne Pull-up … Regeln, die *Absicht* verstehen.
   Regeln (SPI-CS-/Reset-Pull-up, Entkopplung aus `audit_power_tree` einhängen,
   Load-Cap-*Werte* gegen CL) sind je eine Registry-Zeile.
 
+### 🔎 Test-Punkt-Wächter — probe-bar für Bring-up & Serientest?  · 🔜
+**Sorte:** externes Fertigungs-/Bring-up-Wissen.
+
+KiCad kennt Netze, aber nicht, welche einen **Prüfpunkt-Zugang** *verdienen*. Bei
+Flying-Probe/Nadeladapter und beim Bring-up willst du an die wichtigen Netze ran:
+Versorgungs-Rails, Reset, Clock, Bus. Ein kritisches Netz ohne Test-Punkt und ohne
+Stecker ist **blind** — das merkst du erst mit dem Board in der Hand. Das Feature
+rankt Netze nach Test-Wichtigkeit und meldet Abdeckung in % plus die blinden
+kritischen Netze.
+
+- **Warum KiCad das nicht kann:** ERC/DRC kennen keine Netz-*Wichtigkeit* — das
+  ist Test-/Fertigungs-Wissen, keine Geometrie.
+- **Gebaut ✅:** `audit_test_points` (Tool #183). Rankt über dieselben Signale wie
+  der Design-Wächter (`is_power_net`, Reset-Regex, `bus_infer`) auf dem *einmal*
+  geparsten `BoardContext`; Zugang = `TP*`/`TestPoint`-Footprint oder Stecker.
+  Selektions-fähig (`refs`). Nächste Stufe: Vorschlag, *wo* ein Test-Punkt hin
+  soll (nächste freie Stelle am Netz).
+
 ### 🔀 Pin-Tausch — GPIO ans Routing anpassen  · 🔜
 **Sorte:** Freiheitsgrade nutzen. Der „das kann KiCad *niemals*"-Leuchtturm.
 

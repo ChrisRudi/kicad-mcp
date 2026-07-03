@@ -8,6 +8,21 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Super-Feature „Test-Punkt-Wächter" — Probe-Zugang der kritischen Netze)
+- **`audit_test_points` — Testbarkeit prüfen, die ERC/DRC nicht sehen** (Tool
+  #183). Rankt Netze nach Bring-up-/Serientest-Wichtigkeit (Versorgung, Reset,
+  Clock, Bus) und meldet, welche kritischen Netze **keinen** Prüfpunkt-/Stecker-
+  Zugang haben — die blinden Flecken für Flying-Probe/Nadeladapter. Liefert
+  Abdeckung in %, die blinden Netze und je Netz, worüber es zugänglich ist
+  (`TP*`/`TestPoint`-Footprint oder Stecker). `include_signals` nimmt auch reine
+  Signalnetze mit auf (zählen nie in die kritische Abdeckung); `refs`-Filter für
+  die Selektion.
+  - Synergie: liest den *einmal* geparsten `design_rules.BoardContext` und rankt
+    über dieselben Signale wie der Design-Wächter (`is_power_net`, Reset-Regex,
+    `bus_infer`) — kein Re-Parse, keine Doppellogik. Ground wird nicht auditiert
+    (ist ohnehin überall erreichbar). Tests: `test_test_points.py`. Tool-Count
+    182→183.
+
 ### Added (Super-Feature „Fab-Standardteile" — No-Load-Fee-Teile, fab-agnostisch)
 - **`suggest_preferred_parts` — R/C aufs Vorzugsteil des Fertigers mappen**
   (Tool #182). Bestücker verlangen eine Feeder-Ladegebühr pro Bauteiltyp

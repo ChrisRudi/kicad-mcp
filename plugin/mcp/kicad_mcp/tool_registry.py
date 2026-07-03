@@ -63,6 +63,7 @@ from kicad_mcp.tools.bus_tools import register_bus_tools
 from kicad_mcp.tools.design_rules_tools import register_design_rules_tools
 from kicad_mcp.tools.bom_consolidate_tools import register_bom_consolidate_tools
 from kicad_mcp.tools.fab_parts_tools import register_fab_parts_tools
+from kicad_mcp.tools.test_points_tools import register_test_points_tools
 
 # --- Resource registrars ---------------------------------------------------
 from kicad_mcp.resources.projects import register_project_resources
@@ -125,6 +126,7 @@ TOOL_REGISTRARS: list[Registrar] = [
     register_design_rules_tools,
     register_bom_consolidate_tools,
     register_fab_parts_tools,
+    register_test_points_tools,
 ]
 
 RESOURCE_REGISTRARS: list[Registrar] = [
