@@ -124,6 +124,15 @@ class ClaudeChatPanel(wx.Panel):
         opt.Add(self._include_selection, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
         root.Add(opt, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
+        # Super-Feature roadmap bar — one button per entry in
+        # plugin/superfeatures.py. "coming soon" buttons print their pitch on
+        # click; hover shows the tooltip. Best-effort so a layout hiccup can
+        # never break the panel.
+        try:
+            self._build_superfeature_bar(root)
+        except Exception:
+            pass
+
         foot = wx.BoxSizer(wx.HORIZONTAL)
         self._status = wx.StaticText(self, label=theme.STATUS_READY)
         self._status.SetForegroundColour(wx.Colour(theme.DIM))
@@ -675,6 +684,41 @@ class ClaudeChatPanel(wx.Panel):
         except Exception as exc:
             msg = f"Rückgängig fehlgeschlagen: {exc}"
         wx.CallAfter(self._flash_status, msg)
+
+    def _build_superfeature_bar(self, root) -> None:
+        """Render the Super-Feature roadmap as a wrapping button row, driven by
+        ``plugin/superfeatures.py``. Every entry gets a button; ``SOON`` ones are
+        dimmed and print their pitch on click, ``SHIPPED`` ones will dispatch to
+        a live handler (wired in ``_on_superfeature``)."""
+        from . import superfeatures
+        bar = wx.WrapSizer(wx.HORIZONTAL)
+        tag = wx.StaticText(self, label="✨ Super-Features")
+        tag.SetForegroundColour(wx.Colour(theme.CLAUDE_ORANGE))
+        tag.SetFont(self._mono)
+        bar.Add(tag, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 6)
+        for feat in superfeatures.all_features():
+            btn = wx.Button(self, label=feat.label, style=wx.BU_EXACTFIT)
+            btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
+            soon = feat.status == superfeatures.SOON
+            btn.SetForegroundColour(
+                wx.Colour(theme.DIM if soon else theme.FOREGROUND))
+            btn.SetToolTip(("🔜 Kommt bald — " if soon else "") + feat.tooltip)
+            btn.Bind(wx.EVT_BUTTON, lambda _e, f=feat: self._on_superfeature(f))
+            bar.Add(btn, 0, wx.ALL, 2)
+        root.Add(bar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
+
+    def _on_superfeature(self, feat) -> None:
+        """Click on a Super-Feature button. No feature is live yet, so every
+        click prints the "coming soon" pitch into the transcript. When one
+        ships: flip its status in ``superfeatures.py`` and dispatch ``feat.key``
+        to its handler here instead of the pitch."""
+        self._write(f"\n✨ {feat.name}", theme.CLAUDE_ORANGE, bold=True)
+        self._write("   🔜 kommt bald\n", theme.DIM)
+        self._write(f"  {feat.tooltip}\n", theme.DIM)
+        self._write(f"  Warum KiCad das nicht kann: {feat.moat}\n", theme.DIM)
+        if getattr(feat, "selection_aware", False):
+            self._write("  Wirkt aufs ganze Board oder auf deine aktuelle "
+                        "Auswahl.\n", theme.DIM)
 
     def _mark_all_worker(self, marks: list) -> None:
         """P4 (Dok 1): select every named board element together (first replaces
