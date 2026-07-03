@@ -1,7 +1,29 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.7.0**
+Aktuelle Version: **0.7.1**
+
+---
+
+## ✨ Neu in 0.7.1 — die ersten 7 Super-Features sind AKTIV
+
+Die Super-Feature-Buttons unter dem Chat waren bisher alle „kommt bald". Jetzt
+sind die sieben, deren Werkzeuge längst an Bord sind, **echt verdrahtet**: ein
+Klick startet den fertigen Auftrag im Chat — mit deiner aktuellen KiCad-Auswahl
+als Kontext (markierst du vorher Bauteile, wirkt das Feature nur darauf):
+
+- **🛡️ Design-Wächter** — semantische Prüfung jenseits des ERC (Pull-ups,
+  Load-Caps, Entkopplung).
+- **🚌 Bus-Radar** — alle Teilnehmer + Pins je Bus (I²C, SPI, UART …).
+- **🔎 Test-Punkt-Wächter** — kritische Netze ohne Prüfpunkt-Zugang, Abdeckung in %.
+- **💰 BOM-Konsolidierung** — fast-gleiche R/C-Werte auf E-Reihen-Standard (nur Vorschlag).
+- **🏭 Fab-Standardteile** — No-Load-Fee-Vorzugsteile (JLCPCB Basic …) + Ersparnis.
+- **🔩 Via-Optimierung** — Report, welche Blind/Buried-Vias zu Through wandelbar
+  sind; umgesetzt wird erst auf dein Go.
+- **✏️ Skizzen-Dirigent** — deine Linien/Bögen auf User.9 werden per Klick zu
+  Kupferbahnen auf F.Cu (ein Undo-Schritt; leerer Layer → ehrliche Meldung).
+
+Die übrigen Buttons zeigen weiterhin ihren „kommt bald"-Pitch.
 
 ---
 

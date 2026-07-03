@@ -8,9 +8,12 @@ geometry+netlist. The chat panel renders one button per entry (see
 human-readable narrative of the same list.
 
 Living document: when a feature ships, flip its ``status`` from ``SOON`` to
-``SHIPPED`` here (and wire its ``key`` in the panel handler). A ``SOON`` button
-is already fully written — hover shows the pitch, a click prints the "coming
-soon" description — so the GUI advertises the roadmap from day one.
+``SHIPPED`` here AND give it a ``prompt`` — the canonical chat instruction the
+button dispatches on click (``chat_dialog._on_superfeature`` sends it like a
+typed message, with the current KiCad selection prepended as context). A
+``SOON`` button is already fully written — hover shows the pitch, a click
+prints the "coming soon" description — so the GUI advertises the roadmap from
+day one.
 
 Pure/stdlib only, so it imports headless and is unit-tested without wx/KiCad.
 """
@@ -41,6 +44,10 @@ class SuperFeature:
              board-wide. Default True — every super-feature must honour a
              selection, e.g. "check ampacity of the selected traces",
              "datasheet-diff the selected IC", "untangle the selected parts".
+    prompt   SHIPPED only: the canonical chat instruction the button sends on
+             click. Written to honour the anti-toolcall-explosion rules
+             (CLAUDE.md): name the backing MCP tool, no render, respect an
+             existing selection, report instead of re-reading state.
     """
     key: str
     label: str
@@ -49,6 +56,7 @@ class SuperFeature:
     tooltip: str
     moat: str
     selection_aware: bool = True
+    prompt: str = ""
 
 
 # Order = display order. "Entwirren" leads — it is the current focus.
@@ -78,12 +86,19 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="bus_radar",
         label="🚌 Bus-Radar",
         name="Bus-Radar — Bus-Teilnehmer finden",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Listet und markiert alle Teilnehmer + Pins eines Busses "
                  "(I²C, SPI, Datenbus …) als *eine* Bedeutungseinheit — nicht "
                  "nur die Einzelnetze."),
         moat=("KiCad kennt Einzelnetze, aber nicht den Bus als semantische "
               "Gruppe."),
+        prompt=("Bus-Radar: Rufe list_bus_members für die .kicad_pcb im "
+                "Projektordner auf (per Glob finden, nicht nachfragen; ohne "
+                "bus-Parameter = alle Busse). Steht oben im Kontext eine "
+                "Auswahl, zeige nur Busse, an denen diese Bauteile hängen. "
+                "Liste je Bus die Teilnehmer als Ref.Pin mit den EXAKTEN "
+                "Netznamen aus der Tool-Ausgabe. Keine Board-Änderung, kein "
+                "pcb_render."),
     ),
     SuperFeature(
         key="datasheet_diff",
@@ -99,23 +114,37 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="semantic_erc",
         label="🛡️ Design-Wächter",
         name="Design-Wächter — semantischer ERC",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Prüfung jenseits des ERC: fehlende Pull-ups am I²C, fehlende "
                  "Abblock-Cs nah am IC, unpassende Quarz-Load-Caps, Power-Netz "
                  "ohne Stützung …"),
         moat="KiCads ERC prüft Netz-Syntax, nicht die *Absicht* der Schaltung.",
+        prompt=("Design-Wächter: Rufe audit_design für die .kicad_pcb im "
+                "Projektordner auf (per Glob finden, nicht nachfragen). Steht "
+                "oben im Kontext eine Auswahl, berichte nur Befunde, die diese "
+                "Bauteile/Netze betreffen. Fasse die Befunde nach Schwere "
+                "zusammen (kritisch zuerst), nenne Bauteile und Netze mit "
+                "ihren EXAKTEN Namen und schlage je Befund die konkrete "
+                "Abhilfe vor. Keine Board-Änderung, kein pcb_render."),
     ),
     SuperFeature(
         key="test_points",
         label="🔎 Test-Punkt-Wächter",
         name="Test-Punkt-Wächter — probe-bar für Bring-up & Serientest?",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Rankt Netze nach Test-Wichtigkeit (Versorgung, Reset, Clock, "
                  "Bus) und meldet, welche kritischen Netze keinen Prüfpunkt/"
                  "Stecker-Zugang haben — die blinden Flecken für Flying-Probe/"
                  "Nadeladapter und Bring-up. Zeigt Abdeckung in %."),
         moat=("KiCad kennt Netze, aber nicht ihre *Wichtigkeit* für den Test — "
               "das ist Fertigungs-/Bring-up-Wissen."),
+        prompt=("Test-Punkt-Wächter: Rufe audit_test_points für die .kicad_pcb "
+                "im Projektordner auf (per Glob finden, nicht nachfragen). "
+                "Steht oben im Kontext eine Auswahl, übergib deren Referenzen "
+                "als refs-Filter. Berichte die kritische Abdeckung in %, die "
+                "blinden Netze mit EXAKTEN Namen und je blindem Netz einen "
+                "konkreten Prüfpunkt-Vorschlag (wo, warum dort). Keine "
+                "Board-Änderung, kein pcb_render."),
     ),
     SuperFeature(
         key="pin_swap",
@@ -182,11 +211,18 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="sketch_conductor",
         label="✏️ Skizzen-Dirigent",
         name="Skizzen-Dirigent — gezeichnete Absicht → Kupfer",
-        status=SOON,
-        tooltip=("Zeichne grob deine Absicht auf einen Markup-Layer — Linie, "
-                 "Rechteck, ein mit GND beschrifteter Pfeil — der Agent gießt "
-                 "Kupfer oder platziert entsprechend."),
+        status=SHIPPED,
+        tooltip=("Zeichne Linien/Bögen auf den Markup-Layer User.9 — ein Klick "
+                 "gießt sie als Kupfer-Leiterbahnen auf F.Cu (ein einziger "
+                 "Undo-Schritt)."),
         moat="KiCad interpretiert keine gezeichnete Absicht.",
+        prompt=("Skizzen-Dirigent: Prüfe zuerst mit ipc_markup_to_tracks und "
+                "dry_run=true, was auf dem Markup-Layer User.9 des offenen "
+                "Boards liegt. Liegt dort nichts, sage das in EINEM Satz und "
+                "stoppe. Sonst setze es mit EINEM zweiten Aufruf "
+                "(dry_run=false, Ziel F.Cu, sofern ich nichts anderes sage) in "
+                "Kupfer um — das ist ein einziger Undo-Schritt — und berichte "
+                "created/skipped aus dem Tool-Result. Kein pcb_render."),
     ),
     SuperFeature(
         key="watch_mode",
@@ -225,12 +261,20 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="via_cost",
         label="🔩 Via-Optimierung",
         name="Via-Optimierung — Anzahl & Kosten senken",
-        status=SOON,
-        tooltip=("Senkt Via-Anzahl und Fertigungskosten: findet überflüssige "
-                 "Vias, wandelt teure Blind/Buried- in Through-Vias und schlägt "
-                 "via-ärmeres Routing vor."),
+        status=SHIPPED,
+        tooltip=("Senkt Via-Anzahl und Fertigungskosten: findet teure "
+                 "Blind/Buried-Vias, die sich gefahrlos in Through-Vias wandeln "
+                 "lassen. Der Klick liefert den Report; umgesetzt wird erst auf "
+                 "dein Go."),
         moat=("KiCad zählt Vias, bewertet aber ihre Fertigungskosten und "
               "Notwendigkeit nicht."),
+        prompt=("Via-Optimierung (nur Report): Rufe via_promote mit "
+                "dry_run=true für die .kicad_pcb im Projektordner auf (per "
+                "Glob finden, nicht nachfragen). Berichte, wie viele "
+                "Blind/Buried-Vias sich kollisionsfrei zu Through-Vias wandeln "
+                "ließen, auf welchen Netzen (EXAKTE Namen) und was das für die "
+                "Fertigung bedeutet. Ändere NICHTS — die Umsetzung machst du "
+                "erst nach meinem ausdrücklichen Go. Kein pcb_render."),
     ),
     SuperFeature(
         key="thermal",
@@ -319,19 +363,26 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="bom_consolidate",
         label="💰 BOM-Konsolidierung",
         name="BOM-Konsolidierung — E-Reihe standardisieren, Feeder sparen",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Fasst fast-gleiche R/C-Werte (10k neben 10,2k neben 9,1k) auf "
                  "Standard-E-Reihen-Werte zusammen — weniger Bestückungs-Feeder "
                  "und günstigere Stückzahlen, ohne ein Bauteil über die Toleranz "
                  "zu verschieben. Schlägt vor, ändert nicht."),
         moat=("KiCad kennt weder E-Reihen noch Feeder/Bestellmengen — das ist "
               "Fertigungs-Wissen über der Netzliste."),
+        prompt=("BOM-Konsolidierung: Rufe consolidate_bom für die .kicad_pcb "
+                "im Projektordner auf (per Glob finden, nicht nachfragen). "
+                "Steht oben im Kontext eine Auswahl, berichte nur Vorschläge, "
+                "die diese Referenzen betreffen. Zeige die Zusammenlegungen "
+                "kompakt: Ist-Werte → E-Reihen-Zielwert, betroffene Refs, "
+                "gesparte Feeder/Werte-Typen. Es sind reine VORSCHLÄGE — "
+                "ändere nichts am Board. Kein pcb_render."),
     ),
     SuperFeature(
         key="preferred_parts",
         label="🏭 Fab-Standardteile",
         name="Fab-Standardteile — No-Load-Fee-Teile bevorzugen (JLCPCB/Seeed/…)",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Bestücker verlangen pro Bauteiltyp außerhalb ihrer Hausbibliothek "
                  "eine Feeder-Ladegebühr (JLCPCB Basic vs Extended, Seeed OPL …). "
                  "Mappt jeden R/C-Wert+Bauform auf das Vorzugsteil des Fertigers "
@@ -339,6 +390,13 @@ FEATURES: tuple[SuperFeature, ...] = (
                  "Snapshot je Fertiger."),
         moat=("KiCad hat kein Wissen über Distributoren, Fab-Kataloge, "
               "Lagerbestand oder Ladegebühren."),
+        prompt=("Fab-Standardteile: Rufe suggest_preferred_parts für die "
+                ".kicad_pcb im Projektordner auf (per Glob finden, nicht "
+                "nachfragen; Provider jlcpcb, außer ich nenne einen anderen). "
+                "Steht oben im Kontext eine Auswahl, berichte nur Mappings für "
+                "diese Referenzen. Zeige je Mapping Ist-Teil → Vorzugsteil und "
+                "die geschätzte gesparte Ladegebühr, mit Summe am Ende. Reine "
+                "Vorschläge — ändere nichts am Board. Kein pcb_render."),
     ),
     SuperFeature(
         key="bom_sourcing",

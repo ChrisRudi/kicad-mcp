@@ -125,7 +125,8 @@ class ClaudeChatPanel(wx.Panel):
         root.Add(opt, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         # Super-Feature roadmap bar — one button per entry in
-        # plugin/superfeatures.py. "coming soon" buttons print their pitch on
+        # plugin/superfeatures.py. SHIPPED buttons dispatch their canonical
+        # prompt as a chat turn; "coming soon" buttons print their pitch on
         # click; hover shows the tooltip. Best-effort so a layout hiccup can
         # never break the panel.
         try:
@@ -336,13 +337,23 @@ class ClaudeChatPanel(wx.Panel):
         prompt = self._in.GetValue().strip()
         if not prompt:
             return
+        self._in.SetValue("")
+        self._dispatch_prompt(prompt,
+                              include_sel=self._include_selection.GetValue())
+
+    def _dispatch_prompt(self, prompt: str, include_sel: bool = True) -> None:
+        """Start one chat turn with ``prompt`` — the shared path for typed
+        messages (``_on_send``) and Super-Feature buttons
+        (``_on_superfeature``). ``include_sel`` prepends the current KiCad
+        selection as context (the selection-aware contract of every
+        super-feature)."""
+        if self._busy:
+            return
         try:
             extra_args = shlex.split(self._opts.GetValue().strip())
         except ValueError:  # unbalanced quotes in the options field
             self._append("error", "Optionen unlesbar (Anführungszeichen?).")
             return
-        include_sel = self._include_selection.GetValue()
-        self._in.SetValue("")
         self._append("user", prompt)
         self._proc = None
         self._stopped = False
@@ -710,10 +721,19 @@ class ClaudeChatPanel(wx.Panel):
         root.Add(bar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
 
     def _on_superfeature(self, feat) -> None:
-        """Click on a Super-Feature button. No feature is live yet, so every
-        click prints the "coming soon" pitch into the transcript. When one
-        ships: flip its status in ``superfeatures.py`` and dispatch ``feat.key``
-        to its handler here instead of the pitch."""
+        """Click on a Super-Feature button. SHIPPED features dispatch their
+        canonical ``feat.prompt`` as a real chat turn (selection prepended, so
+        the feature scopes to what's marked in the editor). SOON features
+        print their "coming soon" pitch into the transcript."""
+        from . import superfeatures
+        if feat.status == superfeatures.SHIPPED and getattr(feat, "prompt", ""):
+            if self._busy:  # _flash_status is a no-op while busy → _set_status
+                self._set_status("⏳ Es läuft noch ein Zug — danach nochmal "
+                                 "klicken.", theme.CLAUDE_ORANGE)
+                return
+            self._write(f"\n✨ {feat.name}\n", theme.CLAUDE_ORANGE, bold=True)
+            self._dispatch_prompt(feat.prompt, include_sel=True)
+            return
         self._write(f"\n✨ {feat.name}", theme.CLAUDE_ORANGE, bold=True)
         self._write("   🔜 kommt bald\n", theme.DIM)
         self._write(f"  {feat.tooltip}\n", theme.DIM)

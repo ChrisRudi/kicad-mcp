@@ -47,3 +47,43 @@ def test_by_status_partitions_the_registry():
 def test_get_resolves_and_missing_is_none():
     assert sf.get("untangle") is not None
     assert sf.get("does-not-exist") is None
+
+
+# --- shipped features: the button dispatches a real, well-formed prompt --------
+
+# The features whose backing MCP tools have shipped — keep in sync when the
+# next one goes live. Value = the tool name its click-prompt must invoke.
+SHIPPED_TOOL = {
+    "semantic_erc": "audit_design",
+    "bus_radar": "list_bus_members",
+    "test_points": "audit_test_points",
+    "bom_consolidate": "consolidate_bom",
+    "preferred_parts": "suggest_preferred_parts",
+    "via_cost": "via_promote",
+    "sketch_conductor": "ipc_markup_to_tracks",
+}
+
+
+def test_shipped_set_matches_the_delivered_tools():
+    shipped = {f.key for f in sf.by_status(sf.SHIPPED)}
+    assert shipped == set(SHIPPED_TOOL), (
+        "SHIPPED drifted: every shipped feature needs a delivered backing "
+        "tool (and a prompt) — update SHIPPED_TOOL alongside superfeatures.py")
+
+
+@pytest.mark.parametrize("feat", sf.by_status(sf.SHIPPED), ids=lambda f: f.key)
+def test_shipped_prompt_names_its_tool_and_respects_the_rules(feat):
+    # A shipped button must dispatch a real instruction ...
+    assert len(feat.prompt) >= 80, "shipped feature needs a canonical prompt"
+    # ... that names its backing tool (no guessing in the agent) ...
+    assert SHIPPED_TOOL[feat.key] in feat.prompt
+    # ... and honours the anti-toolcall-explosion rule: it states the
+    # no-render prohibition explicitly ("Kein/kein pcb_render").
+    assert "ein pcb_render" in feat.prompt
+
+
+@pytest.mark.parametrize("feat", sf.by_status(sf.SOON), ids=lambda f: f.key)
+def test_soon_features_carry_no_prompt(feat):
+    # A SOON button prints the pitch — a leftover prompt would suggest it is
+    # wired when it is not.
+    assert feat.prompt == ""

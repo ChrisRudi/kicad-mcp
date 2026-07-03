@@ -8,6 +8,28 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Super-Features aktiviert — 7 Buttons live, Plugin 0.7.1)
+- **Die ersten 7 Super-Feature-Buttons sind verdrahtet** — bisher stand die
+  ganze Leiste auf `SOON`, obwohl die Backend-Tools seit 0.6.0 ausgeliefert
+  sind. `SuperFeature` trägt jetzt ein `prompt`-Feld (der kanonische
+  Chat-Auftrag des Buttons); `chat_dialog._on_superfeature` dispatcht ihn bei
+  `SHIPPED` als echten Chat-Zug über den neuen gemeinsamen Pfad
+  `_dispatch_prompt` (auch von `_on_send` genutzt), mit der aktuellen
+  KiCad-Auswahl als Kontext (Selektions-Vertrag). `SOON`-Buttons zeigen
+  weiter den Pitch.
+  - Aktiv: `semantic_erc`→`audit_design`, `bus_radar`→`list_bus_members`,
+    `test_points`→`audit_test_points`, `bom_consolidate`→`consolidate_bom`,
+    `preferred_parts`→`suggest_preferred_parts`, `via_cost`→`via_promote`
+    (dry_run-Report, Umsetzung nur auf Zuruf), `sketch_conductor`→
+    `ipc_markup_to_tracks` (erst dry_run-Check, dann EIN Umsetzungs-Call =
+    ein Undo-Schritt).
+  - Die Prompts folgen den Anti-Toolcall-Explosion-Regeln (Tool benennen,
+    kein `pcb_render`, Auswahl respektieren, Result lesen statt Rücklesen);
+    `test_plugin_superfeatures.py` erzwingt das (SHIPPED ⇔ geliefertes Tool
+    im Prompt benannt + No-Render-Klausel; SOON ⇔ kein Prompt).
+  - `docs/superfeatures.md`: Status-Marker der sieben auf ✅. Plugin-Version
+    0.7.0 → 0.7.1.
+
 ### Added (Warm-Server — persistenter lokaler HTTP-MCP-Server, Plugin 0.7.0)
 - **`KICAD_MCP_TRANSPORT=http` — den Tool-Server einmal pro KiCad-Sitzung warm
   halten** statt ihn bei jeder Chat-Nachricht per stdio neu zu spawnen (Plan:

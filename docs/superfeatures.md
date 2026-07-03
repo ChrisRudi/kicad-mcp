@@ -98,7 +98,7 @@ Wie „Entwirren", aber **nur auf die markierten Bauteile**; der Rest des Boards
 bleibt als fixer Anker stehen. Für gezieltes Aufräumen einer Baugruppe, ohne die
 schon platzierten Teile anzufassen.
 
-### 🚌 Bus-Radar — Bus-Teilnehmer finden  · 🔜
+### 🚌 Bus-Radar — Bus-Teilnehmer finden  · ✅
 **Sorte:** Bedeutung ableiten. Das Fundament-Feature, das viele andere speist.
 
 KiCad kennt Einzelnetze (`SDA`, `SCL`), aber nicht, dass `SDA+SCL+INT+ADDR` = *der
@@ -127,7 +127,7 @@ Quarz-Load-Caps?", „fehlt ein externes Bauteil aus der Applikationsschaltung?"
   *Pin-Tabellen robust extrahieren* — der Vergleich selbst ist LLM-Stärke.
 - **Warum KiCad das nicht kann:** es weiß nichts von Datenblättern.
 
-### 🛡️ Design-Wächter — semantischer ERC  · 🔜
+### 🛡️ Design-Wächter — semantischer ERC  · ✅
 **Sorte:** externes Wissen + Bedeutung.
 
 Prüfungen jenseits des syntaktischen ERC: fehlende **Pull-ups** am I²C, fehlende
@@ -144,7 +144,7 @@ Stützung, ein Reset-Pin ohne Pull-up … Regeln, die *Absicht* verstehen.
   Regeln (SPI-CS-/Reset-Pull-up, Entkopplung aus `audit_power_tree` einhängen,
   Load-Cap-*Werte* gegen CL) sind je eine Registry-Zeile.
 
-### 🔎 Test-Punkt-Wächter — probe-bar für Bring-up & Serientest?  · 🔜
+### 🔎 Test-Punkt-Wächter — probe-bar für Bring-up & Serientest?  · ✅
 **Sorte:** externes Fertigungs-/Bring-up-Wissen.
 
 KiCad kennt Netze, aber nicht, welche einen **Prüfpunkt-Zugang** *verdienen*. Bei
@@ -195,13 +195,20 @@ spiegeln, als Array anordnen, um U1 gruppieren** — mit der korrekten Rotations
 (KiCad-CW) und B.Cu-Spiegel-Mathematik, an der man von Hand fummelt. **Warum KiCad
 das nicht kann:** kein sprachgesteuertes, absicht-basiertes Anordnen.
 
-### ✏️ Skizzen-Dirigent — gezeichnete Absicht → Kupfer  · 🔜
+### ✏️ Skizzen-Dirigent — gezeichnete Absicht → Kupfer  · ✅
 Zeichne grob deine Absicht auf einen Markup-Layer — eine Linie (= Track), ein
 Rechteck (= Platzierungs-Ziel/Keepout), ein mit `GND` beschrifteter Pfeil
 (= Fläche + Stitching), eine Zahl neben der Linie (= Track-Breite). Der Agent
 **interpretiert die Skizze und gießt Kupfer / platziert entsprechend**. Baut auf
 `ipc_markup_to_tracks` auf. **Warum KiCad das nicht kann:** es interpretiert keine
 gezeichnete Absicht.
+
+- **Gebaut ✅ (erste Stufe):** Linien und Bögen auf `User.9` werden per
+  GUI-Button (0.7.1) zu Kupferbahnen auf `F.Cu` — erst `dry_run`-Zählung,
+  dann EIN Umsetzungs-Call = ein Undo-Schritt; leerer Layer wird ehrlich
+  gemeldet statt geraten. **Ehrliche Grenze:** die *Interpretation* darüber
+  hinaus (Rechteck = Keepout, `GND`-Pfeil = Fläche + Stitching, Zahl =
+  Breite, geschlossene Polygone/Kreise = Zonen) ist noch offen.
 
 ### 👁️ Mitdenken-Modus — Live-Assistenz beim Routen  · 🔜
 Während *du* von Hand routest, kommentiert Claude **live** über den Live-Diff:
@@ -246,11 +253,17 @@ und der geschätzten Streukapazität (`C = 2·(CL − Cstray)`) und prüft, ob d
 verbauten Werte passen — ein extrem häufiger, stiller Fehler. **Warum KiCad das
 nicht kann:** es kennt weder den `CL`-Wert eines Quarzes noch die Load-Cap-Formel.
 
-### 🔩 Via-Optimierung — Anzahl & Kosten senken  · 🔜
+### 🔩 Via-Optimierung — Anzahl & Kosten senken  · ✅
 **Fundament da:** `via_promote` (Blind/Buried→Through) existiert. Erweitert:
 findet **überflüssige Vias**, senkt die Via-Anzahl (Kosten + Zuverlässigkeit) und
 schlägt via-ärmeres Routing vor. **Warum KiCad das nicht kann:** es zählt Vias,
 bewertet aber weder ihre Fertigungskosten noch ihre Notwendigkeit.
+
+- **Gebaut ✅ (erste Stufe):** der GUI-Button (0.7.1) liefert den
+  `via_promote`-Report (`dry_run`): welche teuren Blind/Buried-Vias sich
+  kollisionsfrei zu Through wandeln ließen; umgesetzt wird erst auf
+  ausdrückliches Go. **Ehrliche Grenze:** „überflüssige Vias finden" und
+  via-ärmere Routing-Vorschläge sind noch offen.
 
 ### 🌡️ Thermik — Verlustleistungs-Hotspots  · 🔜
 Findet **Hotspots** (Regler, MOSFETs, Shunts) und schlägt Kühl-Kupfer,
@@ -300,7 +313,7 @@ Findet und **hängt das passende SPICE-Modell je Bauteil an**, damit die Simulat
 das nicht kann:** es verlangt manuelle Modell-Zuordnung und weiß nicht, welches
 Modell zu welchem Bauteil passt.
 
-### 💰 BOM-Konsolidierung — E-Reihe standardisieren, Feeder sparen  · 🔜
+### 💰 BOM-Konsolidierung — E-Reihe standardisieren, Feeder sparen  · ✅
 Jeder eigene R/C-Wert ist eine eigene BOM-Zeile, Rolle und Bestückungs-Feeder.
 Boards sammeln über die Zeit **fast-gleiche Werte** an — 10k neben 10,2k neben
 9,1k — die denselben Job tun. Dieses Feature **snappt** jeden Wert auf den
@@ -315,7 +328,7 @@ Feeder oder Bestellmengen — das ist Fertigungs-Wissen über der Netzliste.
 *Gebaut:* `consolidate_bom` (headless) über den geteilten `pcb_board_parse` +
 `utils/bom_consolidate` (kanonischer SI-Parser inkl. `4k7`/`4n7`-Infix-Notation).
 
-### 🏭 Fab-Standardteile — No-Load-Fee-Teile bevorzugen  · 🔜
+### 🏭 Fab-Standardteile — No-Load-Fee-Teile bevorzugen  · ✅
 Große Bestücker halten eine **Hausbibliothek** und verlangen für jeden
 Bauteiltyp **außerhalb** davon eine **Feeder-Ladegebühr** (JLCPCB **Basic** vs
 **Extended** ~3 $/Typ, Seeed **OPL**, Aisler **Push-Parts** …). Bei 15 Extended-
