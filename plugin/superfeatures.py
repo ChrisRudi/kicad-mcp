@@ -230,6 +230,27 @@ FEATURES: tuple[SuperFeature, ...] = (
         moat="KiCad hat kein Verlustleistungs- oder Wärmemodell.",
     ),
     SuperFeature(
+        key="operating_temp",
+        label="🌡️ Betriebstemperatur",
+        name="Betriebstemperatur — Junction-Temp & Derating-Reserve",
+        status=SOON,
+        tooltip=("Schätzt die reale Betriebs-/Sperrschichttemperatur je Bauteil "
+                 "(Tj = Ta + P·θ) aus Verlustleistung, Umgebungstemperatur und "
+                 "Wärmewiderstand — und wie viel Derating-Reserve bleibt."),
+        moat=("KiCad hat kein Modell für Wärmewiderstand, Umgebung oder "
+              "Verlustleistung."),
+    ),
+    SuperFeature(
+        key="slew_rate",
+        label="📐 Slew-Rate",
+        name="Slew-Rate — schafft der Verstärker/Treiber das Signal?",
+        status=SOON,
+        tooltip=("Rechnet, ob ein OpAmp/Treiber die geforderte Signalflanke "
+                 "schafft (Slew-Rate-Limit) bzw. die Flankensteilheit digitaler "
+                 "Signale — relevant für Verzerrung, Timing und EMV."),
+        moat=("KiCad rechnet kein dynamisches Signalverhalten aus Bauteil-Specs."),
+    ),
+    SuperFeature(
         key="impedance",
         label="〰️ Impedanz",
         name="Impedanz — controlled impedance aus dem Stackup",

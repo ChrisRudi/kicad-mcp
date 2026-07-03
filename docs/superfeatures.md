@@ -224,6 +224,19 @@ Findet **Hotspots** (Regler, MOSFETs, Shunts) und schlägt Kühl-Kupfer,
 Thermal-Vias und Abstände vor. **Warum KiCad das nicht kann:** kein
 Verlustleistungs-/Wärmemodell.
 
+### 🌡️ Betriebstemperatur — Junction-Temp & Derating-Reserve  · 🔜
+Schätzt die reale **Betriebs-/Sperrschichttemperatur** je Bauteil
+(`Tj = Ta + P·θ`) aus Verlustleistung, Umgebungstemperatur und Wärmewiderstand —
+und wie viel **Derating-Reserve** bleibt. Ergänzt „Thermik" (Hotspots) um die
+harte Zahl. **Warum KiCad das nicht kann:** kein Modell für Wärmewiderstand,
+Umgebung oder Verlustleistung.
+
+### 📐 Slew-Rate — schafft der Verstärker/Treiber das Signal?  · 🔜
+Rechnet, ob ein **OpAmp/Treiber die geforderte Signalflanke schafft**
+(Slew-Rate-Limit) bzw. die **Flankensteilheit** digitaler Signale — relevant für
+Verzerrung, Timing und EMV. **Warum KiCad das nicht kann:** es rechnet kein
+dynamisches Signalverhalten aus Bauteil-Specs.
+
 ### 〰️ Impedanz — controlled impedance aus dem Stackup  · 🔜
 Berechnet **Breite und Abstand für eine Ziel-Impedanz** (USB, Ethernet, RF) aus
 dem Lagenaufbau. **Warum KiCad das nicht kann:** es rechnet keine Impedanz aus
