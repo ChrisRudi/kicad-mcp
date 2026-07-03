@@ -1,6 +1,6 @@
 # CLAUDE.md — kicad-mcp
 
-MCP-Server für KiCad-EDA (Schaltplan/PCB), **176 Tools**. Läuft unter **KiCads
+MCP-Server für KiCad-EDA (Schaltplan/PCB), **186 Tools**. Läuft unter **KiCads
 gebündeltem Python** (kipy 0.7.1 + pcbnew, KiCad 10.0). Start: `start_mcp.bat`
 (Windows) bzw. `start_mcp_wsl.sh` (WSL/Linux/macOS). Tests: `pytest tests/` unter
 dem KiCad-Python (CI: pylint 0/0 + pytest, siehe `.github/workflows/ci.yml`).
