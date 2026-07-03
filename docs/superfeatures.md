@@ -268,12 +268,22 @@ blind ist: **Strom, Wärme, Impedanz, Kosten und Fertigbarkeit stehen nicht im
 Layout** — sie kommen aus Design-Absicht + externem Wissen (Normen, Fab-Regeln,
 Kostenmodelle).
 
-### 🔥 Stromtragfähigkeit — Leiterbahn-Breite vs. Strom  · 🔜
+### 🔥 Stromtragfähigkeit — Leiterbahn-Breite vs. Strom  · ✅
 Prüft jede **Leiterbahn-Breite gegen den Strom, den ihr Netz trägt** (IPC-2221),
 markiert unterdimensionierte Bahnen und schlägt Breiten vor. Den Strom leitet der
 Agent aus Bauteilrollen ab (Power-Netz, Motortreiber, LED) oder fragt nach.
 **Warum KiCad das nicht kann:** es kennt keine Ströme — wie viel ein Netz führt,
 ist Design-Absicht, nicht Geometrie.
+
+- **Gebaut ✅ (0.7.4):** `check_ampacity` (Tool #184, `utils/ampacity.py`) —
+  IPC-2221 in beide Richtungen (nötige Breite ↔ tragbarer Strom), Innenlagen
+  mit dem strengeren internen Chart, Parameter Temperaturanstieg + Kupferdicke.
+  Ohne Ströme liefert es das Breiten-Inventar je Netz (damit der Agent weiß,
+  wo Ströme zuzuweisen sind); mit `currents` die Verstöße samt nötiger Breite,
+  schlimmste zuerst. Der GUI-Button orchestriert: Inventar → Strom-Annahmen
+  offenlegen → EIN Prüf-Call. **Grenze:** IPC-2221 ist das generische
+  Chart (konservativ); Zonen/Polygone werden (noch) nicht bewertet, nur
+  Track-Segmente.
 
 ### ⌚ Quarz-Load-Caps — richtige Lastkapazität berechnen  · 🔜
 Berechnet die **Load-Kondensatoren** für einen Quarz aus dessen Datenblatt-`CL`

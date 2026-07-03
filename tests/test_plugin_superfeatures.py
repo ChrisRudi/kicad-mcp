@@ -73,6 +73,7 @@ SHIPPED_TOOL = {
     "explain_board": "analyze_pcb_nets",
     "polar_board": "polar_grid",
     "sketch_layer": "ipc_list_markers",
+    "ampacity": "check_ampacity",
 }
 
 

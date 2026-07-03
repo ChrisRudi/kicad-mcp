@@ -8,6 +8,21 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Super-Feature „Stromtragfähigkeit" — IPC-2221-Ampacity, Plugin 0.7.4)
+- **`check_ampacity` — Leiterbahn-Breite vs. Design-Strom** (Tool #184, in der
+  `pcb_tools`-Familie, nutzt den gecachten `_extract_all`-Reader). KiCad kennt
+  Geometrie, keine Ströme — der Strom je Netz ist Design-Absicht und kommt als
+  `currents`-JSON vom Agenten/Nutzer. Ohne `currents`: Breiten-Inventar je
+  Netz (min/max-Breite, Länge, Layer) als Entscheidungsgrundlage. Mit
+  `currents`: jedes Track-Segment gegen IPC-2221 geprüft (I = k·ΔT^0.44·A^0.725;
+  k außen 0.048, innen 0.024; Parameter `temp_rise_c`, `copper_oz`), Verstöße
+  mit Ist-/Soll-Breite und Koordinaten, schlimmste zuerst; `nets`-Filter für
+  die Selektion. Mathe pur in `utils/ampacity.py` (beide Richtungen:
+  nötige Breite ↔ tragbarer Strom). Grenze: bewertet Segmente, keine Zonen.
+  Tests: `test_ampacity.py` (Mathe-Fixpunkte, Audit, Tool-Pfade). Tool-Count
+  183→184; GUI-Button 🔥 aktiviert (Inventar → offengelegte Strom-Annahmen →
+  EIN Prüf-Call). Plugin-Version 0.7.3 → 0.7.4.
+
 ### Added (vier weitere Super-Features aktiv — 12 Buttons live, Plugin 0.7.3)
 - **📄 Datenblatt-Abgleich SHIPPED (v1):** mit IC-Auswahl reviewt der Button
   über `review_ic_against_datasheet` (Pin-Tabelle + Schaltplan-Crop +

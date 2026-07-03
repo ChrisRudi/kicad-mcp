@@ -505,6 +505,96 @@ def register_pcb_tools(mcp: FastMCP) -> None:
             return {"success": False, "error": f"Error parsing PCB: {e}"}
 
     @mcp.tool()
+    async def check_ampacity(
+        pcb_path: str,
+        currents: str = "",
+        temp_rise_c: float = 10.0,
+        copper_oz: float = 1.0,
+        nets: str = "",
+        ctx: Context | None = None,
+    ) -> dict[str, Any]:
+        """Check track widths against the current each net carries (IPC-2221 ampacity).
+
+        KiCad knows geometry, not currents — how many amps a net carries is
+        design intent. Pass that intent as ``currents`` and this tool judges
+        every track segment: wide enough for the amps at the allowed
+        temperature rise, or a violation with the required width. Without
+        ``currents`` it returns a per-net width inventory (min/max width,
+        length, layers) so the caller can decide which nets need amps
+        assigned. Rendert nicht; ändert nichts am Board.
+
+        Use this when the user asks "sind meine Leiterbahnen dick genug",
+        "kann VBAT 3 A tragen", or after routing a power path. Inner layers
+        (In*.Cu) are judged with the stricter IPC-2221 internal chart.
+
+        Args:
+            pcb_path: ``.kicad_pcb`` file (WSL or Windows path).
+            currents: JSON object net name -> design current in amps, e.g.
+                ``{"VBUS": 2.0, "+3V3": 1.2}``. Empty = inventory mode.
+            temp_rise_c: Allowed copper temperature rise in Kelvin
+                (IPC-2221 chart parameter; default 10).
+            copper_oz: Copper weight in oz/ft² (default 1.0 = 35 µm).
+            nets: Optional JSON list of net names to limit the report to
+                (e.g. the nets of the current selection).
+
+        Returns:
+            ``{success, pcb_path, temp_rise_c, copper_oz, nets: {name:
+            {track_count, length_mm, min_width_mm, max_width_mm, layers,
+            current_a?, required_width_mm_outer?, required_width_mm_inner?,
+            worst_margin_a?}}, violations: [{net, layer, width_mm,
+            required_width_mm, current_a, max_current_a, start, end,
+            length_mm}, …], violation_count, backend}`` — violations sorted
+            worst-first.
+        """
+        import json as _json
+
+        from kicad_mcp.utils import ampacity as _ampacity
+
+        pcb_path = to_local_path(pcb_path)
+        if not Path(pcb_path).exists():
+            return {"success": False, "error": f"PCB file not found: {pcb_path}"}
+        try:
+            current_map = _json.loads(currents) if currents else {}
+            net_filter = set(_json.loads(nets)) if nets else None
+        except (ValueError, TypeError) as exc:
+            return {"success": False, "error": f"invalid JSON input: {exc}"}
+        if not isinstance(current_map, dict):
+            return {"success": False,
+                    "error": "currents must be a JSON object {net: amps}"}
+        try:
+            current_map = {str(k): float(v) for k, v in current_map.items()}
+        except (ValueError, TypeError):
+            return {"success": False,
+                    "error": "currents values must be numbers (amps)"}
+
+        try:
+            data = await asyncio.to_thread(_extract_all, pcb_path)
+            net_names = {n["number"]: n["name"] for n in data["nets"]
+                         if n["number"] != 0 and n["name"]}
+            if net_filter is not None:
+                net_names = {num: name for num, name in net_names.items()
+                             if name in net_filter}
+            unknown = sorted(set(current_map) - set(net_names.values()))
+            result = _ampacity.audit_tracks(
+                data["tracks"], net_names, current_map,
+                temp_rise_c=temp_rise_c, copper_oz=copper_oz)
+            out = {
+                "success": True,
+                "pcb_path": pcb_path,
+                "temp_rise_c": temp_rise_c,
+                "copper_oz": copper_oz,
+                "nets": result["nets"],
+                "violations": result["violations"][:100],
+                "violation_count": len(result["violations"]),
+                "backend": data["backend"],
+            }
+            if unknown:
+                out["unknown_current_nets"] = unknown
+            return out
+        except Exception as e:
+            return {"success": False, "error": f"Error parsing PCB: {e}"}
+
+    @mcp.tool()
     async def find_tracks_by_net(
         pcb_path: str,
         net_name: str,

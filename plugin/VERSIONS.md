@@ -1,7 +1,21 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.7.3**
+Aktuelle Version: **0.7.4**
+
+---
+
+## 🔥 Neu in 0.7.4 — Stromtragfähigkeit (13. Super-Feature, neues Werkzeug)
+
+- **🔥 Stromtragfähigkeit ist live** — das erste Feature mit einem eigens dafür
+  gebauten Rechen-Werkzeug (`check_ampacity`, Werkzeug Nr. 184): Es prüft jede
+  Leiterbahn-Breite gegen den Strom, den ihr Netz tragen soll (IPC-2221,
+  einstellbarer Temperaturanstieg und Kupferdicke, Innenlagen strenger).
+  Der Klick liefert erst das Breiten-Inventar, dann legt Claude seine
+  Strom-Annahmen offen (und fragt bei Unsicherheit nach), dann kommt der
+  Prüfbericht: welches Segment auf welchem Layer zu schmal ist und wie breit
+  es sein müsste. Ehrliche Grenze: bewertet Leiterbahnen, noch keine
+  Kupferflächen.
 
 ---
 

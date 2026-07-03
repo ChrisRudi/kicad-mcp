@@ -254,7 +254,7 @@ FEATURES: tuple[SuperFeature, ...] = (
         label="🖊️ Skizzen-Layer",
         name="Skizzen-Layer — gemeinsamer Notiz-/Hilfslayer",
         status=SHIPPED,
-        tooltip=("Der gemeinsame Skizzen-Layer (User.9): du zeichnest "
+        tooltip=("Der gemeinsame Skizzen-Layer (User.9, in KiCad sichtbar als \"MCP.Skizze\"): du zeichnest "
                  "Absichten, der Agent Vorschläge und Marker. Der Klick zeigt, "
                  "was drauf liegt, und bietet Legende zeichnen oder Leeren an "
                  "(erst nach deinem Go)."),
@@ -275,7 +275,7 @@ FEATURES: tuple[SuperFeature, ...] = (
         label="✏️ Skizzen-Dirigent",
         name="Skizzen-Dirigent — gezeichnete Absicht → Kupfer",
         status=SHIPPED,
-        tooltip=("Zeichne Linien/Bögen auf den Markup-Layer User.9 — ein Klick "
+        tooltip=("Zeichne Linien/Bögen auf den Skizzen-Layer (User.9, in KiCad \"MCP.Skizze\") — ein Klick "
                  "gießt sie als Kupfer-Leiterbahnen auf F.Cu (ein einziger "
                  "Undo-Schritt)."),
         moat="KiCad interpretiert keine gezeichnete Absicht.",
@@ -302,12 +302,28 @@ FEATURES: tuple[SuperFeature, ...] = (
         key="ampacity",
         label="🔥 Stromtragfähigkeit",
         name="Stromtragfähigkeit — Leiterbahn-Breite vs. Strom",
-        status=SOON,
+        status=SHIPPED,
         tooltip=("Prüft jede Leiterbahn-Breite gegen den Strom, den ihr Netz "
-                 "trägt (IPC-2221), markiert unterdimensionierte Bahnen und "
-                 "schlägt passende Breiten vor."),
+                 "trägt (IPC-2221), nennt unterdimensionierte Segmente und "
+                 "die nötige Breite. Ströme leitet der Agent aus den "
+                 "Bauteil-Rollen ab oder fragt nach."),
         moat=("KiCad kennt keine Ströme — wie viel Strom ein Netz führt, steht "
               "in der Design-Absicht, nicht im Layout."),
+        prompt=("Stromtragfähigkeit: (1) Rufe check_ampacity OHNE currents für "
+                "die .kicad_pcb im Projektordner auf (per Glob finden, nicht "
+                "nachfragen) — das liefert das Breiten-Inventar je Netz. "
+                "Steht oben im Kontext eine Auswahl, übergib deren Netze als "
+                "nets-Filter. (2) Leite aus den Bauteil-Rollen plausible "
+                "Ströme für die Power-/Lastnetze ab (Versorgungs-Rails, "
+                "Motor-/LED-/Heizer-Treiber; Signalnetze brauchen keine "
+                "Prüfung) und SAGE mir deine Annahmen; bist du bei einem "
+                "Netz unsicher, frage kurz nach statt zu raten. (3) Rufe "
+                "check_ampacity EINMAL mit dem currents-JSON auf und "
+                "berichte die Verstöße: Netz, Layer, Ist- vs. nötige Breite "
+                "in mm, betroffene Segmente als (x, y)-Koordinaten. "
+                "IPC-2221, Temperaturanstieg default 10 K, 1 oz Kupfer — "
+                "nenne die Parameter im Bericht. Keine Board-Änderung, kein "
+                "pcb_render."),
     ),
     SuperFeature(
         key="xtal_caps",
