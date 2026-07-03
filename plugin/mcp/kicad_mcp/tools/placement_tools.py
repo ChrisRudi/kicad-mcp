@@ -8,15 +8,54 @@ only mutated once a final layout is chosen (a separate batch move).
 """
 
 import json
+import os
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
+from kicad_mcp.cache import get_text
 from kicad_mcp.utils import placement_eval
+from kicad_mcp.utils.path_env import to_local_path
 
 
 def register_placement_tools(mcp: FastMCP) -> None:
     """Register placement-scoring tools with the MCP server."""
+
+    @mcp.tool()
+    def get_board_layout(pcb_path: str) -> dict[str, Any]:
+        """Read a board into the ``evaluate_layout`` input shape — the read side of de-crossing.
+
+        Use this ONCE at the start of an "Entwirren" pass: it returns every
+        footprint's pose + pad-local offsets + courtyard size and the net→pad
+        map. You then reason about better positions in your head, edit the
+        ``x``/``y``/``rot`` of the returned footprints, and score each candidate
+        with ``evaluate_layout`` — no board access in the loop. Apply the chosen
+        layout once (a batch ``move_components``) at the end.
+
+        Args:
+            pcb_path: Path to a ``.kicad_pcb`` file (WSL or Windows path).
+
+        Returns:
+            ``{success, footprints, nets, footprint_count, current}`` where
+            ``current`` is the ``evaluate_layout`` score of the board as-is (a
+            baseline to beat). On error: ``{success: False, error}``.
+        """
+        pcb_path = to_local_path(pcb_path)
+        if not os.path.isfile(pcb_path):
+            return {"success": False, "error": f"PCB not found: {pcb_path}"}
+        try:
+            text = get_text(pcb_path)
+            footprints, nets = placement_eval.board_to_layout(text)
+            current = placement_eval.evaluate_layout(footprints, nets)
+        except (OSError, ValueError, KeyError) as exc:
+            return {"success": False, "error": f"could not read layout: {exc}"}
+        return {
+            "success": True,
+            "footprints": footprints,
+            "nets": nets,
+            "footprint_count": len(footprints),
+            "current": current,
+        }
 
     @mcp.tool()
     def evaluate_layout(footprints: str, nets: str, power_nets: str = "") -> dict[str, Any]:

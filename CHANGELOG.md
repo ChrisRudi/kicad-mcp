@@ -9,6 +9,16 @@ the first tag ships.
 ## [Unreleased]
 
 ### Added (Super-Feature „Entwirren" — Fundament)
+- **`get_board_layout` — Board → Scorer-Eingabe** (Tool #178, Read-Seite). Liest
+  ein `.kicad_pcb` einmal in die `evaluate_layout`-Form (Footprint-Pose +
+  Pad-Local-Offsets + Courtyard-Bbox + Netz→Pad-Karte) und gibt gleich den
+  Ist-Score als Baseline mit. Der Agent editiert dann `x/y/rot` im Kopf und
+  scort Kandidaten über `evaluate_layout` — **kein Board-Zugriff in der Schleife**.
+  - **Synergie statt Neubau:** der Board-Parser lag schon in `audit_tools`
+    (`_parse_pcb_for_audit`). Er ist jetzt der geteilte
+    `utils/pcb_board_parse.parse_pcb_footprints` (um Pad-Local-Offsets + Bbox
+    erweitert); `audit_tools` importiert ihn zurück. Ein Parser für Audit **und**
+    Platzierung.
 - **`evaluate_layout` — non-mutating Platzierungs-Scorer** (Tool #177). Der
   „Notizzettel" hinter der Ratsnest-Entkreuzung: bewertet eine *hypothetische*
   Footprint-Anordnung, **ohne das Board zu berühren** — Signalnetz-Kreuzungen

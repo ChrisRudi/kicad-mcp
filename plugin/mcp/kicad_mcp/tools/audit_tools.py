@@ -22,7 +22,9 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from kicad_mcp.utils.path_env import to_local_path
-from kicad_mcp.utils.pcb_geometry import pcb_local_to_world
+from kicad_mcp.utils.pcb_board_parse import (
+    parse_pcb_footprints as _parse_pcb_for_audit,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -44,89 +46,6 @@ _POWER_NET_RE = re.compile("|".join(_POWER_NET_PATTERNS))
 
 def _is_power_net(name: str) -> bool:
     return bool(_POWER_NET_RE.match(name))
-
-
-def _parse_pcb_for_audit(pcb_text: str) -> dict[str, Any]:
-    """Extract footprints + their pads with world-pos + net info.
-    Lightweight parser tailored to the audits; doesn't try to be a
-    full S-Expr loader."""
-    fps: list[dict[str, Any]] = []
-    # Top-level footprint blocks
-    i = 0
-    while True:
-        idx = pcb_text.find("\t(footprint", i)
-        if idx == -1:
-            break
-        # Find matching close
-        depth = 0
-        j = idx
-        while j < len(pcb_text):
-            if pcb_text[j] == "(":
-                depth += 1
-            elif pcb_text[j] == ")":
-                depth -= 1
-                if depth == 0:
-                    j += 1
-                    break
-            j += 1
-        block = pcb_text[idx:j]
-        ref_m = re.search(r'\(property "Reference" "([^"]+)"', block)
-        val_m = re.search(r'\(property "Value" "([^"]*)"', block)
-        if not ref_m:
-            i = j
-            continue
-        ref = ref_m.group(1)
-        # Footprint anchor + rotation
-        at_m = re.search(
-            r'\)\s+\(uuid\s+"[^"]+"\)\s+\(at\s+([\d.\-]+)\s+([\d.\-]+)'
-            r'(?:\s+([\d.\-]+))?\)',
-            block,
-        )
-        if not at_m:
-            i = j
-            continue
-        fx = float(at_m.group(1)); fy = float(at_m.group(2))
-        frot = float(at_m.group(3)) if at_m.group(3) else 0.0
-        layer_m = re.search(r'\(layer "([^"]+)"\)', block)
-        layer = layer_m.group(1) if layer_m else "F.Cu"
-        flipped = layer.startswith("B.")
-        # Pads
-        pads: list[dict[str, Any]] = []
-        for pm in re.finditer(r'\(pad "([^"]+)"', block):
-            ps = pm.start()
-            pad_snippet = block[ps:ps + 1200]
-            at_p = re.search(
-                r'\(at\s+([\d.\-]+)\s+([\d.\-]+)', pad_snippet,
-            )
-            if not at_p:
-                continue
-            lx, ly = float(at_p.group(1)), float(at_p.group(2))
-            wx, wy = pcb_local_to_world(
-                (fx, fy), frot, lx, ly, flipped=flipped,
-            )
-            # Pad net spelling varies: ``(net 5 "+5V")`` (number + name) and
-            # ``(net "+5V")`` (name only, as written by the net-patch tools).
-            # The number is therefore OPTIONAL — the old ``\d+``-required
-            # regex matched neither name-only boards (→ 0 power nets) ...
-            net_m = re.search(
-                r'\(net\s+(?:\d+\s+)?"([^"]*)"\)', pad_snippet,
-            )
-            pads.append({
-                "pad": pm.group(1),
-                "x": wx,
-                "y": wy,
-                "net": net_m.group(1) if net_m else "",
-            })
-        fps.append({
-            "ref": ref,
-            "value": val_m.group(1) if val_m else "",
-            "anchor": (fx, fy),
-            "rot": frot,
-            "layer": layer,
-            "pads": pads,
-        })
-        i = j
-    return {"footprints": fps}
 
 
 def _audit_power_tree(pcb_text: str, max_decoupling_distance_mm: float) -> dict[str, Any]:

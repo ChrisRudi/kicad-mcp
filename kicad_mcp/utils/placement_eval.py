@@ -29,6 +29,7 @@ from __future__ import annotations
 import math
 import re
 
+from kicad_mcp.utils.pcb_board_parse import parse_pcb_footprints
 from kicad_mcp.utils.pcb_geometry import pcb_local_to_world
 
 # Net-name patterns that mark a power/ground net (case-insensitive, whole-ish).
@@ -159,6 +160,31 @@ def pad_world_positions(footprints: list) -> dict:
                 anchor, rot, float(pad["lx"]), float(pad["ly"]), flipped)
             out[(fp["ref"], pad["name"])] = (wx, wy)
     return out
+
+
+def board_to_layout(pcb_text: str) -> tuple:
+    """Turn a ``.kicad_pcb`` into ``(footprints, nets)`` in the shape
+    :func:`evaluate_layout` expects — the read side of "Entwirren". Reuses the
+    shared board parser (footprint pose + pad local offsets + per-pad net +
+    courtyard bbox); the agent then edits footprint ``x/y/rot`` to score
+    candidate moves without re-reading the board."""
+    parsed = parse_pcb_footprints(pcb_text, with_bbox=True)
+    footprints = []
+    nets: dict = {}
+    for fp in parsed["footprints"]:
+        ref = fp["ref"]
+        footprints.append({
+            "ref": ref,
+            "x": fp["anchor"][0], "y": fp["anchor"][1],
+            "rot": fp["rot"], "flipped": fp["flipped"],
+            "bbox": list(fp.get("bbox", (0.0, 0.0))),
+            "pads": [{"name": p["pad"], "lx": p["lx"], "ly": p["ly"]}
+                     for p in fp["pads"]],
+        })
+        for p in fp["pads"]:
+            if p["net"]:
+                nets.setdefault(p["net"], []).append([ref, p["pad"]])
+    return footprints, nets
 
 
 def evaluate_layout(footprints: list, nets: dict,

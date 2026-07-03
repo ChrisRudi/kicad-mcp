@@ -141,3 +141,48 @@ def test_evaluate_wirelength_sums_airwires():
     fps = [_pad("A", 0, 0), _pad("B", 3, 4)]
     nets = {"N1": [["A", "1"], ["B", "1"]]}
     assert pe.evaluate_layout(fps, nets)["wirelength_mm"] == 5.0
+
+
+# --- board_to_layout: read side (reuses the shared board parser) -------------
+
+_PCB = '''(kicad_pcb (version 20240108)
+\t(footprint "R_0402" (layer "F.Cu")
+\t\t(uuid "aaaa")
+\t\t(at 10 20 0)
+\t\t(property "Reference" "R1" (at 0 0 0))
+\t\t(property "Value" "10k" (at 0 0 0))
+\t\t(pad "1" smd roundrect (at -0.5 0) (size 0.6 0.7) (layers "F.Cu") (net 1 "SDA"))
+\t\t(pad "2" smd roundrect (at 0.5 0) (size 0.6 0.7) (layers "F.Cu") (net 2 "VCC"))
+\t)
+\t(footprint "R_0402" (layer "F.Cu")
+\t\t(uuid "bbbb")
+\t\t(at 30 20 0)
+\t\t(property "Reference" "R2" (at 0 0 0))
+\t\t(property "Value" "10k" (at 0 0 0))
+\t\t(pad "1" smd roundrect (at -0.5 0) (size 0.6 0.7) (layers "F.Cu") (net 1 "SDA"))
+\t\t(pad "2" smd roundrect (at 0.5 0) (size 0.6 0.7) (layers "F.Cu") (net 2 "VCC"))
+\t)
+)
+'''
+
+
+def test_board_to_layout_extracts_footprints_and_nets():
+    footprints, nets = pe.board_to_layout(_PCB)
+    refs = {f["ref"] for f in footprints}
+    assert refs == {"R1", "R2"}
+    r1 = next(f for f in footprints if f["ref"] == "R1")
+    assert (r1["x"], r1["y"]) == (10.0, 20.0)
+    # pad-local offsets survive (needed to re-place candidates)
+    assert {p["name"] for p in r1["pads"]} == {"1", "2"}
+    # net→pad membership
+    assert sorted(nets["SDA"]) == [["R1", "1"], ["R2", "1"]]
+    assert "VCC" in nets
+
+
+def test_board_to_layout_feeds_evaluate_layout():
+    footprints, nets = pe.board_to_layout(_PCB)
+    out = pe.evaluate_layout(footprints, nets)
+    # SDA is the one signal net (VCC auto-excluded as power); no crossing here
+    assert "VCC" in out["excluded_power_nets"]
+    assert out["signal_crossings"] == 0
+    assert out["signal_nets"] == 1
