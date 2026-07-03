@@ -201,4 +201,29 @@ _EN: dict = {
     "Einstellungen speichern": "Save settings",
     "Gespeichert — gilt ab dem nächsten Chat-Zug.":
         "Saved — takes effect from the next chat turn.",
+
+    # --- E2E-Test ----------------------------------------------------------
+    "🧪 E2E-Test": "🧪 E2E test",
+    "🧪 E2E-Test läuft …": "🧪 E2E test running …",
+    "Schließen": "Close",
+    "Alle Super-Features automatisch gegen das offene Board testen "
+    "(ohne Board-Änderung) und einen Report schreiben — dauert je "
+    "nach Board 15-45 Minuten.":
+        "Automatically test every super feature against the open board "
+        "(no board changes) and write a report — takes 15-45 minutes "
+        "depending on the board.",
+    "Alle {n} Super-Features werden nacheinander als echte "
+    "Claude-Züge gegen das offene Board getestet — OHNE "
+    "Board-Änderung (Testmodus stoppt vor jedem Go). Das "
+    "dauert typischerweise 15-45 Minuten und verbraucht "
+    "entsprechend Claude-Kontingent. Starten?":
+        "All {n} super features will run one after another as real "
+        "Claude turns against the open board — WITHOUT board changes "
+        "(test mode stops before every Go). This typically takes 15-45 "
+        "minutes and uses Claude quota accordingly. Start?",
+    "Report geschrieben:": "Report written:",
+    "→ Diese Datei dem Entwicklungs-Agenten geben — er "
+    "liest sie zurück und verbessert die Prompts.":
+        "→ Hand this file to the development agent — it reads it back "
+        "and improves the prompts.",
 }

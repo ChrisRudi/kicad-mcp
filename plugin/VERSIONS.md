@@ -1,7 +1,25 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.8.1**
+Aktuelle Version: **0.8.2**
+
+---
+
+## 🧪 Neu in 0.8.2 — der Loop durchs Produkt (E2E-Selbsttest)
+
+- **Ein Klick testet ALLE 34 Super-Features gegen dein echtes Board.** Im
+  Einrichtungs-Fenster gibt es jetzt „🧪 E2E-Test": Jedes Feature läuft
+  nacheinander als echter Claude-Zug durch den kompletten Produktpfad
+  (Bridge → Server → Board → Antwort), mit Live-Fortschritt.
+- **Ohne Risiko:** Der Testmodus verbietet jede Mutation — Features enden
+  mit ihrem Plan am Go-Gate oder mit einer ehrlichen „Voraussetzung
+  fehlt"-Meldung (die als korrekt zählt). Dein Board bleibt unangetastet.
+- **Der Report schließt den Kreis:** Ergebnis ist
+  `<Projekt>/.kicad-mcp/e2e_report.md` (+ JSON) — je Feature Verdikt
+  (PASS/WARN/FAIL), benutzte Werkzeuge, Dauer, Fehler und Antwort-Auszug,
+  Probleme zuerst. Diese Datei dem Entwicklungs-Agenten zurückgeben →
+  er verbessert daraus das TATSÄCHLICHE Verhalten der Features.
+  Ehrlich: ein Lauf dauert 15-45 Minuten und verbraucht Claude-Kontingent.
 
 ---
 

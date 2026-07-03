@@ -8,6 +8,23 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (E2E-Loop durchs Produkt, Plugin 0.8.2)
+- **`plugin/e2e_runner.py` (neu):** iteriert die SHIPPED-Features der
+  Registry und schickt jeden Button-Prompt + `[E2E-TESTMODUS]`-Zusatz
+  (keine Mutation; Plan + `[[CHOICES]]` am Go-Gate; „Voraussetzung fehlt"
+  = korrekt) als echten Turn durch `claude_bridge.ask` — frische Session
+  je Feature, `--max-turns 15`, Timeout-Budget. Verdikt-Heuristik
+  (PASS: plan+go-gate / fragt-nach / bericht; WARN: keine-tools-benutzt;
+  FAIL: bridge/mcp/leer) + `FeatureResult`-Messwerte (Dauer, Tools,
+  Choices, Antwort-Auszug). Report als Markdown (FAIL/WARN zuerst — zum
+  Zurücklesen durch den Entwicklungs-Agenten) und JSON nach
+  `<Projekt>/.kicad-mcp/e2e_report.{md,json}`.
+- **🧪-Button im Einrichtungs-Fenster:** Bestätigungs-Dialog (Dauer/
+  Kontingent), Stream-Fenster mit Live-Fortschritt je Feature, Report-Pfade
+  am Ende. Kern pur + getestet (`test_plugin_e2e_runner.py`: Suffix,
+  Judge-Matrix, Exception-Fest, run_all, Report-Sortierung).
+  Version 0.8.1 → 0.8.2.
+
 ### Added (libngspice-Backend + Menü-Hover, Plugin 0.8.1)
 - **`run_spice_sim` Backend 2 — KiCads mitgeliefertes libngspice:** Eeschemas
   Simulator ist GUI-only (keine Eeschema-IPC, kein kicad-cli-sim), aber seine

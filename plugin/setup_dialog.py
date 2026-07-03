@@ -62,6 +62,13 @@ class SetupDialog(wx.Dialog):
         settings_btn = wx.Button(self._panel, label=tr("Einstellungen"))
         settings_btn.Bind(wx.EVT_BUTTON, lambda e: self._show_settings())
         bar.Add(settings_btn, 0, wx.RIGHT, 8)
+        e2e_btn = wx.Button(self._panel, label=tr("🧪 E2E-Test"))
+        e2e_btn.SetToolTip(tr(
+            "Alle Super-Features automatisch gegen das offene Board testen "
+            "(ohne Board-Änderung) und einen Report schreiben — dauert je "
+            "nach Board 15-45 Minuten."))
+        e2e_btn.Bind(wx.EVT_BUTTON, lambda e: self._run_e2e())
+        bar.Add(e2e_btn, 0, wx.RIGHT, 8)
         bar.AddStretchSpacer()
         self._start = wx.Button(self._panel, label="Chat starten")
         self._start.Bind(wx.EVT_BUTTON, self._on_start)
@@ -125,6 +132,75 @@ class SetupDialog(wx.Dialog):
             self._enable_ipc()
         elif fix == "install_deps":
             self._install_deps()
+
+    def _run_e2e(self) -> None:
+        """Der Loop durchs Produkt: jedes Super-Feature einmal als echter
+        Chat-Zug (Testmodus: keine Mutation), Live-Fortschritt im Fenster,
+        Report nach <Projekt>/.kicad-mcp/e2e_report.md — den Report dem
+        Entwicklungs-Agenten zurückgeben, der verbessert daraus die Prompts."""
+        import threading
+        from datetime import date
+
+        from . import e2e_runner, i18n
+
+        n = sum(1 for f in __import__(
+            "plugin.superfeatures", fromlist=["x"]).all_features()
+            if f.status == "shipped")
+        if wx.MessageBox(
+                tr("Alle {n} Super-Features werden nacheinander als echte "
+                   "Claude-Züge gegen das offene Board getestet — OHNE "
+                   "Board-Änderung (Testmodus stoppt vor jedem Go). Das "
+                   "dauert typischerweise 15-45 Minuten und verbraucht "
+                   "entsprechend Claude-Kontingent. Starten?").replace(
+                       "{n}", str(n)),
+                tr("🧪 E2E-Test"), wx.YES_NO | wx.ICON_QUESTION) != wx.YES:
+            return
+        plan = runtime_env.resolve(self._project_dir, self._mcp_root,
+                                   self._mcp_config_path)
+        if plan is None:
+            wx.MessageBox("Claude/KiCad-Python nicht auflösbar — erst die "
+                          "Checkliste grün machen.", "🧪", wx.OK)
+            return
+
+        dlg = wx.Dialog(self, title=tr("🧪 E2E-Test läuft …"),
+                        size=(640, 420),
+                        style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        panel = wx.Panel(dlg)
+        out = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY)
+        close = wx.Button(panel, label=tr("Schließen"))
+        close.Enable(False)
+        close.Bind(wx.EVT_BUTTON, lambda e: dlg.EndModal(wx.ID_OK))
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(out, 1, wx.EXPAND | wx.ALL, 8)
+        sizer.Add(close, 0, wx.ALL, 8)
+        panel.SetSizer(sizer)
+
+        def emit(line: str) -> None:
+            wx.CallAfter(out.AppendText, line + "\n")
+
+        def worker() -> None:
+            try:
+                results = e2e_runner.run_all(plan, on_line=emit)
+                meta = {"date": date.today().isoformat(),
+                        "board": self._board_name or "",
+                        "transport": os.environ.get(
+                            "KICAD_MCP_TRANSPORT", "stdio"),
+                        "language": i18n.get_lang()}
+                md, js = e2e_runner.write_report(self._project_dir,
+                                                 results, meta)
+                emit("")
+                emit(tr("Report geschrieben:"))
+                emit("  " + md)
+                emit("  " + js)
+                emit(tr("→ Diese Datei dem Entwicklungs-Agenten geben — er "
+                        "liest sie zurück und verbessert die Prompts."))
+            except Exception as exc:
+                emit(f"FEHLER: {type(exc).__name__}: {exc}")
+            wx.CallAfter(close.Enable, True)
+
+        threading.Thread(target=worker, daemon=True).start()
+        dlg.ShowModal()
+        dlg.Destroy()
 
     def _show_settings(self) -> None:
         """Einstellungen (Sprache, Transport, ngspice, Max-Schritte) —
