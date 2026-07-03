@@ -122,3 +122,23 @@ class TestFindClaude:
         monkeypatch.setattr(runtime_env, "wsl_bridge_enabled", lambda: True)
         monkeypatch.setattr(runtime_env, "_find_wsl", lambda: "wsl.exe")
         assert runtime_env.find_claude() == ["wsl.exe", "claude"]
+
+
+class TestTransportMode:
+    """Warm-server flag (Phase 0): default stdio, env-switchable, typo-safe."""
+
+    def test_default_is_stdio(self, monkeypatch):
+        monkeypatch.delenv(runtime_env.TRANSPORT_ENV, raising=False)
+        assert runtime_env.transport_mode() == runtime_env.TRANSPORT_STDIO
+
+    def test_http_opt_in(self, monkeypatch):
+        monkeypatch.setenv(runtime_env.TRANSPORT_ENV, "http")
+        assert runtime_env.transport_mode() == runtime_env.TRANSPORT_HTTP
+
+    def test_case_and_whitespace_tolerant(self, monkeypatch):
+        monkeypatch.setenv(runtime_env.TRANSPORT_ENV, "  HTTP ")
+        assert runtime_env.transport_mode() == runtime_env.TRANSPORT_HTTP
+
+    def test_typo_falls_back_to_default(self, monkeypatch):
+        monkeypatch.setenv(runtime_env.TRANSPORT_ENV, "htpp")
+        assert runtime_env.transport_mode() == runtime_env.TRANSPORT_STDIO

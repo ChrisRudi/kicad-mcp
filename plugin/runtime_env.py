@@ -31,7 +31,31 @@ from . import mcp_config
 NATIVE = "native"
 BRIDGE = "wsl-bridge"
 
+# Transport between claude and the kicad-mcp server (channel A). ``stdio`` =
+# today's behavior: claude spawns a fresh server per chat message. ``http`` =
+# warm mode: the plugin keeps ONE persistent local HTTP server running
+# (plugin/server_manager.py) and claude merely connects to it — no cold start
+# per turn. Default stays ``stdio`` until the http path is validated on real
+# Windows setups (docs/warm-server-plan.md, Phase 6). The KiCad IPC channel
+# (server <-> kipy, channel B) is independent of this flag.
+TRANSPORT_ENV = "KICAD_MCP_TRANSPORT"
+TRANSPORT_STDIO = "stdio"
+TRANSPORT_HTTP = "http"
+DEFAULT_TRANSPORT = TRANSPORT_STDIO
+
 _WIN_DRIVE_RE = re.compile(r"^([A-Za-z]):[\\/](.*)$")
+
+
+def transport_mode() -> str:
+    """``"stdio"`` or ``"http"`` — how claude reaches the kicad-mcp server.
+
+    Reads ``KICAD_MCP_TRANSPORT``; anything unknown falls back to the default
+    so a typo can never brick the chat (rollback = one env word).
+    """
+    raw = os.environ.get(TRANSPORT_ENV, "").strip().lower()
+    if raw in (TRANSPORT_STDIO, TRANSPORT_HTTP):
+        return raw
+    return DEFAULT_TRANSPORT
 
 
 def kicad_os() -> str:

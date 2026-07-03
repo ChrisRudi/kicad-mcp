@@ -1,7 +1,29 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.6.1**
+Aktuelle Version: **0.7.0**
+
+---
+
+## 🔥 Neu in 0.7.0 — Warmer Tool-Server (opt-in)
+
+- **Der Tool-Server kann jetzt dauerhaft warm laufen.** Bisher startet Claude
+  den kicad-mcp-Server bei **jeder** Chat-Nachricht neu (stdio) — der Kaltstart
+  ist genau die Quelle des „MCP nicht verbunden"-Wacklers. Neu: mit
+  `KICAD_MCP_TRANSPORT=http` startet das Plugin den Server **einmal pro
+  KiCad-Sitzung** als lokalen HTTP-Dienst (nur `127.0.0.1`, mit zufälligem
+  Zugriffs-Token) und Claude **verbindet sich nur noch** — kein Spawn, kein
+  Kaltstart pro Nachricht.
+- **Selbstheilend:** Vor jedem Chat-Zug wird die Gesundheit geprüft; ein
+  abgestürzter/hängender Server wird automatisch ersetzt, Waisen nach einem
+  KiCad-Absturz beim nächsten Start aufgeräumt, und beim Schließen von KiCad
+  wird der Server sauber beendet. Klappt der Warm-Start nicht, läuft der Zug
+  automatisch im bisherigen stdio-Modus weiter.
+- **Diagnose zeigt den Server-Status** (läuft? PID, Port, Uptime, echter
+  MCP-Ping) — die Info, die bisher fehlte.
+- **Standard bleibt vorerst `stdio`** (das bisherige Verhalten, unverändert).
+  Nach Validierung auf echten Windows-Setups wird der Warm-Modus der Standard;
+  Rückweg ist immer ein Env-Wort: `KICAD_MCP_TRANSPORT=stdio`.
 
 ---
 

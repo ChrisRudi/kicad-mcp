@@ -512,3 +512,100 @@ class TestMcpConfig:
         py = tmp_path / "python.exe"; py.write_text("")
         monkeypatch.setenv("KICAD_PYTHON_PATH", str(py))
         assert mcp_config.find_kicad_python() == str(py)
+
+
+# --- warm-server (http) wiring --------------------------------------------------
+
+class TestHttpMcpConfig:
+    def test_build_http_shape_with_token(self):
+        cfg = mcp_config.build_http_mcp_config(
+            "http://127.0.0.1:8331/mcp/", "tok123")
+        srv = cfg["mcpServers"]["kicad-mcp"]
+        assert srv["type"] == "http"
+        assert srv["url"] == "http://127.0.0.1:8331/mcp/"
+        assert srv["headers"] == {"Authorization": "Bearer tok123"}
+        # http mode: claude spawns NOTHING — no command/args in the config
+        assert "command" not in srv and "args" not in srv
+
+    def test_build_http_without_token_has_no_headers(self):
+        srv = mcp_config.build_http_mcp_config(
+            "http://127.0.0.1:1/mcp/")["mcpServers"]["kicad-mcp"]
+        assert "headers" not in srv
+
+    def test_write_http_creates_valid_json(self, tmp_path):
+        out = tmp_path / ".kicad-mcp" / "claude_mcp.json"
+        mcp_config.write_http_mcp_config(str(out), "http://x/mcp/", "t")
+        data = json.loads(out.read_text())
+        assert data["mcpServers"]["kicad-mcp"]["url"] == "http://x/mcp/"
+
+
+class TestAskWarmServer:
+    """ask() must warm the server BEFORE claude spawns — and only in http mode."""
+
+    def _ok_info(self):
+        return {"ok": True, "url": "http://127.0.0.1:8331/mcp/",
+                "token": "tok", "port": 8331, "pid": 1, "reused": False}
+
+    def test_http_mode_ensures_once_before_spawn(self, monkeypatch, tmp_path):
+        from plugin import server_manager
+        monkeypatch.setenv("KICAD_MCP_TRANSPORT", "http")
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        events = []
+        monkeypatch.setattr(
+            server_manager, "ensure_running",
+            lambda **kw: (events.append("ensure"), self._ok_info())[1])
+        cfg = tmp_path / "m.json"
+
+        def spy_popen(cmd, **kw):
+            events.append("spawn")
+            return _FakeProc([_INIT_OK, _RESULT])
+
+        r = claude_bridge.ask("x", "/proj", str(cfg), _popen=spy_popen)
+        assert r["ok"]
+        assert events == ["ensure", "spawn"]  # exactly once, and before spawn
+        srv = json.loads(cfg.read_text())["mcpServers"]["kicad-mcp"]
+        assert srv["type"] == "http"
+        assert srv["url"] == "http://127.0.0.1:8331/mcp/"
+        assert srv["headers"] == {"Authorization": "Bearer tok"}
+
+    def test_stdio_mode_never_touches_server_manager(self, monkeypatch,
+                                                     tmp_path):
+        from plugin import server_manager
+        monkeypatch.delenv("KICAD_MCP_TRANSPORT", raising=False)
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+
+        def boom(**kw):
+            raise AssertionError("ensure_running must not run in stdio mode")
+
+        monkeypatch.setattr(server_manager, "ensure_running", boom)
+        cfg = tmp_path / "m.json"
+        cfg.write_text("{}")
+        r = claude_bridge.ask("x", "/proj", str(cfg),
+                              _popen=_popen_for(_FakeProc([_RESULT])))
+        assert r["ok"]
+        assert cfg.read_text() == "{}"  # stdio mode: config untouched
+
+    def test_http_failure_falls_back_to_stdio_config(self, monkeypatch,
+                                                     tmp_path):
+        from plugin import server_manager
+        monkeypatch.setenv("KICAD_MCP_TRANSPORT", "http")
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        monkeypatch.setattr(server_manager, "ensure_running",
+                            lambda **kw: {"ok": False, "error": "kaputt"})
+        root = tmp_path / "mcp"; (root / "kicad_mcp").mkdir(parents=True)
+        py = tmp_path / "python"; py.write_text("")
+        monkeypatch.setattr(server_manager, "default_mcp_root",
+                            lambda: str(root))
+        monkeypatch.setattr(mcp_config, "find_kicad_python", lambda: str(py))
+        # simulate an earlier http turn: the file still points into the void
+        cfg = tmp_path / "m.json"
+        mcp_config.write_http_mcp_config(str(cfg), "http://tot/mcp/", "alt")
+        statuses = []
+        r = claude_bridge.ask("x", "/proj", str(cfg),
+                              on_status=statuses.append,
+                              _popen=_popen_for(_FakeProc([_INIT_OK, _RESULT])))
+        assert r["ok"]  # the turn still ran — via stdio
+        srv = json.loads(cfg.read_text())["mcpServers"]["kicad-mcp"]
+        assert srv["type"] == "stdio"  # config restored, not left broken
+        assert srv["command"] == str(py)
+        assert any("stdio-Fallback" in s for s in statuses)

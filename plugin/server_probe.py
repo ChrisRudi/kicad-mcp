@@ -20,6 +20,8 @@ import json
 import os
 import subprocess
 import time
+import urllib.error
+import urllib.request
 from typing import Any, Optional
 
 from . import deps, mcp_config
@@ -73,6 +75,63 @@ def is_handshake_reply(stdout: str) -> bool:
 def tools_listed(stdout: str) -> bool:
     """Did the server answer ``tools/list``? (a tools array came back)."""
     return '"tools"' in (stdout or "")
+
+
+# -- warm-server (http) probe ---------------------------------------------------
+
+HTTP_PROBE_TIMEOUT = 10.0  # the server is already RUNNING — answers in ms
+
+
+def http_init_body() -> bytes:
+    """One MCP ``initialize`` JSON-RPC request as a streamable-http POST body."""
+    return json.dumps({
+        "jsonrpc": "2.0", "id": 1, "method": "initialize",
+        "params": {"protocolVersion": "2024-11-05", "capabilities": {},
+                   "clientInfo": {"name": "kicad-claude-plugin",
+                                  "version": "probe"}},
+    }).encode("utf-8")
+
+
+def probe_http(url: str, token: str = "",
+               timeout: float = HTTP_PROBE_TIMEOUT,
+               _urlopen: Any = urllib.request.urlopen) -> dict:
+    """Ping the RUNNING warm server: does it answer an MCP ``initialize``?
+
+    Unlike :func:`probe_server` nothing is spawned — this is the http-mode
+    health view ("läuft der Server wirklich, oder squattet etwas anderes auf
+    dem Port?"). The response body may be SSE or plain JSON; both carry
+    ``serverInfo`` on success. Returns ``{ok, error, status, seconds}``;
+    never raises.
+    """
+    out = {"ok": False, "error": "", "status": 0, "seconds": 0.0}
+    headers = {"Content-Type": "application/json",
+               "Accept": "application/json, text/event-stream"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(url, data=http_init_body(), method="POST",
+                                 headers=headers)
+    t0 = time.perf_counter()
+    try:
+        with _urlopen(req, timeout=timeout) as resp:
+            body = resp.read(65536).decode("utf-8", "replace")
+            out["status"] = getattr(resp, "status", 200)
+    except urllib.error.HTTPError as exc:
+        out["seconds"] = round(time.perf_counter() - t0, 2)
+        out["status"] = exc.code
+        out["error"] = (f"HTTP {exc.code} vom Warm-Server — "
+                        + ("Token falsch/fehlt (401)." if exc.code == 401
+                           else "unerwartete Antwort."))
+        return out
+    except Exception as exc:
+        out["seconds"] = round(time.perf_counter() - t0, 2)
+        out["error"] = f"Warm-Server nicht erreichbar: {exc}"
+        return out
+    out["seconds"] = round(time.perf_counter() - t0, 2)
+    if is_handshake_reply(body):
+        out["ok"] = True
+    else:
+        out["error"] = "Antwort ohne MCP-Handshake (kein serverInfo im Body)."
+    return out
 
 
 def probe_server(kicad_py: Optional[str], mcp_root: str,

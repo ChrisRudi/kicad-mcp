@@ -143,6 +143,29 @@ def build_mcp_config(mcp_root: str, python_exe: str,
     }
 
 
+def build_http_mcp_config(url: str, token: str = "") -> dict:
+    """The Claude-Code MCP config for the WARM (persistent) http server.
+
+    Claude does not spawn anything here — it merely connects to the already
+    running local server (``plugin/server_manager.py`` owns its lifecycle), so
+    the per-message cold start disappears. The bearer token gates the
+    localhost endpoint against other local processes.
+    """
+    server: dict = {"type": "http", "url": url}
+    if token:
+        server["headers"] = {"Authorization": f"Bearer {token}"}
+    return {"mcpServers": {"kicad-mcp": server}}
+
+
+def write_http_mcp_config(path: str, url: str, token: str = "") -> str:
+    """Write the http-mode MCP config to ``path``; returns the path."""
+    cfg = build_http_mcp_config(url, token)
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(cfg, fh, indent=2)
+    return path
+
+
 def write_mcp_config(
     path: str, mcp_root: str, python_exe: Optional[str] = None,
     deps_dir: Optional[str] = None,

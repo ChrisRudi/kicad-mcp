@@ -155,3 +155,64 @@ class TestHelpers:
 
     def test_popen_kwargs_has_no_stdin_override(self):
         assert "stdin" not in server_probe._popen_kwargs()
+
+
+# --- warm-server (http) probe ---------------------------------------------------
+
+class _FakeHttpResp:
+    def __init__(self, body: str, status: int = 200):
+        self._body = body.encode("utf-8")
+        self.status = status
+
+    def read(self, n: int = -1) -> bytes:
+        return self._body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+class TestProbeHttp:
+    URL = "http://127.0.0.1:8331/mcp/"
+    SSE_OK = ('event: message\n'
+              'data: {"jsonrpc":"2.0","id":1,"result":{"serverInfo":'
+              '{"name":"KiCad","version":"x"}}}\n\n')
+
+    def test_ok_on_serverinfo_sse_body(self):
+        seen = {}
+
+        def _urlopen(req, timeout=None):
+            seen["auth"] = req.get_header("Authorization")
+            seen["body"] = req.data
+            return _FakeHttpResp(self.SSE_OK)
+
+        res = server_probe.probe_http(self.URL, "tok", _urlopen=_urlopen)
+        assert res["ok"] and res["error"] == ""
+        assert seen["auth"] == "Bearer tok"
+        assert b'"initialize"' in seen["body"]
+
+    def test_401_names_the_token(self):
+        import urllib.error
+
+        def _urlopen(req, timeout=None):
+            raise urllib.error.HTTPError(self.URL, 401, "Unauthorized",
+                                         None, None)
+
+        res = server_probe.probe_http(self.URL, "falsch", _urlopen=_urlopen)
+        assert not res["ok"] and res["status"] == 401
+        assert "Token" in res["error"]
+
+    def test_connection_refused_reported(self):
+        def _urlopen(req, timeout=None):
+            raise OSError("Connection refused")
+
+        res = server_probe.probe_http(self.URL, _urlopen=_urlopen)
+        assert not res["ok"]
+        assert "nicht erreichbar" in res["error"]
+
+    def test_body_without_serverinfo_is_error(self):
+        res = server_probe.probe_http(
+            self.URL, _urlopen=lambda req, timeout=None: _FakeHttpResp("{}"))
+        assert not res["ok"] and "serverInfo" in res["error"]

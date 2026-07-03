@@ -18,7 +18,7 @@ import os
 import platform
 import subprocess
 
-from . import deps, mcp_config, runtime_env, server_probe
+from . import deps, mcp_config, runtime_env, server_manager, server_probe
 from .claude_bridge import hidden_console_kwargs
 from .version import __version__
 
@@ -40,6 +40,37 @@ def _listdir_head(path: str, n: int = 12) -> str:
         return f"(nicht lesbar: {exc})"
     more = f" … (+{len(names) - n} weitere)" if len(names) > n else ""
     return ", ".join(names[:n]) + more
+
+
+def _transport_section() -> str:
+    """The warm-server status block — läuft? PID, Port, Uptime, Transport.
+
+    Genau die Info, die die MCP-Debug-Odyssee gespart hätte: in stdio-Modus
+    steht hier, dass claude den Server pro Nachricht selbst startet; im
+    http-Modus, ob der persistente Server wirklich lebt (Pidfile + Port +
+    echter MCP-Ping).
+    """
+    mode = runtime_env.transport_mode()
+    lines = [f"Transport (KICAD_MCP_TRANSPORT): {mode}"]
+    if mode != runtime_env.TRANSPORT_HTTP:
+        lines.append("  stdio: claude startet den Server pro Nachricht "
+                     "selbst (kein Warm-Server).")
+        return "\n".join(lines)
+    st = server_manager.status()
+    if not st["running"]:
+        lines.append("  Warm-Server: LÄUFT NICHT (wird beim nächsten "
+                     "Chat-Turn automatisch gestartet).")
+        return "\n".join(lines)
+    lines.append(f"  Warm-Server: läuft — PID {st['pid']}, Port {st['port']}, "
+                 f"Uptime {st['uptime_s']}s, {st['transport']}")
+    lines.append(f"  URL: {st['url']}")
+    token = server_manager.read_state().get("token", "")
+    ping = server_probe.probe_http(st["url"], token)
+    if ping["ok"]:
+        lines.append(f"  MCP-Ping: OK ({ping['seconds']}s)")
+    else:
+        lines.append(f"  MCP-Ping: FEHLER — {ping['error']}")
+    return "\n".join(lines)
 
 
 def collect(mcp_root: str, project_dir: str, _run=subprocess.run) -> str:
@@ -81,6 +112,8 @@ def collect(mcp_root: str, project_dir: str, _run=subprocess.run) -> str:
     if claude:
         add("  Version: "
             + _run_capture(list(claude) + ["--version"], _run=_run))
+    add("")
+    add(_transport_section())
     add("")
     add("--- MCP-Server-Probe (Start exakt wie durch Claude) ---")
     add(f"PYTHONPATH: {pythonpath}")

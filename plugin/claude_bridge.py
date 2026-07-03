@@ -503,6 +503,46 @@ atexit.register(terminate_all)
 
 # -- the turn ------------------------------------------------------------------
 
+def _prepare_transport(mcp_config_path: str, on_status=None) -> str:
+    """Warm-server hook, called once per turn BEFORE claude spawns.
+
+    stdio mode (default): no-op — claude spawns the server itself, exactly as
+    before. http mode (``KICAD_MCP_TRANSPORT=http``): make sure the persistent
+    local server is running (``server_manager.ensure_running`` reuses a healthy
+    one; that health check is what auto-restarts a crashed/hung server) and
+    rewrite the mcp config at ``mcp_config_path`` to point at its URL+token —
+    port and token can change across restarts, so the file is refreshed per
+    turn. If the warm server cannot start, the config is rewritten back to the
+    stdio form so the turn still works the old way (graceful fallback, never
+    a dead chat). Returns the transport actually in effect.
+
+    Imports lazily: a module-level import of runtime_env/server_manager would
+    cycle through mcp_config -> deps -> claude_bridge.
+    """
+    from . import runtime_env  # noqa: PLC0415 — cycle-safe lazy import
+    if runtime_env.transport_mode() != runtime_env.TRANSPORT_HTTP:
+        return "stdio"
+    from . import mcp_config, server_manager  # noqa: PLC0415
+    try:
+        info = server_manager.ensure_running()
+        if info.get("ok"):
+            mcp_config.write_http_mcp_config(
+                mcp_config_path, info["url"], info.get("token", ""))
+            return "http"
+        # fallback: restore a valid stdio config (the file may still carry a
+        # http URL from an earlier turn — claude must not connect into a void)
+        if on_status:
+            try:
+                on_status("⚠ Warm-Server nicht verfügbar — stdio-Fallback …")
+            except Exception:
+                pass
+        mcp_config.write_mcp_config(
+            mcp_config_path, server_manager.default_mcp_root())
+    except Exception:
+        pass  # any surprise here must never kill the turn — stdio still works
+    return "stdio"
+
+
 def _pump(stream, q: "queue.Queue") -> None:
     try:
         for line in stream:
@@ -559,6 +599,10 @@ def ask(
     # now-warm start. Bounded by ``mcp_connect_retries()``.
     result = dict(out)
     for attempt in range(1 + mcp_connect_retries()):
+        # http mode: warm server up + config pointed at it (health check per
+        # turn → auto-restart; re-run on retry in case the server just died).
+        # stdio mode: no-op.
+        _prepare_transport(mcp_config_path, on_status)
         result = _spawn_and_run(cmd, project_dir, env, dict(out), idle_timeout,
                                 max_seconds, on_status, on_tool, on_proc, _popen)
         if not str(result.get("mcp_status") or "").startswith("failed"):

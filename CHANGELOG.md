@@ -8,6 +8,47 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Warm-Server — persistenter lokaler HTTP-MCP-Server, Plugin 0.7.0)
+- **`KICAD_MCP_TRANSPORT=http` — den Tool-Server einmal pro KiCad-Sitzung warm
+  halten** statt ihn bei jeder Chat-Nachricht per stdio neu zu spawnen (Plan:
+  `docs/warm-server-plan.md`; Kanal B, die kipy-IPC zu KiCad, bleibt
+  unangetastet). Default bleibt `stdio`, bis der http-Pfad auf echten
+  Windows-Setups validiert ist — Rollback ist ein Env-Wort.
+  - `kicad_mcp/server.py`: `--transport {stdio,http,streamable-http}` /
+    `--host` / `--port` (Env-Fallbacks `KICAD_MCP_TRANSPORT`,
+    `KICAD_MCP_HTTP_HOST`, `KICAD_MCP_HTTP_PORT`); im http-Modus
+    `mcp.run(transport="streamable-http", host, port)` strikt auf
+    `127.0.0.1`, optional gated durch ein Bearer-Token
+    (`KICAD_MCP_HTTP_TOKEN`, framework-freie ASGI-Middleware → 401).
+  - `plugin/server_manager.py` (neu): Lebenszyklus des warmen Servers —
+    `ensure_running()` (Health-Check pro Turn → Auto-Restart bei Crash/Hänger,
+    Reuse sonst), Pidfile in `%LOCALAPPDATA%\kicad-claude\` bzw.
+    `~/.local/state/kicad-claude/` (Plugin-Reloads finden denselben Server,
+    Waisen nach KiCad-Crash werden beim nächsten Start weggeräumt),
+    Zufalls-Token pro Start, `shutdown()` (Prozessbaum, auch via `atexit` —
+    der Server überlebt KiCad nie), `status()` für die Diagnose.
+  - `plugin/mcp_config.py`: `build_http_mcp_config`/`write_http_mcp_config` —
+    `{"type":"http","url":…,"headers":{Authorization}}`; claude spawnt nichts
+    mehr, es verbindet nur.
+  - `plugin/claude_bridge.py::ask`: im http-Modus vor jedem Spawn
+    `ensure_running()` + Config-Rewrite auf die aktuelle URL/Token; schlägt
+    der Warm-Start fehl, wird die Config auf stdio zurückgeschrieben und der
+    Zug läuft wie bisher (kein toter Chat).
+  - `plugin/server_probe.py::probe_http`: MCP-`initialize`-Ping gegen den
+    LAUFENDEN Server (nichts wird gespawnt); `plugin/diagnose.py` zeigt
+    Transport-Modus + Warm-Server-Status (läuft? PID, Port, Uptime, Ping).
+  - `plugin/runtime_env.py::transport_mode()`: das Flag, typo-sicher
+    (unbekannter Wert → stdio).
+  - Vorab-Checks aus dem Plan: uvicorn/starlette sind **harte** Dependencies
+    von fastmcp (`fastmcp-slim[server]`) — jede `_deps`-Installation hat sie
+    bereits; kein `deps.py`-Change nötig. FastMCP-Endpoint ist `/mcp`
+    (kanonisch, ohne Slash — `/mcp/` antwortet 307).
+  - Tests: `test_server_http.py` (echter Server über HTTP: initialize +
+    tools/list = 183 Tools, 401 ohne Token, Manager-End-to-End
+    start→ping→reuse→shutdown), `test_plugin_server_manager.py` (pure:
+    ensure-once, Restart-Entscheid, Pidfile, Token), Bridge-/Probe-/
+    Diagnose-/runtime_env-Tests erweitert. Plugin-Version 0.6.1 → 0.7.0.
+
 ### Added (Super-Feature „Test-Punkt-Wächter" — Probe-Zugang der kritischen Netze)
 - **`audit_test_points` — Testbarkeit prüfen, die ERC/DRC nicht sehen** (Tool
   #183). Rankt Netze nach Bring-up-/Serientest-Wichtigkeit (Versorgung, Reset,

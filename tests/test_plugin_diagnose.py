@@ -61,3 +61,45 @@ class TestCollect:
         report = diagnose.collect(str(tmp_path), "/proj", _run=_runner())
         assert r"KICAD_MCP_ROOT    = C:\x\y" in report
         assert "KICAD_PYTHON_PATH = (nicht gesetzt)" in report
+
+
+class TestTransportSection:
+    def test_stdio_mode_named_in_report(self, monkeypatch, tmp_path):
+        _patch_env(monkeypatch)
+        monkeypatch.delenv("KICAD_MCP_TRANSPORT", raising=False)
+        report = diagnose.collect(str(tmp_path), "/proj", _run=_runner())
+        assert "Transport (KICAD_MCP_TRANSPORT): stdio" in report
+        assert "pro Nachricht" in report
+
+    def test_http_mode_not_running(self, monkeypatch, tmp_path):
+        _patch_env(monkeypatch)
+        monkeypatch.setenv("KICAD_MCP_TRANSPORT", "http")
+        monkeypatch.setattr(diagnose.server_manager, "status",
+                            lambda: {"running": False, "pid": 0, "port": 0,
+                                     "url": "", "uptime_s": 0,
+                                     "transport": ""})
+        report = diagnose.collect(str(tmp_path), "/proj", _run=_runner())
+        assert "Transport (KICAD_MCP_TRANSPORT): http" in report
+        assert "LÄUFT NICHT" in report
+
+    def test_http_mode_running_shows_pid_port_uptime_ping(self, monkeypatch,
+                                                          tmp_path):
+        _patch_env(monkeypatch)
+        monkeypatch.setenv("KICAD_MCP_TRANSPORT", "http")
+        monkeypatch.setattr(
+            diagnose.server_manager, "status",
+            lambda: {"running": True, "pid": 42, "port": 8331,
+                     "url": "http://127.0.0.1:8331/mcp/", "uptime_s": 77,
+                     "transport": "streamable-http"})
+        monkeypatch.setattr(diagnose.server_manager, "read_state",
+                            lambda: {"token": "tok"})
+        pings = []
+        monkeypatch.setattr(
+            diagnose.server_probe, "probe_http",
+            lambda url, token, **kw: (pings.append((url, token))
+                                      or {"ok": True, "seconds": 0.02}))
+        report = diagnose.collect(str(tmp_path), "/proj", _run=_runner())
+        assert "PID 42" in report and "Port 8331" in report
+        assert "Uptime 77s" in report
+        assert "MCP-Ping: OK" in report
+        assert pings == [("http://127.0.0.1:8331/mcp/", "tok")]
