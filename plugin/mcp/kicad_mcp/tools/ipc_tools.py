@@ -422,17 +422,28 @@ def _require_editor(
         try:
             if os.name == "nt" or binary.lower().endswith(".exe"):
                 DETACHED_PROCESS = 0x00000008  # noqa: N806 — Win32 constant
-                subprocess.Popen(
+                proc = subprocess.Popen(
                     [binary, project_file],
                     creationflags=DETACHED_PROCESS,
                     close_fds=True,
                 )
             else:
-                subprocess.Popen(
+                proc = subprocess.Popen(
                     [binary, project_file],
                     start_new_session=True,
                     close_fds=True,
                 )
+            # THE gap that made "Kein eindeutiges Board" ghosts invisible to
+            # the whole reaping machinery: ipc_open_kicad records its spawns
+            # in the spawned-editors registry, this auto-open path did NOT —
+            # so neither the plugin's shutdown reaper nor ipc_close_kicad nor
+            # board_links' mid-session self-heal could ever find them. Every
+            # editor the server launches MUST be registered, no exceptions.
+            try:
+                from kicad_mcp.utils import spawned_registry
+                spawned_registry.record(proc.pid)
+            except Exception:
+                pass  # best-effort: a launch must not fail on bookkeeping
         except Exception as exc:
             return {
                 "success": False,

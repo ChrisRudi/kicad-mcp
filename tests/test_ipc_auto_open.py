@@ -450,3 +450,69 @@ class TestAutoOpenDisabled:
             assert ipc_tools._auto_open_disabled() is want
         monkeypatch.delenv(ipc_tools._NO_AUTO_OPEN_ENV, raising=False)
         assert ipc_tools._auto_open_disabled() is False
+
+
+class TestSpawnRegistered:
+    """Jeder vom Server gestartete Editor MUSS in der Spawned-Registry landen —
+    sonst ist er für alle Reaper (Plugin-Shutdown, ipc_close_kicad,
+    board_links-Selbstheilung) unsichtbar und wird zum Link-tötenden Geist."""
+
+    def test_auto_open_records_pid(self, monkeypatch, tmp_path) -> None:
+        pytest.importorskip("kipy")
+        sch_file = tmp_path / "demo.kicad_sch"
+        sch_file.write_text("")
+        pcb_doc = _FakeDoc(
+            board_filename="demo.kicad_pcb",
+            project=_FakeProject(name="demo", path=str(tmp_path)),
+        )
+        poll = {"n": 0}
+
+        class _ToggleClient:
+            def get_open_documents(self, dt):
+                if int(dt) == 1:
+                    poll["n"] += 1
+                    return [_FakeDoc()] if poll["n"] >= 2 else []
+                return [pcb_doc]
+
+        import kipy  # type: ignore
+        monkeypatch.setattr(ipc_tools, "_kipy_available", lambda: True)
+        monkeypatch.setattr(kipy, "KiCad", lambda *_a, **_kw: _ToggleClient())
+        monkeypatch.setattr(ipc_tools, "_editor_binary_path",
+                            lambda dt: "/fake/eeschema")
+        monkeypatch.setattr(ipc_tools, "_editor_process_running",
+                            lambda dt: False)
+        monkeypatch.delenv(ipc_tools._NO_AUTO_OPEN_ENV, raising=False)
+
+        class _FakePopen:
+            pid = 4242
+
+            def __init__(self, args, **kwargs):
+                pass
+
+        import subprocess
+        monkeypatch.setattr(subprocess, "Popen", _FakePopen)
+        recorded: list[int] = []
+        from kicad_mcp.utils import spawned_registry
+        monkeypatch.setattr(spawned_registry, "record", recorded.append)
+
+        assert ipc_tools._require_editor("schematic", timeout_s=2.0) is None
+        assert recorded == [4242]  # der Geist ist reap-bar
+
+
+def test_every_detached_editor_spawn_is_registered():
+    """Quell-Ratchet (headless): jede DETACHED-Editor-Spawn-Stelle im
+    Server-Code muss innerhalb ihres Blocks spawned_registry.record rufen.
+    Genau die fehlende Registrierung im Auto-Open-Pfad machte die
+    'Kein eindeutiges Board'-Geister für alle Reaper unsichtbar (0.7.8)."""
+    import inspect
+
+    src = inspect.getsource(ipc_tools)
+    lines = src.splitlines()
+    sites = [i for i, ln in enumerate(lines) if "DETACHED_PROCESS = " in ln]
+    assert sites, "expected at least one detached editor spawn site"
+    for i in sites:
+        window = "\n".join(lines[i:i + 30])
+        assert "spawned_registry.record" in window, (
+            f"Editor-Spawn bei Zeile {i + 1} registriert seine PID nicht — "
+            "damit wäre er für Plugin-Reaper, ipc_close_kicad und die "
+            "board_links-Selbstheilung unsichtbar (Geister-Instanz).")

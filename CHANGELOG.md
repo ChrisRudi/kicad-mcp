@@ -29,6 +29,14 @@ the first tag ships.
     (`test_ipc_auto_open.py`), Connect-Self-Heal
     (`test_plugin_board_links.py`), Env-Durchreichung (bridge/manager).
     Version 0.7.7 → 0.7.8.
+  - **Die eigentliche Lücke in der bestehenden Geister-Abwehr:** die
+    Spawned-Registry + Reaper (0.2.20) existierten längst — aber NUR
+    `ipc_open_kicad` registrierte seine Spawns; der Auto-Open-Pfad in
+    `_require_editor` hielt nicht einmal die PID fest. Diese Geister waren
+    für ALLE Reaper unsichtbar. Jetzt registriert auch Auto-Open
+    (`spawned_registry.record`), und ein Quell-Ratchet-Test erzwingt, dass
+    jede DETACHED-Spawn-Stelle registriert
+    (`test_every_detached_editor_spawn_is_registered`).
 
 ### Added (Super-Feature „Schutzklassen" — IEC-60664-Normwerte, Plugin 0.7.7)
 - **`get_safety_spacing` — geforderte Kriech-/Luftstrecke je Spannungsgrenze**

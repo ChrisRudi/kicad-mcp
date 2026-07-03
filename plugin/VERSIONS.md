@@ -20,6 +20,11 @@ Aktuelle Version: **0.7.8**
   Geister-Instanz doch auf, **heilen sich die Links selbst**: Beim nächsten
   Klick wird der vom Server gestartete Editor erkannt, beendet und die
   Verbindung neu aufgebaut.
+- **Warum die alte Geister-Abwehr (0.2.20) das nicht fing:** Sie kannte nur
+  Editoren, die in der Prozess-Registry standen — und ausgerechnet der
+  Auto-Start-Pfad hat seine nie eingetragen. Jetzt trägt JEDER vom Server
+  gestartete Editor sich ein (ein Wächter-Test erzwingt das), womit
+  Aufräumen beim Schließen UND die neue Selbstheilung ihn finden.
 
 ---
 
