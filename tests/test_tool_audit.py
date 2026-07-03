@@ -324,7 +324,7 @@ EXPECTED_TOOL_COUNT = 180  # +ipc_interact G1-G6 (15) + ipc_draw_sketch_legend
 # 2026-07-03: +1 (evaluate_layout — non-mutating placement scorer for Entwirren)
 # 2026-07-03: +1 (get_board_layout — read board into evaluate_layout shape)
 # 2026-07-03: +1 (list_bus_members — Bus-Radar: semantic bus grouping)
-# 2026-07-03: +1 (audit_bus_rules — Design-Wächter: I²C pull-up check)
+# 2026-07-03: +1 (audit_design — Design-Wächter: semantic rule registry)
 # 2026-06-14: +1 (add_vias_to_pcb — batch via placement, one read+write)
 # 2026-06-15: +3 (normalize_footprint_libid, refresh_pinfunctions,
 #                 replace_footprint_canonical — footprint resync)

@@ -8,14 +8,20 @@ the first tag ships.
 
 ## [Unreleased]
 
-### Added (Super-Feature „Design-Wächter")
-- **`audit_bus_rules` — semantische Bus-Checks jenseits des ERC** (Tool #180).
-  Erste Regel: **I²C-Bus ohne Pull-ups** — für jeden per Bus-Inferenz gefundenen
-  I²C-Bus wird geprüft, ob SDA/SCL je einen Pull-up-Widerstand gegen eine
-  Versorgung haben (I²C ist open-drain → braucht sie). Ein klassischer stiller
-  Fehler, den KiCads ERC **nicht** fängt. Komponiert `bus_infer` +
-  `pcb_board_parse` + `placement_eval.is_power_net` (Synergie statt Neubau).
-  Tests: `test_design_rules_tools.py`.
+### Added (Super-Feature „Design-Wächter" — persistente Regel-Registry)
+- **`audit_design` — semantische Design-Checks jenseits des ERC, registry-getrieben**
+  (Tool #180). Die Regeln leben als **persistente Registry** in
+  `utils/design_rules.RULES` (key/Titel/Severity/Check-Fn) — dieselbe
+  Single-Source-Ebene wie `TOOL_REGISTRARS`/`superfeatures.FEATURES`. Das Board
+  wird **einmal** in einen geteilten `BoardContext` geparst, jede Regel liest
+  ihn; neue Regel = ein Registry-Eintrag, taucht automatisch im Tool auf.
+  Optionaler `rules`-Filter (Subset).
+  - **Regel 1 — I²C-Bus ohne Pull-ups** (open-drain → braucht sie).
+  - **Regel 2 — Quarz ohne Load-Caps** (jeder XIN/XOUT-Terminal braucht ein C
+    gegen GND; Quarz per `Y*`-Ref oder Value erkannt).
+  - Komponiert `bus_infer` + `pcb_board_parse` + `placement_eval.is_power_net`
+    (Synergie statt Neubau). Tests: `test_design_rules.py`,
+    `test_design_rules_tools.py`.
 
 ### Changed (Projekt-Regel)
 - **CLAUDE.md: „nur bauen, was KiCad NICHT kann".** Grundregel dokumentiert —
