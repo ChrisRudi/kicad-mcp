@@ -126,3 +126,32 @@ jobs:
         env:
           KICAD_MCP_LIVE_IPC: "1"
         run: .venv-kicad/bin/pytest tests/test_live_ipc.py -q --no-cov --tb=short
+
+  gui-smoke:
+    name: GUI-Smoke (wxPython-Dialoge unter Xvfb — Linux-Render)
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: KiCad + Xvfb (bringt wxPython in dist-packages für py3.12)
+        run: sudo sh scripts/setup_container_kicad.sh ""
+
+      - name: ImageMagick für Screenshots
+        run: sudo apt-get install -y -qq imagemagick
+
+      - name: Dialoge unter Xvfb rendern (jeder Dialog = ein Case)
+        # wxPython liegt in KiCads dist-packages (python3.12) → System-Python.
+        # Xvfb via xvfb-run; Screenshots landen als Artefakt.
+        run: |
+          xvfb-run -a --server-args="-screen 0 1600x1000x24" \
+            /usr/bin/python3.12 scripts/gui_smoke.py --out gui-smoke-out \
+            --board-cwd "$PWD"
+
+      - name: Upload GUI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-smoke-screenshots
+          path: gui-smoke-out/
+          retention-days: 7

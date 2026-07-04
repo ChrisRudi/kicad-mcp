@@ -6,7 +6,20 @@ from __future__ import annotations
 
 from urllib.parse import parse_qs, urlsplit
 
-from plugin import banner
+import pytest
+
+from plugin import banner, i18n
+
+
+@pytest.fixture(autouse=True)
+def _force_german():
+    """Banner-Wortlaut ist seit dem 1. Linux-Smoke sprachabhängig; diese
+    Tests prüfen die deutsche Quelle, also die Sprache deterministisch
+    setzen (globaler i18n-Zustand kann von Nachbar-Tests auf 'en' stehen)."""
+    prev = i18n.get_lang()
+    i18n.set_lang("de")
+    yield
+    i18n.set_lang(prev)
 
 
 class TestRecommendMailto:
@@ -47,6 +60,24 @@ class TestSummaryLines:
             {"footprints": 0, "nets": 0, "layers": [], "by_prefix": {}},
             extent_mm=(58.0, 42.0))
         assert any("58.0 × 42.0 mm" in ln for ln in lines)
+
+
+class TestBannerI18n:
+    """1. Linux-Smoke-Befund: Banner/Guide blieben Deutsch im EN-Modus."""
+
+    def test_summary_and_guide_translate_to_english(self):
+        i18n.set_lang("en")
+        try:
+            guide = banner.interaction_guide()
+            assert "How to work with me" in guide
+            assert "clickable" in guide and "klickbar" not in guide
+            text = "\n".join(banner.summary_lines(
+                {"footprints": 4, "nets": 2, "layers": ["F.Cu"],
+                 "by_prefix": {"R": 2}}))
+            assert "Nets   2" in text and "Netze" not in text
+            assert "Board" in text and "Layers" in text
+        finally:
+            i18n.set_lang("de")
 
     def test_size_line_dropped_without_extent(self):
         lines = banner.summary_lines(

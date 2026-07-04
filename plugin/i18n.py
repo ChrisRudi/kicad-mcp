@@ -147,6 +147,30 @@ _EN: dict = {
     "Diagnose: Einrichtung / Update öffnen":
         "Diagnosis: open Setup / Update",
 
+    # --- Banner-Zusammenfassung + Status/Buttons (1. Linux-Smoke-Lücken) ----
+    "Bereit.": "Ready.",
+    "Platine": "Board",
+    "Footprints": "Footprints",
+    "Netze": "Nets",
+    "Lagen": "Layers",
+    "Bestückung": "Population",
+    "Größe": "Size",
+    "(ⓘ aus Edge.Cuts, best effort)": "(ⓘ from Edge.Cuts, best effort)",
+    "↶ Rückgängig": "↶ Undo",
+    "Letzte Board-Änderung rückgängig (KiCad Ctrl+Z)":
+        "Undo the last board change (KiCad Ctrl+Z)",
+    # Einrichtungs-Knopfleiste
+    "Erneut prüfen": "Re-check",
+    "Update prüfen": "Check update",
+    "Diagnose": "Diagnostics",
+    "Chat starten": "Start chat",
+    # Startup-Banner
+    "Gefällt dir das Plugin? → ": "Enjoying the plugin? → ",
+    "Empfiehl es einem Freund ✉": "Recommend it to a friend ✉",
+    "📍 alle markieren": "📍 select all",
+    "verbunden mit": "connected to",
+    "kein Board erkannt": "no board detected",
+
     # --- Gruppen der Super-Feature-Leiste --------------------------------
     "🔎 Verstehen & Prüfen": "🔎 Understand & Check",
     "🧶 Layout & Skizze": "🧶 Layout & Sketch",

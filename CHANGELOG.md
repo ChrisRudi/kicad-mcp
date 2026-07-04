@@ -8,6 +8,25 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed + Added (Erster Linux-GUI-Test: Dialoge unter Xvfb, 2 reale Bugs)
+- **`scripts/gui_smoke.py` (neu):** rendert jeden wxPython-Dialog
+  (Chat-Panel, Markdown+Links+Chips-Antwort, Einrichtung, Settings) unter
+  Xvfb mit KiCads python3.12+wx, macht je einen Screenshot, fängt Fehler
+  pro Dialog. Die GUI lief nie außerhalb von Windows-KiCad — der erste
+  Linux-Lauf fand prompt zwei echte Bugs:
+  1. **Einrichtungs-Knopfleiste lief rechts aus dem Fenster** (Systemtest/
+     Chat-starten abgeschnitten): 7 Knöpfe passten bei den breiteren
+     GTK-Button-Metriken nicht in die fixe 560-px-Breite. Fix: `BoxSizer`
+     → `WrapSizer` (bricht sauber um) + `Fit()`/`SetMinSize`.
+  2. **Deutsche i18n-Inseln im EN-Modus:** Banner-Summary (Platine/
+     Footprints/Netze/Größe), Interaktions-Guide, „Bereit.", „↶ Rückgängig",
+     Empfehl-Zeile, Kopfzeile („verbunden mit") und vier Setup-Knöpfe waren
+     hartkodiert Deutsch. Alle über `tr()` + EN-Katalog geführt; der
+     Interaktions-Guide bekam eine EN-Fassung (Sprachwahl via `i18n.get_lang`).
+  Tests: `test_plugin_banner.py` sprach-explizit (autouse-Fixture DE) +
+  neuer EN-Übersetzungs-Test. **CI-Job `gui-smoke`** rendert die Dialoge
+  bei jedem Push, Screenshots als Artefakt.
+
 ### Added (Dev/CI: Live-IPC gegen echten laufenden Editor — die „Mitarbeiter"-Schicht)
 - **`tests/live_ipc_harness.py` (neu):** `LiveEditor`-Kontext startet einen
   ECHTEN pcbnew unter Xvfb, klickt den bei jedem pcbnew-Standalone-Start neu

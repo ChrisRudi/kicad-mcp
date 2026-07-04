@@ -11,6 +11,9 @@ from __future__ import annotations
 
 from urllib.parse import urlencode
 
+from . import i18n
+from .i18n import tr
+
 REPO_URL = "https://github.com/ChrisRudi/kicad-mcp"
 
 _RECOMMEND_SUBJECT = "KiCad + Claude — das solltest du kennen"
@@ -50,10 +53,28 @@ INTERACTION_GUIDE_LINES = (
     "    3D-Viewer-Steuerung.",
 )
 
+# Englische Fassung — 1:1-Zeilenäquivalent (1. Linux-Smoke zeigte den Block
+# als letzte deutsche Insel im EN-Modus). Beim Sprachwechsel EN gewählt;
+# fehlt eine Sprache, bleibt die deutsche Quelle.
+_GUIDE_EN = (
+    "How to work with me",
+    "  • Orange underlined names are clickable: R12, GND, F.Cu, U1.33,",
+    "    (120.5, 84.0) → selects + zooms the element in the PCB editor.",
+    "  • Select something in the editor and tick „🔗 Include selection“, then",
+    "    ask „what is this?“ — without typing the reference.",
+    "  • Right-click a link: just highlight / zoom to / properties.",
+    "  • Examples:  „how many GND vias?“  ·  „mark the 3 smallest Cs“",
+    "  • ⚑ below = Claude options (e.g. --model sonnet) · „Stop“ cancels.",
+    "  • Not possible (KiCad 10): hover/mouse position, live schematic links,",
+    "    3D-viewer control.",
+)
+
 
 def interaction_guide() -> str:
-    """The static interaction guide as one newline-joined block."""
-    return "\n".join(INTERACTION_GUIDE_LINES)
+    """The static interaction guide as one newline-joined block, in the GUI
+    language (English fällt auf die deutsche Quelle zurück, wenn keine EN da)."""
+    lines = _GUIDE_EN if i18n.get_lang() == "en" else INTERACTION_GUIDE_LINES
+    return "\n".join(lines)
 
 
 def summary_lines(summary: dict, extent_mm=None) -> list[str]:
@@ -62,15 +83,16 @@ def summary_lines(summary: dict, extent_mm=None) -> list[str]:
     line is dropped when None (best-effort size couldn't be determined)."""
     layers = summary.get("layers") or []
     by_prefix = summary.get("by_prefix") or {}
-    lines = ["Platine",
-             (f"  Footprints   {summary.get('footprints', 0)}"
-              f"       Netze   {summary.get('nets', 0)}"
-              f"       Lagen   {len(layers)}"
+    lines = [tr("Platine"),
+             (f"  {tr('Footprints')}   {summary.get('footprints', 0)}"
+              f"       {tr('Netze')}   {summary.get('nets', 0)}"
+              f"       {tr('Lagen')}   {len(layers)}"
               + (f" ({', '.join(layers)})" if layers else ""))]
     if by_prefix:
         parts = "  ".join(f"{k}:{v}" for k, v in by_prefix.items())
-        lines.append(f"  Bestückung   {parts}")
+        lines.append(f"  {tr('Bestückung')}   {parts}")
     if extent_mm and len(extent_mm) == 2:
-        lines.append(f"  Größe        {extent_mm[0]} × {extent_mm[1]} mm"
-                     "        (ⓘ aus Edge.Cuts, best effort)")
+        lines.append(f"  {tr('Größe')}        "
+                     f"{extent_mm[0]} × {extent_mm[1]} mm"
+                     "        " + tr("(ⓘ aus Edge.Cuts, best effort)"))
     return lines

@@ -188,7 +188,7 @@ class ClaudeChatPanel(wx.Panel):
         self._chip_row.Hide()
         root.Add(self._chip_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
 
-        self._status = wx.StaticText(self, label=theme.STATUS_READY)
+        self._status = wx.StaticText(self, label=tr(theme.STATUS_READY))
         self._status.SetForegroundColour(wx.Colour(theme.DIM))
         self._status.SetFont(self._mono)
         foot.Add(self._status, 1, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 8)
@@ -222,10 +222,10 @@ class ClaudeChatPanel(wx.Panel):
         threading.Thread(target=self._probe_ngspice_light,
                          daemon=True).start()
 
-        undo_btn = wx.Button(self, label="↶ Rückgängig")
+        undo_btn = wx.Button(self, label=tr("↶ Rückgängig"))
         undo_btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
         undo_btn.SetForegroundColour(wx.Colour(theme.DIM))
-        undo_btn.SetToolTip("Letzte Board-Änderung rückgängig (KiCad Ctrl+Z)")
+        undo_btn.SetToolTip(tr("Letzte Board-Änderung rückgängig (KiCad Ctrl+Z)"))
         undo_btn.Bind(wx.EVT_BUTTON, lambda e: threading.Thread(
             target=self._undo_worker, daemon=True).start())
         foot.Add(undo_btn, 0, wx.RIGHT, 6)
@@ -317,7 +317,7 @@ class ClaudeChatPanel(wx.Panel):
         # Board") instead of clicking each link in turn.
         if len(marks) >= 2:
             self._write("  ", style["text_color"])
-            self._write_link("📍 alle markieren", "markall", marks)
+            self._write_link(tr("📍 alle markieren"), "markall", marks)
             self._write("\n\n", style["text_color"])
         return rendered
 
@@ -338,11 +338,11 @@ class ClaudeChatPanel(wx.Panel):
         the async board summary. Replaces the old one-line static banner."""
         board_name = os.path.basename(self._pcb_path) if self._pcb_path else None
         head = f"kicad-mcp  v{__version__}"
-        head += f"  ·  verbunden mit {board_name}" if board_name else \
-            "  ·  kein Board erkannt"
+        head += (f"  ·  {tr('verbunden mit')} {board_name}" if board_name
+                 else "  ·  " + tr("kein Board erkannt"))
         self._write(head + "\n", theme.DIM)
-        self._write("Gefällt dir das Plugin? → ", theme.FOREGROUND)
-        self._write_link("Empfiehl es einem Freund ✉", "url",
+        self._write(tr("Gefällt dir das Plugin? → "), theme.FOREGROUND)
+        self._write_link(tr("Empfiehl es einem Freund ✉"), "url",
                          banner.recommend_mailto())
         self._write("\n\n", theme.FOREGROUND)
         self._write(banner.interaction_guide() + "\n\n", theme.FOREGROUND)
@@ -404,7 +404,7 @@ class ClaudeChatPanel(wx.Panel):
             self._spinner.Start(theme.SPINNER_INTERVAL_MS)
         else:
             self._spinner.Stop()
-            self._set_status(theme.STATUS_READY, theme.DIM)
+            self._set_status(tr(theme.STATUS_READY), theme.DIM)
 
     def _on_activity(self, text: str) -> None:
         """Live progress from the stream (called via wx.CallAfter)."""
@@ -1031,7 +1031,7 @@ class ClaudeChatPanel(wx.Panel):
             self.Unbind(wx.EVT_MENU_HIGHLIGHT, handler=_on_highlight)
             menu.Destroy()
             if not self._busy:  # Statuszeile wieder freigeben
-                self._set_status(theme.STATUS_READY, theme.DIM)
+                self._set_status(tr(theme.STATUS_READY), theme.DIM)
 
     def _on_superfeature(self, feat) -> None:
         """Click on a Super-Feature button. SHIPPED features dispatch their

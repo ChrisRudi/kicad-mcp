@@ -49,14 +49,18 @@ class SetupDialog(wx.Dialog):
         self._rows = wx.BoxSizer(wx.VERTICAL)
         self._root.Add(self._rows, 1, wx.EXPAND | wx.ALL, 10)
 
-        bar = wx.BoxSizer(wx.HORIZONTAL)
-        recheck = wx.Button(self._panel, label="Erneut prüfen")
+        # WrapSizer statt BoxSizer: die 7 Knöpfe passen bei den breiteren
+        # GTK-Button-Metriken NICHT in die fixe Fensterbreite (Linux-Befund
+        # 1. Smoke) — auf schmalen Fenstern bricht die Leiste jetzt sauber um,
+        # statt die letzten Knöpfe (Systemtest/Chat starten) abzuschneiden.
+        bar = wx.WrapSizer(wx.HORIZONTAL)
+        recheck = wx.Button(self._panel, label=tr("Erneut prüfen"))
         recheck.Bind(wx.EVT_BUTTON, lambda e: self._guarded(self._render))
         bar.Add(recheck, 0, wx.RIGHT, 8)
-        update = wx.Button(self._panel, label="Update prüfen")
+        update = wx.Button(self._panel, label=tr("Update prüfen"))
         update.Bind(wx.EVT_BUTTON, lambda e: self._guarded(self._check_update))
         bar.Add(update, 0, wx.RIGHT, 8)
-        diag = wx.Button(self._panel, label="Diagnose")
+        diag = wx.Button(self._panel, label=tr("Diagnose"))
         diag.Bind(wx.EVT_BUTTON, lambda e: self._guarded(self._show_diagnose))
         bar.Add(diag, 0, wx.RIGHT, 8)
         settings_btn = wx.Button(self._panel, label=tr("Einstellungen"))
@@ -76,14 +80,19 @@ class SetupDialog(wx.Dialog):
             "ein Demo-Board aus der eingebauten Vorlage und testet Server, "
             "Generatoren und Werkzeuge lokal — dauert ~1 Minute."))
         st_btn.Bind(wx.EVT_BUTTON, lambda e: self._guarded(self._run_selftest))
-        bar.Add(st_btn, 0, wx.RIGHT, 8)
-        bar.AddStretchSpacer()
-        self._start = wx.Button(self._panel, label="Chat starten")
+        bar.Add(st_btn, 0, wx.RIGHT | wx.BOTTOM, 8)
+        self._start = wx.Button(self._panel, label=tr("Chat starten"))
         self._start.Bind(wx.EVT_BUTTON, self._on_start)
-        bar.Add(self._start, 0)
+        bar.Add(self._start, 0, wx.BOTTOM, 8)
         self._root.Add(bar, 0, wx.EXPAND | wx.ALL, 10)
 
         self._render()
+        # Fenster auf seinen Inhalt wachsen lassen: die fixe (560,440)-Vorgabe
+        # war für Windows-Buttonbreiten gedacht; unter GTK/anderen Themes ist
+        # der Mindestbedarf größer. Fit + Mindestgröße sichern alle Plattformen.
+        self._panel.Layout()
+        self.SetMinSize(wx.Size(560, 420))
+        self.Fit()
 
     def _guarded(self, fn) -> None:
         """Button-Handler-Schutz: wx schluckt Handler-Exceptions (Traceback

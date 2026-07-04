@@ -18,6 +18,11 @@ startet einen echten pcbnew unter Xvfb (klickt den je Start neu erscheinenden
 Selektions-Cross-Probe dagegen — opt-in via `KICAD_MCP_LIVE_IPC=1`
 (CI-Job `live-ipc`). Damit ist die „Mitarbeiter"-Schicht (laufender Editor,
 `ipc_*`, Selektion) headless testbar, nicht nur die Datei-Maschinerie.
+**GUI-Smoke** (`scripts/gui_smoke.py`, CI-Job `gui-smoke`): rendert jeden
+wxPython-Dialog (Chat, Markdown+Links+Chips, Einrichtung, Settings) unter
+Xvfb mit KiCads python3.12+wx und screenshottet ihn — fand beim ersten
+Nicht-Windows-Lauf reale Linux-Bugs (GTK-Buttonleiste lief aus dem Fenster →
+`WrapSizer`; deutsche i18n-Inseln im EN-Modus → `tr()`+Katalog).
 
 Dies ist ein GPL-3.0-or-later-Fork des MIT-Projekts
 [lamaalrajih/kicad-mcp](https://github.com/lamaalrajih/kicad-mcp) — Begründung in
