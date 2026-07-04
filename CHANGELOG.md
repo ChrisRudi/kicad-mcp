@@ -8,6 +8,24 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Dev/CI: Live-IPC gegen echten laufenden Editor — die „Mitarbeiter"-Schicht)
+- **`tests/live_ipc_harness.py` (neu):** `LiveEditor`-Kontext startet einen
+  ECHTEN pcbnew unter Xvfb, klickt den bei jedem pcbnew-Standalone-Start neu
+  erscheinenden „Welcome to KiCad"-Erststart-Dialog per xdotool weg (Escape →
+  „Yes") und wartet, bis die kipy-IPC (`/tmp/kicad/api.sock`) antwortet;
+  sauberes Teardown. `tools_present()` gate (Xvfb/pcbnew/xdotool).
+- **`tests/test_live_ipc.py` (neu):** fährt den REALEN Produktpfad
+  (`server.call_tool("ipc_*")`) gegen den laufenden Editor —
+  `ipc_check_status` (board_open/ready), `ipc_get_open_documents`, und der
+  Kern: **Selektions-Cross-Probe-Roundtrip** (U1 via kipy im Editor
+  markieren → `ipc_get_selection` liest Referenz/Typ zurück → Deselektion →
+  count 0). Das ist „was ist das?"/„Auswahl einbeziehen" end-to-end gegen
+  echtes KiCad — bisher nur auf der Nutzer-Maschine prüfbar. Opt-in +
+  selbst-skippend (`KICAD_MCP_LIVE_IPC=1` + Tools da).
+- **`setup_container_kicad.sh`:** installiert zusätzlich xvfb/xdotool/x11-utils
+  und seedt `kicad_common.json` (IPC-API-Server an). **CI-Job `live-ipc`**
+  (ubuntu-latest) fährt die Live-Tests bei jedem Push.
+
 ### Added (Dev/CI: echtes KiCad 10 im Container und in Actions)
 - **`scripts/setup_container_kicad.sh` (neu):** installiert KiCad 10 aus dem
   offiziellen PPA in einen Ubuntu-24.04-Container/CI-Runner (Key über die

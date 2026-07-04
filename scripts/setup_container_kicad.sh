@@ -38,6 +38,30 @@ else
     echo "installiert: $(kicad-cli version)"
 fi
 
+# GUI-Live-IPC-Zutaten (optional, für die tests/test_live_ipc.py): ein echter
+# pcbnew unter virtuellem Display + Fenster-Automation. Best-effort — der
+# reine Selftest/Headless-Pfad braucht sie nicht.
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
+    xvfb xdotool x11-utils >/dev/null 2>&1 || \
+    echo "Hinweis: xvfb/xdotool nicht installiert — Live-IPC-Tests werden geskippt"
+
+# KiCad-Config seeden: IPC-API-Server AN (sonst kein Socket für kipy). Der
+# 'Welcome to KiCad'-Erststart-Dialog erscheint bei pcbnew-Standalone dennoch
+# je Start neu — das Live-Harness klickt ihn per xdotool weg.
+KCFG="${HOME}/.config/kicad/10.0"
+mkdir -p "$KCFG"
+if [ ! -f "$KCFG/kicad_common.json" ]; then
+    cat > "$KCFG/kicad_common.json" <<'JSON'
+{
+  "api": { "enable_server": true, "interpreter_path": "" },
+  "do_not_show_again": { "data_collection": true, "update_check_prompt": true },
+  "environment": { "show_warning_dialog": false },
+  "system": { "first_run_shown": true, "language": "en" }
+}
+JSON
+    echo "kicad_common.json geseedet (IPC-API an)"
+fi
+
 # pcbnew-Brücke ins venv (nur wenn ein venv da ist und pcbnew dort fehlt)
 if [ -d "$VENV" ]; then
     PYV=$("$VENV/bin/python" -c "import sys;print(f'{sys.version_info[0]}.{sys.version_info[1]}')")

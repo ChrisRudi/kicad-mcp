@@ -103,3 +103,26 @@ jobs:
           name: selftest-report
           path: selftest-out/
           retention-days: 7
+
+  live-ipc:
+    name: Live-IPC (echter pcbnew unter Xvfb — die „Mitarbeiter"-Schicht)
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install KiCad 10 + GUI-Live-Zutaten (Xvfb/xdotool)
+        run: sudo sh scripts/setup_container_kicad.sh ""
+
+      - name: Install project (venv mit System-Site → kipy/pcbnew sichtbar)
+        run: |
+          python3 -m venv --system-site-packages .venv-kicad
+          .venv-kicad/bin/pip install --upgrade pip
+          .venv-kicad/bin/pip install -e ".[dev]" || .venv-kicad/bin/pip install -e .
+          # kipy (kicad-python) ist nicht in dist-packages — separat holen
+          .venv-kicad/bin/pip install kicad-python
+
+      - name: Live-IPC-Tests (Selektion/Cross-Probe gegen laufenden Editor)
+        env:
+          KICAD_MCP_LIVE_IPC: "1"
+        run: .venv-kicad/bin/pytest tests/test_live_ipc.py -q --no-cov --tb=short

@@ -11,7 +11,13 @@ hält beide Trees deckungsgleich). So muss nur `kicad_mcp/` gepflegt werden.
 Echtes KiCad 10 im Container/CI: `sudo sh scripts/setup_container_kicad.sh` —
 danach laufen die pcbnew-/kicad-cli-Testpfade echt (`python -m
 kicad_mcp.selftest` = 10/10 statt SKIPs; die ~194 pcbnew-Suite-Skips werden zu
-Tests).
+Tests). Das Skript installiert zusätzlich Xvfb/xdotool und seedt die
+KiCad-Config (IPC-API an) für die **Live-IPC-Tests**: `tests/live_ipc_harness.py`
+startet einen echten pcbnew unter Xvfb (klickt den je Start neu erscheinenden
+„Welcome to KiCad"-Dialog per xdotool weg), `tests/test_live_ipc.py` fährt den
+Selektions-Cross-Probe dagegen — opt-in via `KICAD_MCP_LIVE_IPC=1`
+(CI-Job `live-ipc`). Damit ist die „Mitarbeiter"-Schicht (laufender Editor,
+`ipc_*`, Selektion) headless testbar, nicht nur die Datei-Maschinerie.
 
 Dies ist ein GPL-3.0-or-later-Fork des MIT-Projekts
 [lamaalrajih/kicad-mcp](https://github.com/lamaalrajih/kicad-mcp) — Begründung in
