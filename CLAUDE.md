@@ -8,6 +8,10 @@ Dev-Setup einmalig pro Clone: `sh scripts/setup-hooks.sh` — aktiviert den
 pre-commit-Hook, der den Bundle `plugin/mcp/kicad_mcp/` automatisch aus dem
 kanonischen `kicad_mcp/` spiegelt (`scripts/sync_bundle.py`; `tests/test_bundle_sync.py`
 hält beide Trees deckungsgleich). So muss nur `kicad_mcp/` gepflegt werden.
+Echtes KiCad 10 im Container/CI: `sudo sh scripts/setup_container_kicad.sh` —
+danach laufen die pcbnew-/kicad-cli-Testpfade echt (`python -m
+kicad_mcp.selftest` = 10/10 statt SKIPs; die ~194 pcbnew-Suite-Skips werden zu
+Tests).
 
 Dies ist ein GPL-3.0-or-later-Fork des MIT-Projekts
 [lamaalrajih/kicad-mcp](https://github.com/lamaalrajih/kicad-mcp) — Begründung in

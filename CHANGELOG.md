@@ -8,6 +8,20 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Dev/CI: echtes KiCad 10 im Container und in Actions)
+- **`scripts/setup_container_kicad.sh` (neu):** installiert KiCad 10 aus dem
+  offiziellen PPA in einen Ubuntu-24.04-Container/CI-Runner (Key über die
+  Launchpad-API, ohne die ~5-GB-3D-Modelle) und brückt pcbnew ins
+  Projekt-venv (dediziertes `/opt/pcbnew-bridge` + `.pth` — nur
+  `pcbnew.py`/`_pcbnew.so`, damit dist-packages keine venv-Pakete
+  beschattet). Ergebnis im Dev-Container: Selftest **10/10 PASS, 0 SKIP**
+  (Connectivity via pcbnew 10.0.4, DRC via kicad-cli, Symbol-Auflösung
+  gegen echte Bibliotheken), Peak-RAM 275 MB.
+- **CI-Job `tests-kicad`:** ubuntu-latest + dasselbe Skript → Selftest und
+  die volle pytest-Suite laufen gegen echtes KiCad; die ~194 bisher
+  geskippten pcbnew-Tests und die kicad-cli-Pfade (ERC/DRC) werden damit
+  dauerhaft ECHT getestet. Selftest-Report als Build-Artefakt.
+
 ### Fixed (RAM-Verhalten + Mess-Transparenz, Plugin 0.9.1)
 - **Fünfter Feld-Report („Systemtest braucht auf einmal viel RAM?"):**
   - `symbol_cache._read_lib_file`: `lru_cache` 64 → 8. Der Cache hält

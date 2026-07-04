@@ -68,3 +68,40 @@ jobs:
           path: |
             .pytest_cache
           retention-days: 7
+
+  tests-kicad:
+    name: pytest + selftest (Linux, echtes KiCad 10)
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install KiCad 10 (PPA, ohne 3D-Modelle)
+        # Gleiche Route wie der Dev-Container: scripts/setup_container_kicad.sh
+        # (PPA + kicad + Symbol-/Footprint-Libs). Damit laufen die ~194 sonst
+        # geskippten pcbnew-Tests und die kicad-cli-Pfade (ERC/DRC) ECHT.
+        run: sudo sh scripts/setup_container_kicad.sh ""
+
+      - name: Install project (venv mit System-Site → pcbnew sichtbar)
+        run: |
+          python3 -m venv --system-site-packages .venv-kicad
+          .venv-kicad/bin/pip install --upgrade pip
+          .venv-kicad/bin/pip install -e ".[dev]" || .venv-kicad/bin/pip install -e .
+
+      - name: Selftest (10 Schritte, echte Tools, echtes KiCad)
+        run: .venv-kicad/bin/python -m kicad_mcp.selftest --out selftest-out --verbose
+
+      - name: Run tests (inkl. pcbnew-/kicad-cli-Pfade)
+        # Noch informativ (continue-on-error), bis der erste volle
+        # pcbnew-Suite-Lauf validiert ist — der Selftest-Schritt darüber
+        # ist scharf. Danach dieses Flag entfernen.
+        continue-on-error: true
+        run: .venv-kicad/bin/pytest tests/ -q --no-cov --tb=short
+
+      - name: Upload selftest report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selftest-report
+          path: selftest-out/
+          retention-days: 7
