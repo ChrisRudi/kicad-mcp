@@ -8,6 +8,30 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Demo-Auswahlmenü mit Hover-Vorschau der Super-Skills — Abschnitte)
+- **Nutzer-Wunsch:** die Demo soll über ein Menü wählbar sein, und schon beim
+  Aufklappen/Hover sieht man, welche Super-Skills beteiligt sind und was
+  passiert; den Demo-Button in Abschnitte unterteilen.
+- **`plugin/chat_dialog.py`:** aus dem einen „▶ Demo"-Knopf wird „▶ Demo ▾" mit
+  Aufklapp-Menü (`_build_demo_menu`): nach `demo_kits.SECTIONS` gruppiert
+  (Analog & Simulation, Digital & Schnittstellen, Leistung & Norm,
+  Spezial-Layout, Fertigung & Methode), je Bausatz ein **Untermenü**, dessen
+  Einträge die Skill-Folge zeigen (`1. 🧬 SPICE-Modelle — <warum hier>`, …) —
+  so sieht man beim Hover eines Bausatzes seine beteiligten Super-Skills und die
+  Begründung. Ein „▶ starten"-Eintrag löst die Demo aus; ganz unten die bisherige
+  Schnell-Demo (Testboard, `_run_quick_demo`).
+- **`_run_demo_kit`:** solange die Schaltplan-Spec eines Bausatzes noch nicht
+  gebaut ist, zeigt der Klick den Ablauf transparent in Abschnitten (Schaltplan
+  anlegen → Skill für Skill mit Begründung) als Vorschau; mit vorhandener Spec
+  läuft daraus die echte Demo (Ausführung folgt mit den Specs).
+- **`plugin/demo_kits.py`:** `section`-Feld je Bausatz + `SECTIONS`-Tabelle,
+  `by_section()`, sowie pure Anzeige-Helfer `pipeline_items()` (Skill-Label +
+  Begründung, Label aus `superfeatures`) und `hover_preview()` (Zweck + Skill-
+  Kette mit Zählwert). `validate()` prüft jetzt auch die Abschnitts-Zuordnung.
+- **`tests/test_demo_kits.py`:** +22 Tests (jetzt 53) — Abschnitte partitionieren
+  alle Bausätze, `pipeline_items`/`hover_preview` zeigen jede beteiligte Skill.
+  pylint 10/10. Weiterhin keine neuen MCP-Tools (reine Plugin-Ebene).
+
 ### Added (Demo-Bausatz-Registry + Runner-Gerüst — 10 Schaustück-Schaltungen, alle 34 Super-Skills)
 - **Nutzer-Wunsch:** die Demo soll zeigen, was die ~34 Super-Skills können —
   ~10 Demo-Schaltungen, je Bausatz wird ein hinterlegter Schaltplan angelegt und

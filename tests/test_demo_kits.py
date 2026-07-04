@@ -62,6 +62,44 @@ def test_get_resolves_and_missing_is_none():
     assert dk.get("gibtsnicht") is None
 
 
+# --- Menü-Abschnitte + Anzeige-Helfer (Hover-Vorschau) ---------------------
+
+
+def test_sections_partition_all_kits():
+    section_keys = {s for s, _ in dk.SECTIONS}
+    seen = []
+    for sect_key in section_keys:
+        seen.extend(dk.by_section(sect_key))
+    # jeder Bausatz genau einem (bekannten) Abschnitt zugeordnet
+    assert {k.key for k in seen} == {k.key for k in dk.all_kits()}
+    assert all(k.section in section_keys for k in dk.all_kits())
+
+
+def test_by_section_keeps_registry_order():
+    for sect_key, _ in dk.SECTIONS:
+        kits = dk.by_section(sect_key)
+        idx = [dk.all_kits().index(k) for k in kits]
+        assert idx == sorted(idx)
+
+
+@pytest.mark.parametrize("kit", dk.all_kits(), ids=lambda k: k.key)
+def test_pipeline_items_match_pipeline(kit):
+    items = dk.pipeline_items(kit)
+    assert len(items) == len(kit.pipeline)
+    for (label, why), fk in zip(items, kit.pipeline):
+        assert label == sf.get(fk).label  # Anzeige-Label aus superfeatures
+        assert why == kit.rationale[fk]
+
+
+@pytest.mark.parametrize("kit", dk.all_kits(), ids=lambda k: k.key)
+def test_hover_preview_shows_count_and_all_skill_labels(kit):
+    prev = dk.hover_preview(kit)
+    assert f"{len(kit.pipeline)} Skills" in prev
+    assert kit.summary in prev
+    for fk in kit.pipeline:
+        assert sf.get(fk).label in prev  # jede beteiligte Skill sichtbar
+
+
 # --- Runner-Gerüst ---------------------------------------------------------
 
 

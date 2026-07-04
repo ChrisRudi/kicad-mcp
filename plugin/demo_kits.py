@@ -40,6 +40,7 @@ class DemoKit:
     key       stabile id (Menü-Dispatch, Spec-Dateiname)
     title     Menü-Text: Emoji + Kurzname
     summary   ein Satz, was die Schaltung ist
+    section   Menü-Abschnitt (Key aus ``SECTIONS``) — gliedert das Demo-Menü
     spec_file basename der (separat zu bauenden) ``.kicad_sch``-Spec-JSON unter
               ``kicad_mcp/resources/data/demo_kits/``
     pipeline  GEORDNETE Super-Skill-Keys — die Reihenfolge ist ein echter
@@ -52,9 +53,21 @@ class DemoKit:
     key: str
     title: str
     summary: str
+    section: str
     spec_file: str
     pipeline: tuple[str, ...]
     rationale: dict[str, str]
+
+
+# Menü-Abschnitte (Reihenfolge = Menü-Reihenfolge). Der Demo-Knopf klappt zu
+# diesen Gruppen auf — „den Demo-Button in Abschnitte unterteilen".
+SECTIONS: tuple[tuple[str, str], ...] = (
+    ("analog", "🎛️ Analog & Simulation"),
+    ("digital", "🔌 Digital & Schnittstellen"),
+    ("power", "⚡ Leistung & Norm"),
+    ("layout", "⊙ Spezial-Layout"),
+    ("fertigung", "🏭 Fertigung & Methode"),
+)
 
 
 # Reihenfolge = Menü-Reihenfolge. Der Audioverstärker führt (Nutzer-Beispiel).
@@ -63,6 +76,7 @@ KITS: tuple[DemoKit, ...] = (
         key="audio_amp",
         title="🔊 Audioverstärker",
         summary="Chip-Endstufe mit OpAmp-Eingangsstufe — der Analog-Klassiker.",
+        section="analog",
         spec_file="audio_amp.json",
         pipeline=("sim_models", "simulate", "slew_rate", "untangle",
                   "thermal", "ampacity"),
@@ -84,6 +98,7 @@ KITS: tuple[DemoKit, ...] = (
         key="usb_sensor_hub",
         title="🔌 USB-C Sensor-Hub",
         summary="MCU mit I²C/SPI-Sensoren und USB-C — das Digital-Arbeitstier.",
+        section="digital",
         spec_file="usb_sensor_hub.json",
         pipeline=("bus_radar", "semantic_erc", "xtal_caps", "pin_swap",
                   "impedance", "firmware_map"),
@@ -105,6 +120,7 @@ KITS: tuple[DemoKit, ...] = (
         key="ac_dc_supply",
         title="⚡ AC-DC-Netzteil",
         summary="Offline-Flyback 230 V → 5 V — das Netzspannungs-Projekt.",
+        section="power",
         spec_file="ac_dc_supply.json",
         pipeline=("protection_class", "safety_spacing", "thermal",
                   "operating_temp", "ampacity"),
@@ -123,6 +139,7 @@ KITS: tuple[DemoKit, ...] = (
         key="led_ring",
         title="⊙ LED-Ring",
         summary="Adressierbare WS2812-LEDs auf einem runden Board.",
+        section="layout",
         spec_file="led_ring.json",
         pipeline=("polar_board", "select_place", "ampacity", "mlcc_derating",
                   "cost_estimate"),
@@ -142,6 +159,7 @@ KITS: tuple[DemoKit, ...] = (
         key="motor_driver",
         title="⚙️ Motor-Treiber",
         summary="Gate-Driver mit MOSFET-Brücke und MCU — Leistungselektronik.",
+        section="power",
         spec_file="motor_driver.json",
         pipeline=("ampacity", "thermal", "via_cost", "test_points",
                   "dfm_check"),
@@ -160,6 +178,7 @@ KITS: tuple[DemoKit, ...] = (
         key="buck_converter",
         title="📉 Buck-Wandler-Modul",
         summary="DC-DC-Abwärtswandler mit IC, Spule und Filter-Cs.",
+        section="power",
         spec_file="buck_converter.json",
         pipeline=("datasheet_diff", "mlcc_derating", "operating_temp",
                   "simulate", "explain_board"),
@@ -179,6 +198,7 @@ KITS: tuple[DemoKit, ...] = (
         key="ethernet_device",
         title="🌐 Ethernet-Gerät",
         summary="MCU mit Ethernet-PHY und RJ45 — Signalintegrität + Beschaffung.",
+        section="digital",
         spec_file="ethernet_device.json",
         pipeline=("nl_navigation", "semantic_erc", "impedance", "bom_sourcing",
                   "silk_cleanup"),
@@ -196,6 +216,7 @@ KITS: tuple[DemoKit, ...] = (
         key="sketch_to_copper",
         title="✏️ Skizze → Kupfer",
         summary="Kleiner Leistungspfad, den man interaktiv mit Hilfe routet.",
+        section="layout",
         spec_file="sketch_to_copper.json",
         pipeline=("untangle", "sketch_layer", "sketch_conductor", "watch_mode",
                   "silk_cleanup"),
@@ -214,6 +235,7 @@ KITS: tuple[DemoKit, ...] = (
         key="production_ready",
         title="🏭 Serienreife & Kosten",
         summary="Dichtes Breakout mit vielen R/C — Fokus Fertigung & Kosten.",
+        section="fertigung",
         spec_file="production_ready.json",
         pipeline=("bom_consolidate", "preferred_parts", "via_cost",
                   "dfm_check", "cost_estimate"),
@@ -234,6 +256,7 @@ KITS: tuple[DemoKit, ...] = (
         key="kit_seeding",
         title="🪄 Datenblatt & Foto → Schaltung",
         summary="Meta-Demo: wie ein Bausatz überhaupt entsteht.",
+        section="fertigung",
         spec_file="kit_seeding.json",
         pipeline=("datasheet_circuit", "datasheet_diff", "photo_reverse",
                   "explain_board"),
@@ -260,6 +283,31 @@ def get(key: str) -> DemoKit | None:
     return next((k for k in KITS if k.key == key), None)
 
 
+def by_section(section: str) -> list[DemoKit]:
+    """Bausätze eines Menü-Abschnitts, in Registry-Reihenfolge."""
+    return [k for k in KITS if k.section == section]
+
+
+def pipeline_items(kit: DemoKit) -> list[tuple[str, str]]:
+    """Die Skill-Folge eines Bausatzes als ``(Skill-Label, Begründung)`` — für
+    die Menü-/Hover-Anzeige (welche Super-Skills, was passiert). Zieht das
+    Anzeige-Label (Emoji + Name) aus ``superfeatures``."""
+    items = []
+    for fk in kit.pipeline:
+        feat = sf.get(fk)
+        label = feat.label if feat else fk
+        items.append((label, kit.rationale[fk]))
+    return items
+
+
+def hover_preview(kit: DemoKit) -> str:
+    """Kompakte Hover-Vorschau: ein Satz Zweck + die Skill-Kette (Pfeil-getrennt).
+    Zeigt vor dem Klick, welche Super-Skills beteiligt sind und was passiert."""
+    chain = " → ".join(sf.get(fk).label if sf.get(fk) else fk
+                       for fk in kit.pipeline)
+    return f"{kit.summary}  ·  {len(kit.pipeline)} Skills: {chain}"
+
+
 def covered_skills() -> frozenset[str]:
     """Alle Super-Skill-Keys, die irgendein Bausatz aufruft."""
     return frozenset(fk for kit in KITS for fk in kit.pipeline)
@@ -281,7 +329,11 @@ def validate() -> None:
     if len(keys) != len(set(keys)):
         raise ValueError("Doppelter Bausatz-Key in demo_kits.KITS")
     valid_skills = {f.key for f in sf.all_features()}
+    valid_sections = {s for s, _ in SECTIONS}
     for kit in KITS:
+        if kit.section not in valid_sections:
+            raise ValueError(
+                f"Bausatz '{kit.key}': unbekannter Abschnitt '{kit.section}'")
         if not kit.pipeline:
             raise ValueError(f"Bausatz '{kit.key}' hat keine Pipeline")
         unknown = [fk for fk in kit.pipeline if fk not in valid_skills]

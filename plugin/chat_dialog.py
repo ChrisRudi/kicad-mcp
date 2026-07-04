@@ -984,12 +984,13 @@ class ClaudeChatPanel(wx.Panel):
                 self._add_feature_button(bar, feat, color)
         # Demo-Knopf: baut die Testschaltung sichtbar (Idee→Schaltplan→
         # Berechnung→Platine), ohne Modell-Kontingent — Onboarding + Beweis.
-        demo_btn = wx.Button(self, label=tr("▶ Demo"), style=wx.BU_EXACTFIT)
+        demo_btn = wx.Button(self, label=tr("▶ Demo ▾"), style=wx.BU_EXACTFIT)
         demo_btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
         demo_btn.SetForegroundColour(wx.Colour(theme.CLAUDE_ORANGE))
         demo_btn.SetToolTip(tr(
-            "Baut die Testschaltung automatisch vor: Idee → Schaltplan → "
-            "Berechnung → Platine. Ohne Eingabe, ohne Modell-Kontingent."))
+            "Demo-Schaltung wählen — aufklappen zeigt je Bausatz die "
+            "beteiligten Super-Skills und was passiert. Baut den Schaltplan "
+            "vor und lässt die Skills der Reihe nach das Board entwerfen."))
         demo_btn.Bind(wx.EVT_BUTTON, self._on_demo)
         bar.Add(demo_btn, 0, wx.ALL, 2)
         root.Add(bar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
@@ -1040,7 +1041,80 @@ class ClaudeChatPanel(wx.Panel):
                         "Auswahl.\n", theme.DIM)
 
     def _on_demo(self, _evt) -> None:
-        """Demo-Knopf: baut die Testschaltung sichtbar (Idee→Schaltplan→
+        """Demo-Knopf: klappt das Bausatz-Menü auf — nach Abschnitten gruppiert,
+        je Bausatz ein Untermenü, das die beteiligten Super-Skills mit
+        Begründung zeigt (Hover = was passiert). Ein Klick startet die Demo.
+        Ganz unten die Schnell-Demo (Testboard). Best-effort, damit ein
+        Layout-Haken das Panel nie bricht."""
+        try:
+            menu = self._build_demo_menu()
+            self.PopupMenu(menu)
+            menu.Destroy()
+        except Exception as exc:  # pragma: no cover - GUI-Fallback
+            self._set_status(f"Demo-Menü: {exc}", theme.ERROR_RED)
+
+    def _build_demo_menu(self) -> "wx.Menu":
+        """Baut das Demo-Menü aus ``demo_kits``: Abschnitts-Überschriften, je
+        Bausatz ein Untermenü mit seiner Skill-Folge (Nr. Skill — warum hier)
+        und einem „▶ starten"-Eintrag; darunter die Schnell-Demo."""
+        from . import demo_kits, demo_runner
+        menu = wx.Menu()
+        for sect_key, sect_label in demo_kits.SECTIONS:
+            kits = demo_kits.by_section(sect_key)
+            if not kits:
+                continue
+            hdr = menu.Append(wx.ID_ANY, "— " + tr(sect_label) + " —")
+            hdr.Enable(False)
+            for kit in kits:
+                sub = wx.Menu()
+                for i, (label, why) in enumerate(
+                        demo_kits.pipeline_items(kit), 1):
+                    info = sub.Append(wx.ID_ANY, f"{i}. {label} — {why}")
+                    info.Enable(False)  # rein informativ (die Skill-Folge)
+                sub.AppendSeparator()
+                start = sub.Append(wx.ID_ANY, tr("▶ Diese Demo starten"))
+                if not demo_runner.spec_exists(kit):
+                    start.SetItemLabel(tr("▶ Ablauf zeigen (Spec folgt)"))
+                self.Bind(wx.EVT_MENU,
+                          lambda _e, k=kit.key: self._run_demo_kit(k), start)
+                menu.AppendSubMenu(
+                    sub, f"{kit.title}   ({len(kit.pipeline)} Skills)")
+            menu.AppendSeparator()
+        quick = menu.Append(wx.ID_ANY, tr("🔧 Schnell-Demo (Testboard)"))
+        self.Bind(wx.EVT_MENU, lambda _e: self._run_quick_demo(), quick)
+        return menu
+
+    def _run_demo_kit(self, kit_key: str) -> None:
+        """Einen gewählten Bausatz starten. Solange die Schaltplan-Spec noch
+        nicht gebaut ist, zeigt es den Ablauf transparent in Abschnitten
+        (Schaltplan anlegen → Skill für Skill mit Begründung) als Vorschau; mit
+        vorhandener Spec läuft daraus die echte Demo (folgt)."""
+        from . import demo_kits, demo_runner
+        kit = demo_kits.get(kit_key)
+        if kit is None:
+            return
+        self._write(f"\n▶ {tr('Demo')} — {kit.title}\n",
+                    theme.CLAUDE_ORANGE, bold=True)
+        self._write(f"  {kit.summary}\n", theme.DIM)
+        try:
+            steps = demo_runner.plan(kit_key)
+        except Exception as exc:
+            self._append("error", f"Demo-Plan fehlgeschlagen: {exc}")
+            return
+        for i, step in enumerate(steps):
+            if step.kind == demo_runner.STEP_BUILD:
+                self._write(f"  {i}. 📐 {step.detail}\n", theme.FOREGROUND)
+            else:
+                self._write(f"  {i}. {step.label}\n", theme.FOREGROUND)
+                self._write(f"        {step.detail}\n", theme.DIM)
+        if not demo_runner.spec_exists(kit):
+            self._write("  📋 " + tr(
+                "Vorschau — die Schaltung wird angelegt, sobald ihre Spec "
+                "vorliegt; dann laufen diese Skills der Reihe nach automatisch "
+                "das Board entwerfen.") + "\n", theme.DIM)
+
+    def _run_quick_demo(self) -> None:
+        """Schnell-Demo: baut die Testschaltung sichtbar (Idee→Schaltplan→
         Berechnung→Platine) in einem Worker, streamt die Schritte ins
         Transkript und öffnet die fertige Platine im Editor. Deterministisch,
         ohne Modell-Kontingent."""
