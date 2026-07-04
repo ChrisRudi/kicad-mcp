@@ -322,12 +322,13 @@ class ClaudeChatPanel(wx.Panel):
         return rendered
 
     def _write_link(self, chunk: str, kind: str, value) -> None:
-        """Write one clickable span (orange + underlined) and record its
+        """Write one clickable span (blue + underlined) and record its
         char-range → target so a click resolves it. ``kind`` is a board target
         (``ref``/``net``/``layer``/``pin``/``coord``) or ``"url"`` (Dok 2:
-        the recommend-mailto link, opened via the OS handler)."""
+        the recommend-mailto link, opened via the OS handler). KiCad-Blau
+        (``theme.LINK``) signalisiert Klickbarkeit nativer als das Marken-Orange."""
         start = self._out.GetLastPosition()
-        self._write(chunk, theme.CLAUDE_ORANGE, underline=True)
+        self._write(chunk, theme.LINK, underline=True)
         self._links.append((start, self._out.GetLastPosition(), kind, value))
 
     # -- startup banner (Dok 2) ---------------------------------------------

@@ -10,29 +10,35 @@ damit alles hier headless unit-testbar ist.
 
 from __future__ import annotations
 
-# -- Palette: dunkles Terminal + Claude-Markenorange --------------------------
-BACKGROUND = "#1F1E1D"     # Fensterhintergrund (warmes Terminal-Schwarz)
-SURFACE = "#2A2826"        # Eingabefeld / abgesetzte Flächen
-FOREGROUND = "#E8E6E3"     # Claude-Antworttext (helles Off-White)
-CLAUDE_ORANGE = "#D97757"  # Markenfarbe: Spinner, Bullets, Prompt-Chevron
-DIM = "#8A8782"            # gedimmt: eigene Eingabe, Banner, Status "Bereit."
-ERROR_RED = "#E5484D"
-OK_GREEN = "#3FB950"       # Ampel „läuft"
-CODE_FG = "#9AD1F5"        # Inline-Code & Codeblöcke (kühles Blau auf SURFACE)
+# -- Palette: Design A „Werkbank" — helles, natives KiCad-Panel ---------------
+# Das Panel soll aussehen wie ein eingebautes KiCad-Werkzeug (pcbnew-Chrome):
+# helle Fläche, dunkle Systemschrift, KiCad-Blau für Klickbares. Die
+# Markenfarbe (warmes Orange) bleibt als sparsamer Akzent (Chevron, Spinner,
+# Feature-Tag, Überschriften). Token-Namen bleiben stabil (66 Aufrufstellen).
+BACKGROUND = "#FAFBFC"     # Panel-Hintergrund (nahezu weiß, leicht kühl)
+SURFACE = "#EDF0F3"        # Eingabefeld / Knöpfe / abgesetzte Flächen
+FOREGROUND = "#20242A"     # Antworttext (dunkle Systemschrift)
+CLAUDE_ORANGE = "#C15B2E"  # warmer Marken-Akzent: Spinner, Chevron, Bullets
+LINK = "#2F6FB0"           # KiCad-Blau: klickbare Board-Links (nativ, kontraststark)
+DIM = "#5D646E"            # gedimmt: eigene Eingabe, Banner, Status „Bereit."
+ERROR_RED = "#C0392B"
+OK_GREEN = "#2E8B4A"       # Ampel „läuft"
+CODE_FG = "#1F5C86"        # Inline-Code & Codeblöcke (dunkles Blau auf SURFACE)
 
 # Gruppenfarben der Super-Feature-Leiste — ein Akzent je Kategorie, damit die
 # Leiste scanbar wird. Keys = superfeatures.CATEGORIES-Keys (Guard-Test).
+# Für hellen Grund abgedunkelt (Kontrast auf #FAFBFC).
 CATEGORY_COLORS = {
-    "verstehen": "#7FB4E8",   # blau — lesen/prüfen
-    "layout": "#B78AE8",      # violett — Geometrie/Skizze
-    "elektrik": "#E8C558",    # gelb — Strom/Norm
-    "fertigung": "#8AC98A",   # grün — Fertigung/Kosten
-    "simulation": "#E88AB0",  # rosa — Simulation
-    "kreativ": "#6FD3C7",     # türkis — Brücken/Kreativ
+    "verstehen": "#3F7FC4",   # blau — lesen/prüfen
+    "layout": "#8A5CC9",      # violett — Geometrie/Skizze
+    "elektrik": "#B8860B",    # gold — Strom/Norm
+    "fertigung": "#4F9D54",   # grün — Fertigung/Kosten
+    "simulation": "#C05A8A",  # magenta — Simulation
+    "kreativ": "#1F998C",     # türkis — Brücken/Kreativ
 }
 
 # Markdown-Segment → (Farbe, fett, Hintergrund | None). "text" nimmt die
-# Rollenfarbe des Aufrufers (None = einsetzen), Links behalten ihr Orange.
+# Rollenfarbe des Aufrufers (None = einsetzen); Überschriften im Marken-Akzent.
 MARKDOWN_STYLES = {
     "text": (None, False, None),
     "bold": (None, True, None),

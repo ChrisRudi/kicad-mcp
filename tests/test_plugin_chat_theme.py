@@ -16,14 +16,20 @@ class TestPalette:
     def test_all_palette_colors_are_hex(self):
         for color in (chat_theme.BACKGROUND, chat_theme.SURFACE,
                       chat_theme.FOREGROUND, chat_theme.CLAUDE_ORANGE,
-                      chat_theme.DIM, chat_theme.ERROR_RED):
+                      chat_theme.LINK, chat_theme.DIM, chat_theme.ERROR_RED):
             assert _HEX.match(color), color
 
-    def test_dark_terminal_background(self):
-        # "schwarzes Fenster": the background must be near-black, the
-        # foreground light — otherwise it isn't the CLI look.
-        assert int(chat_theme.BACKGROUND[1:3], 16) < 0x40
-        assert int(chat_theme.FOREGROUND[1:3], 16) > 0xC0
+    def test_light_native_background(self):
+        # Design A „Werkbank": helles KiCad-Panel — Hintergrund nahezu weiß,
+        # Text dunkel (das native, nicht das Terminal-Aussehen).
+        assert int(chat_theme.BACKGROUND[1:3], 16) > 0xC0
+        assert int(chat_theme.FOREGROUND[1:3], 16) < 0x40
+
+    def test_link_is_a_distinct_blue(self):
+        # Klickbare Links tragen KiCad-Blau, nicht das Marken-Orange.
+        assert chat_theme.LINK != chat_theme.CLAUDE_ORANGE
+        r, _g, b = (int(chat_theme.LINK[i:i + 2], 16) for i in (1, 3, 5))
+        assert b > r  # blau-dominant
 
 
 class TestRoles:

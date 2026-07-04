@@ -1,7 +1,21 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.10.0**
+Aktuelle Version: **0.10.1**
+
+---
+
+## 🎨 Neu in 0.10.1 — Design A „Werkbank": das Panel sieht jetzt aus wie KiCad
+
+- **Heller, nativer Look** statt dunklem Terminal: helle Fläche, dunkle
+  Systemschrift, dünne Ränder — das Panel wirkt wie ein eingebautes
+  KiCad-Werkzeug, nicht wie eine fremde App.
+- **Klickbare Board-Links in KiCad-Blau** (statt Orange) — signalisiert
+  „das kannst du anklicken" so, wie man es aus KiCad kennt. Die Marken-Farbe
+  (warmes Orange) bleibt als sparsamer Akzent: Überschriften, Eingabe-Pfeil,
+  Feature-Tag.
+- **Gruppenfarben** der Super-Features für hellen Grund abgestimmt, Ampeln
+  und Knöpfe im nativen Stil.
 
 ---
 

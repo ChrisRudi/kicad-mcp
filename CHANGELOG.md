@@ -8,6 +8,18 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (Design A „Werkbank" — helles natives KiCad-Theme, Plugin 0.10.1)
+- **`chat_theme.py` Palette auf hell-nativ** (Design A gewählt): BACKGROUND
+  `#FAFBFC`, FOREGROUND `#20242A`, SURFACE `#EDF0F3`; neuer Token `LINK`
+  (`#2F6FB0`, KiCad-Blau) für klickbare Board-Links; `CLAUDE_ORANGE` bleibt
+  als warmer Marken-Akzent (Chevron/Spinner/Überschriften), auf Hell
+  abgedunkelt; Kategoriefarben für hellen Grund kontrastiert. Token-Namen
+  stabil → die 66 Panel-Referenzen folgen automatisch.
+- `chat_dialog._write_link` nutzt `theme.LINK` (Board-Links jetzt blau, nicht
+  orange). Theme-Tests auf Hell umgestellt (`test_light_native_background`,
+  `test_link_is_a_distinct_blue`). Auf Linux via gui-smoke verifiziert.
+  Version 0.10.0 → 0.10.1.
+
 ### Added (Wählbares Agenten-Backend — MCP-fähige CLIs, Plugin 0.10.0)
 - **`plugin/backends.py` (neu):** Backend-Abstraktion für MCP-sprechende
   Agenten-CLIs. `Backend`-Vertrag kapselt die Unterschiede: `find()`,
