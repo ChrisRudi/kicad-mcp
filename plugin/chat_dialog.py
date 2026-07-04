@@ -998,6 +998,16 @@ class ClaudeChatPanel(wx.Panel):
             btn.Bind(wx.EVT_BUTTON,
                      lambda _e, b=btn, fl=feats: self._popup_feature_menu(b, fl))
             bar.Add(btn, 0, wx.ALL, 2)
+        # Demo-Knopf: baut die Testschaltung sichtbar (Idee→Schaltplan→
+        # Berechnung→Platine), ohne Modell-Kontingent — Onboarding + Live-Beweis.
+        demo_btn = wx.Button(self, label=tr("▶ Demo"), style=wx.BU_EXACTFIT)
+        demo_btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
+        demo_btn.SetForegroundColour(wx.Colour(theme.CLAUDE_ORANGE))
+        demo_btn.SetToolTip(tr(
+            "Baut die Testschaltung automatisch vor: Idee → Schaltplan → "
+            "Berechnung → Platine. Ohne Eingabe, ohne Modell-Kontingent."))
+        demo_btn.Bind(wx.EVT_BUTTON, self._on_demo)
+        bar.Add(demo_btn, 0, wx.ALL, 2)
         root.Add(bar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
 
     def _popup_feature_menu(self, anchor_btn, feats) -> None:
@@ -1056,6 +1066,44 @@ class ClaudeChatPanel(wx.Panel):
         if getattr(feat, "selection_aware", False):
             self._write("  Wirkt aufs ganze Board oder auf deine aktuelle "
                         "Auswahl.\n", theme.DIM)
+
+    def _on_demo(self, _evt) -> None:
+        """Demo-Knopf: baut die Testschaltung sichtbar (Idee→Schaltplan→
+        Berechnung→Platine) in einem Worker, streamt die Schritte ins
+        Transkript und öffnet die fertige Platine im Editor. Deterministisch,
+        ohne Modell-Kontingent."""
+        if self._busy:
+            self._set_status(tr("⏳ Es läuft noch ein Zug — danach nochmal "
+                                "klicken."), theme.CLAUDE_ORANGE)
+            return
+        self._write("\n▶ " + tr("Demo — baut die Testschaltung") + "\n",
+                    theme.CLAUDE_ORANGE, bold=True)
+        self._set_busy(True)
+        threading.Thread(target=self._demo_worker, daemon=True).start()
+
+    def _demo_worker(self) -> None:
+        """Off-GUI: Demo-Ablauf fahren (bundled server), Schritte live ins
+        Transkript. Öffnen muss der Nutzer selbst — KiCad-10-IPC kann kein
+        Dokument öffnen (nur lesen), daher nennen wir den Pfad prominent."""
+        import os as _os
+        step = lambda line: wx.CallAfter(self._write, "  " + line + "\n",
+                                         theme.FOREGROUND)
+        try:
+            from kicad_mcp import demo
+            out_dir = _os.path.join(self._plan.run_cwd, ".kicad-mcp", "demo")
+            result = demo.run_demo(out_dir, on_step=step)
+            wx.CallAfter(self._write, "  " + demo.summary_line(result) + "\n",
+                         theme.CLAUDE_ORANGE)
+            board = result.get("board_path", "")
+            if board:
+                wx.CallAfter(self._write,
+                             "  📂 " + tr("In KiCad öffnen: Datei → Öffnen →")
+                             + f" {board}\n", theme.DIM)
+        except Exception as exc:
+            wx.CallAfter(self._append, "error",
+                         f"Demo fehlgeschlagen: {type(exc).__name__}: {exc}")
+        wx.CallAfter(self._set_busy, False)
+        wx.CallAfter(self._in.SetFocus)
 
     def _selection_scope_line(self) -> str:
         """One transcript line naming what a Super-Feature will act on: the

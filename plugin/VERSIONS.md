@@ -1,7 +1,25 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.9.1**
+Aktuelle Version: **0.9.2**
+
+---
+
+## ▶ Neu in 0.9.2 — Demo-Knopf: ein Klick baut die Testschaltung
+
+- **Neuer „▶ Demo"-Knopf** in der Feature-Leiste: Er lässt genau die
+  Schaltung, die auch der Systemtest nutzt, automatisch vor deinen Augen
+  entstehen — in vier Schritten: **Idee → Schaltplan → Berechnung →
+  Platine**. Jeder Schritt erscheint live im Verlauf.
+- **Ohne Modell-Kontingent, immer gleich:** Der Ablauf ruft die echten
+  Generierungs-Werkzeuge direkt (kein Claude-Zug nötig) — ideal fürs
+  Onboarding („zeig mir, was das kann") und als 30-Sekunden-Vorführung,
+  die bewiesen lauffähig ist.
+- Die **Berechnung** ist echt: der LED-Vorwiderstand wird aus den
+  Bauteilwerten nachgerechnet ((3,3 V − 2,0 V) / 1 kΩ = 1,3 mA) und
+  bewertet — die semantische Schicht an einem Mini-Beispiel.
+- Ehrlich: KiCad 10 kann per Schnittstelle **kein** Dokument öffnen, daher
+  nennt die Demo am Ende den Pfad zum Öffnen (Datei → Öffnen).
 
 ---
 

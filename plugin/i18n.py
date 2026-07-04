@@ -170,6 +170,14 @@ _EN: dict = {
     "📍 alle markieren": "📍 select all",
     "verbunden mit": "connected to",
     "kein Board erkannt": "no board detected",
+    # Demo-Knopf
+    "▶ Demo": "▶ Demo",
+    "Baut die Testschaltung automatisch vor: Idee → Schaltplan → "
+    "Berechnung → Platine. Ohne Eingabe, ohne Modell-Kontingent.":
+        "Builds the test circuit automatically: idea → schematic → "
+        "calculation → board. No input, no model quota.",
+    "Demo — baut die Testschaltung": "Demo — building the test circuit",
+    "In KiCad öffnen: Datei → Öffnen →": "Open in KiCad: File → Open →",
 
     # --- Gruppen der Super-Feature-Leiste --------------------------------
     "🔎 Verstehen & Prüfen": "🔎 Understand & Check",

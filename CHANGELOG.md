@@ -8,6 +8,20 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Demo-Knopf: Idee→Schaltplan→Berechnung→Platine, Plugin 0.9.2)
+- **`kicad_mcp/demo.py` (neu):** deterministischer, LLM-freier Showcase aus
+  `selftest_board.json` — `run_demo(out_dir, on_step)` fährt vier narrierte
+  Schritte: Idee (Spec), Schaltplan+PCB (`generate_project` in-process),
+  Berechnung (LED-Vorwiderstand aus echten Spec-Werten:
+  I = (V_rail − V_f)/R, gegen 1–20 mA bewertet), Platine (Pfad). Wirft nie
+  (Schritt-Fehler → `ok:False`, Ablauf lebt weiter). `_parse_ohms`/
+  `_led_resistor_check` rein & getestet.
+- **Plugin:** „▶ Demo"-Knopf in der Feature-Leiste (`_on_demo`/
+  `_demo_worker`): streamt die Schritte ins Transkript, nennt am Ende den
+  Board-Pfad (KiCad-10-IPC kann kein Dokument öffnen). Kein Modell-Kontingent.
+  Tests `tests/test_demo.py` (7: Ohm-Parser, LED-Rechnung, voller Flow gegen
+  echtes KiCad, Fehler-Isolation). Bundle-Sync; Version 0.9.1 → 0.9.2.
+
 ### Fixed + Added (Erster Linux-GUI-Test: Dialoge unter Xvfb, 2 reale Bugs)
 - **`scripts/gui_smoke.py` (neu):** rendert jeden wxPython-Dialog
   (Chat-Panel, Markdown+Links+Chips-Antwort, Einrichtung, Settings) unter
