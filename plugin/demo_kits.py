@@ -24,6 +24,12 @@ Bewusst getrennt von den ``.kicad_sch``-Specs: die JSON-Vorlagen (unter
 steht nur die Bedeutungs-Ebene (welche Skills, in welcher Reihenfolge, warum sie
 genau hier helfen). Pure/stdlib, damit es headless importiert und ohne
 wx/KiCad unit-getestet wird — wie ``superfeatures.py``.
+
+TODO (Nutzer-Feedback 2026-07-04): **alle 10 Schaltpläne UND Platinen müssen
+überarbeitet werden** — sie validieren und bauen, sind als Schaustück aber noch
+nicht vorzeigbar (Schaltplan-Label-Überlappung, unaufgeräumte Verdrahtung;
+Platinen nur geclustert, kein Routing). Details + mögliche Richtungen in
+``docs/demo_kits_todo.md``.
 """
 
 from __future__ import annotations

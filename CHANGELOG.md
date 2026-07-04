@@ -8,6 +8,15 @@ the first tag ships.
 
 ## [Unreleased]
 
+### TODO / Bekannte Grenze (Demo-Bausätze überarbeiten — Nutzer-Feedback 2026-07-04)
+- **Alle 10 Schaltpläne UND Platinen müssen überarbeitet werden.** Sie
+  validieren und bauen gegen echtes KiCad, sind als Schaustück aber noch nicht
+  vorzeigbar: Schaltplan-Label-Überlappung (Ref+Value übereinander),
+  unaufgeräumte Verdrahtung, Streu-Labels; Platinen nur geclusterte
+  Startplatzierung ohne Routing. Vermerk + mögliche Richtungen (Skills laufen
+  lassen / Generator verbessern / kuratierte Vor-Layouts) in
+  `docs/demo_kits_todo.md`, Pointer im `plugin/demo_kits.py`-Docstring.
+
 ### Added (10 Demo-Schaltungen aus freien Referenz-Topologien — live baubar, Plugin 0.12.0)
 - **Nutzer-Wunsch:** „freie KiCad-Schaltpläne im Internet suchen und diese
   möglichst minimal integrieren." Umsetzung: die 10 Bausätze sind an
