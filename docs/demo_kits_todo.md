@@ -8,15 +8,15 @@ vorzeigbar. **Alle 10** müssen überarbeitet werden — Schaltplan UND Platine.
 
 ## Was konkret nicht stimmt
 
-### Schaltpläne
-- **Label-Überlappung:** Referenz (`U1`) und Wert (`LM386`) landen an fast
-  derselben Position → übereinander, unlesbar. Der Schaltplan-Generator setzt
-  die Feld-Positionen nicht auseinander.
-- **Unaufgeräumte Verdrahtung:** die Auto-Platzierung per `hint_sch_*` ergibt
-  zwar korrekte Netze, aber kein lesbares, konventionelles Schaltplan-Layout
-  (Versorgung oben, GND unten, Signalfluss links→rechts). Wirkt „hingewürfelt".
-- **Streu-Labels:** einzelne Power-/Netz-Labels sitzen weit weg vom Bauteil
-  (im Export links oben im Nichts).
+### Schaltpläne — GRÖSSTENTEILS ERLEDIGT (0.12.1)
+- ✅ **Platzierung:** `hint_sch` raus → der defrag-Platzierer clustert eng ums
+  IC, gedreht, mit kurzen echten Leitungen (keine Label-Wüste). Der schwache
+  „Simple solver" verdrängt ihn nicht mehr.
+- ✅ **GND unten / VCC oben:** hart erzwungen in `route._place_power_symbol`.
+- ✅ **Stecker außen, Leitung nach innen** (Signalfluss links→rechts) — das ist
+  gewollt (Konvention), kein Bug.
+- Rest-Politur (offen, klein): der dünne gestrichelte „Passives"-Gruppenrahmen
+  wirkt etwas eigen; Ref/Value bei gedrehten Passiven sitzen noch knapp.
 
 ### Platinen
 - **Nur geclusterte Startplatzierung, kein Routing:** die Bauteile liegen als

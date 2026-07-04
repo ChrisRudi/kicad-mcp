@@ -551,9 +551,20 @@ def _place_power_symbol(
     sym_uid: str, wire_uid: str, pin_uid: str,
     lib_id: str, sym_type: str, direction: str = "right",
 ) -> tuple[float, float]:
-    """Place a real KiCad power symbol (e.g. power:GND) with a stub wire."""
+    """Place a real KiCad power symbol (e.g. power:GND) with a stub wire.
+
+    Convention (KiCad-Standard, hart erzwungen): Ground-Symbole zeigen IMMER
+    nach unten, Versorgungs-Symbole IMMER nach oben — unabhängig davon, wohin
+    der Pin zeigt. Der Stub geht entsprechend nach unten (Ground) bzw. oben
+    (Supply), das Symbol sitzt darunter/darüber und die Rotation folgt. So
+    liest sich das Blatt konventionell (GND unten, VCC oben)."""
     global _pwr_ref_counter
     _pwr_ref_counter += 1
+
+    if sym_type == "ground":
+        direction = "down"
+    elif sym_type == "supply":
+        direction = "up"
 
     sx = round(pin_x + _STUB_DX[direction], 2)
     sy = round(pin_y + _STUB_DY[direction], 2)

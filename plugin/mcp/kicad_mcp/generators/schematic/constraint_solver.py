@@ -236,16 +236,26 @@ def solve_placement(
     parts: list[dict],
     nets: list[dict],
     placed_refs: set[str],
+    allow_greedy: bool = False,
 ) -> dict[str, tuple[float, float, int]] | None:
     """Run constraint-based placement solver.
 
-    Tries OR-Tools first, falls back to simple greedy solver.
-    Returns {ref: (x, y, rotation)} or None.
+    Tries OR-Tools CP-SAT (real wire-length minimisation). Returns
+    ``{ref: (x, y, rotation)}`` or ``None``.
+
+    The built-in greedy fallback (``_try_simple_solver``) is OFF by default:
+    it places + rotates but resolves overlaps poorly and is beaten by the
+    ``defrag`` incremental placer (``defrag_place.incremental_place_and_score``),
+    which clusters small parts tight around their IC with short wires. So when
+    OR-Tools is absent we return ``None`` and let the caller fall back to
+    defrag. Pass ``allow_greedy=True`` only if you explicitly want the old
+    greedy behaviour.
     """
     # Try OR-Tools CP-SAT
     result = _try_ortools_solver(parts, nets, placed_refs)
     if result is not None:
         return result
 
-    # Fallback: simple greedy solver
-    return _try_simple_solver(parts, nets, placed_refs)
+    if allow_greedy:
+        return _try_simple_solver(parts, nets, placed_refs)
+    return None

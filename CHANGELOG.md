@@ -8,6 +8,27 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Schaltplan-Lesbarkeit — Platzierung, GND/VCC-Konvention, Plugin 0.12.1)
+- **Besserer Platzierer greift jetzt.** `constraint_solver.solve_placement`
+  fiel ohne OR-Tools auf einen schwachen Greedy-„Simple solver" zurück, der die
+  Überlappungen nicht auflöste und den purpose-built `defrag`-Platzierer
+  (`incremental_place_and_score`: Bauteile eng ums IC, gedreht für kürzeste
+  Drähte) VERDRÄNGTE. Fix: `solve_placement(..., allow_greedy=False)` ist Default
+  — ohne echten Solver liefert es `None`, `place.py` nutzt defrag. Ergebnis:
+  eng geclusterte, gedrehte Bauteile mit kurzen echten Leitungen (keine
+  Netz-Label-Wüste für kleine Schaltungen).
+- **GND immer unten, Versorgung immer oben.** `route._place_power_symbol` drehte
+  das Power-Symbol nach der Pin-/Stub-Richtung mit — GND zeigte mal seitwärts.
+  Jetzt hart erzwungen: `sym_type=="ground"` → Stub nach unten (Symbol darunter,
+  zeigt nach unten), `"supply"` → nach oben. KiCad-Standard-Konvention.
+- **Demo-Specs ohne `hint_sch`.** Die 10 Bausätze setzten ein naives
+  Schaltplan-Raster, das den Platzierer übersprang (place.py nimmt Hints und
+  überspringt die Optimierung). `hint_sch_*` entfernt (die Board-`hint_pcb_*`
+  bleiben) → der defrag-Platzierer läuft. Ein-/Ausgangs-Stecker sitzen außen,
+  Leitung nach innen (Signalfluss links→rechts) — bewusst so, das ist die
+  Konvention. Wirkt auf ALLE Schaltpläne, nicht nur Demos. Selftest 10/10,
+  30 Generator-Tests grün, keine Regression; Version 0.12.0 → 0.12.1.
+
 ### TODO / Bekannte Grenze (Demo-Bausätze überarbeiten — Nutzer-Feedback 2026-07-04)
 - **Alle 10 Schaltpläne UND Platinen müssen überarbeitet werden.** Sie
   validieren und bauen gegen echtes KiCad, sind als Schaustück aber noch nicht

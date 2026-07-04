@@ -1,7 +1,22 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.12.0**
+Aktuelle Version: **0.12.1**
+
+---
+
+## 🧭 Neu in 0.12.1 — Lesbarere Schaltpläne: eng platziert, GND unten, VCC oben
+
+- **Bauteile clustern jetzt eng ums IC, gedreht, mit kurzen echten Leitungen —
+  keine Netz-Label-Wüste.** Der bessere Platzierer (er stellt Bauteile wie von
+  Hand nacheinander an die Stelle mit den kürzesten Drähten) war bisher von
+  einem schwächeren Ersatz verdeckt; jetzt läuft er.
+- **GND-Symbole zeigen immer nach unten, Versorgungs-Symbole (VCC/+5V/…) immer
+  nach oben** — die vertraute Konvention. Vorher drehte der Generator sie mit
+  dem Pin mit, sodass GND auch mal seitwärts zeigte.
+- **Ein-/Ausgangs-Stecker sitzen außen, die Leitung läuft nach innen zur
+  Schaltung** — Signalfluss links→rechts, wie man es erwartet.
+- Wirkt auf alle erzeugten Schaltpläne, nicht nur die Demos.
 
 ---
 

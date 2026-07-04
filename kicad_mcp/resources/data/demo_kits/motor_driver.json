@@ -57,8 +57,6 @@
       ],
       "hint_pcb_x": 5.0,
       "hint_pcb_y": 5.0,
-      "hint_sch_x": 30,
-      "hint_sch_y": 60,
       "_pcb_group": "main_ic"
     },
     {
@@ -80,8 +78,6 @@
       ],
       "hint_pcb_x": 23.0,
       "hint_pcb_y": 5.0,
-      "hint_sch_x": 56,
-      "hint_sch_y": 60,
       "_pcb_group": "passive"
     },
     {
@@ -103,8 +99,6 @@
       ],
       "hint_pcb_x": 41.0,
       "hint_pcb_y": 5.0,
-      "hint_sch_x": 82,
-      "hint_sch_y": 60,
       "_pcb_group": "passive"
     },
     {
@@ -126,8 +120,6 @@
       ],
       "hint_pcb_x": 5.0,
       "hint_pcb_y": 18.0,
-      "hint_sch_x": 30,
-      "hint_sch_y": 82,
       "_pcb_group": "passive"
     },
     {
@@ -149,8 +141,6 @@
       ],
       "hint_pcb_x": 23.0,
       "hint_pcb_y": 18.0,
-      "hint_sch_x": 56,
-      "hint_sch_y": 82,
       "_pcb_group": "connector_out"
     },
     {
@@ -172,8 +162,6 @@
       ],
       "hint_pcb_x": 41.0,
       "hint_pcb_y": 18.0,
-      "hint_sch_x": 82,
-      "hint_sch_y": 82,
       "_pcb_group": "connector_in"
     },
     {
@@ -200,8 +188,6 @@
       ],
       "hint_pcb_x": 5.0,
       "hint_pcb_y": 31.0,
-      "hint_sch_x": 30,
-      "hint_sch_y": 104,
       "_pcb_group": "connector_in"
     },
     {
@@ -218,8 +204,6 @@
       ],
       "hint_pcb_x": 23.0,
       "hint_pcb_y": 31.0,
-      "hint_sch_x": 56,
-      "hint_sch_y": 104,
       "_pcb_group": "passive"
     }
   ],
