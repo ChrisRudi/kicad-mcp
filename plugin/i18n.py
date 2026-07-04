@@ -148,7 +148,6 @@ _EN: dict = {
         "Diagnosis: open Setup / Update",
 
     # --- Banner-Zusammenfassung + Status/Buttons (1. Linux-Smoke-Lücken) ----
-    "Bereit.": "Ready.",
     "Platine": "Board",
     "Footprints": "Footprints",
     "Netze": "Nets",
@@ -178,6 +177,14 @@ _EN: dict = {
         "calculation → board. No input, no model quota.",
     "Demo — baut die Testschaltung": "Demo — building the test circuit",
     "In KiCad öffnen: Datei → Öffnen →": "Open in KiCad: File → Open →",
+    # KI-Backend-Auswahl
+    "KI-Backend:": "AI backend:",
+    "Claude Code (Anthropic)": "Claude Code (Anthropic)",
+    "Codex (OpenAI) — experimentell": "Codex (OpenAI) — experimental",
+    "Welches Agenten-CLI die Anfragen bearbeitet. Claude Code ist "
+    "erprobt; weitere MCP-fähige CLIs sind experimentell.":
+        "Which agent CLI handles requests. Claude Code is proven; other "
+        "MCP-capable CLIs are experimental.",
 
     # --- Gruppen der Super-Feature-Leiste --------------------------------
     "🔎 Verstehen & Prüfen": "🔎 Understand & Check",

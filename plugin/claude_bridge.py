@@ -660,6 +660,33 @@ def _pump(stream, q: "queue.Queue") -> None:
     q.put(None)  # EOF marker
 
 
+def _resolve_backend():
+    """Das aktive Agenten-Backend aus den Einstellungen (Default: Claude Code).
+    Lazy + defensiv — fehlende Settings/Import darf den Zug nie kippen."""
+    from . import backends  # noqa: PLC0415 — cycle-safe
+    try:
+        from . import settings as plugin_settings  # noqa: PLC0415
+        key = plugin_settings.load().get("backend", backends.DEFAULT_KEY)
+    except Exception:
+        key = backends.DEFAULT_KEY
+    return backends.get(key)
+
+
+def _prepare_backend_config(backend, cfg_path, on_status=None) -> str:
+    """Config eines Nicht-Claude-Backends schreiben (stdio). Best effort —
+    scheitert das, zeigt der Zug den Fehler."""
+    from . import server_manager  # noqa: PLC0415 — cycle-safe
+    try:
+        backend.write_mcp_config(cfg_path, server_manager.default_mcp_root())
+    except Exception as exc:
+        if on_status:
+            try:
+                on_status(f"⚠ {backend.display}: Config-Fehler — {exc}")
+            except Exception:
+                pass
+    return "stdio"
+
+
 def ask(
     prompt: str,
     project_dir: str,
@@ -673,6 +700,7 @@ def ask(
     on_tool: Optional[Callable[[str, dict], None]] = None,
     on_proc: Optional[Callable[[Any], None]] = None,
     language: str = "",
+    backend=None,
     _popen=subprocess.Popen,
 ) -> dict[str, Any]:
     """Run one chat turn, streaming progress via ``on_status(text)`` and each
@@ -680,21 +708,29 @@ def ask(
     board language and collect what changed).
 
     Returns ``{ok, text, session_id, error, mcp_status}``. The turn is only
-    aborted when claude is SILENT for ``idle_timeout`` seconds (or exceeds the
-    ``max_seconds`` safety cap) — a working turn streams events continuously,
-    so honest long board work survives. ``extra_args`` are raw Claude CLI
-    switches; ``on_proc(proc)`` hands the live process to the caller so a
-    Stopp button can kill it. ``_popen`` is injectable for tests.
+    aborted when the agent is SILENT for ``idle_timeout`` seconds (or exceeds
+    the ``max_seconds`` safety cap) — a working turn streams events
+    continuously, so honest long board work survives. ``extra_args`` are raw
+    CLI switches; ``on_proc(proc)`` hands the live process to the caller so a
+    Stopp button can kill it. ``backend`` wählt das Agenten-CLI (Default:
+    aus den Einstellungen, sonst Claude Code). ``_popen`` injectable für Tests.
     """
     out: dict[str, Any] = {"ok": False, "text": "", "session_id": session_id,
                            "error": "", "mcp_status": ""}
-    claude = claude_cmd or find_claude()
+    if backend is None:
+        backend = _resolve_backend()
+    claude = claude_cmd or backend.find()
     if claude is None:
-        out["error"] = ("Claude Code (claude) nicht gefunden. Installiere "
-                        "Claude Code und melde dich einmal an (claude login).")
+        out["error"] = (f"{backend.display} nicht gefunden — bitte "
+                        "installieren und einmal anmelden. (In den "
+                        "Einstellungen ist auch ein anderes Backend wählbar.)")
         return out
-    cmd = build_command(claude, prompt, mcp_config_path, session_id, extra_args,
-                        language=language)
+    # Config-Pfad je Backend: Claude behält die JSON (== base, bit-identisch),
+    # Codex bekommt eine eigene .codex.toml daneben.
+    cfg_path = backend.config_path(mcp_config_path)
+    cmd = backend.build_command(claude, prompt, cfg_path, session_id,
+                                extra_args, BEHAVIOR_SYSTEM_PROMPT,
+                                language=language)
     env = dict(os.environ)
     # The FIRST cold start (167 tools + pandas/numpy out of a freshly-written
     # _deps, with Windows Defender scanning each new .pyd) can blow past
@@ -714,13 +750,17 @@ def ask(
     retries = mcp_connect_retries()
     force_stdio = False
     for attempt in range(1 + retries):
-        # http mode: warm server up + config pointed at it (health check per
-        # turn → auto-restart; re-run on retry in case the server just died).
-        # stdio mode: no-op.
-        transport = _prepare_transport(mcp_config_path, on_status,
-                                       force_stdio=force_stdio)
+        # Claude: http-Warm-Server-Vorbereitung / stdio-Fallback wie gehabt.
+        # Andere Backends (Codex): eigene Config (stdio) einmal schreiben; das
+        # http-Warm-Server-Optimum ist vorerst Claude-spezifisch.
+        if backend.key == "claude_code":
+            transport = _prepare_transport(cfg_path, on_status,
+                                           force_stdio=force_stdio)
+        else:
+            transport = _prepare_backend_config(backend, cfg_path, on_status)
         result = _spawn_and_run(cmd, project_dir, env, dict(out), idle_timeout,
-                                max_seconds, on_status, on_tool, on_proc, _popen)
+                                max_seconds, on_status, on_tool, on_proc, _popen,
+                                normalize=backend.normalize)
         if not str(result.get("mcp_status") or "").startswith("failed"):
             break
         if attempt >= retries:  # letzter Versuch — keine Meldung mehr nötig
@@ -740,10 +780,12 @@ def ask(
 
 
 def _spawn_and_run(cmd, project_dir, env, out, idle_timeout, max_seconds,
-                   on_status, on_tool, on_proc, _popen) -> dict[str, Any]:
+                   on_status, on_tool, on_proc, _popen,
+                   normalize=None) -> dict[str, Any]:
     """One spawn+drive attempt. Split out of :func:`ask` so a failed MCP
     cold-start can be retried — a failed-MCP turn touched no board tools, so
-    re-running it cannot double-mutate the board."""
+    re-running it cannot double-mutate the board. ``normalize`` ist der
+    backend-spezifische Stream-Zerleger (Default: Claude Code)."""
     try:
         proc = _popen(
             cmd, cwd=project_dir, stdin=subprocess.DEVNULL,
@@ -766,20 +808,31 @@ def _spawn_and_run(cmd, project_dir, env, out, idle_timeout, max_seconds,
             pass
     try:
         return _run_turn(proc, out, idle_timeout, max_seconds, on_status,
-                         on_tool)
+                         on_tool, normalize=normalize)
     finally:
         _unregister(proc)
 
 
-def _run_turn(proc, out, idle_timeout, max_seconds, on_status, on_tool=None):
+def _run_turn(proc, out, idle_timeout, max_seconds, on_status, on_tool=None,
+              normalize=None):
     """Drive one started turn to completion (split out so ``ask`` can wrap it
-    in register/unregister)."""
+    in register/unregister).
+
+    ``normalize(line) -> dict|None`` ist der backend-spezifische Zerleger einer
+    Stream-Zeile (Default: Claude Code). Der Loop selbst ist agent-neutral — er
+    wendet nur die normalisierten Felder an."""
+    if normalize is None:
+        from . import backends  # noqa: PLC0415 — cycle-safe
+        normalize = backends.get("claude_code").normalize
     q: "queue.Queue" = queue.Queue()
     threading.Thread(target=_pump, args=(proc.stdout, q), daemon=True).start()
 
     started = time.time()
     texts: list[str] = []
-    result_ev: Optional[dict] = None
+    result_seen = False
+    result_text = ""
+    result_subtype = "success"
+    result_error = ""
     while True:
         if time.time() - started > max_seconds:
             proc.kill()
@@ -791,51 +844,50 @@ def _run_turn(proc, out, idle_timeout, max_seconds, on_status, on_tool=None):
         except queue.Empty:
             proc.kill()
             out["error"] = (
-                f"Abbruch: {int(idle_timeout)}s ohne Lebenszeichen von "
-                "Claude. Häufigste Ursachen: Projektordner nicht vertraut "
-                "(einmal 'claude' interaktiv im Projektordner starten) oder "
-                "Login abgelaufen ('claude login')."
+                f"Abbruch: {int(idle_timeout)}s ohne Lebenszeichen vom Agenten. "
+                "Häufigste Ursachen: Projektordner nicht vertraut (einmal das "
+                "Agenten-CLI interaktiv im Projektordner starten) oder Login "
+                "abgelaufen."
             )
             return out
         if line is None:
             break
-        ev = parse_stream_event(line)
-        if ev is None:
+        nev = normalize(line)
+        if nev is None:
             continue
-        status = mcp_status_from_init(ev)
+        status = nev.get("mcp_status")
         if status is not None:
             out["mcp_status"] = status
         # Ground truth schlägt Init-Status: läuft ein kicad-mcp-Tool, WAR der
         # Server verbunden — das frühe Init-Event hat sich geirrt (Kaltstart).
-        # Ohne diese Korrektur stempelte ein falsches "failed" jeden Turn:
-        # ⚠-Meldung, sinnloser Retry (doppelte Arbeit), E2E-Verdikt FAIL.
         if (out.get("mcp_status", "").startswith(("failed", "pending"))
-                and has_kicad_mcp_tool_use(ev)):
+                and nev.get("has_kicad")):
             out["mcp_status"] = "connected"
             if on_status:
                 try:
                     on_status("MCP verbunden — Board-Tools laufen.")
                 except Exception:
                     pass
-        desc = describe_event(ev)
+        desc = nev.get("desc")
         if desc and on_status:
             try:
                 on_status(desc)
             except Exception:
                 pass
         if on_tool:
-            for name, inp in tool_calls(ev):
+            for name, inp in nev.get("tools", []):
                 try:
                     on_tool(name, inp)
                 except Exception:
                     pass
-        if ev.get("type") == "assistant":
-            t = extract_text(ev)
-            if t:
-                texts.append(t)
-        if ev.get("type") == "result":
-            result_ev = ev
-        sid = ev.get("session_id")
+        if nev.get("text"):
+            texts.append(nev["text"])
+        if nev.get("is_result"):
+            result_seen = True
+            result_text = nev.get("result_text") or ""
+            result_subtype = nev.get("subtype", "success")
+            result_error = nev.get("error") or ""
+        sid = nev.get("session_id")
         if sid:
             out["session_id"] = sid
 
@@ -844,13 +896,12 @@ def _run_turn(proc, out, idle_timeout, max_seconds, on_status, on_tool=None):
     except Exception:
         proc.kill()
 
-    if result_ev is not None:
-        if isinstance(result_ev.get("result"), str) and result_ev["result"]:
-            out["text"] = result_ev["result"]
+    if result_seen:
+        if result_text:
+            out["text"] = result_text
         elif texts:
             out["text"] = "\n".join(texts)
-        subtype = result_ev.get("subtype", "success")
-        if "max_turns" in str(subtype):  # --max-turns hit → friendly message
+        if "max_turns" in str(result_subtype):  # limit hit → friendly message
             limit = max_turns()
             note = (f"⏹ Schritt-Limit ({limit}) erreicht — die Aufgabe brauchte "
                     "zu viele Tool-Calls. Verkleinere sie, oder erhöhe "
@@ -858,8 +909,8 @@ def _run_turn(proc, out, idle_timeout, max_seconds, on_status, on_tool=None):
             out["text"] = (out["text"] + "\n\n" + note) if out["text"] else note
             out["ok"] = True
             return out
-        if subtype != "success" and not out["text"]:
-            out["error"] = result_ev.get("error") or str(subtype)
+        if result_subtype != "success" and not out["text"]:
+            out["error"] = result_error or str(result_subtype)
             return out
         out["ok"] = True
         return out
@@ -872,5 +923,5 @@ def _run_turn(proc, out, idle_timeout, max_seconds, on_status, on_tool=None):
         stderr = (proc.stderr.read() or "").strip()
     except Exception:
         pass
-    out["error"] = (stderr or "claude beendete ohne Antwort")[:800]
+    out["error"] = (stderr or "Agent beendete ohne Antwort")[:800]
     return out

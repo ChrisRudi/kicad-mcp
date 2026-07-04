@@ -1,7 +1,26 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.9.2**
+Aktuelle Version: **0.10.0**
+
+---
+
+## 🔀 Neu in 0.10.0 — das KI-Backend ist wählbar (Claude ist nicht das Produkt)
+
+- **Das Produkt ist der KiCad-Assistent, nicht ein bestimmtes Modell.** In den
+  Einstellungen gibt es jetzt oben „KI-Backend": **Claude Code** (erprobter
+  Standard) oder **Codex (OpenAI)** — jedes MCP-fähige Agenten-CLI lässt sich
+  ergänzen. Die Wahl gilt ab dem nächsten Chat-Zug.
+- **Sauber getrennt:** Jedes Backend kapselt nur, was sich unterscheidet —
+  wie es startet, wie es den kicad-mcp-Server registriert (Claude:
+  `--mcp-config`, Codex: `[mcp_servers]` in einer TOML) und wie es seinen
+  Ereignis-Stream ausgibt. Der gemeinsame Ablauf bleibt gleich; alle
+  Board-Werkzeuge, Links und Super-Features funktionieren unabhängig vom
+  Backend.
+- **Ehrlich:** Claude Code ist voll erprobt und getestet. **Codex ist
+  experimentell** und im Feld noch ungetestet (das Ereignisformat kann sich
+  ändern) — bitte als solches behandeln und Rückmeldung geben. Der
+  Claude-Pfad ist unverändert.
 
 ---
 

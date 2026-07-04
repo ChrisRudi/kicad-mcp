@@ -296,12 +296,28 @@ class SetupDialog(wx.Dialog):
         GUI-gepflegt statt Env-Handarbeit; gespeichert in settings.json und
         beim nächsten Chat-Zug wirksam (settings.apply_env beim Panel-Start).
         Hand-gesetzte Env-Variablen behalten Vorrang."""
+        from . import backends
         values = plugin_settings.load()
-        dlg = wx.Dialog(self, title=tr("Einstellungen"), size=(460, 300),
+        dlg = wx.Dialog(self, title=tr("Einstellungen"), size=(480, 340),
                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         panel = wx.Panel(dlg)
         grid = wx.FlexGridSizer(cols=2, vgap=8, hgap=8)
         grid.AddGrowableCol(1, 1)
+
+        # KI-Backend zuerst: das Produkt ist der Assistent, das Modell-CLI ist
+        # wählbar (Claude Code · Codex · …, jedes MCP-fähige Agenten-CLI).
+        grid.Add(wx.StaticText(panel, label=tr("KI-Backend:")), 0,
+                 wx.ALIGN_CENTER_VERTICAL)
+        backend_list = backends.available()
+        backend = wx.Choice(panel, choices=[tr(b.display) for b in backend_list])
+        _bkeys = [b.key for b in backend_list]
+        backend.SetSelection(
+            _bkeys.index(values.get("backend", "claude_code"))
+            if values.get("backend", "claude_code") in _bkeys else 0)
+        backend.SetToolTip(tr(
+            "Welches Agenten-CLI die Anfragen bearbeitet. Claude Code ist "
+            "erprobt; weitere MCP-fähige CLIs sind experimentell."))
+        grid.Add(backend, 1, wx.EXPAND)
 
         grid.Add(wx.StaticText(panel, label=tr("Sprache:")), 0,
                  wx.ALIGN_CENTER_VERTICAL)
@@ -337,6 +353,7 @@ class SetupDialog(wx.Dialog):
 
         def _save(_evt):
             plugin_settings.save({
+                "backend": _bkeys[backend.GetSelection()],
                 "language": {0: "auto", 1: "de", 2: "en"}[lang.GetSelection()],
                 "transport": "http" if transport.GetSelection() == 1 else "",
                 "ngspice_path": ngspice.GetValue().strip(),

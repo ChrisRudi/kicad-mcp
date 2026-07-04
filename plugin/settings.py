@@ -30,6 +30,7 @@ ENV_KEYS = {
 
 DEFAULTS: dict = {
     "language": "auto",     # auto | de | en (konsumiert i18n, nicht Env)
+    "backend": "claude_code",  # Agenten-CLI (siehe plugin/backends.py)
     "transport": "",        # "" = Default des Codes (stdio) nicht anfassen
     "ngspice_path": "",
     "max_turns": 0,          # 0 = Code-Default (80)

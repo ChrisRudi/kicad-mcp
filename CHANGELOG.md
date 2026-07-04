@@ -8,6 +8,30 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Wählbares Agenten-Backend — MCP-fähige CLIs, Plugin 0.10.0)
+- **`plugin/backends.py` (neu):** Backend-Abstraktion für MCP-sprechende
+  Agenten-CLIs. `Backend`-Vertrag kapselt die Unterschiede: `find()`,
+  `build_command()`, `write_mcp_config()`, `config_path()`, `normalize(line)`
+  (Stream → normalisiertes Ereignis-Dict). Registry `get()/available()`,
+  `DEFAULT_KEY="claude_code"`.
+  - `ClaudeCodeBackend`: delegiert an die bestehenden, getesteten
+    claude_bridge/mcp_config-Funktionen — der Claude-Pfad ist bit-identisch
+    (`config_path` == base).
+  - `CodexBackend` (**experimentell**): `codex exec --json`, kicad-mcp als
+    `[mcp_servers.kicad-mcp]` in einer `.codex.toml` (Codex hat kein
+    `--mcp-config`), JSONL-Normalisierung nach dokumentiertem Stand;
+    defensiv (fremdes Schema killt den Zug nicht). Im Feld ungetestet.
+- **`claude_bridge`:** `_run_turn` ist backend-parametrisch (über
+  `normalize`), Claude-Verhalten unverändert (66 Bridge-Tests grün);
+  `ask(backend=…)` löst das Backend aus den Einstellungen auf, nutzt
+  `find`/`build_command`/`config_path`/`normalize`; Nicht-Claude-Backends
+  schreiben ihre Config über `_prepare_backend_config` (stdio).
+- **`settings.py`:** neuer Key `backend` (Default `claude_code`).
+  **Einstellungs-Dialog:** „KI-Backend"-Auswahl als erstes Feld.
+- Tests `tests/test_plugin_backends.py` (13: Registry, Claude-Delegation,
+  Codex-Command/-TOML/-Normalisierung, Bridge nutzt gewähltes Backend).
+  Version 0.9.2 → 0.10.0.
+
 ### Added (Demo-Knopf: Idee→Schaltplan→Berechnung→Platine, Plugin 0.9.2)
 - **`kicad_mcp/demo.py` (neu):** deterministischer, LLM-freier Showcase aus
   `selftest_board.json` — `run_demo(out_dir, on_step)` fährt vier narrierte

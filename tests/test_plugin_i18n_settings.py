@@ -68,10 +68,12 @@ class TestSettings:
     def test_roundtrip_and_defaults(self, monkeypatch, tmp_path):
         monkeypatch.setenv("KICAD_MCP_STATE_DIR", str(tmp_path))
         assert settings.load()["language"] == "auto"
+        assert settings.load()["backend"] == "claude_code"  # Default
         settings.save({"language": "en", "transport": "http",
-                       "unbekannt": "wird ignoriert"})
+                       "backend": "codex", "unbekannt": "wird ignoriert"})
         loaded = settings.load()
         assert loaded["language"] == "en" and loaded["transport"] == "http"
+        assert loaded["backend"] == "codex"
         assert "unbekannt" not in loaded
 
     def test_apply_env_sets_only_configured(self, monkeypatch, tmp_path):
