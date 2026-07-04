@@ -1,7 +1,28 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.11.0**
+Aktuelle Version: **0.12.0**
+
+---
+
+## 🧰 Neu in 0.12.0 — Demo-Menü mit 10 echten Schaustück-Schaltungen
+
+- **Der Demo-Knopf ist jetzt ein Auswahlmenü** mit 10 Beispielschaltungen,
+  nach Themen gegliedert (Analog & Simulation, Digital & Schnittstellen,
+  Leistung & Norm, Spezial-Layout, Fertigung & Methode). Beim Aufklappen eines
+  Bausatzes siehst du seine Skill-Folge mit Begründung — was passiert und
+  welche Super-Skills mithelfen.
+- **Jede Demo baut wirklich ein Board.** Die 10 Schaltungen sind an frei
+  verfügbaren, publizierten Referenz-Designs orientiert und bewusst minimal
+  gehalten: Audioverstärker (LM386), USB-C Sensor-Hub (STM32), AC-DC-Netzteil
+  (Flyback), LED-Ring (WS2812, rund), Motor-Treiber (DRV8871), Buck-Wandler
+  (MP1584), Ethernet-Gerät (LAN8720), Skizze→Kupfer, Serienreife & Kosten,
+  Datenblatt & Foto → Schaltung (NE555). Klick startet sie — Schaltplan +
+  Platine werden sichtbar angelegt, dann zeigt der Chat die Skill-Folge.
+- **Bausatzsystem:** dieselben 10 Schaltungen sind zugleich saubere Startpunkte
+  für ein neues Projekt.
+- Zusammen decken die 10 Demos alle ~34 Super-Skills mindestens einmal ab —
+  jeder Skill hat ein Projekt, in dem er wirklich gebraucht wird.
 
 ---
 

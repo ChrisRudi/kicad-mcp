@@ -1,0 +1,346 @@
+{
+  "project_name": "audio_amp",
+  "description": "Audioverstärker LM386, minimale Applikation mit Verstärkung 20 (Pins 1/8 offen) — nach dem TI-LM386-Datenblatt (Typical Application, gain=20). Eingangskopplung, Ausgangs-Elko zum Lautsprecher, Versorgungs-Entkopplung, Bypass. Referenz: ti.com/lit/ds/symlink/lm386.",
+  "board": {
+    "shape": "rectangle",
+    "width": 46,
+    "depth": 34,
+    "layers": 2
+  },
+  "parts": [
+    {
+      "ref": "J1",
+      "name": "Conn_01x02",
+      "value": "IN",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "IN",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 60,
+      "_pcb_group": "connector_in"
+    },
+    {
+      "ref": "J2",
+      "name": "Conn_01x02",
+      "value": "SPK",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "OUTP",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 17.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 60,
+      "_pcb_group": "connector_out"
+    },
+    {
+      "ref": "U1",
+      "name": "LM386",
+      "value": "LM386",
+      "footprint": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "GAIN",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "IN-",
+          "type": "input"
+        },
+        {
+          "num": "3",
+          "name": "IN+",
+          "type": "input"
+        },
+        {
+          "num": "4",
+          "name": "GND",
+          "type": "power_in"
+        },
+        {
+          "num": "5",
+          "name": "VOUT",
+          "type": "output"
+        },
+        {
+          "num": "6",
+          "name": "VS",
+          "type": "power_in"
+        },
+        {
+          "num": "7",
+          "name": "BYPASS",
+          "type": "passive"
+        },
+        {
+          "num": "8",
+          "name": "GAIN",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 29.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 60,
+      "_pcb_group": "main_ic"
+    },
+    {
+      "ref": "R1",
+      "name": "R",
+      "value": "10k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 41.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 108,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "R2",
+      "name": "R",
+      "value": "10R",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 17.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C1",
+      "name": "C",
+      "value": "10u",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 17.0,
+      "hint_pcb_y": 17.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C2",
+      "name": "C",
+      "value": "220u",
+      "footprint": "Capacitor_SMD:CP_Elec_6.3x7.7",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 29.0,
+      "hint_pcb_y": 17.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C3",
+      "name": "C",
+      "value": "100n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 41.0,
+      "hint_pcb_y": 17.0,
+      "hint_sch_x": 108,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C4",
+      "name": "C",
+      "value": "10u",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 29.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 104,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C5",
+      "name": "C",
+      "value": "47n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 17.0,
+      "hint_pcb_y": 29.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 104,
+      "_pcb_group": "passive"
+    }
+  ],
+  "nets": [
+    {
+      "name": "VS",
+      "type": "power",
+      "connections": [
+        "U1:6",
+        "C3:1"
+      ]
+    },
+    {
+      "name": "GND",
+      "type": "power",
+      "connections": [
+        "J1:2",
+        "J2:2",
+        "U1:4",
+        "U1:2",
+        "R1:2",
+        "C3:2",
+        "C4:2",
+        "C5:2"
+      ]
+    },
+    {
+      "name": "AUDIO_IN",
+      "type": "signal",
+      "connections": [
+        "J1:1",
+        "C1:1"
+      ]
+    },
+    {
+      "name": "IN_NODE",
+      "type": "signal",
+      "connections": [
+        "C1:2",
+        "R1:1",
+        "U1:3"
+      ]
+    },
+    {
+      "name": "VOUT",
+      "type": "signal",
+      "connections": [
+        "U1:5",
+        "C2:1",
+        "R2:1"
+      ]
+    },
+    {
+      "name": "SPK",
+      "type": "signal",
+      "connections": [
+        "C2:2",
+        "J2:1"
+      ]
+    },
+    {
+      "name": "ZOBEL",
+      "type": "signal",
+      "connections": [
+        "R2:2",
+        "C5:1"
+      ]
+    },
+    {
+      "name": "BYPASS",
+      "type": "signal",
+      "connections": [
+        "U1:7",
+        "C4:1"
+      ]
+    }
+  ]
+}

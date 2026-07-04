@@ -1,0 +1,486 @@
+{
+  "project_name": "usb_sensor_hub",
+  "description": "USB-C Sensor-Hub: STM32F103-Klasse MCU (LQFP-48) mit 8-MHz-Quarz + Load-Caps, I2C-Sensor mit 4k7-Pull-ups, USB-C-Datenpaar, AMS1117-3V3. Angelehnt an das verbreitete STM32-'Blue Pill'-Referenzdesign (Open Hardware). Minimal gehalten.",
+  "board": {
+    "shape": "rectangle",
+    "width": 58,
+    "depth": 44,
+    "layers": 2
+  },
+  "parts": [
+    {
+      "ref": "U1",
+      "name": "STM32F103",
+      "value": "STM32F103C8",
+      "footprint": "Package_QFP:LQFP-48_7x7mm_P0.5mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "VBAT",
+          "type": "power_in"
+        },
+        {
+          "num": "5",
+          "name": "OSC_IN",
+          "type": "input"
+        },
+        {
+          "num": "6",
+          "name": "OSC_OUT",
+          "type": "output"
+        },
+        {
+          "num": "7",
+          "name": "NRST",
+          "type": "input"
+        },
+        {
+          "num": "8",
+          "name": "VSSA",
+          "type": "power_in"
+        },
+        {
+          "num": "9",
+          "name": "VDDA",
+          "type": "power_in"
+        },
+        {
+          "num": "32",
+          "name": "USB_DM",
+          "type": "bidirectional"
+        },
+        {
+          "num": "33",
+          "name": "USB_DP",
+          "type": "bidirectional"
+        },
+        {
+          "num": "42",
+          "name": "SCL",
+          "type": "bidirectional"
+        },
+        {
+          "num": "43",
+          "name": "SDA",
+          "type": "bidirectional"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 60,
+      "_pcb_group": "main_ic"
+    },
+    {
+      "ref": "Y1",
+      "name": "Crystal",
+      "value": "8MHz",
+      "footprint": "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "XI",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "passive"
+        },
+        {
+          "num": "3",
+          "name": "XO",
+          "type": "passive"
+        },
+        {
+          "num": "4",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 21.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C1",
+      "name": "C",
+      "value": "20p",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 37.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C2",
+      "name": "C",
+      "value": "20p",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 53.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 108,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "U2",
+      "name": "BME280",
+      "value": "BME280",
+      "footprint": "Package_TO_SOT_SMD:SOT-23-6",
+      "pins": [
+        {
+          "num": "1",
+          "name": "VDD",
+          "type": "power_in"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "power_in"
+        },
+        {
+          "num": "3",
+          "name": "SCL",
+          "type": "bidirectional"
+        },
+        {
+          "num": "4",
+          "name": "SDA",
+          "type": "bidirectional"
+        },
+        {
+          "num": "5",
+          "name": "SDO",
+          "type": "passive"
+        },
+        {
+          "num": "6",
+          "name": "CSB",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 22.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 82,
+      "_pcb_group": "main_ic"
+    },
+    {
+      "ref": "R1",
+      "name": "R",
+      "value": "4k7",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 21.0,
+      "hint_pcb_y": 22.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "R2",
+      "name": "R",
+      "value": "4k7",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 37.0,
+      "hint_pcb_y": 22.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "R3",
+      "name": "R",
+      "value": "10k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 53.0,
+      "hint_pcb_y": 22.0,
+      "hint_sch_x": 108,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "J1",
+      "name": "USB_C",
+      "value": "USB-C",
+      "footprint": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
+      "pins": [
+        {
+          "num": "A4",
+          "name": "VBUS",
+          "type": "power_in"
+        },
+        {
+          "num": "A6",
+          "name": "DP",
+          "type": "bidirectional"
+        },
+        {
+          "num": "A7",
+          "name": "DM",
+          "type": "bidirectional"
+        },
+        {
+          "num": "A5",
+          "name": "CC1",
+          "type": "passive"
+        },
+        {
+          "num": "A1",
+          "name": "GND",
+          "type": "power_in"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 39.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 104,
+      "_pcb_group": "connector_in"
+    },
+    {
+      "ref": "U4",
+      "name": "AMS1117-3.3",
+      "value": "AMS1117-3.3",
+      "footprint": "Package_TO_SOT_SMD:SOT-223-3_TabPin2",
+      "pins": [
+        {
+          "num": "1",
+          "name": "GND",
+          "type": "power_in"
+        },
+        {
+          "num": "2",
+          "name": "VOUT",
+          "type": "power_out"
+        },
+        {
+          "num": "3",
+          "name": "VIN",
+          "type": "power_in"
+        }
+      ],
+      "hint_pcb_x": 21.0,
+      "hint_pcb_y": 39.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 104,
+      "_pcb_group": "power_reg"
+    },
+    {
+      "ref": "C3",
+      "name": "C",
+      "value": "100n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 37.0,
+      "hint_pcb_y": 39.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 104,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C4",
+      "name": "C",
+      "value": "10u",
+      "footprint": "Capacitor_SMD:C_1210_3225Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 53.0,
+      "hint_pcb_y": 39.0,
+      "hint_sch_x": 108,
+      "hint_sch_y": 104,
+      "_pcb_group": "passive"
+    }
+  ],
+  "nets": [
+    {
+      "name": "VBUS",
+      "type": "power",
+      "connections": [
+        "J1:A4",
+        "U4:3",
+        "C4:1"
+      ]
+    },
+    {
+      "name": "P3V3",
+      "type": "power",
+      "connections": [
+        "U4:2",
+        "U1:9",
+        "U1:1",
+        "U2:1",
+        "R1:1",
+        "R2:1",
+        "R3:1",
+        "C3:1"
+      ]
+    },
+    {
+      "name": "GND",
+      "type": "power",
+      "connections": [
+        "J1:A1",
+        "U4:1",
+        "U1:8",
+        "U2:2",
+        "Y1:2",
+        "Y1:4",
+        "C1:2",
+        "C2:2",
+        "C3:2",
+        "C4:2"
+      ]
+    },
+    {
+      "name": "SCL",
+      "type": "signal",
+      "connections": [
+        "U1:42",
+        "U2:3",
+        "R1:2"
+      ]
+    },
+    {
+      "name": "SDA",
+      "type": "signal",
+      "connections": [
+        "U1:43",
+        "U2:4",
+        "R2:2"
+      ]
+    },
+    {
+      "name": "USB_DP",
+      "type": "signal",
+      "connections": [
+        "U1:33",
+        "J1:A6"
+      ]
+    },
+    {
+      "name": "USB_DM",
+      "type": "signal",
+      "connections": [
+        "U1:32",
+        "J1:A7"
+      ]
+    },
+    {
+      "name": "OSC_IN",
+      "type": "signal",
+      "connections": [
+        "U1:5",
+        "Y1:1",
+        "C1:1"
+      ]
+    },
+    {
+      "name": "OSC_OUT",
+      "type": "signal",
+      "connections": [
+        "U1:6",
+        "Y1:3",
+        "C2:1"
+      ]
+    },
+    {
+      "name": "NRST",
+      "type": "signal",
+      "connections": [
+        "U1:7",
+        "R3:2"
+      ]
+    },
+    {
+      "name": "CC1",
+      "type": "signal",
+      "connections": [
+        "J1:A5"
+      ]
+    }
+  ]
+}

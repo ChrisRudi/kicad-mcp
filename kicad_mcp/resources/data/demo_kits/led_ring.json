@@ -1,0 +1,426 @@
+{
+  "project_name": "led_ring",
+  "description": "LED-Ring: 6 adressierbare WS2812B in Reihe auf rundem Board, je Gruppe ein 100-nF-Stütz-C, Ein-/Ausgang. Standard-WS2812B-Daisy-Chain (Worldsemi-Datenblatt, unzählige Open-Hardware-Ringe). Rundes Board für Radial-Layout.",
+  "board": {
+    "shape": "circle",
+    "diameter": 60,
+    "layers": 2
+  },
+  "parts": [
+    {
+      "ref": "J1",
+      "name": "Conn_01x03",
+      "value": "IN",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "5V",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "DIN",
+          "type": "passive"
+        },
+        {
+          "num": "3",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 53.0,
+      "hint_pcb_y": 30.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 60,
+      "_pcb_group": "connector_in"
+    },
+    {
+      "ref": "D1",
+      "name": "WS2812B",
+      "value": "WS2812B",
+      "footprint": "LED_SMD:LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "VDD",
+          "type": "power_in"
+        },
+        {
+          "num": "2",
+          "name": "DOUT",
+          "type": "output"
+        },
+        {
+          "num": "3",
+          "name": "GND",
+          "type": "power_in"
+        },
+        {
+          "num": "4",
+          "name": "DIN",
+          "type": "input"
+        }
+      ],
+      "hint_pcb_x": 49.35,
+      "hint_pcb_y": 42.43,
+      "hint_sch_x": 56,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "D2",
+      "name": "WS2812B",
+      "value": "WS2812B",
+      "footprint": "LED_SMD:LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "VDD",
+          "type": "power_in"
+        },
+        {
+          "num": "2",
+          "name": "DOUT",
+          "type": "output"
+        },
+        {
+          "num": "3",
+          "name": "GND",
+          "type": "power_in"
+        },
+        {
+          "num": "4",
+          "name": "DIN",
+          "type": "input"
+        }
+      ],
+      "hint_pcb_x": 39.55,
+      "hint_pcb_y": 50.92,
+      "hint_sch_x": 82,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "D3",
+      "name": "WS2812B",
+      "value": "WS2812B",
+      "footprint": "LED_SMD:LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "VDD",
+          "type": "power_in"
+        },
+        {
+          "num": "2",
+          "name": "DOUT",
+          "type": "output"
+        },
+        {
+          "num": "3",
+          "name": "GND",
+          "type": "power_in"
+        },
+        {
+          "num": "4",
+          "name": "DIN",
+          "type": "input"
+        }
+      ],
+      "hint_pcb_x": 26.73,
+      "hint_pcb_y": 52.77,
+      "hint_sch_x": 108,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "D4",
+      "name": "WS2812B",
+      "value": "WS2812B",
+      "footprint": "LED_SMD:LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "VDD",
+          "type": "power_in"
+        },
+        {
+          "num": "2",
+          "name": "DOUT",
+          "type": "output"
+        },
+        {
+          "num": "3",
+          "name": "GND",
+          "type": "power_in"
+        },
+        {
+          "num": "4",
+          "name": "DIN",
+          "type": "input"
+        }
+      ],
+      "hint_pcb_x": 14.94,
+      "hint_pcb_y": 47.38,
+      "hint_sch_x": 134,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "D5",
+      "name": "WS2812B",
+      "value": "WS2812B",
+      "footprint": "LED_SMD:LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "VDD",
+          "type": "power_in"
+        },
+        {
+          "num": "2",
+          "name": "DOUT",
+          "type": "output"
+        },
+        {
+          "num": "3",
+          "name": "GND",
+          "type": "power_in"
+        },
+        {
+          "num": "4",
+          "name": "DIN",
+          "type": "input"
+        }
+      ],
+      "hint_pcb_x": 7.93,
+      "hint_pcb_y": 36.48,
+      "hint_sch_x": 160,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "D6",
+      "name": "WS2812B",
+      "value": "WS2812B",
+      "footprint": "LED_SMD:LED_WS2812B_PLCC4_5.0x5.0mm_P3.2mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "VDD",
+          "type": "power_in"
+        },
+        {
+          "num": "2",
+          "name": "DOUT",
+          "type": "output"
+        },
+        {
+          "num": "3",
+          "name": "GND",
+          "type": "power_in"
+        },
+        {
+          "num": "4",
+          "name": "DIN",
+          "type": "input"
+        }
+      ],
+      "hint_pcb_x": 7.93,
+      "hint_pcb_y": 23.52,
+      "hint_sch_x": 30,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C1",
+      "name": "C",
+      "value": "100n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 14.94,
+      "hint_pcb_y": 12.62,
+      "hint_sch_x": 56,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C2",
+      "name": "C",
+      "value": "100n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 26.73,
+      "hint_pcb_y": 7.23,
+      "hint_sch_x": 82,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C3",
+      "name": "C",
+      "value": "100n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 39.55,
+      "hint_pcb_y": 9.08,
+      "hint_sch_x": 108,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "J2",
+      "name": "Conn_01x03",
+      "value": "OUT",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "5V",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "DOUT",
+          "type": "passive"
+        },
+        {
+          "num": "3",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 49.35,
+      "hint_pcb_y": 17.57,
+      "hint_sch_x": 134,
+      "hint_sch_y": 82,
+      "_pcb_group": "connector_out"
+    }
+  ],
+  "nets": [
+    {
+      "name": "P5V",
+      "type": "power",
+      "connections": [
+        "J1:1",
+        "J2:1",
+        "D1:1",
+        "D2:1",
+        "D3:1",
+        "D4:1",
+        "D5:1",
+        "D6:1",
+        "C1:1",
+        "C2:1",
+        "C3:1"
+      ]
+    },
+    {
+      "name": "GND",
+      "type": "power",
+      "connections": [
+        "J1:3",
+        "J2:3",
+        "D1:3",
+        "D2:3",
+        "D3:3",
+        "D4:3",
+        "D5:3",
+        "D6:3",
+        "C1:2",
+        "C2:2",
+        "C3:2"
+      ]
+    },
+    {
+      "name": "DATA0",
+      "type": "signal",
+      "connections": [
+        "J1:2",
+        "D1:4"
+      ]
+    },
+    {
+      "name": "DATA1",
+      "type": "signal",
+      "connections": [
+        "D1:2",
+        "D2:4"
+      ]
+    },
+    {
+      "name": "DATA2",
+      "type": "signal",
+      "connections": [
+        "D2:2",
+        "D3:4"
+      ]
+    },
+    {
+      "name": "DATA3",
+      "type": "signal",
+      "connections": [
+        "D3:2",
+        "D4:4"
+      ]
+    },
+    {
+      "name": "DATA4",
+      "type": "signal",
+      "connections": [
+        "D4:2",
+        "D5:4"
+      ]
+    },
+    {
+      "name": "DATA5",
+      "type": "signal",
+      "connections": [
+        "D5:2",
+        "D6:4"
+      ]
+    },
+    {
+      "name": "DATA6",
+      "type": "signal",
+      "connections": [
+        "D6:2",
+        "J2:2"
+      ]
+    }
+  ]
+}

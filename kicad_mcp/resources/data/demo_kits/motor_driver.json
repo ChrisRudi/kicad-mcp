@@ -1,0 +1,292 @@
+{
+  "project_name": "motor_driver",
+  "description": "Bürsten-DC-Motor-Treiber DRV8871 (H-Brücke): Bulk-Elko 47µF + 100nF an VM, ILIM-Widerstand, Motor-/Versorgungs-/Steuerstecker, Testpunkt an OUT1. Nach dem TI-DRV8871-Datenblatt / Adafruit-Breakout (Open Hardware).",
+  "board": {
+    "shape": "rectangle",
+    "width": 46,
+    "depth": 36,
+    "layers": 2
+  },
+  "parts": [
+    {
+      "ref": "U1",
+      "name": "DRV8871",
+      "value": "DRV8871",
+      "footprint": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "GND",
+          "type": "power_in"
+        },
+        {
+          "num": "2",
+          "name": "IN2",
+          "type": "input"
+        },
+        {
+          "num": "3",
+          "name": "VM",
+          "type": "power_in"
+        },
+        {
+          "num": "4",
+          "name": "OUT2",
+          "type": "output"
+        },
+        {
+          "num": "5",
+          "name": "ILIM",
+          "type": "passive"
+        },
+        {
+          "num": "6",
+          "name": "OUT1",
+          "type": "output"
+        },
+        {
+          "num": "7",
+          "name": "IN1",
+          "type": "input"
+        },
+        {
+          "num": "8",
+          "name": "GND",
+          "type": "power_in"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 60,
+      "_pcb_group": "main_ic"
+    },
+    {
+      "ref": "C1",
+      "name": "C",
+      "value": "47u",
+      "footprint": "Capacitor_SMD:CP_Elec_6.3x7.7",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 23.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C2",
+      "name": "C",
+      "value": "100n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 41.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "R1",
+      "name": "R",
+      "value": "30k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 18.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "J1",
+      "name": "Conn_01x02",
+      "value": "MOTOR",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "M+",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "M-",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 23.0,
+      "hint_pcb_y": 18.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 82,
+      "_pcb_group": "connector_out"
+    },
+    {
+      "ref": "J2",
+      "name": "Conn_01x02",
+      "value": "VM",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "V+",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 41.0,
+      "hint_pcb_y": 18.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 82,
+      "_pcb_group": "connector_in"
+    },
+    {
+      "ref": "J3",
+      "name": "Conn_01x03",
+      "value": "CTRL",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "IN1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "IN2",
+          "type": "passive"
+        },
+        {
+          "num": "3",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 31.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 104,
+      "_pcb_group": "connector_in"
+    },
+    {
+      "ref": "TP1",
+      "name": "TestPoint",
+      "value": "OUT1",
+      "footprint": "TestPoint:TestPoint_Pad_D1.5mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "TP",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 23.0,
+      "hint_pcb_y": 31.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 104,
+      "_pcb_group": "passive"
+    }
+  ],
+  "nets": [
+    {
+      "name": "VM",
+      "type": "power",
+      "connections": [
+        "J2:1",
+        "U1:3",
+        "C1:1",
+        "C2:1"
+      ]
+    },
+    {
+      "name": "GND",
+      "type": "power",
+      "connections": [
+        "J2:2",
+        "U1:1",
+        "U1:8",
+        "C1:2",
+        "C2:2",
+        "J3:3",
+        "R1:2"
+      ]
+    },
+    {
+      "name": "IN1",
+      "type": "signal",
+      "connections": [
+        "J3:1",
+        "U1:7"
+      ]
+    },
+    {
+      "name": "IN2",
+      "type": "signal",
+      "connections": [
+        "J3:2",
+        "U1:2"
+      ]
+    },
+    {
+      "name": "OUT1",
+      "type": "signal",
+      "connections": [
+        "U1:6",
+        "J1:1",
+        "TP1:1"
+      ]
+    },
+    {
+      "name": "OUT2",
+      "type": "signal",
+      "connections": [
+        "U1:4",
+        "J1:2"
+      ]
+    },
+    {
+      "name": "ILIM",
+      "type": "signal",
+      "connections": [
+        "U1:5",
+        "R1:1"
+      ]
+    }
+  ]
+}

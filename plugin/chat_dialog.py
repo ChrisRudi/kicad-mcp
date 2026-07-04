@@ -1085,33 +1085,59 @@ class ClaudeChatPanel(wx.Panel):
         return menu
 
     def _run_demo_kit(self, kit_key: str) -> None:
-        """Einen gewählten Bausatz starten. Solange die Schaltplan-Spec noch
-        nicht gebaut ist, zeigt es den Ablauf transparent in Abschnitten
-        (Schaltplan anlegen → Skill für Skill mit Begründung) als Vorschau; mit
-        vorhandener Spec läuft daraus die echte Demo (folgt)."""
+        """Einen gewählten Bausatz starten. Ist die Schaltplan-Spec vorhanden,
+        wird der Schaltplan + die Platine sichtbar angelegt (deterministisch,
+        wie die Schnell-Demo) und danach die Skill-Folge gezeigt, die das Board
+        entwirft. Fehlt die Spec noch, nur die Vorschau in Abschnitten."""
         from . import demo_kits, demo_runner
         kit = demo_kits.get(kit_key)
         if kit is None:
             return
+        if self._busy:
+            self._set_status(tr("⏳ Es läuft noch ein Zug — danach nochmal "
+                                "klicken."), theme.CLAUDE_ORANGE)
+            return
         self._write(f"\n▶ {tr('Demo')} — {kit.title}\n",
                     theme.CLAUDE_ORANGE, bold=True)
         self._write(f"  {kit.summary}\n", theme.DIM)
+        if demo_runner.spec_exists(kit):
+            self._set_busy(True)
+            threading.Thread(target=self._demo_worker, args=(kit_key,),
+                             daemon=True).start()
+            return
+        # Spec fehlt noch → nur Vorschau des Ablaufs in Abschnitten.
+        self._write_demo_plan(kit_key, preview=True)
+
+    def _write_demo_plan(self, kit_key: str, preview: bool = False) -> None:
+        """Die Skill-Folge eines Bausatzes ins Transkript schreiben (Schritt für
+        Schritt mit Begründung). ``preview`` markiert, dass die Schaltung noch
+        nicht gebaut ist."""
+        from . import demo_runner
         try:
             steps = demo_runner.plan(kit_key)
         except Exception as exc:
             self._append("error", f"Demo-Plan fehlgeschlagen: {exc}")
             return
+        if not preview:
+            self._write("  " + tr("Damit entwerfen diese Skills das Board:")
+                        + "\n", theme.DIM)
         for i, step in enumerate(steps):
             if step.kind == demo_runner.STEP_BUILD:
-                self._write(f"  {i}. 📐 {step.detail}\n", theme.FOREGROUND)
-            else:
-                self._write(f"  {i}. {step.label}\n", theme.FOREGROUND)
-                self._write(f"        {step.detail}\n", theme.DIM)
-        if not demo_runner.spec_exists(kit):
+                if preview:
+                    self._write(f"  {i}. 📐 {step.detail}\n", theme.FOREGROUND)
+                continue
+            self._write(f"  {i}. {step.label}\n", theme.FOREGROUND)
+            self._write(f"        {step.detail}\n", theme.DIM)
+        if preview:
             self._write("  📋 " + tr(
                 "Vorschau — die Schaltung wird angelegt, sobald ihre Spec "
                 "vorliegt; dann laufen diese Skills der Reihe nach automatisch "
                 "das Board entwerfen.") + "\n", theme.DIM)
+        else:
+            self._write("  💡 " + tr(
+                "Die Skills laufen (noch) nicht automatisch nacheinander — du "
+                "kannst jeden oben per Button auf dem Board auslösen.") + "\n",
+                theme.DIM)
 
     def _run_quick_demo(self) -> None:
         """Schnell-Demo: baut die Testschaltung sichtbar (Idee→Schaltplan→
@@ -1127,11 +1153,12 @@ class ClaudeChatPanel(wx.Panel):
         self._set_busy(True)
         threading.Thread(target=self._demo_worker, daemon=True).start()
 
-    def _demo_worker(self) -> None:
+    def _demo_worker(self, kit_key: str = "") -> None:
         """Off-GUI: Demo als Subprozess mit sys.path-Bootstrap fahren (das
         Plugin-GUI-Python hat ``kicad_mcp`` NICHT auf dem Pfad — deshalb kein
-        In-Process-Import), Schritte live ins Transkript. Öffnen muss der
-        Nutzer selbst (KiCad-10-IPC kann kein Dokument öffnen)."""
+        In-Process-Import), Schritte live ins Transkript. ``kit_key`` leer =
+        Selftest-Board (Schnell-Demo), sonst der gewählte Bausatz (``--kit``).
+        Öffnen muss der Nutzer selbst (KiCad-10-IPC kann kein Dokument öffnen)."""
         import os as _os
         import subprocess
         from . import deps as _deps, mcp_config, server_manager
@@ -1142,11 +1169,14 @@ class ClaudeChatPanel(wx.Panel):
                 raise RuntimeError("KiCad-Python nicht gefunden.")
             mcp_root = getattr(self._plan, "config_pythonpath", "") \
                 or server_manager.default_mcp_root()
-            out_dir = _os.path.join(self._plan.run_cwd, ".kicad-mcp", "demo")
+            sub = _os.path.join("demo", kit_key) if kit_key else "demo"
+            out_dir = _os.path.join(self._plan.run_cwd, ".kicad-mcp", sub)
             cmd = [py, "-c",
                    mcp_config.demo_bootstrap_code(mcp_root,
                                                   _deps.active_deps_dir()),
                    "--out", out_dir]
+            if kit_key:
+                cmd += ["--kit", kit_key]
             proc = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, encoding="utf-8", errors="replace",
@@ -1164,6 +1194,10 @@ class ClaudeChatPanel(wx.Panel):
                 wx.CallAfter(self._write,
                              "  📂 " + tr("In KiCad öffnen: Datei → Öffnen →")
                              + f" {board}\n", theme.DIM)
+            if kit_key:
+                # Schaltplan/Board liegen — jetzt die Skill-Folge zeigen, die
+                # das Board entwirft (transparent, was als Nächstes hilft).
+                wx.CallAfter(self._write_demo_plan, kit_key, False)
         except Exception as exc:
             wx.CallAfter(self._append, "error",
                          f"Demo fehlgeschlagen: {type(exc).__name__}: {exc}")

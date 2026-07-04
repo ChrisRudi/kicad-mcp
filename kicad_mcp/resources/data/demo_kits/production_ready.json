@@ -1,0 +1,434 @@
+{
+  "project_name": "production_ready",
+  "description": "Dichtes 74HC595-Schieberegister-Breakout mit bewusst fast-gleichen R/C-Werten (10k/10.2k/9.1k → 10k; 1k/1.02k → 1k; 100n/100n/104) — Steilvorlage für BOM-Konsolidierung, Fab-Standardteile und Kosten. 74HC595 ist ein Klassiker in unzähligen Open-Hardware-Breakouts.",
+  "board": {
+    "shape": "rectangle",
+    "width": 56,
+    "depth": 40,
+    "layers": 2
+  },
+  "parts": [
+    {
+      "ref": "U1",
+      "name": "74HC595",
+      "value": "74HC595",
+      "footprint": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "Q1",
+          "type": "output"
+        },
+        {
+          "num": "2",
+          "name": "Q2",
+          "type": "output"
+        },
+        {
+          "num": "3",
+          "name": "Q3",
+          "type": "output"
+        },
+        {
+          "num": "4",
+          "name": "GND",
+          "type": "power_in"
+        },
+        {
+          "num": "5",
+          "name": "SER",
+          "type": "input"
+        },
+        {
+          "num": "6",
+          "name": "SRCLK",
+          "type": "input"
+        },
+        {
+          "num": "7",
+          "name": "RCLK",
+          "type": "input"
+        },
+        {
+          "num": "8",
+          "name": "VCC",
+          "type": "power_in"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 60,
+      "_pcb_group": "main_ic"
+    },
+    {
+      "ref": "R1",
+      "name": "R",
+      "value": "10k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 20.33,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "R2",
+      "name": "R",
+      "value": "10.2k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 35.67,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "R3",
+      "name": "R",
+      "value": "9.1k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 51.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 108,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "R4",
+      "name": "R",
+      "value": "1k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 15.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "R5",
+      "name": "R",
+      "value": "1.02k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 20.33,
+      "hint_pcb_y": 15.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "R6",
+      "name": "R",
+      "value": "330R",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 35.67,
+      "hint_pcb_y": 15.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C1",
+      "name": "C",
+      "value": "100n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 51.0,
+      "hint_pcb_y": 15.0,
+      "hint_sch_x": 108,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C2",
+      "name": "C",
+      "value": "100n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 25.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 104,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C3",
+      "name": "C",
+      "value": "104",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 20.33,
+      "hint_pcb_y": 25.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 104,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C4",
+      "name": "C",
+      "value": "10u",
+      "footprint": "Capacitor_SMD:C_1210_3225Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 35.67,
+      "hint_pcb_y": 25.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 104,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "D1",
+      "name": "D",
+      "value": "green",
+      "footprint": "LED_SMD:LED_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 51.0,
+      "hint_pcb_y": 25.0,
+      "hint_sch_x": 108,
+      "hint_sch_y": 104,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "J1",
+      "name": "Conn_01x04",
+      "value": "IO",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "VCC",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "SER",
+          "type": "passive"
+        },
+        {
+          "num": "3",
+          "name": "SRCLK",
+          "type": "passive"
+        },
+        {
+          "num": "4",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 35.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 126,
+      "_pcb_group": "connector_in"
+    }
+  ],
+  "nets": [
+    {
+      "name": "VCC",
+      "type": "power",
+      "connections": [
+        "U1:8",
+        "J1:1",
+        "R1:1",
+        "R2:1",
+        "R3:1",
+        "C1:1",
+        "C2:1",
+        "C3:1",
+        "C4:1"
+      ]
+    },
+    {
+      "name": "GND",
+      "type": "power",
+      "connections": [
+        "U1:4",
+        "J1:4",
+        "C1:2",
+        "C2:2",
+        "C3:2",
+        "C4:2",
+        "R1:2",
+        "R2:2",
+        "R3:2",
+        "D1:1"
+      ]
+    },
+    {
+      "name": "SER",
+      "type": "signal",
+      "connections": [
+        "J1:2",
+        "U1:5"
+      ]
+    },
+    {
+      "name": "SRCLK",
+      "type": "signal",
+      "connections": [
+        "J1:3",
+        "U1:6"
+      ]
+    },
+    {
+      "name": "Q1",
+      "type": "signal",
+      "connections": [
+        "U1:1",
+        "R4:1"
+      ]
+    },
+    {
+      "name": "Q2",
+      "type": "signal",
+      "connections": [
+        "U1:2",
+        "R5:1"
+      ]
+    },
+    {
+      "name": "Q3",
+      "type": "signal",
+      "connections": [
+        "U1:3",
+        "R6:1"
+      ]
+    },
+    {
+      "name": "LED_A",
+      "type": "signal",
+      "connections": [
+        "R4:2",
+        "R5:2",
+        "R6:2",
+        "D1:2"
+      ]
+    }
+  ]
+}

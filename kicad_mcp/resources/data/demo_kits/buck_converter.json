@@ -1,0 +1,334 @@
+{
+  "project_name": "buck_converter",
+  "description": "Abwärtswandler MP1584 auf 5 V: Eingangs-/Ausgangs-MLCCs, 10µH-Spule, Schottky-Freilaufdiode, Boot-C, Feedback-Teiler. Nach dem MPS-MP1584-Datenblatt (Typical Application, VOUT=5V) / verbreitetes Mini-Buck-Modul (OSHWLab).",
+  "board": {
+    "shape": "rectangle",
+    "width": 44,
+    "depth": 32,
+    "layers": 2
+  },
+  "parts": [
+    {
+      "ref": "U1",
+      "name": "MP1584",
+      "value": "MP1584",
+      "footprint": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "BST",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "IN",
+          "type": "power_in"
+        },
+        {
+          "num": "3",
+          "name": "SW",
+          "type": "output"
+        },
+        {
+          "num": "4",
+          "name": "GND",
+          "type": "power_in"
+        },
+        {
+          "num": "5",
+          "name": "FB",
+          "type": "input"
+        },
+        {
+          "num": "6",
+          "name": "COMP",
+          "type": "passive"
+        },
+        {
+          "num": "7",
+          "name": "EN",
+          "type": "input"
+        },
+        {
+          "num": "8",
+          "name": "SS",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 60,
+      "_pcb_group": "main_ic"
+    },
+    {
+      "ref": "L1",
+      "name": "Inductor",
+      "value": "10uH",
+      "footprint": "Inductor_SMD:L_12x12mm_H8mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 16.33,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C1",
+      "name": "C",
+      "value": "10u",
+      "footprint": "Capacitor_SMD:C_1210_3225Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 27.67,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C2",
+      "name": "C",
+      "value": "22u",
+      "footprint": "Capacitor_SMD:C_1210_3225Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 39.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 108,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C3",
+      "name": "C",
+      "value": "100n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 16.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "D1",
+      "name": "D_Schottky",
+      "value": "SS34",
+      "footprint": "Diode_SMD:D_SMA",
+      "pins": [
+        {
+          "num": "1",
+          "name": "K",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "A",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 16.33,
+      "hint_pcb_y": 16.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "R1",
+      "name": "R",
+      "value": "100k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 27.67,
+      "hint_pcb_y": 16.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "R2",
+      "name": "R",
+      "value": "19k1",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 39.0,
+      "hint_pcb_y": 16.0,
+      "hint_sch_x": 108,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "J1",
+      "name": "Conn_01x02",
+      "value": "VIN",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "+",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 27.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 104,
+      "_pcb_group": "connector_in"
+    },
+    {
+      "ref": "J2",
+      "name": "Conn_01x02",
+      "value": "VOUT",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "+",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 16.33,
+      "hint_pcb_y": 27.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 104,
+      "_pcb_group": "connector_out"
+    }
+  ],
+  "nets": [
+    {
+      "name": "VIN",
+      "type": "power",
+      "connections": [
+        "J1:1",
+        "U1:2",
+        "C1:1",
+        "U1:7"
+      ]
+    },
+    {
+      "name": "GND",
+      "type": "power",
+      "connections": [
+        "J1:2",
+        "U1:4",
+        "C1:2",
+        "C2:2",
+        "R2:2",
+        "D1:2",
+        "J2:2"
+      ]
+    },
+    {
+      "name": "SW",
+      "type": "signal",
+      "connections": [
+        "U1:3",
+        "L1:1",
+        "D1:1",
+        "C3:1"
+      ]
+    },
+    {
+      "name": "BST",
+      "type": "signal",
+      "connections": [
+        "U1:1",
+        "C3:2"
+      ]
+    },
+    {
+      "name": "VOUT",
+      "type": "power",
+      "connections": [
+        "L1:2",
+        "C2:1",
+        "R1:1",
+        "J2:1"
+      ]
+    },
+    {
+      "name": "FB",
+      "type": "signal",
+      "connections": [
+        "R1:2",
+        "R2:1",
+        "U1:5"
+      ]
+    }
+  ]
+}

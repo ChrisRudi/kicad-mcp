@@ -6,6 +6,8 @@ real vorkommt. So kann kein Skill aus dem Schaufenster fallen."""
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from plugin import demo_kits as dk
@@ -126,16 +128,57 @@ def test_plan_unknown_kit_raises():
         dr.plan("gibtsnicht")
 
 
-def test_spec_not_built_yet_is_flagged_in_build_step():
-    # Scope: die Schaltplan-Specs kommen später — der Build-Schritt sagt das
-    # ehrlich, statt eine fertige Spec vorzutäuschen.
-    for kit in dk.all_kits():
-        if not dr.spec_exists(kit):
-            build = dr.plan(kit.key)[0]
-            assert "noch nicht gebaut" in build.detail
-
-
 def test_describe_is_numbered_and_nonempty():
     text = dr.describe("led_ring")
     assert text.startswith("0.")
     assert "⊙ LED-Ring" in text
+
+
+# --- die 10 Schaltplan-Specs (aus freien Referenz-Topologien) --------------
+
+
+def _load_spec(kit):
+    with open(dr.spec_path(kit), encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def test_every_kit_has_a_spec_file():
+    for kit in dk.all_kits():
+        assert dr.spec_exists(kit), f"{kit.key}: Spec fehlt ({dr.spec_path(kit)})"
+
+
+@pytest.mark.parametrize("kit", dk.all_kits(), ids=lambda k: k.key)
+def test_spec_validates(kit):
+    # Rein (kein KiCad nötig): jede Spec ist eine gültige Generator-Eingabe.
+    from kicad_mcp.generators.validator import validate_all
+    spec = _load_spec(kit)
+    errs = validate_all(spec["parts"], spec["nets"], spec.get("board"))
+    assert errs == [], f"{kit.key}: {errs[:6]}"
+
+
+@pytest.mark.parametrize("kit", dk.all_kits(), ids=lambda k: k.key)
+def test_spec_is_minimal(kit):
+    # „möglichst minimal": kleine, sekundenschnelle Boards.
+    spec = _load_spec(kit)
+    assert 3 <= len(spec["parts"]) <= 16, f"{kit.key}: {len(spec['parts'])} Teile"
+    assert spec.get("description")  # nennt Zweck + Referenzquelle
+
+
+def _has_fp_libs():
+    from kicad_mcp.generators.footprint_lib import _find_fp_dir
+    return _find_fp_dir() is not None
+
+
+@pytest.mark.skipif(not _has_fp_libs(),
+                    reason="KiCad-Footprint-Libs nötig (echte Generierung)")
+@pytest.mark.parametrize("kit", dk.all_kits(), ids=lambda k: k.key)
+def test_spec_builds_schematic_and_board(kit):
+    # Gegen echtes KiCad: jede Spec baut Schaltplan + Board mit ECHTEN
+    # Footprints (kein Platzhalter-Board).
+    from kicad_mcp.generators.schematic.builder import build_schematic
+    from kicad_mcp.generators.pcb.builder import build_pcb
+    spec = _load_spec(kit)
+    sch = build_schematic(spec["parts"], spec["nets"], kit.key)
+    pcb = build_pcb(spec["parts"], spec["nets"], spec.get("board"), kit.key)
+    assert sch.count("(symbol ") >= len(spec["parts"])
+    assert pcb.count("(footprint ") >= len(spec["parts"])

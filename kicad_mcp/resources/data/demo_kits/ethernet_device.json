@@ -1,0 +1,527 @@
+{
+  "project_name": "ethernet_device",
+  "description": "Ethernet-Gerät: MCU-MAC (LQFP-48) + LAN8720 RMII-PHY (als LQFP-32-Platzhalter) + RJ45-Magjack (HanRun, integrierte Magnetics) + 25-MHz-Quarz. RMII-Signale, differentielle TX/RX-Paare, RBIAS. Nach dem Microchip-EVB8720-Referenzschaltplan / LAN8720-Datenblatt.",
+  "board": {
+    "shape": "rectangle",
+    "width": 62,
+    "depth": 46,
+    "layers": 4
+  },
+  "parts": [
+    {
+      "ref": "U1",
+      "name": "MCU_MAC",
+      "value": "STM32F407",
+      "footprint": "Package_QFP:LQFP-48_7x7mm_P0.5mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "VDD",
+          "type": "power_in"
+        },
+        {
+          "num": "2",
+          "name": "VSS",
+          "type": "power_in"
+        },
+        {
+          "num": "10",
+          "name": "REF_CLK",
+          "type": "input"
+        },
+        {
+          "num": "11",
+          "name": "MDC",
+          "type": "output"
+        },
+        {
+          "num": "12",
+          "name": "MDIO",
+          "type": "bidirectional"
+        },
+        {
+          "num": "13",
+          "name": "CRS_DV",
+          "type": "input"
+        },
+        {
+          "num": "14",
+          "name": "RXD0",
+          "type": "input"
+        },
+        {
+          "num": "15",
+          "name": "RXD1",
+          "type": "input"
+        },
+        {
+          "num": "16",
+          "name": "TXEN",
+          "type": "output"
+        },
+        {
+          "num": "17",
+          "name": "TXD0",
+          "type": "output"
+        },
+        {
+          "num": "18",
+          "name": "TXD1",
+          "type": "output"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 60,
+      "_pcb_group": "main_ic"
+    },
+    {
+      "ref": "U2",
+      "name": "LAN8720",
+      "value": "LAN8720",
+      "footprint": "Package_QFP:LQFP-32_7x7mm_P0.8mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "VDD",
+          "type": "power_in"
+        },
+        {
+          "num": "2",
+          "name": "VSS",
+          "type": "power_in"
+        },
+        {
+          "num": "3",
+          "name": "REF_CLK",
+          "type": "output"
+        },
+        {
+          "num": "4",
+          "name": "MDC",
+          "type": "input"
+        },
+        {
+          "num": "5",
+          "name": "MDIO",
+          "type": "bidirectional"
+        },
+        {
+          "num": "6",
+          "name": "CRS_DV",
+          "type": "output"
+        },
+        {
+          "num": "7",
+          "name": "RXD0",
+          "type": "output"
+        },
+        {
+          "num": "8",
+          "name": "RXD1",
+          "type": "output"
+        },
+        {
+          "num": "9",
+          "name": "TXEN",
+          "type": "input"
+        },
+        {
+          "num": "10",
+          "name": "TXD0",
+          "type": "input"
+        },
+        {
+          "num": "11",
+          "name": "TXD1",
+          "type": "input"
+        },
+        {
+          "num": "12",
+          "name": "TXP",
+          "type": "output"
+        },
+        {
+          "num": "13",
+          "name": "TXN",
+          "type": "output"
+        },
+        {
+          "num": "14",
+          "name": "RXP",
+          "type": "input"
+        },
+        {
+          "num": "15",
+          "name": "RXN",
+          "type": "input"
+        },
+        {
+          "num": "16",
+          "name": "RBIAS",
+          "type": "passive"
+        },
+        {
+          "num": "17",
+          "name": "NRST",
+          "type": "input"
+        },
+        {
+          "num": "18",
+          "name": "XTAL1",
+          "type": "input"
+        },
+        {
+          "num": "19",
+          "name": "XTAL2",
+          "type": "output"
+        }
+      ],
+      "hint_pcb_x": 22.33,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 60,
+      "_pcb_group": "main_ic"
+    },
+    {
+      "ref": "Y1",
+      "name": "Crystal",
+      "value": "25MHz",
+      "footprint": "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "XI",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "passive"
+        },
+        {
+          "num": "3",
+          "name": "XO",
+          "type": "passive"
+        },
+        {
+          "num": "4",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 39.67,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C1",
+      "name": "C",
+      "value": "18p",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 57.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 108,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C2",
+      "name": "C",
+      "value": "18p",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 23.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C3",
+      "name": "C",
+      "value": "100n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 22.33,
+      "hint_pcb_y": 23.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C4",
+      "name": "C",
+      "value": "100n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 39.67,
+      "hint_pcb_y": 23.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "R1",
+      "name": "R",
+      "value": "12k1",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 57.0,
+      "hint_pcb_y": 23.0,
+      "hint_sch_x": 108,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "J1",
+      "name": "RJ45",
+      "value": "RJ45_Magjack",
+      "footprint": "Connector_RJ:RJ45_HanRun_HR911105A",
+      "pins": [
+        {
+          "num": "1",
+          "name": "TXP",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "TXN",
+          "type": "passive"
+        },
+        {
+          "num": "3",
+          "name": "RXP",
+          "type": "passive"
+        },
+        {
+          "num": "6",
+          "name": "RXN",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 41.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 104,
+      "_pcb_group": "connector_in"
+    }
+  ],
+  "nets": [
+    {
+      "name": "P3V3",
+      "type": "power",
+      "connections": [
+        "U1:1",
+        "U2:1",
+        "C3:1",
+        "C4:1",
+        "U2:17"
+      ]
+    },
+    {
+      "name": "GND",
+      "type": "power",
+      "connections": [
+        "U1:2",
+        "U2:2",
+        "Y1:2",
+        "Y1:4",
+        "C1:2",
+        "C2:2",
+        "C3:2",
+        "C4:2",
+        "R1:2"
+      ]
+    },
+    {
+      "name": "REF_CLK",
+      "type": "signal",
+      "connections": [
+        "U1:10",
+        "U2:3"
+      ]
+    },
+    {
+      "name": "MDC",
+      "type": "signal",
+      "connections": [
+        "U1:11",
+        "U2:4"
+      ]
+    },
+    {
+      "name": "MDIO",
+      "type": "signal",
+      "connections": [
+        "U1:12",
+        "U2:5"
+      ]
+    },
+    {
+      "name": "CRS_DV",
+      "type": "signal",
+      "connections": [
+        "U1:13",
+        "U2:6"
+      ]
+    },
+    {
+      "name": "RXD0",
+      "type": "signal",
+      "connections": [
+        "U1:14",
+        "U2:7"
+      ]
+    },
+    {
+      "name": "RXD1",
+      "type": "signal",
+      "connections": [
+        "U1:15",
+        "U2:8"
+      ]
+    },
+    {
+      "name": "TXEN",
+      "type": "signal",
+      "connections": [
+        "U1:16",
+        "U2:9"
+      ]
+    },
+    {
+      "name": "TXD0",
+      "type": "signal",
+      "connections": [
+        "U1:17",
+        "U2:10"
+      ]
+    },
+    {
+      "name": "TXD1",
+      "type": "signal",
+      "connections": [
+        "U1:18",
+        "U2:11"
+      ]
+    },
+    {
+      "name": "ETH_TXP",
+      "type": "signal",
+      "connections": [
+        "U2:12",
+        "J1:1"
+      ]
+    },
+    {
+      "name": "ETH_TXN",
+      "type": "signal",
+      "connections": [
+        "U2:13",
+        "J1:2"
+      ]
+    },
+    {
+      "name": "ETH_RXP",
+      "type": "signal",
+      "connections": [
+        "U2:14",
+        "J1:3"
+      ]
+    },
+    {
+      "name": "ETH_RXN",
+      "type": "signal",
+      "connections": [
+        "U2:15",
+        "J1:6"
+      ]
+    },
+    {
+      "name": "RBIAS",
+      "type": "signal",
+      "connections": [
+        "U2:16",
+        "R1:1"
+      ]
+    },
+    {
+      "name": "XI",
+      "type": "signal",
+      "connections": [
+        "U2:18",
+        "Y1:1",
+        "C1:1"
+      ]
+    },
+    {
+      "name": "XO",
+      "type": "signal",
+      "connections": [
+        "U2:19",
+        "Y1:3",
+        "C2:1"
+      ]
+    }
+  ]
+}

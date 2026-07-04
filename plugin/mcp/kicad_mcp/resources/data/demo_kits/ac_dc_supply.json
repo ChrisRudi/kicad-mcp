@@ -1,0 +1,506 @@
+{
+  "project_name": "ac_dc_supply",
+  "description": "Isoliertes AC-DC-Netzteil (Sperrwandler/Flyback) 230 V → 5 V: Sicherung, Brückengleichrichter, Primär-Elko, TinySwitch-Schalter, Trafo, Sekundär-Schottky + Elko, Opto + TL431-Feedback. Kanonische Flyback-Struktur (TI/Power-Integrations-App-Notes). Trafo als 6-Pin-Platzhalter (Trafos sind bauteilspezifisch). HV- und SELV-Domäne getrennt — genau die Isolationsbarriere, die die Norm-Skills prüfen.",
+  "board": {
+    "shape": "rectangle",
+    "width": 74,
+    "depth": 52,
+    "layers": 2
+  },
+  "parts": [
+    {
+      "ref": "J1",
+      "name": "Conn_01x02",
+      "value": "AC_IN",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "L",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "N",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 60,
+      "_pcb_group": "connector_in"
+    },
+    {
+      "ref": "F1",
+      "name": "F",
+      "value": "T2A",
+      "footprint": "Fuse:Fuse_1206_3216Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 21.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "BR1",
+      "name": "Diode_Bridge",
+      "value": "MB6S",
+      "footprint": "Diode_Bridge:Diode_Bridge_DIP-4_W7.62mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "AC1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "V-",
+          "type": "passive"
+        },
+        {
+          "num": "3",
+          "name": "AC2",
+          "type": "passive"
+        },
+        {
+          "num": "4",
+          "name": "V+",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 37.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C1",
+      "name": "C",
+      "value": "10u/400V",
+      "footprint": "Capacitor_SMD:CP_Elec_6.3x7.7",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 53.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 108,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "U1",
+      "name": "TNY268",
+      "value": "TNY268",
+      "footprint": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "DRAIN",
+          "type": "passive"
+        },
+        {
+          "num": "4",
+          "name": "SOURCE",
+          "type": "power_in"
+        },
+        {
+          "num": "5",
+          "name": "BP",
+          "type": "passive"
+        },
+        {
+          "num": "8",
+          "name": "EN",
+          "type": "input"
+        }
+      ],
+      "hint_pcb_x": 69.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 134,
+      "hint_sch_y": 60,
+      "_pcb_group": "main_ic"
+    },
+    {
+      "ref": "T1",
+      "name": "Flyback_Trafo",
+      "value": "EE16",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        },
+        {
+          "num": "3",
+          "name": "AUX",
+          "type": "passive"
+        },
+        {
+          "num": "4",
+          "name": "S1",
+          "type": "passive"
+        },
+        {
+          "num": "5",
+          "name": "S2",
+          "type": "passive"
+        },
+        {
+          "num": "6",
+          "name": "SGND",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 26.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "D1",
+      "name": "D_Schottky",
+      "value": "SB560",
+      "footprint": "Diode_SMD:D_SMA",
+      "pins": [
+        {
+          "num": "1",
+          "name": "K",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "A",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 21.0,
+      "hint_pcb_y": 26.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C2",
+      "name": "C",
+      "value": "470u/10V",
+      "footprint": "Capacitor_SMD:CP_Elec_6.3x7.7",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 37.0,
+      "hint_pcb_y": 26.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "U2",
+      "name": "PC817",
+      "value": "PC817",
+      "footprint": "Package_DIP:DIP-4_W7.62mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "AN",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "CA",
+          "type": "passive"
+        },
+        {
+          "num": "3",
+          "name": "EM",
+          "type": "passive"
+        },
+        {
+          "num": "4",
+          "name": "COL",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 53.0,
+      "hint_pcb_y": 26.0,
+      "hint_sch_x": 108,
+      "hint_sch_y": 82,
+      "_pcb_group": "main_ic"
+    },
+    {
+      "ref": "U3",
+      "name": "TL431",
+      "value": "TL431",
+      "footprint": "Package_TO_SOT_SMD:SOT-23",
+      "pins": [
+        {
+          "num": "1",
+          "name": "REF",
+          "type": "input"
+        },
+        {
+          "num": "2",
+          "name": "A",
+          "type": "passive"
+        },
+        {
+          "num": "3",
+          "name": "K",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 69.0,
+      "hint_pcb_y": 26.0,
+      "hint_sch_x": 134,
+      "hint_sch_y": 82,
+      "_pcb_group": "main_ic"
+    },
+    {
+      "ref": "R1",
+      "name": "R",
+      "value": "10k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 47.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 104,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "R2",
+      "name": "R",
+      "value": "2k49",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 21.0,
+      "hint_pcb_y": 47.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 104,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "R3",
+      "name": "R",
+      "value": "1k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 37.0,
+      "hint_pcb_y": 47.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 104,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "J2",
+      "name": "Conn_01x02",
+      "value": "5V_OUT",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "+5V",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 53.0,
+      "hint_pcb_y": 47.0,
+      "hint_sch_x": 108,
+      "hint_sch_y": 104,
+      "_pcb_group": "connector_out"
+    }
+  ],
+  "nets": [
+    {
+      "name": "AC_L",
+      "type": "signal",
+      "connections": [
+        "J1:1",
+        "F1:1"
+      ]
+    },
+    {
+      "name": "AC_LF",
+      "type": "signal",
+      "connections": [
+        "F1:2",
+        "BR1:1"
+      ]
+    },
+    {
+      "name": "AC_N",
+      "type": "signal",
+      "connections": [
+        "J1:2",
+        "BR1:3"
+      ]
+    },
+    {
+      "name": "HV_DC",
+      "type": "power",
+      "connections": [
+        "BR1:4",
+        "C1:1",
+        "T1:1"
+      ]
+    },
+    {
+      "name": "PRI_GND",
+      "type": "power",
+      "connections": [
+        "BR1:2",
+        "C1:2",
+        "U1:4",
+        "T1:3",
+        "U2:3"
+      ]
+    },
+    {
+      "name": "SW_PRI",
+      "type": "signal",
+      "connections": [
+        "T1:2",
+        "U1:1"
+      ]
+    },
+    {
+      "name": "EN_FB",
+      "type": "signal",
+      "connections": [
+        "U2:4",
+        "U1:8"
+      ]
+    },
+    {
+      "name": "SEC_5V",
+      "type": "power",
+      "connections": [
+        "D1:1",
+        "C2:1",
+        "R1:1",
+        "R3:1",
+        "J2:1"
+      ]
+    },
+    {
+      "name": "SEC_GND",
+      "type": "power",
+      "connections": [
+        "T1:5",
+        "C2:2",
+        "R2:2",
+        "U3:2",
+        "J2:2"
+      ]
+    },
+    {
+      "name": "SW_SEC",
+      "type": "signal",
+      "connections": [
+        "T1:4",
+        "D1:2"
+      ]
+    },
+    {
+      "name": "FB",
+      "type": "signal",
+      "connections": [
+        "R1:2",
+        "R2:1",
+        "U3:1"
+      ]
+    },
+    {
+      "name": "OPTO_LED",
+      "type": "signal",
+      "connections": [
+        "R3:2",
+        "U2:1"
+      ]
+    },
+    {
+      "name": "OPTO_CK",
+      "type": "signal",
+      "connections": [
+        "U2:2",
+        "U3:3"
+      ]
+    }
+  ]
+}

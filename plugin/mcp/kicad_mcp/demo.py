@@ -27,6 +27,18 @@ from typing import Callable, List, Optional
 
 from kicad_mcp.selftest import SPEC_PATH, load_spec
 
+# Verzeichnis der Demo-Bausatz-Specs (die 10 Schaustück-Schaltungen).
+DEMO_KITS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "resources", "data", "demo_kits")
+
+
+def kit_spec_path(key: str) -> str:
+    """Spec-Pfad eines Demo-Bausatzes (``<key>.json``) — leer, wenn es ihn
+    (noch) nicht gibt."""
+    path = os.path.join(DEMO_KITS_DIR, f"{key}.json")
+    return path if os.path.isfile(path) else ""
+
+
 # Grüne LED: typische Durchlassspannung, für die Vorwiderstands-Rechnung.
 _GREEN_LED_VF = 2.0
 # Angenehmer LED-Strombereich (mA) — außerhalb: zu dunkel bzw. zu hell/heiß.
@@ -74,6 +86,15 @@ def _led_resistor_check(spec: dict) -> dict:
                  f"{_fmt_ohms(r_ohms)} = {current_ma:.1f} mA — {verdict} "
                  f"({_LED_MIN_MA:.0f}–{_LED_MAX_MA:.0f} mA)."),
     }
+
+
+def _spec_has_led(spec: dict) -> bool:
+    """Hat die Spec einen LED-Zweig (für die Vorwiderstands-Rechnung)?"""
+    for part in spec.get("parts", []):
+        name = str(part.get("name", "")).upper()
+        if "LED" in name or "LED" in str(part.get("footprint", "")).upper():
+            return True
+    return False
 
 
 def _parse_ohms(value: str) -> Optional[float]:
@@ -142,21 +163,28 @@ def run_demo(out_dir: str, server=None, spec_path: Optional[str] = None,
         steps.append({"key": "schaltplan", "ok": sch_ok,
                       "title": "Schaltplan",
                       "text": (f"{os.path.basename(files.get('schematic',''))} "
-                               "erzeugt — Regler, Cs, Vorwiderstand, LED, "
-                               "Testpunkt, verdrahtet.")
+                               f"erzeugt — {n_parts} Bauteile, {n_nets} Netze "
+                               "verdrahtet.")
                       if sch_ok else f"Fehler: {out.get('error') or out}"})
     except Exception as exc:  # pragma: no cover - defensiv
         steps.append({"key": "schaltplan", "ok": False, "title": "Schaltplan",
                       "text": f"{type(exc).__name__}: {exc}"})
     emit(f"② Schaltplan: {steps[-1]['text']}")
 
-    # 3) Berechnung (rein, aus den Spec-Werten)
-    calc = _led_resistor_check(spec)
-    steps.append({"key": "berechnung", "ok": calc["ok"],
-                  "title": "Berechnung", "text": calc["text"],
-                  "detail": {k: calc[k] for k in
-                             ("rail_v", "r_ohms", "vf_v", "current_ma")
-                             if k in calc}})
+    # 3) Berechnung (rein, aus den Spec-Werten). Der Mini-Rechenschritt ist die
+    # LED-Vorwiderstands-Prüfung; hat ein Bausatz keinen LED-Zweig, entfällt sie
+    # neutral (kein Fehler) — die echte Rechnung übernehmen die Elektrik-Skills.
+    if _spec_has_led(spec):
+        calc = _led_resistor_check(spec)
+        steps.append({"key": "berechnung", "ok": calc["ok"],
+                      "title": "Berechnung", "text": calc["text"],
+                      "detail": {k: calc[k] for k in
+                                 ("rail_v", "r_ohms", "vf_v", "current_ma")
+                                 if k in calc}})
+    else:
+        steps.append({"key": "berechnung", "ok": True, "title": "Berechnung",
+                      "text": ("keine LED-Vorwiderstands-Prüfung nötig — die "
+                               "Elektrik-Skills rechnen das Passende.")})
     emit(f"③ Berechnung: {steps[-1]['text']}")
 
     # 4) Platine
@@ -199,8 +227,15 @@ def main(argv=None) -> int:
                             category=RuntimeWarning)
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True)
+    parser.add_argument("--kit", default="",
+                        help="Demo-Bausatz-Key (leer = Selftest-Board)")
     args = parser.parse_args(argv)
-    result = run_demo(args.out, on_step=lambda line: print(line, flush=True))
+    spec_path = kit_spec_path(args.kit) if args.kit else None
+    if args.kit and not spec_path:
+        print(f"⚠ Bausatz '{args.kit}' hat keine Spec — nutze Selftest-Board.",
+              flush=True)
+    result = run_demo(args.out, spec_path=spec_path,
+                      on_step=lambda line: print(line, flush=True))
     print(summary_line(result), flush=True)
     if result.get("board_path"):
         print("BOARD\t" + result["board_path"], flush=True)

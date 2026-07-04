@@ -8,6 +8,36 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (10 Demo-Schaltungen aus freien Referenz-Topologien — live baubar, Plugin 0.12.0)
+- **Nutzer-Wunsch:** „freie KiCad-Schaltpläne im Internet suchen und diese
+  möglichst minimal integrieren." Umsetzung: die 10 Bausätze sind an
+  **publizierten, frei verfügbaren Referenz-Designs** orientiert (Datenblatt-
+  Typical-Applications + Open-Hardware) und als minimale Generator-Specs
+  (parts+pins+nets, keine fremden Dateien vendored → lizenzsauber + passt zur
+  Pipeline) neu geschrieben.
+- **`kicad_mcp/resources/data/demo_kits/*.json`** (10 neu): audio_amp (TI
+  LM386), usb_sensor_hub (STM32 'Blue Pill'), ac_dc_supply (Flyback, TI/PI-
+  App-Notes), led_ring (WS2812, rundes Board), motor_driver (TI/Adafruit
+  DRV8871), buck_converter (MPS MP1584), ethernet_device (Microchip EVB8720 /
+  LAN8720), sketch_to_copper (AMS1117), production_ready (74HC595 + fast-gleiche
+  R/C), kit_seeding (TI NE555 Astabil). Jede Quelle ist in der Spec-
+  `description` genannt. Alle Footprints in KiCad-10-Standard-Libs verifiziert;
+  je Spec 6–14 Bauteile; board-gefüllte Startplatzierung (Ring bei rundem
+  Board). Ende-zu-Ende gegen echtes KiCad geprüft (validiert + baut Schaltplan
+  + Board mit ECHTEN Footprints, gerendert kontrolliert).
+- **`kicad_mcp/demo.py`:** `run_demo`/`main` nehmen jetzt einen Bausatz
+  (`--kit <key>`, `kit_spec_path`); der Berechnungs-Schritt entfällt neutral
+  bei Bausätzen ohne LED-Zweig (`_spec_has_led`), Schritt-2-Text ist
+  kit-agnostisch.
+- **`plugin/chat_dialog.py`:** „▶ Diese Demo starten" baut jetzt sichtbar
+  Schaltplan + Platine (Subprozess mit `--kit`, per-Kit-Ausgabeordner) und zeigt
+  danach die Skill-Folge (`_write_demo_plan`); fehlt eine Spec, nur die
+  Vorschau. `demo_runner.spec_exists` steuert Label/Verhalten.
+- **`tests/test_demo_kits.py`:** +Tests — jede Spec existiert, validiert, ist
+  minimal, und baut (skipif ohne KiCad-Libs) Schaltplan + Board mit echten
+  Footprints. Version 0.11.0 → 0.12.0, Bundle-Sync, pylint 10/10. Keine neuen
+  MCP-Tools (Tool-Count 189 unverändert).
+
 ### Added (Demo-Auswahlmenü mit Hover-Vorschau der Super-Skills — Abschnitte)
 - **Nutzer-Wunsch:** die Demo soll über ein Menü wählbar sein, und schon beim
   Aufklappen/Hover sieht man, welche Super-Skills beteiligt sind und was

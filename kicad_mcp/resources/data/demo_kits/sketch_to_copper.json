@@ -1,0 +1,182 @@
+{
+  "project_name": "sketch_to_copper",
+  "description": "Kleiner Leistungspfad zum interaktiven Routen: 12 V → 5 V AMS1117-Linearregler mit Ein-/Ausgangs-C und Testpunkt. Bewusst winzig, damit Skizzen-Layer → Kupfer und Mitdenken-Review am Handrouten sichtbar werden. AMS1117-Standardapplikation (Datenblatt).",
+  "board": {
+    "shape": "rectangle",
+    "width": 32,
+    "depth": 24,
+    "layers": 2
+  },
+  "parts": [
+    {
+      "ref": "J1",
+      "name": "Conn_01x02",
+      "value": "IN",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "+12V",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 60,
+      "_pcb_group": "connector_in"
+    },
+    {
+      "ref": "U1",
+      "name": "AMS1117-5.0",
+      "value": "AMS1117-5.0",
+      "footprint": "Package_TO_SOT_SMD:SOT-223-3_TabPin2",
+      "pins": [
+        {
+          "num": "1",
+          "name": "GND",
+          "type": "power_in"
+        },
+        {
+          "num": "2",
+          "name": "VOUT",
+          "type": "power_out"
+        },
+        {
+          "num": "3",
+          "name": "VIN",
+          "type": "power_in"
+        }
+      ],
+      "hint_pcb_x": 16.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 60,
+      "_pcb_group": "power_reg"
+    },
+    {
+      "ref": "C1",
+      "name": "C",
+      "value": "10u",
+      "footprint": "Capacitor_SMD:C_1210_3225Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 27.0,
+      "hint_pcb_y": 5.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 60,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C2",
+      "name": "C",
+      "value": "22u",
+      "footprint": "Capacitor_SMD:C_1210_3225Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5.0,
+      "hint_pcb_y": 19.0,
+      "hint_sch_x": 30,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "J2",
+      "name": "Conn_01x02",
+      "value": "OUT",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "+5V",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 16.0,
+      "hint_pcb_y": 19.0,
+      "hint_sch_x": 56,
+      "hint_sch_y": 82,
+      "_pcb_group": "connector_out"
+    },
+    {
+      "ref": "TP1",
+      "name": "TestPoint",
+      "value": "5V",
+      "footprint": "TestPoint:TestPoint_Pad_D1.5mm",
+      "pins": [
+        {
+          "num": "1",
+          "name": "TP",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 27.0,
+      "hint_pcb_y": 19.0,
+      "hint_sch_x": 82,
+      "hint_sch_y": 82,
+      "_pcb_group": "passive"
+    }
+  ],
+  "nets": [
+    {
+      "name": "VIN",
+      "type": "power",
+      "connections": [
+        "J1:1",
+        "U1:3",
+        "C1:1"
+      ]
+    },
+    {
+      "name": "GND",
+      "type": "power",
+      "connections": [
+        "J1:2",
+        "U1:1",
+        "C1:2",
+        "C2:2",
+        "J2:2"
+      ]
+    },
+    {
+      "name": "P5V",
+      "type": "power",
+      "connections": [
+        "U1:2",
+        "C2:1",
+        "J2:1",
+        "TP1:1"
+      ]
+    }
+  ]
+}
