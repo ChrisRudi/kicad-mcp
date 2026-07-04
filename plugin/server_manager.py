@@ -33,7 +33,7 @@ import subprocess
 import time
 from typing import Any, Optional
 
-from . import deps, mcp_config
+from . import deps, mcp_config, server_probe
 from .claude_bridge import hidden_console_kwargs
 
 DEFAULT_HOST = "127.0.0.1"  # strictly local — never bind 0.0.0.0
@@ -43,6 +43,8 @@ STATE_DIR_ENV = "KICAD_MCP_STATE_DIR"
 # freshly-written _deps with Defender scanning each .pyd (same rationale as
 # mcp_config.MCP_STARTUP_TIMEOUT_MS). Warm restarts take ~1-2 s.
 START_TIMEOUT_S = 300.0
+# Per-turn health ping against the RUNNING server — localhost, answers in ms.
+PING_TIMEOUT_S = 5.0
 
 _shutdown_registered = False
 
@@ -217,19 +219,31 @@ def ensure_running(
     _port_open=port_open,
     _sleep=time.sleep,
     _monotonic=time.monotonic,
+    _probe=server_probe.probe_http,
 ) -> dict:
     """Reuse the healthy warm server, or start one. Never raises.
 
     Returns ``{ok, url, port, pid, token, reused, error}``. Health = recorded
-    pid alive + port accepting connections; a dead/hung leftover (KiCad crash,
-    stale pidfile) is killed and replaced — no double servers, no orphans.
+    pid alive + port accepting connections + the server ANSWERS an MCP
+    ``initialize`` (``_probe``). Der reine pid+port-Check war im Feld blind:
+    ein Prozess kann den Port halten, ohne MCP zu beantworten (wedged, fremder
+    Port-Nachnutzer, Token-Drift) — claude meldete dann in JEDEM Turn
+    "failed: kicad-mcp", und weil der Server "gesund" aussah, wurde er nie
+    ersetzt (E2E-Feld-Report: 34/34 mcp-nicht-verbunden). A dead/hung/mute
+    leftover is killed and replaced — no double servers, no orphans.
     """
     global _live_proc
     out = {"ok": False, "url": "", "port": 0, "pid": 0, "token": "",
            "reused": False, "error": ""}
     state = read_state()
     if state:
-        if is_healthy(state, _port_open=_port_open):
+        healthy = is_healthy(state, _port_open=_port_open)
+        if healthy:
+            url = server_url(int(state["port"]), host)
+            ping = _probe(url, str(state.get("token", "")),
+                          timeout=PING_TIMEOUT_S)
+            healthy = bool(ping.get("ok"))
+        if healthy:
             _register_shutdown()  # a reloaded plugin must still clean up
             out.update(ok=True, reused=True, pid=int(state["pid"]),
                        port=int(state["port"]),
@@ -282,18 +296,28 @@ def ensure_running(
         return out
 
     deadline = _monotonic() + timeout
+    port_ready = False
     while _monotonic() < deadline:
         poll = getattr(proc, "poll", lambda: None)()
         if poll is not None:
             out["error"] = (f"Server beendete sich sofort (exit {poll}) — "
                             "Diagnose-Knopf zeigt den Grund.")
             return out
-        if _port_open(port):
-            break
+        if not port_ready:
+            port_ready = _port_open(port)
+        if port_ready:
+            # Port offen ist nur die halbe Wahrheit — erst wenn der Server
+            # ein MCP-initialize beantwortet, darf claude auf ihn zeigen.
+            ping = _probe(server_url(port, host), token,
+                          timeout=PING_TIMEOUT_S)
+            if ping.get("ok"):
+                break
         _sleep(0.3)
     else:
         _kill_pid_tree(proc.pid)
-        out["error"] = (f"Server öffnete Port {port} nicht innerhalb "
+        what = ("beantwortet kein MCP-initialize auf" if port_ready
+                else "öffnete")
+        out["error"] = (f"Server {what} Port {port} nicht innerhalb "
                         f"{int(timeout)}s.")
         return out
 

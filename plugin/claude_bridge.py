@@ -556,7 +556,8 @@ atexit.register(terminate_all)
 
 # -- the turn ------------------------------------------------------------------
 
-def _prepare_transport(mcp_config_path: str, on_status=None) -> str:
+def _prepare_transport(mcp_config_path: str, on_status=None,
+                       force_stdio: bool = False) -> str:
     """Warm-server hook, called once per turn BEFORE claude spawns.
 
     stdio mode (default): no-op — claude spawns the server itself, exactly as
@@ -569,13 +570,26 @@ def _prepare_transport(mcp_config_path: str, on_status=None) -> str:
     stdio form so the turn still works the old way (graceful fallback, never
     a dead chat). Returns the transport actually in effect.
 
+    ``force_stdio``: der VORIGE Versuch lief über http und claude meldete
+    trotzdem "failed: kicad-mcp" (Server-Ping ok, aber claude kommt nicht
+    rein — z.B. altes claude ohne http-MCP-Support). Dann hilft kein weiterer
+    http-Anlauf: Config hart auf stdio zurückschreiben, claude spawnt den
+    Server selbst. Der Chat darf NIE tot sein, nur weil http es ist.
+
     Imports lazily: a module-level import of runtime_env/server_manager would
     cycle through mcp_config -> deps -> claude_bridge.
     """
     from . import runtime_env  # noqa: PLC0415 — cycle-safe lazy import
+    from . import mcp_config, server_manager  # noqa: PLC0415
+    if force_stdio:
+        try:
+            mcp_config.write_mcp_config(
+                mcp_config_path, server_manager.default_mcp_root())
+        except Exception:
+            pass  # stdio-Config nicht schreibbar → der Versuch zeigt es
+        return "stdio"
     if runtime_env.transport_mode() != runtime_env.TRANSPORT_HTTP:
         return "stdio"
-    from . import mcp_config, server_manager  # noqa: PLC0415
     try:
         info = server_manager.ensure_running()
         if info.get("ok"):
@@ -651,20 +665,34 @@ def ask(
 
     # Self-heal the cold-start race: if the MCP server failed to connect, the
     # turn ran no board tools (safe to re-run) and the retry usually catches a
-    # now-warm start. Bounded by ``mcp_connect_retries()``.
+    # now-warm start. Bounded by ``mcp_connect_retries()``. http-Leiter: der
+    # erste Fehlversuch über http schaltet den nächsten Versuch hart auf
+    # stdio um — sonst laufen alle Retries in dieselbe Wand (E2E-Feld-Report:
+    # 34/34 Features "mcp-nicht-verbunden", kein Fallback ausgelöst).
     result = dict(out)
-    for attempt in range(1 + mcp_connect_retries()):
+    retries = mcp_connect_retries()
+    force_stdio = False
+    for attempt in range(1 + retries):
         # http mode: warm server up + config pointed at it (health check per
         # turn → auto-restart; re-run on retry in case the server just died).
         # stdio mode: no-op.
-        _prepare_transport(mcp_config_path, on_status)
+        transport = _prepare_transport(mcp_config_path, on_status,
+                                       force_stdio=force_stdio)
         result = _spawn_and_run(cmd, project_dir, env, dict(out), idle_timeout,
                                 max_seconds, on_status, on_tool, on_proc, _popen)
         if not str(result.get("mcp_status") or "").startswith("failed"):
             break
-        if attempt == 0 and on_status:
+        if attempt >= retries:  # letzter Versuch — keine Meldung mehr nötig
+            break
+        if transport == "http":
+            force_stdio = True
+            msg = ("⚠ Warm-Server läuft, aber Claude kommt nicht rein — "
+                   "dieser Zug läuft über stdio …")
+        else:
+            msg = "MCP-Server-Kaltstart verpasst — neuer Versuch …"
+        if on_status:
             try:
-                on_status("MCP-Server-Kaltstart verpasst — neuer Versuch …")
+                on_status(msg)
             except Exception:
                 pass
     return result

@@ -1,7 +1,31 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.8.4**
+Aktuelle Version: **0.8.5**
+
+---
+
+## 🩹 Neu in 0.8.5 — E2E-Lauf: 34/34 „MCP nicht verbunden" im Warm-Modus (dritter Feld-Report!)
+
+- **Der Befund:** Der erste echte E2E-Lauf lief durch — aber jedes einzelne
+  Feature scheiterte mit „MCP nicht verbunden", und der stdio-Fallback
+  sprang nie an. Zwei blinde Flecken im Warm-Modus:
+  1. Der Gesundheits-Check prüfte nur „Prozess lebt + Port offen" — ein
+     Server, der den Port hält, aber MCP nicht (mehr) beantwortet, galt
+     ewig als gesund und wurde nie ersetzt.
+  2. Der stdio-Fallback griff nur, wenn der Warm-Server-**Start** scheiterte.
+     Sah der Server gesund aus, kam aber Claude trotzdem nicht rein, liefen
+     alle Wiederholungen in dieselbe Wand.
+- **Fix 1 — echter MCP-Ping:** Vor jeder Wiederverwendung und nach jedem
+  Start muss der Warm-Server jetzt ein echtes MCP-`initialize` beantworten
+  (Millisekunden, lokal). Ein stummer/fremder/aufgehängter Server wird
+  erkannt, gekillt und ersetzt.
+- **Fix 2 — stdio-Rettungsleiter:** Meldet Claude auf einem http-Versuch
+  trotzdem „MCP failed", schaltet der nächste Versuch hart auf stdio um
+  („⚠ Warm-Server läuft, aber Claude kommt nicht rein — dieser Zug läuft
+  über stdio …"). Der Chat (und der E2E-Test) kann damit nie mehr an einem
+  kaputten http-Pfad verhungern — er wird nur langsamer und die Diagnose
+  zeigt, woran http krankt.
 
 ---
 

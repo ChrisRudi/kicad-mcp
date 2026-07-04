@@ -8,6 +8,26 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (http-Modus: 34/34 E2E-FAIL „mcp-nicht-verbunden", Plugin 0.8.5)
+- **Dritter Feld-Report (erster echter E2E-Lauf):** jedes Feature FAIL
+  `mcp-nicht-verbunden`, stdio-Fallback nie ausgelöst. Zwei blinde Flecken:
+  `is_healthy` = nur pid+port (ein Server, der den Port hält, aber MCP nicht
+  beantwortet — wedged, fremder Port-Nachnutzer, altes claude ohne
+  http-MCP-Support — galt ewig gesund); der Fallback griff nur, wenn
+  `ensure_running` selbst scheiterte. Fix:
+  - `server_manager.ensure_running`: echter MCP-Ping (`probe_http`,
+    `PING_TIMEOUT_S=5`) vor jeder Wiederverwendung UND nach jedem Spawn
+    (Port offen ≠ MCP antwortet); stummer Server → kill + replace bzw.
+    Start-Fehler `beantwortet kein MCP-initialize`. `_probe` injectable.
+  - `claude_bridge.ask`: Rettungsleiter — meldet claude auf einem
+    http-Versuch „failed: kicad-mcp", schreibt der nächste Versuch die
+    Config via `_prepare_transport(force_stdio=True)` hart auf stdio
+    (Status: „Warm-Server läuft, aber Claude kommt nicht rein — dieser Zug
+    läuft über stdio"). Kein toter Chat mehr, egal woran http scheitert.
+  Tests: mute-server-replace, reuse-Ping (URL+Token), Spawn-Ping-Pflicht,
+  http-Reject→stdio-Retry, force_stdio ruft nie ensure_running.
+  Version 0.8.4 → 0.8.5.
+
 ### Fixed (E2E-Button im Feld tot — absoluter Selbst-Import, Plugin 0.8.4)
 - **Zweiter Feld-Report:** Klick auf „🧪 E2E-Test" tat nichts — nicht mal
   der Bestätigungsdialog kam. Wurzel: `setup_dialog._run_e2e` zählte die

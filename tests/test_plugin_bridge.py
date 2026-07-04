@@ -616,3 +616,57 @@ class TestAskWarmServer:
         assert srv["type"] == "stdio"  # config restored, not left broken
         assert srv["command"] == str(py)
         assert any("stdio-Fallback" in s for s in statuses)
+
+    def _stdio_fallback_env(self, monkeypatch, tmp_path):
+        """default_mcp_root + kicad-python auflösbar, damit write_mcp_config
+        im Fallback durchläuft."""
+        from plugin import server_manager
+        root = tmp_path / "mcp"; (root / "kicad_mcp").mkdir(parents=True)
+        py = tmp_path / "python"; py.write_text("")
+        monkeypatch.setattr(server_manager, "default_mcp_root",
+                            lambda: str(root))
+        monkeypatch.setattr(mcp_config, "find_kicad_python", lambda: str(py))
+        return str(py)
+
+    def test_claude_reject_on_http_retries_via_stdio(self, monkeypatch,
+                                                     tmp_path):
+        """DER Feld-Fall (E2E 34/34 FAIL): Warm-Server 'gesund', aber claude
+        meldet failed. Früher lief der Retry wieder gegen http (dieselbe
+        Wand); jetzt schreibt er die Config hart auf stdio um."""
+        from plugin import server_manager
+        monkeypatch.setenv("KICAD_MCP_TRANSPORT", "http")
+        monkeypatch.delenv("KICAD_MCP_CONNECT_RETRIES", raising=False)
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        monkeypatch.setattr(server_manager, "ensure_running",
+                            lambda **kw: self._ok_info())
+        py = self._stdio_fallback_env(monkeypatch, tmp_path)
+        cfg = tmp_path / "m.json"
+        calls = {}
+        procs = [_FakeProc([_INIT_BAD, _RESULT]),          # http: claude ✗
+                 _FakeProc([_INIT_OK, _TEXT, _RESULT])]    # stdio: läuft
+        statuses = []
+        r = claude_bridge.ask("x", "/proj", str(cfg),
+                              on_status=statuses.append,
+                              _popen=_popen_seq(procs, calls))
+        assert r["ok"] and r["mcp_status"] == "connected"
+        assert calls["n"] == 2
+        srv = json.loads(cfg.read_text())["mcpServers"]["kicad-mcp"]
+        assert srv["type"] == "stdio" and srv["command"] == py
+        assert any("stdio" in s for s in statuses)
+
+    def test_prepare_transport_force_stdio_skips_warm_server(self, monkeypatch,
+                                                             tmp_path):
+        from plugin import server_manager
+        monkeypatch.setenv("KICAD_MCP_TRANSPORT", "http")
+
+        def boom(**kw):
+            raise AssertionError("force_stdio darf ensure_running nie rufen")
+
+        monkeypatch.setattr(server_manager, "ensure_running", boom)
+        py = self._stdio_fallback_env(monkeypatch, tmp_path)
+        cfg = tmp_path / "m.json"
+        transport = claude_bridge._prepare_transport(str(cfg),
+                                                     force_stdio=True)
+        assert transport == "stdio"
+        srv = json.loads(cfg.read_text())["mcpServers"]["kicad-mcp"]
+        assert srv["type"] == "stdio" and srv["command"] == py

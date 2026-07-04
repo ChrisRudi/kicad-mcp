@@ -33,6 +33,10 @@ def _use_tmp_state(monkeypatch, tmp_path):
     monkeypatch.setenv(server_manager.STATE_DIR_ENV, str(tmp_path / "state"))
 
 
+def _probe_ok(url, token, timeout=0.0):  # pylint: disable=unused-argument
+    return {"ok": True, "error": "", "status": 200, "seconds": 0.0}
+
+
 def _fake_env(monkeypatch, tmp_path):
     """A resolvable python + mcp_root so ensure_running reaches the spawn."""
     _use_tmp_state(monkeypatch, tmp_path)
@@ -96,7 +100,8 @@ class TestEnsureRunning:
         calls = []
         kwargs = dict(mcp_root=root, python_exe=py, deps_dir="",
                       _popen=_popen_recording(calls, _FakeProc(pid=os.getpid())),
-                      _port_open=lambda *a, **k: True, _sleep=lambda s: None)
+                      _port_open=lambda *a, **k: True, _sleep=lambda s: None,
+                      _probe=_probe_ok)
         first = server_manager.ensure_running(**kwargs)
         assert first["ok"] and not first["reused"]
         assert first["url"] == server_manager.server_url(first["port"])
@@ -122,7 +127,8 @@ class TestEnsureRunning:
         res = server_manager.ensure_running(
             mcp_root=root, python_exe=py, deps_dir="",
             _popen=_popen_recording(calls, _FakeProc(pid=os.getpid())),
-            _port_open=lambda *a, **k: True, _sleep=lambda s: None)
+            _port_open=lambda *a, **k: True, _sleep=lambda s: None,
+            _probe=_probe_ok)
         assert res["ok"] and not res["reused"]
         assert len(calls) == 1
         assert res["token"] != "old"
@@ -139,9 +145,49 @@ class TestEnsureRunning:
         res = server_manager.ensure_running(
             mcp_root=root, python_exe=py, deps_dir="",
             _popen=_popen_recording([], _FakeProc(pid=999)),
-            _port_open=lambda *a, **k: next(opens), _sleep=lambda s: None)
+            _port_open=lambda *a, **k: next(opens), _sleep=lambda s: None,
+            _probe=_probe_ok)
         assert res["ok"] and killed == [os.getpid()]
         assert server_manager.read_state()["pid"] == 999
+
+    def test_mute_server_is_killed_and_replaced(self, monkeypatch, tmp_path):
+        """DER Feld-Fall (E2E 34/34 FAIL): pid lebt, Port offen — aber kein
+        MCP dahinter (wedged/fremder Port-Nachnutzer). pid+port allein sagte
+        'gesund', der Server wurde nie ersetzt. Jetzt entscheidet der Ping."""
+        py, root = _fake_env(monkeypatch, tmp_path)
+        server_manager.write_state(
+            {"pid": os.getpid(), "port": 1, "token": "mute"})
+        killed = []
+        monkeypatch.setattr(server_manager, "_kill_pid_tree", killed.append)
+        pings = iter([{"ok": False, "error": "kein serverInfo"},
+                      {"ok": True}])
+
+        res = server_manager.ensure_running(
+            mcp_root=root, python_exe=py, deps_dir="",
+            _popen=_popen_recording([], _FakeProc(pid=999)),
+            _port_open=lambda *a, **k: True, _sleep=lambda s: None,
+            _probe=lambda *a, **k: next(pings))
+        assert res["ok"] and not res["reused"]
+        assert killed == [os.getpid()]
+        assert server_manager.read_state()["pid"] == 999
+        assert res["token"] != "mute"
+
+    def test_reuse_pings_with_recorded_url_and_token(self, monkeypatch,
+                                                     tmp_path):
+        _use_tmp_state(monkeypatch, tmp_path)
+        server_manager.write_state(
+            {"pid": os.getpid(), "port": 4711, "token": "sesam"})
+        seen = []
+
+        def probe(url, token, timeout=0.0):
+            seen.append((url, token, timeout))
+            return {"ok": True}
+
+        res = server_manager.ensure_running(
+            _port_open=lambda *a, **k: True, _probe=probe)
+        assert res["ok"] and res["reused"]
+        assert seen == [("http://127.0.0.1:4711/mcp", "sesam",
+                         server_manager.PING_TIMEOUT_S)]
 
     def test_missing_python_reports_not_spawns(self, monkeypatch, tmp_path):
         _use_tmp_state(monkeypatch, tmp_path)
@@ -181,6 +227,25 @@ class TestEnsureRunning:
             _monotonic=lambda: next(clock))
         assert not res["ok"] and "nicht innerhalb" in res["error"]
         assert killed == [777]
+
+    def test_spawned_server_must_answer_mcp_not_just_bind(self, monkeypatch,
+                                                          tmp_path):
+        """Port offen, aber der neue Server beantwortet nie ein initialize →
+        kein ok (sonst zeigt claude auf einen stummen Server)."""
+        py, root = _fake_env(monkeypatch, tmp_path)
+        killed = []
+        monkeypatch.setattr(server_manager, "_kill_pid_tree", killed.append)
+        clock = iter(range(0, 10_000, 10))  # klein genug für ein paar Pings
+        res = server_manager.ensure_running(
+            mcp_root=root, python_exe=py, deps_dir="", timeout=50,
+            _popen=_popen_recording([], _FakeProc(pid=778)),
+            _port_open=lambda *a, **k: True, _sleep=lambda s: None,
+            _monotonic=lambda: next(clock),
+            _probe=lambda *a, **k: {"ok": False, "error": "401"})
+        assert not res["ok"]
+        assert "beantwortet kein MCP-initialize" in res["error"]
+        assert killed == [778]
+        assert server_manager.read_state() == {}
 
 
 class TestShutdownAndStatus:
