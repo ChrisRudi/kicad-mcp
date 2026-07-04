@@ -250,16 +250,55 @@ def _tool_short_name(name: str) -> str:
     return name.split("__")[-1] if name else "?"
 
 
+_MCP_OK_STATUSES = ("connected", "ok")
+# Der Server verbindet NOCH (Kaltstart): kein Fehler, keine ⚠-Meldung. Claude
+# kann das Init-Event emittieren, bevor der (langsame) stdio-Server fertig ist.
+_MCP_PENDING_STATUSES = ("pending", "connecting", "starting")
+
+
 def mcp_status_from_init(ev: dict) -> Optional[str]:
-    """``"connected"`` / ``"failed: <name>"`` from a system-init event."""
+    """``"connected"`` / ``"pending: …"`` / ``"failed: <name>"`` from a
+    system-init event.
+
+    Bewertet wird NUR ``kicad-mcp`` (unser Server) — ein anderer Eintrag im
+    Init darf den Turn nicht als "failed" stempeln. Feld-Report (E2E-Lauf 2):
+    34/34 FAIL "mcp-nicht-verbunden", obwohl die Features nachweislich
+    Board-Tools benutzten — der Init-Status war schlicht nicht die Wahrheit
+    über den weiteren Turn-Verlauf (siehe auch has_kicad_mcp_tool_use)."""
     if ev.get("type") != "system" or ev.get("subtype") != "init":
         return None
     servers = ev.get("mcp_servers") or []
-    bad = [s.get("name", "?") for s in servers
-           if s.get("status") not in ("connected", "ok")]
+    if not servers:
+        return "none"
+    ours = [s for s in servers if s.get("name") == "kicad-mcp"] or servers
+    bad, pending = [], []
+    for s in ours:
+        st = str(s.get("status") or "")
+        if st in _MCP_OK_STATUSES:
+            continue
+        if st in _MCP_PENDING_STATUSES:
+            pending.append(s.get("name", "?"))
+        else:
+            bad.append(s.get("name", "?"))
     if bad:
         return "failed: " + ", ".join(bad)
-    return "connected" if servers else "none"
+    if pending:
+        return "pending: " + ", ".join(pending)
+    return "connected"
+
+
+def has_kicad_mcp_tool_use(ev: dict) -> bool:
+    """Ruft dieses Assistant-Event ein ``mcp__kicad-mcp__*``-Tool auf?
+
+    Das ist die GROUND TRUTH über den MCP-Status: ein nicht verbundener
+    Server kann keine Tools anbieten — läuft ein kicad-mcp-Tool, WAR die
+    Verbindung da, egal was das (frühe) Init-Event behauptet hat."""
+    if ev.get("type") != "assistant":
+        return False
+    blocks = (ev.get("message") or {}).get("content") or []
+    return any(isinstance(b, dict) and b.get("type") == "tool_use"
+               and str(b.get("name", "")).startswith("mcp__kicad-mcp__")
+               for b in blocks)
 
 
 def describe_event(ev: dict) -> Optional[str]:
@@ -269,6 +308,8 @@ def describe_event(ev: dict) -> Optional[str]:
         status = mcp_status_from_init(ev)
         if status == "connected":
             return "MCP verbunden — Claude liest dein Board …"
+        if status and status.startswith("pending"):
+            return "MCP verbindet noch (Kaltstart) …"
         if status and status.startswith("failed"):
             return "⚠ MCP NICHT verbunden!"
         return "gestartet …"
@@ -764,6 +805,18 @@ def _run_turn(proc, out, idle_timeout, max_seconds, on_status, on_tool=None):
         status = mcp_status_from_init(ev)
         if status is not None:
             out["mcp_status"] = status
+        # Ground truth schlägt Init-Status: läuft ein kicad-mcp-Tool, WAR der
+        # Server verbunden — das frühe Init-Event hat sich geirrt (Kaltstart).
+        # Ohne diese Korrektur stempelte ein falsches "failed" jeden Turn:
+        # ⚠-Meldung, sinnloser Retry (doppelte Arbeit), E2E-Verdikt FAIL.
+        if (out.get("mcp_status", "").startswith(("failed", "pending"))
+                and has_kicad_mcp_tool_use(ev)):
+            out["mcp_status"] = "connected"
+            if on_status:
+                try:
+                    on_status("MCP verbunden — Board-Tools laufen.")
+                except Exception:
+                    pass
         desc = describe_event(ev)
         if desc and on_status:
             try:

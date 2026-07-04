@@ -1,7 +1,29 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.8.5**
+Aktuelle Version: **0.8.6**
+
+---
+
+## 🩹 Neu in 0.8.6 — „MCP NICHT verbunden" war eine Fehldiagnose (vierter Feld-Report!)
+
+- **Der Befund aus deinem zweiten E2E-Lauf:** Wieder 34/34 „FAIL: MCP nicht
+  verbunden" — aber diesmal zeigt das Log klar: die Features benutzten
+  nachweislich Board-Werkzeuge (Stromtragfähigkeit, Design-Prüfung,
+  Sicherheitsabstände, BOM …). **Der Server WAR verbunden.** Das frühe
+  Startsignal von Claude behauptete nur etwas anderes (Kaltstart: der
+  Status wird gemeldet, bevor der Server fertig hochgefahren ist) — und
+  dieses eine falsche Signal stempelte den ganzen Zug: ⚠-Warnung, sinnloser
+  doppelter Durchlauf (jedes Feature lief 2×!), Test-Verdikt FAIL.
+- **Fix — die Wahrheit kommt von den Werkzeugen, nicht vom Startsignal:**
+  Sobald ein einziges kicad-mcp-Werkzeug wirklich läuft, gilt der Zug als
+  verbunden (ein nicht verbundener Server kann keine Werkzeuge anbieten) —
+  Statuszeile korrigiert sich zu „MCP verbunden — Board-Tools laufen".
+  Zusätzlich zählt beim Startsignal nur noch unser eigener Server, und
+  „verbindet noch" wird nicht mehr als Fehler gewertet.
+- **Effekt:** Keine falschen ⚠-Warnungen mehr, keine verdoppelten
+  Feature-Läufe (halbe E2E-Dauer, halbes Kontingent), und der E2E-Report
+  zeigt endlich echte PASS/WARN-Verdikte statt pauschal FAIL.
 
 ---
 

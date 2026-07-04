@@ -158,6 +158,32 @@ class TestStreamParsing:
         assert claude_bridge.mcp_status_from_init(ok) == "connected"
         assert claude_bridge.mcp_status_from_init(bad) == "failed: kicad-mcp"
 
+    def test_mcp_status_judges_only_kicad_mcp(self):
+        # Ein fremder (kaputter) Eintrag darf den Turn nicht stempeln.
+        ev = claude_bridge.parse_stream_event(_ev(
+            type="system", subtype="init", mcp_servers=[
+                {"name": "sonstwas", "status": "failed"},
+                {"name": "kicad-mcp", "status": "connected"}]))
+        assert claude_bridge.mcp_status_from_init(ev) == "connected"
+
+    def test_mcp_status_pending_is_not_failed(self):
+        ev = claude_bridge.parse_stream_event(_ev(
+            type="system", subtype="init", mcp_servers=[
+                {"name": "kicad-mcp", "status": "pending"}]))
+        assert claude_bridge.mcp_status_from_init(ev) == "pending: kicad-mcp"
+        desc = claude_bridge.describe_event(ev)
+        assert "⚠" not in desc and "Kaltstart" in desc
+
+    def test_has_kicad_mcp_tool_use(self):
+        assert claude_bridge.has_kicad_mcp_tool_use(
+            claude_bridge.parse_stream_event(_TOOL))
+        builtin = claude_bridge.parse_stream_event(_ev(
+            type="assistant", message={"content": [
+                {"type": "tool_use", "name": "Glob"}]}))
+        assert not claude_bridge.has_kicad_mcp_tool_use(builtin)
+        assert not claude_bridge.has_kicad_mcp_tool_use(
+            claude_bridge.parse_stream_event(_TEXT))
+
     def test_describe_tool_use_shows_board_language(self):
         # status bar narrates in board language, not the raw tool slug
         ev = claude_bridge.parse_stream_event(_TOOL)
@@ -272,6 +298,21 @@ class TestAsk:
                               _popen=_popen_seq(procs, calls))
         assert r["mcp_status"].startswith("failed")
         assert calls["n"] == 2  # cold-start was retried once
+
+    def test_tool_use_overrides_lying_init_status(self, monkeypatch):
+        """DER Feld-Fall (E2E-Lauf 2, 34/34 FAIL): Init sagt failed, aber
+        Board-Tools laufen → Ground truth gewinnt: connected, KEIN Retry."""
+        monkeypatch.setattr(claude_bridge, "find_claude", lambda: ["claude"])
+        monkeypatch.delenv("KICAD_MCP_CONNECT_RETRIES", raising=False)
+        calls = {}
+        statuses = []
+        procs = [_FakeProc([_INIT_BAD, _TOOL, _TEXT, _RESULT])]
+        r = claude_bridge.ask("x", "/proj", "/m.json",
+                              on_status=statuses.append,
+                              _popen=_popen_seq(procs, calls))
+        assert r["ok"] and r["mcp_status"] == "connected"
+        assert calls["n"] == 1  # kein sinnloser Doppel-Lauf mehr
+        assert any("Board-Tools laufen" in s for s in statuses)
 
     def test_failed_mcp_retry_recovers(self, monkeypatch):
         # attempt 1 fails to connect (no board tools), attempt 2 (warm) works.

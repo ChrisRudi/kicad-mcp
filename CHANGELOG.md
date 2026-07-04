@@ -8,6 +8,24 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (MCP-Status-Fehldiagnose — Init-Event lügt beim Kaltstart, Plugin 0.8.6)
+- **Vierter Feld-Report (zweiter E2E-Lauf):** wieder 34/34 FAIL
+  `mcp-nicht-verbunden` — aber das Log beweist: die Features riefen
+  kicad-mcp-Tools auf (`check_ampacity`, `audit_design`,
+  `get_safety_spacing`, …). Der Server WAR verbunden; Claudes frühes
+  system/init-Event meldete nur einen nicht-connected-Status (Kaltstart-
+  Race), und der wurde nie korrigiert → ⚠-Warnung in jedem Turn, sinnloser
+  MCP-Retry (jedes Feature lief doppelt), E2E-Verdikt pauschal FAIL. Fix:
+  - `has_kicad_mcp_tool_use()` + Ground-Truth-Override in `_run_turn`:
+    ein `mcp__kicad-mcp__*`-Tool-Use beweist die Verbindung → Status
+    `connected`, Statuszeile „MCP verbunden — Board-Tools laufen",
+    kein Retry, Judge wertet nicht mehr FAIL.
+  - `mcp_status_from_init`: bewertet nur noch den `kicad-mcp`-Eintrag
+    (fremde Einträge stempeln den Turn nicht) und kennt
+    `pending/connecting/starting` als eigenen Zustand (`pending: …`,
+    Statuszeile „MCP verbindet noch (Kaltstart) …" statt ⚠, kein Retry).
+  Version 0.8.5 → 0.8.6.
+
 ### Fixed (http-Modus: 34/34 E2E-FAIL „mcp-nicht-verbunden", Plugin 0.8.5)
 - **Dritter Feld-Report (erster echter E2E-Lauf):** jedes Feature FAIL
   `mcp-nicht-verbunden`, stdio-Fallback nie ausgelöst. Zwei blinde Flecken:
