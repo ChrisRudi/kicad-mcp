@@ -8,6 +8,23 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (RAM-Verhalten + Mess-Transparenz, Plugin 0.9.1)
+- **Fünfter Feld-Report („Systemtest braucht auf einmal viel RAM?"):**
+  - `symbol_cache._read_lib_file`: `lru_cache` 64 → 8. Der Cache hält
+    KOMPLETTE `.kicad_sym`-Texte (Stock-Libs bis ~40 MB/Datei) — 64
+    Einträge akkumulierten in einem langlebigen Warm-Server potenziell
+    Gigabytes. 8 deckt die Handvoll Libs eines Generats (Device,
+    Connector, …) weiterhin ab.
+  - `selftest`: `peak_ram_mb()` (Windows: PeakWorkingSet via psapi;
+    POSIX: `ru_maxrss`) in Report-Meta + MD-Kopf („Peak-RAM: … MB
+    (transient — endet mit dem Prozess)"); der Connectivity-Worker
+    stirbt am stdin-EOF mit dem Testlauf, nichts bleibt resident.
+  - `selftest.main`: filtert die „coroutine … was never awaited"-
+    RuntimeWarnings (bekanntes sync-ctx.info-Rauschen der Tools) aus dem
+    Fenster-Output — Fehler laufen über Schritt-Verdikte, nicht Warnings.
+  - `diagnose`: hartkodiertes „tools/list (167)" → `__tool_count__` (186).
+  Version 0.9.0 → 0.9.1.
+
 ### Added (Standalone-Systemtest ohne Claude, Plugin 0.9.0)
 - **`kicad_mcp/selftest.py` (neu):** `python -m kicad_mcp.selftest` —
   orchestrierbarer Feldtest der Produkt-Maschinerie OHNE Claude. Erzeugt

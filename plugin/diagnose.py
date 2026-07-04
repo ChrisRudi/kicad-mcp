@@ -20,7 +20,7 @@ import subprocess
 
 from . import deps, mcp_config, runtime_env, server_manager, server_probe
 from .claude_bridge import hidden_console_kwargs
-from .version import __version__
+from .version import __tool_count__, __version__
 
 
 def _run_capture(cmd, timeout: float = 30.0, _run=subprocess.run) -> str:
@@ -121,7 +121,8 @@ def collect(mcp_root: str, project_dir: str, _run=subprocess.run) -> str:
     res = server_probe.probe_server(py, mcp_root)
     secs = res.get("seconds", 0.0)
     if res.get("ok"):
-        add(f"Ergebnis: OK — initialize + tools/list (167) in {secs}s.")
+        add(f"Ergebnis: OK — initialize + tools/list ({__tool_count__}) "
+            f"in {secs}s.")
         add(f"  (Claude-Start-Timeout: {mcp_config.MCP_STARTUP_TIMEOUT_MS}ms. "
             "Ist diese Zeit beim 1. Mal viel höher = Kaltstart-/Defender-"
             "Problem → _deps- und mcp-Ordner in Defender ausschließen.)")

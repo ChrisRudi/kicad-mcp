@@ -112,3 +112,15 @@ class TestMainCli:
         ctx: dict = {}
         detail = selftest._step_stdio_handshake(ctx)
         assert detail == {"handshake": "ok"}
+
+
+class TestRamMeasurement:
+    def test_peak_ram_is_measured_and_reported(self, tmp_path):
+        # Feld-Frage 0.9.0 ("braucht viel RAM?") → Messung im Report
+        val = selftest.peak_ram_mb()
+        assert val is None or val > 1.0
+        report = selftest.run_all(str(tmp_path), include_handshake=False,
+                                  steps=[("noop", lambda ctx: {})])
+        assert "peak_ram_mb" in report["meta"]
+        if report["meta"]["peak_ram_mb"]:
+            assert "Peak-RAM" in selftest.render_report(report)

@@ -297,9 +297,16 @@ def _extract_top_level_symbol(content: str, sym_name: str) -> str | None:
         return content[start:end]
 
 
-@lru_cache(maxsize=64)
+@lru_cache(maxsize=8)
 def _read_lib_file(lib_path: str) -> str:
-    """Read and cache a library file's contents."""
+    """Read and cache a library file's contents.
+
+    maxsize klein halten: Das sind KOMPLETTE .kicad_sym-Texte (Stock-Libs
+    bis ~40 MB/Datei) — bei 64 Einträgen akkumulierte ein langlebiger
+    Warm-Server potenziell Gigabytes (Feld-Report 0.9.0: „Systemtest braucht
+    auf einmal viel Arbeitsspeicher"). 8 reicht: Wiederhol-Symbole eines
+    Generats kommen fast immer aus einer Handvoll Libs (Device, Connector…).
+    """
     with open(lib_path, encoding="utf-8") as f:
         return f.read()
 

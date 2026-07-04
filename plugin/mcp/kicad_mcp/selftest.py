@@ -30,7 +30,44 @@ import subprocess
 import sys
 import tempfile
 import time
+import warnings
 from typing import Any, Callable, List, Optional
+
+
+def peak_ram_mb() -> Optional[float]:
+    """Peak-RAM (RSS/Working Set) dieses Prozesses in MB, plattformneutral.
+
+    Beantwortet „warum braucht der Systemtest so viel Speicher?" mit einer
+    MESSUNG im Report statt einer Vermutung. Best-effort: None, wenn die
+    Plattform keinen billigen Weg bietet."""
+    try:
+        if os.name == "nt":
+            import ctypes
+            import ctypes.wintypes as wt
+
+            class _PMC(ctypes.Structure):
+                _fields_ = [("cb", wt.DWORD), ("PageFaultCount", wt.DWORD),
+                            ("PeakWorkingSetSize", ctypes.c_size_t),
+                            ("WorkingSetSize", ctypes.c_size_t),
+                            ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                            ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                            ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                            ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                            ("PagefileUsage", ctypes.c_size_t),
+                            ("PeakPagefileUsage", ctypes.c_size_t)]
+
+            pmc = _PMC()
+            pmc.cb = ctypes.sizeof(_PMC)
+            ok = ctypes.windll.psapi.GetProcessMemoryInfo(
+                ctypes.windll.kernel32.GetCurrentProcess(),
+                ctypes.byref(pmc), pmc.cb)
+            return round(pmc.PeakWorkingSetSize / 1e6, 1) if ok else None
+        import resource
+        peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        # Linux: KB, macOS: Bytes
+        return round(peak / (1e3 if sys.platform != "darwin" else 1e6), 1)
+    except Exception:
+        return None
 
 SPEC_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "resources", "data", "selftest_board.json")
@@ -261,6 +298,11 @@ def run_all(out_dir: str, spec_path: Optional[str] = None,
             "platform": platform.platform(),
             "executable": sys.executable,
             "duration_s": round(time.perf_counter() - t_all, 1),
+            # Gemessen, nicht geraten: der Lauf lädt einen vollen Server
+            # (pandas + 186 Tools) und ggf. einen pcbnew-Worker — beides
+            # endet mit dem Prozess. Die Zahl macht "braucht viel RAM?"
+            # im Report diskutierbar (Feld-Frage 0.9.0).
+            "peak_ram_mb": peak_ram_mb(),
         },
         "steps": results,
         "summary": {s: sum(1 for r in results if r["status"] == s)
@@ -273,11 +315,14 @@ def run_all(out_dir: str, spec_path: Optional[str] = None,
 def render_report(report: dict) -> str:
     """Der MD-Report — FAIL-Schritte zuerst, fürs Agent-Zurücklesen."""
     meta, summary = report["meta"], report["summary"]
+    ram = meta.get("peak_ram_mb")
     lines = [
         "# kicad-mcp Systemtest (standalone, ohne Claude)", "",
         f"- Python: {meta['python']} — {meta['executable']}",
         f"- Plattform: {meta['platform']}",
-        f"- Dauer: {meta['duration_s']}s",
+        f"- Dauer: {meta['duration_s']}s"
+        + (f" · Peak-RAM: {ram} MB (transient — endet mit dem Prozess)"
+           if ram else ""),
         f"- **{summary[PASS]} PASS · {summary[FAIL]} FAIL · "
         f"{summary[SKIP]} SKIP**", "",
         "| Schritt | Status | Dauer | Fehler |", "|---|---|---|---|",
@@ -320,6 +365,13 @@ def main(argv=None) -> int:
     parser.add_argument("--no-handshake", action="store_true",
                         help="stdio-Handshake-Schritt auslassen (schneller)")
     args = parser.parse_args(argv)
+
+    # Bekanntes Tool-Code-Rauschen (sync gerufene async ctx.info) — im
+    # Selftest-Output nur Alarm ohne Information; Fehler laufen über die
+    # Schritt-Verdikte, nicht über Warnings.
+    warnings.filterwarnings(
+        "ignore", message=".*coroutine.*was never awaited.*",
+        category=RuntimeWarning)
 
     out_dir = args.out or os.path.join(tempfile.gettempdir(),
                                        "kicad_mcp_selftest")

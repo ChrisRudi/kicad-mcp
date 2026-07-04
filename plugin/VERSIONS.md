@@ -1,7 +1,28 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.9.0**
+Aktuelle Version: **0.9.1**
+
+---
+
+## 🩹 Neu in 0.9.1 — „Systemtest braucht viel RAM?" (fünfter Feld-Report)
+
+- **Was da Speicher braucht (und dass es wieder verschwindet):** Der
+  Systemtest ist ein kompletter Server-Prozess (186 Werkzeuge + pandas),
+  liest beim Generieren echte KiCad-Symbolbibliotheken und startet für den
+  Connectivity-Schritt einen pcbnew-Arbeitsprozess. Alles davon endet mit
+  dem Testlauf — nichts bleibt im Speicher zurück. Damit das keine
+  Vermutung bleibt, **misst der Report jetzt den Peak-RAM selbst**
+  („Peak-RAM: 136 MB (transient)" im Kopf).
+- **Ein echter Speicher-Fresser ist gefixt:** Der Symbol-Cache hielt bis zu
+  64 KOMPLETTE Bibliotheksdateien im Speicher (Stock-Libs sind bis ~40 MB
+  pro Datei — potenziell Gigabytes, und das betraf auch den dauerhaft
+  laufenden Warm-Server!). Jetzt sind es maximal 8 — Wiederhol-Symbole
+  kommen fast immer aus einer Handvoll Libs, der Nutzen bleibt.
+- **Ruhigerer Output:** Die „coroutine was never awaited"-Warnungen im
+  Systemtest-Fenster waren Alarm ohne Information (bekanntes Tool-Rauschen)
+  und sind gefiltert. Und die Diagnose behauptete hartkodiert „167 Tools" —
+  jetzt steht dort die echte Zahl (186).
 
 ---
 
