@@ -8,6 +8,33 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Demo-Bausatz-Registry + Runner-Gerüst — 10 Schaustück-Schaltungen, alle 34 Super-Skills)
+- **Nutzer-Wunsch:** die Demo soll zeigen, was die ~34 Super-Skills können —
+  ~10 Demo-Schaltungen, je Bausatz wird ein hinterlegter Schaltplan angelegt und
+  dann mit ~5 Skills der Reihe nach transparent das Board entworfen; dieselben
+  Schaltpläne dienen als Bausatzsystem für neue Projekte.
+- **Scope dieses Schritts (bewusst, ohne Schaltpläne):** erst die Registry + das
+  Runner-Gerüst als Code zum Review; die `.kicad_sch`-Specs folgen separat.
+- **`plugin/demo_kits.py`** (neu, pure/stdlib): Single Source der Zuordnung
+  Projekt→Skills. 10 `DemoKit`-Einträge (Audioverstärker, USB-C Sensor-Hub,
+  AC-DC-Netzteil, LED-Ring, Motor-Treiber, Buck-Wandler, Ethernet-Gerät,
+  Skizze→Kupfer, Serienreife&Kosten, Datenblatt&Foto→Schaltung), je mit
+  geordneter `pipeline` (Super-Skill-Keys als echter Design-Ablauf) und
+  `rationale` (warum jeder Skill genau hier hilft). `validate()`/
+  `covered_skills()`/`uncovered_skills()` als Integritäts- und Vollständigkeits-
+  Prüfung.
+- **`plugin/demo_runner.py`** (neu, rein/planend): `plan(kit_key)` löst einen
+  Bausatz zu geordneten `DemoStep`s auf — Schritt 0 „Schaltplan anlegen", dann
+  je Skill der kanonische Prompt aus `superfeatures.py` + die Hier-Begründung.
+  `spec_path`/`spec_exists` zeigen den erwarteten Ort der noch fehlenden Specs;
+  der Build-Schritt markiert ehrlich „noch nicht gebaut". Ausführung/GUI-Dropdown
+  hängen sich später an `plan()`.
+- **`tests/test_demo_kits.py`** (neu, 31 Tests): Registry wohlgeformt, je Bausatz
+  4–6 Skills, rationale deckt die Pipeline exakt, und DER Wächter —
+  `test_all_34_super_skills_are_covered` — stellt sicher, dass jeder Super-Skill
+  in mindestens einem Bausatz vorkommt. pylint 10/10. Keine neuen MCP-Tools
+  (reine Plugin-Ebene), daher keine Version-/Tool-Count-Änderung.
+
 ### Added (Schaltung als Vorlage — „du zeichnest, der MCP merkt sich und baut", Plugin 0.11.0)
 - **Nutzer-Wunsch:** „nein also ich zeichne eins vor die speicherst ins mcp und
   dann magic". KiCad 10 hat keine Schaltplan-Schreib-API (empirisch verifiziert:
