@@ -107,6 +107,20 @@ def server_bootstrap_code(mcp_root: str, deps_dir: Optional[str] = None) -> str:
             + "from kicad_mcp.server import main; main()")
 
 
+def selftest_bootstrap_code(mcp_root: str,
+                            deps_dir: Optional[str] = None) -> str:
+    """Wie :func:`server_bootstrap_code`, aber für den Standalone-Systemtest
+    (``kicad_mcp.selftest``) — derselbe in-process sys.path-Bootstrap, exakt
+    der Startpfad, den auch der Server nimmt. Exit-Code wird durchgereicht
+    (Orchestrierung: 0 = grün)."""
+    paths = ([mcp_root] + ([deps_dir] if deps_dir else [])
+             + deps.pywin32_path_entries(deps_dir))
+    entries = ", ".join(repr(p) for p in paths)
+    return (f"import sys; sys.path[:0] = [{entries}]; "
+            + deps.pywin32_dll_setup_code(deps_dir)
+            + "from kicad_mcp.selftest import main; sys.exit(main())")
+
+
 # Generous startup timeout for the stdio MCP server. Claude Code's default is
 # only 30 s; the FIRST cold start on Windows is much slower — importing
 # pandas/numpy/pywin32 + 167 tools out of the freshly-written _deps folder,

@@ -8,6 +8,28 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Standalone-Systemtest ohne Claude, Plugin 0.9.0)
+- **`kicad_mcp/selftest.py` (neu):** `python -m kicad_mcp.selftest` —
+  orchestrierbarer Feldtest der Produkt-Maschinerie OHNE Claude. Erzeugt
+  ein Demo-Projekt aus der gebündelten Spec
+  (`resources/data/selftest_board.json`, LDO+LED, validator-geprüft) und
+  fährt 10 Schritte durch die ECHTEN MCP-Tools in-process
+  (`create_server` + `call_tool`): Registry-Zählung, `generate_project`
+  (spec→sch→pcb), `list_schematic_components`,
+  `extract_schematic_netlist`, `list_pcb_footprints`,
+  `compute_pad_world_positions`, `add_via_to_pcb`, `check_connectivity`
+  (SKIP ohne pcbnew), `run_drc_check` (SKIP ohne kicad-cli), stdio-
+  Handshake (Transport gepinnt). Interaktion nur bei Fehlern: grün = eine
+  Zeile + Exit 0, rot = FAIL-Zeilen + Exit 1; Report
+  `selftest_report.{md,json}` im `--out`-Ordner. Schritte injectable
+  (`run_all(steps=…)`), ein roter Schritt killt nie den Lauf.
+- **Plugin:** „🔬 Systemtest"-Knopf im Einrichtungs-Fenster (Stream-Fenster,
+  läuft unter KiCads Python via `mcp_config.selftest_bootstrap_code` —
+  exakt derselbe sys.path-Bootstrap wie der Server, Guard-Test).
+- Tests: `tests/test_selftest.py` (9: Spec-Validierung, grüne Pipeline,
+  Fehler-Isolation, Exit-Codes, echter Handshake) + Bootstrap-Spiegel-Test.
+  Version 0.8.7 → 0.9.0.
+
 ### Added (GUI: Markdown-Rendering, Gruppenfarben, klickbare Ampeln, Plugin 0.8.7)
 - **`plugin/chat_markdown.py` (neu, pure logic):** zerlegt eine Antwort in
   ``(text, stil)``-Segmente (bold/heading/bullet/code/codeblock/rule;

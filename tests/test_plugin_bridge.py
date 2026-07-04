@@ -533,6 +533,15 @@ class TestMcpConfig:
             + deps.pywin32_path_entries(r"C:\plug\_deps")
         )
 
+    def test_selftest_bootstrap_mirrors_server_bootstrap(self):
+        # Der 🔬-Systemtest muss über EXAKT den sys.path-Bootstrap starten,
+        # den auch der Server nimmt — nur das Modul und sys.exit differieren.
+        srv = mcp_config.server_bootstrap_code(r"C:\plug\mcp", r"C:\plug\_deps")
+        st = mcp_config.selftest_bootstrap_code(r"C:\plug\mcp",
+                                                r"C:\plug\_deps")
+        assert st.split("from kicad_mcp")[0] == srv.split("from kicad_mcp")[0]
+        assert "from kicad_mcp.selftest import main; sys.exit(main())" in st
+
     def test_write_creates_valid_json(self, tmp_path):
         root = tmp_path / "repo"; root.mkdir()
         py = tmp_path / "python.exe"; py.write_text("")

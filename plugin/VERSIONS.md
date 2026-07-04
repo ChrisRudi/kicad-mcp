@@ -1,7 +1,31 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.8.7**
+Aktuelle Version: **0.9.0**
+
+---
+
+## 🔬 Neu in 0.9.0 — Systemtest ohne Claude (orchestrierbar auf vielen Rechnern)
+
+- **Ein Klick prüft die ganze Maschinerie — ohne Claude, ohne Kontingent:**
+  Der neue „🔬 Systemtest"-Knopf im Einrichtungs-Fenster erzeugt aus einer
+  eingebauten JSON-Vorlage ein Demo-Board (Spec → Schaltplan → Platine) und
+  schickt es durch die ECHTEN Werkzeuge: Tool-Registry (186), Generatoren,
+  Schaltplan-/PCB-Lesen, Netzliste, Pad-Geometrie, Text-Patch (Via),
+  Connectivity (wenn pcbnew da), DRC (wenn kicad-cli da) und zum Schluss
+  den echten Server-Start, wie Claude ihn macht. Dauer: ~1 Minute.
+- **Für Feldtests auf N Rechnern gebaut:** Kommandozeile
+  `"<KiCad-Python>" -m kicad_mcp.selftest --out <ordner>` — keine GUI,
+  keine Rückfragen. Bei Erfolg EINE Zeile und Exit-Code 0; nur bei Fehlern
+  werden die roten Schritte ausgegeben (Exit 1). Der Report liegt als
+  `selftest_report.md` + `.json` im Ausgabeordner — maschinenlesbar, zum
+  Einsammeln und Zurücklesen. Fehlende Extras (pcbnew, kicad-cli) sind
+  SKIP, nie FAIL.
+- **Abgrenzung:** Der 🧪-E2E-Test prüft das *Claude-Verhalten* (teuer,
+  15-45 min); der 🔬-Systemtest prüft das *Produkt darunter* (schnell,
+  kostenlos) — zusammen decken sie den ganzen Stack ab.
+- Die Demo-Vorlage (`selftest_board.json`: 5V→3V3-LDO mit LED und
+  Testpunkt) ist zugleich ein Startpunkt für eigene Projekte aus Specs.
 
 ---
 

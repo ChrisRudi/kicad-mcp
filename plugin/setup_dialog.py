@@ -70,6 +70,13 @@ class SetupDialog(wx.Dialog):
             "nach Board 15-45 Minuten."))
         e2e_btn.Bind(wx.EVT_BUTTON, lambda e: self._guarded(self._run_e2e))
         bar.Add(e2e_btn, 0, wx.RIGHT, 8)
+        st_btn = wx.Button(self._panel, label=tr("🔬 Systemtest"))
+        st_btn.SetToolTip(tr(
+            "Prüft die Maschinerie OHNE Claude (kein Kontingent): erzeugt "
+            "ein Demo-Board aus der eingebauten Vorlage und testet Server, "
+            "Generatoren und Werkzeuge lokal — dauert ~1 Minute."))
+        st_btn.Bind(wx.EVT_BUTTON, lambda e: self._guarded(self._run_selftest))
+        bar.Add(st_btn, 0, wx.RIGHT, 8)
         bar.AddStretchSpacer()
         self._start = wx.Button(self._panel, label="Chat starten")
         self._start.Bind(wx.EVT_BUTTON, self._on_start)
@@ -210,6 +217,63 @@ class SetupDialog(wx.Dialog):
                 emit("  " + js)
                 emit(tr("→ Diese Datei dem Entwicklungs-Agenten geben — er "
                         "liest sie zurück und verbessert die Prompts."))
+            except Exception as exc:
+                emit(f"FEHLER: {type(exc).__name__}: {exc}")
+            wx.CallAfter(close.Enable, True)
+
+        threading.Thread(target=worker, daemon=True).start()
+        dlg.ShowModal()
+        dlg.Destroy()
+
+    def _run_selftest(self) -> None:
+        """Standalone-Systemtest (kicad_mcp.selftest) unter KiCads Python:
+        Demo-Board aus der JSON-Vorlage, echte Tools, kein Claude, kein
+        Kontingent. Live-Ausgabe im Fenster; grün endet in einer Zeile."""
+        import subprocess
+        import threading
+
+        from . import deps as plugin_deps, server_manager
+        from .claude_bridge import hidden_console_kwargs
+
+        py = mcp_config.find_kicad_python()
+        if not py:
+            wx.MessageBox("KiCad-Python nicht gefunden — erst die "
+                          "Checkliste grün machen.", "🔬", wx.OK)
+            return
+        out_dir = os.path.join(server_manager.state_dir(), "selftest")
+        cmd = [py, "-c",
+               mcp_config.selftest_bootstrap_code(
+                   self._mcp_root, plugin_deps.active_deps_dir()),
+               "--out", out_dir, "--verbose"]
+
+        dlg = wx.Dialog(self, title=tr("🔬 Systemtest läuft …"),
+                        size=(640, 420),
+                        style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        panel = wx.Panel(dlg)
+        out = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY)
+        close = wx.Button(panel, label=tr("Schließen"))
+        close.Enable(False)
+        close.Bind(wx.EVT_BUTTON, lambda e: dlg.EndModal(wx.ID_OK))
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(out, 1, wx.EXPAND | wx.ALL, 8)
+        sizer.Add(close, 0, wx.ALL, 8)
+        panel.SetSizer(sizer)
+
+        def emit(line: str) -> None:
+            wx.CallAfter(out.AppendText, line + "\n")
+
+        def worker() -> None:
+            try:
+                proc = subprocess.Popen(
+                    cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, **hidden_console_kwargs())
+                for line in proc.stdout:
+                    emit(line.rstrip())
+                rc = proc.wait()
+                emit("")
+                emit(tr("✅ Alles grün.") if rc == 0
+                     else tr("❌ Es gibt rote Schritte — Report ansehen:"))
+                emit("  " + os.path.join(out_dir, "selftest_report.md"))
             except Exception as exc:
                 emit(f"FEHLER: {type(exc).__name__}: {exc}")
             wx.CallAfter(close.Enable, True)

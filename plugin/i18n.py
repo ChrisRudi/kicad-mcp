@@ -209,6 +209,19 @@ _EN: dict = {
     "🧪 E2E-Test": "🧪 E2E test",
     "🧪 E2E-Test läuft …": "🧪 E2E test running …",
     "Schließen": "Close",
+
+    # --- Systemtest (standalone, ohne Claude) -------------------------------
+    "🔬 Systemtest": "🔬 System test",
+    "🔬 Systemtest läuft …": "🔬 System test running …",
+    "Prüft die Maschinerie OHNE Claude (kein Kontingent): erzeugt "
+    "ein Demo-Board aus der eingebauten Vorlage und testet Server, "
+    "Generatoren und Werkzeuge lokal — dauert ~1 Minute.":
+        "Checks the machinery WITHOUT Claude (no quota): generates a demo "
+        "board from the built-in template and tests server, generators and "
+        "tools locally — takes ~1 minute.",
+    "✅ Alles grün.": "✅ All green.",
+    "❌ Es gibt rote Schritte — Report ansehen:":
+        "❌ Some steps are red — see the report:",
     "Alle Super-Features automatisch gegen das offene Board testen "
     "(ohne Board-Änderung) und einen Report schreiben — dauert je "
     "nach Board 15-45 Minuten.":

@@ -1,0 +1,92 @@
+{
+  "description": "Generisches Selftest-/Demo-Board: 5V→3V3-LDO mit LED und Testpunkt. Klein genug für Sekunden-Läufe, breit genug, um Schaltplan- und PCB-Generator, Netz-Auflösung, Patch- und Geometrie-Tools real zu treffen. Wird von `python -m kicad_mcp.selftest` in ein Temp-Projekt generiert und dient zugleich als Demo-Vorlage.",
+  "project_name": "kicad_mcp_selftest",
+  "parts": [
+    {
+      "ref": "J1",
+      "name": "Conn_01x02",
+      "value": "VIN",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {"num": "1", "name": "VIN", "type": "passive"},
+        {"num": "2", "name": "GND", "type": "passive"}
+      ]
+    },
+    {
+      "ref": "U1",
+      "name": "AMS1117-3.3",
+      "value": "AMS1117-3.3",
+      "footprint": "Package_TO_SOT_SMD:SOT-223-3_TabPin2",
+      "pins": [
+        {"num": "1", "name": "GND", "type": "power_in"},
+        {"num": "2", "name": "VOUT", "type": "power_out"},
+        {"num": "3", "name": "VIN", "type": "power_in"}
+      ]
+    },
+    {
+      "ref": "C1",
+      "name": "C",
+      "value": "100n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {"num": "1", "name": "P1", "type": "passive"},
+        {"num": "2", "name": "P2", "type": "passive"}
+      ]
+    },
+    {
+      "ref": "C2",
+      "name": "C",
+      "value": "10u",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {"num": "1", "name": "P1", "type": "passive"},
+        {"num": "2", "name": "P2", "type": "passive"}
+      ]
+    },
+    {
+      "ref": "R1",
+      "name": "R",
+      "value": "1k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {"num": "1", "name": "P1", "type": "passive"},
+        {"num": "2", "name": "P2", "type": "passive"}
+      ]
+    },
+    {
+      "ref": "D1",
+      "name": "LED",
+      "value": "green",
+      "footprint": "LED_SMD:LED_0603_1608Metric",
+      "pins": [
+        {"num": "1", "name": "K", "type": "passive"},
+        {"num": "2", "name": "A", "type": "passive"}
+      ]
+    },
+    {
+      "ref": "TP1",
+      "name": "TestPoint",
+      "value": "3V3",
+      "footprint": "TestPoint:TestPoint_Pad_D1.5mm",
+      "pins": [
+        {"num": "1", "name": "TP", "type": "passive"}
+      ]
+    }
+  ],
+  "nets": [
+    {"name": "VIN", "type": "power",
+     "connections": ["J1:1", "U1:3", "C1:1"]},
+    {"name": "GND", "type": "power",
+     "connections": ["J1:2", "U1:1", "C1:2", "C2:2", "D1:1"]},
+    {"name": "3V3", "type": "power",
+     "connections": ["U1:2", "C2:1", "R1:1", "TP1:1"]},
+    {"name": "LED_A", "type": "signal",
+     "connections": ["R1:2", "D1:2"]}
+  ],
+  "board": {
+    "shape": "rectangle",
+    "width": 30,
+    "depth": 20,
+    "layers": 2
+  }
+}
