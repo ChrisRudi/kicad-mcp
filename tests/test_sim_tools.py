@@ -115,6 +115,10 @@ class TestRunSpiceSim:
     def test_missing_ngspice_gives_install_hint(self, server, monkeypatch):
         monkeypatch.delenv(sim_tools.NGSPICE_ENV, raising=False)
         monkeypatch.setattr(sim_tools, "find_ngspice", lambda **kw: None)
+        # BEIDE Backends stummschalten: auf Maschinen mit echtem KiCad liegt
+        # libngspice bei — ohne diesen Patch findet das Tool das Lib-Backend
+        # und der Hinweis-Pfad wird nie erreicht (Container-KiCad-Fund).
+        monkeypatch.setattr(sim_tools, "find_libngspice", lambda **kw: None)
         out = _call(server, netlist=_DECK)
         assert out["success"] is False
         assert "ngspice" in out["error"] and sim_tools.NGSPICE_ENV in out["error"]

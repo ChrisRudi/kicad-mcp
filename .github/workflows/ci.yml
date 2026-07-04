@@ -92,10 +92,8 @@ jobs:
         run: .venv-kicad/bin/python -m kicad_mcp.selftest --out selftest-out --verbose
 
       - name: Run tests (inkl. pcbnew-/kicad-cli-Pfade)
-        # Noch informativ (continue-on-error), bis der erste volle
-        # pcbnew-Suite-Lauf validiert ist — der Selftest-Schritt darüber
-        # ist scharf. Danach dieses Flag entfernen.
-        continue-on-error: true
+        # Validiert im Dev-Container: 2881 passed mit pcbnew 10.0.4 —
+        # dieser Job testet die ~80 sonst geskippten pcbnew-Pfade ECHT.
         run: .venv-kicad/bin/pytest tests/ -q --no-cov --tb=short
 
       - name: Upload selftest report
