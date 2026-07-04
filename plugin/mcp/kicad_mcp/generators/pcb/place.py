@@ -133,6 +133,24 @@ def _compute_pcb_placement(
                 best = (x, y, rot)
         return best
 
+    # ── Phase 0: explizite Positions-Hints (Vorlagen/Demo) ───────────
+    # Ein Teil mit ``hint_pcb_x``/``hint_pcb_y`` wird EXAKT dort platziert
+    # (kein Auto-Layout, keine Kollisions-Verschiebung) — so bleibt ein
+    # bewusst gestaltetes Board (z. B. die Demo-Vorlage) sauber. Board-lokale
+    # mm (0..board_w/0..board_h); die restlichen Teile fügt das Auto-Layout
+    # drumherum ein.
+    for part in parts:
+        if part["ref"] in result:
+            continue
+        if "hint_pcb_x" in part and "hint_pcb_y" in part:
+            hx, hy = float(part["hint_pcb_x"]), float(part["hint_pcb_y"])
+            hrot = int(part.get("hint_pcb_rot", 0))
+            w, h = _fp_size(part)
+            if hrot in (90, 270):
+                w, h = h, w
+            result[part["ref"]] = (round(hx, 2), round(hy, 2), hrot)
+            occupied.append((part["ref"], hx, hy, w, h))
+
     # ── Phase 1: ICs — heaviest at center (R01) ──────────────────────
     ics = sorted(groups.get("main_ic", []), key=lambda p: -conn_count.get(p["ref"], 0))
     if len(ics) == 1:

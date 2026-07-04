@@ -8,9 +8,21 @@
       "value": "VIN",
       "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
       "pins": [
-        {"num": "1", "name": "VIN", "type": "passive"},
-        {"num": "2", "name": "GND", "type": "passive"}
-      ]
+        {
+          "num": "1",
+          "name": "VIN",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 5,
+      "hint_pcb_y": 10,
+      "hint_sch_x": 40,
+      "hint_sch_y": 90
     },
     {
       "ref": "U1",
@@ -18,10 +30,26 @@
       "value": "AMS1117-3.3",
       "footprint": "Package_TO_SOT_SMD:SOT-223-3_TabPin2",
       "pins": [
-        {"num": "1", "name": "GND", "type": "power_in"},
-        {"num": "2", "name": "VOUT", "type": "power_out"},
-        {"num": "3", "name": "VIN", "type": "power_in"}
-      ]
+        {
+          "num": "1",
+          "name": "GND",
+          "type": "power_in"
+        },
+        {
+          "num": "2",
+          "name": "VOUT",
+          "type": "power_out"
+        },
+        {
+          "num": "3",
+          "name": "VIN",
+          "type": "power_in"
+        }
+      ],
+      "hint_pcb_x": 13,
+      "hint_pcb_y": 10,
+      "hint_sch_x": 95,
+      "hint_sch_y": 90
     },
     {
       "ref": "C1",
@@ -29,9 +57,21 @@
       "value": "100n",
       "footprint": "Capacitor_SMD:C_0603_1608Metric",
       "pins": [
-        {"num": "1", "name": "P1", "type": "passive"},
-        {"num": "2", "name": "P2", "type": "passive"}
-      ]
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 10,
+      "hint_pcb_y": 14,
+      "hint_sch_x": 72,
+      "hint_sch_y": 100
     },
     {
       "ref": "C2",
@@ -39,9 +79,21 @@
       "value": "10u",
       "footprint": "Capacitor_SMD:C_0603_1608Metric",
       "pins": [
-        {"num": "1", "name": "P1", "type": "passive"},
-        {"num": "2", "name": "P2", "type": "passive"}
-      ]
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 18,
+      "hint_pcb_y": 14,
+      "hint_sch_x": 124,
+      "hint_sch_y": 100
     },
     {
       "ref": "R1",
@@ -49,9 +101,21 @@
       "value": "1k",
       "footprint": "Resistor_SMD:R_0603_1608Metric",
       "pins": [
-        {"num": "1", "name": "P1", "type": "passive"},
-        {"num": "2", "name": "P2", "type": "passive"}
-      ]
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 22.5,
+      "hint_pcb_y": 8,
+      "hint_sch_x": 152,
+      "hint_sch_y": 85
     },
     {
       "ref": "D1",
@@ -59,9 +123,21 @@
       "value": "green",
       "footprint": "LED_SMD:LED_0603_1608Metric",
       "pins": [
-        {"num": "1", "name": "K", "type": "passive"},
-        {"num": "2", "name": "A", "type": "passive"}
-      ]
+        {
+          "num": "1",
+          "name": "K",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "A",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 26,
+      "hint_pcb_y": 8,
+      "hint_sch_x": 180,
+      "hint_sch_y": 85
     },
     {
       "ref": "TP1",
@@ -69,19 +145,57 @@
       "value": "3V3",
       "footprint": "TestPoint:TestPoint_Pad_D1.5mm",
       "pins": [
-        {"num": "1", "name": "TP", "type": "passive"}
-      ]
+        {
+          "num": "1",
+          "name": "TP",
+          "type": "passive"
+        }
+      ],
+      "hint_pcb_x": 18,
+      "hint_pcb_y": 6,
+      "hint_sch_x": 124,
+      "hint_sch_y": 68
     }
   ],
   "nets": [
-    {"name": "VIN", "type": "power",
-     "connections": ["J1:1", "U1:3", "C1:1"]},
-    {"name": "GND", "type": "power",
-     "connections": ["J1:2", "U1:1", "C1:2", "C2:2", "D1:1"]},
-    {"name": "3V3", "type": "power",
-     "connections": ["U1:2", "C2:1", "R1:1", "TP1:1"]},
-    {"name": "LED_A", "type": "signal",
-     "connections": ["R1:2", "D1:2"]}
+    {
+      "name": "VIN",
+      "type": "power",
+      "connections": [
+        "J1:1",
+        "U1:3",
+        "C1:1"
+      ]
+    },
+    {
+      "name": "GND",
+      "type": "power",
+      "connections": [
+        "J1:2",
+        "U1:1",
+        "C1:2",
+        "C2:2",
+        "D1:1"
+      ]
+    },
+    {
+      "name": "3V3",
+      "type": "power",
+      "connections": [
+        "U1:2",
+        "C2:1",
+        "R1:1",
+        "TP1:1"
+      ]
+    },
+    {
+      "name": "LED_A",
+      "type": "signal",
+      "connections": [
+        "R1:2",
+        "D1:2"
+      ]
+    }
   ],
   "board": {
     "shape": "rectangle",

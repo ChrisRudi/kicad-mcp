@@ -1,7 +1,23 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.10.2**
+Aktuelle Version: **0.10.3**
+
+---
+
+## 🩹 Neu in 0.10.3 — Demo-Board: sauber platziert (wirkte „leer")
+
+- **Der Demo-Schaltplan und die -Platine waren nie leer** — sie hatten alle
+  Bauteile, aber das Auto-Layout stapelte sie zu einem winzigen, überlappenden
+  Klumpen (drei Footprints auf demselben Punkt). Beim Öffnen sah man ein
+  fast leeres Blatt mit einem Fleck.
+- **Jetzt sauber vorplatziert:** Regler in der Mitte, links der Eingang
+  (Stecker, Eingangs-C), rechts der LED-Zweig (Vorwiderstand, LED), Testpunkt
+  oben — ein echter Links-nach-rechts-Stromfluss in Schaltplan UND Platine,
+  mit gerouteten Leiterbahnen. Per Screenshot geprüft.
+- Technisch: Der PCB-Platzierer respektiert jetzt explizite Positions-Hints
+  (wie der Schaltplan schon), sodass eine bewusst gestaltete Vorlage nicht
+  vom Auto-Layout zerdrückt wird.
 
 ---
 

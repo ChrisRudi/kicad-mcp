@@ -8,6 +8,21 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Demo-Board wirkte „leer" — überlappendes Auto-Layout, Plugin 0.10.3)
+- **Feld-Report:** „Demo startet, aber nichts im Schaltplan, Platine leer." Die
+  Dateien waren NICHT leer (7 Footprints, 31 Symbole, geroutete Tracks —
+  per kicad-cli-Render verifiziert), aber das Auto-Layout stapelte mehrere
+  Footprints auf denselben Punkt (U1/C1/D1 bei 153.5,105) → winziger Klumpen
+  in großem Blatt, las sich als leer.
+- **`generators/pcb/place.py`:** neue „Phase 0" — Teile mit `hint_pcb_x`/
+  `hint_pcb_y`/`hint_pcb_rot` werden EXAKT platziert (kein Auto-Layout, keine
+  Kollisions-Verschiebung), analog zum Schaltplan-`hint_sch_*`. Eine bewusst
+  gestaltete Vorlage bleibt so unangetastet.
+- **`resources/data/selftest_board.json`:** Demo-Board sauber vorplatziert
+  (J1→C1→U1→C2→R1→D1 Links-nach-rechts, TP1 oben), `hint_pcb_*` + `hint_sch_*`
+  je Bauteil. Schaltplan & Platine gerendert geprüft. Spec bleibt
+  validator-konform. Bundle-Sync; Version 0.10.2 → 0.10.3.
+
 ### Fixed + Changed (Feld-Feedback zu Design A, Plugin 0.10.2)
 - **Demo-Knopf: `ModuleNotFoundError: kicad_mcp`** — das Plugin-GUI-Python
   hat das Server-Paket nicht auf `sys.path`, der In-Process-Import
