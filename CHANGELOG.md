@@ -8,6 +8,24 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed + Changed (Feld-Feedback zu Design A, Plugin 0.10.2)
+- **Demo-Knopf: `ModuleNotFoundError: kicad_mcp`** — das Plugin-GUI-Python
+  hat das Server-Paket nicht auf `sys.path`, der In-Process-Import
+  (`from kicad_mcp import demo`) flog. Fix: `kicad_mcp/demo.py` bekommt ein
+  `main()`, `mcp_config.demo_bootstrap_code`, und `_demo_worker` startet den
+  Ablauf als Subprozess mit sys.path-Bootstrap (wie der Systemtest),
+  streamt stdout ins Transkript, liest die `BOARD\t<pfad>`-Zeile.
+- **Ein Button pro Feature** statt Kategorie-Dropdown (`_build_superfeature_bar`
+  + `_add_feature_button`): 34 Einzelknöpfe, nach Kategorie gruppiert
+  (farbiger Gruppen-Titel), Hover (`EVT_ENTER_WINDOW`) → Beschreibung in der
+  Statuszeile; `_popup_feature_menu` entfernt.
+- **Kontrast erhöht:** `chat_theme` FOREGROUND `#15181D`, DIM `#49505A`,
+  SURFACE `#E3E8ED` (Knöpfe klarer abgesetzt), Kategoriefarben kräftig
+  abgedunkelt, LINK `#1F5FA8`.
+- **ngspice-Ampel entfernt:** Fußzeile nur noch MCP + IPC; `_probe_ngspice_light`
+  weg, `_set_light` vereinfacht (SPICE-Status bleibt in der Diagnose).
+  Version 0.10.1 → 0.10.2.
+
 ### Changed (Design A „Werkbank" — helles natives KiCad-Theme, Plugin 0.10.1)
 - **`chat_theme.py` Palette auf hell-nativ** (Design A gewählt): BACKGROUND
   `#FAFBFC`, FOREGROUND `#20242A`, SURFACE `#EDF0F3`; neuer Token `LINK`

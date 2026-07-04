@@ -1,7 +1,23 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.10.1**
+Aktuelle Version: **0.10.2**
+
+---
+
+## 🩹 Neu in 0.10.2 — Feld-Feedback: Einzelbuttons, mehr Kontrast, Demo repariert
+
+- **Ein Button pro Super-Feature** (statt Kategorie-Dropdown): alle Features
+  liegen als einzelne Knöpfe da, nach Kategorie gruppiert (farbiger
+  Gruppen-Titel); Hover zeigt die Beschreibung unten — kein Klick nötig.
+- **Kräftigerer Kontrast:** Text und Gruppenfarben deutlich dunkler, Knöpfe
+  klarer von der Fläche abgesetzt — das helle Design war zu blass.
+- **ngspice-Ampel entfernt:** unten stehen nur noch MCP und IPC (die im
+  Chat-Alltag zählen); der SPICE-Status lebt in der Diagnose weiter.
+- **Demo-Knopf repariert:** lief mit „ModuleNotFoundError: kicad_mcp" ins
+  Leere, weil das GUI-Python das Server-Paket nicht auf dem Pfad hat. Der
+  Demo läuft jetzt — wie der Systemtest — als Subprozess mit korrektem
+  Pfad-Bootstrap.
 
 ---
 

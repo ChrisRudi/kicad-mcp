@@ -15,26 +15,26 @@ from __future__ import annotations
 # helle Fläche, dunkle Systemschrift, KiCad-Blau für Klickbares. Die
 # Markenfarbe (warmes Orange) bleibt als sparsamer Akzent (Chevron, Spinner,
 # Feature-Tag, Überschriften). Token-Namen bleiben stabil (66 Aufrufstellen).
-BACKGROUND = "#FAFBFC"     # Panel-Hintergrund (nahezu weiß, leicht kühl)
-SURFACE = "#EDF0F3"        # Eingabefeld / Knöpfe / abgesetzte Flächen
-FOREGROUND = "#20242A"     # Antworttext (dunkle Systemschrift)
-CLAUDE_ORANGE = "#C15B2E"  # warmer Marken-Akzent: Spinner, Chevron, Bullets
-LINK = "#2F6FB0"           # KiCad-Blau: klickbare Board-Links (nativ, kontraststark)
-DIM = "#5D646E"            # gedimmt: eigene Eingabe, Banner, Status „Bereit."
-ERROR_RED = "#C0392B"
-OK_GREEN = "#2E8B4A"       # Ampel „läuft"
-CODE_FG = "#1F5C86"        # Inline-Code & Codeblöcke (dunkles Blau auf SURFACE)
+BACKGROUND = "#FBFCFD"     # Panel-Hintergrund (nahezu weiß, leicht kühl)
+SURFACE = "#E3E8ED"        # Eingabefeld / Knöpfe / Flächen — deutlich abgesetzt
+FOREGROUND = "#15181D"     # Antworttext (kräftige dunkle Systemschrift)
+CLAUDE_ORANGE = "#B24A22"  # warmer Marken-Akzent: Spinner, Chevron, Bullets
+LINK = "#1F5FA8"           # KiCad-Blau: klickbare Board-Links (kontraststark)
+DIM = "#49505A"            # gedimmt, aber lesbar: Eingabe, Banner, Status
+ERROR_RED = "#B21F1F"
+OK_GREEN = "#237A3B"       # Ampel „läuft"
+CODE_FG = "#134E78"        # Inline-Code & Codeblöcke (dunkles Blau auf SURFACE)
 
 # Gruppenfarben der Super-Feature-Leiste — ein Akzent je Kategorie, damit die
 # Leiste scanbar wird. Keys = superfeatures.CATEGORIES-Keys (Guard-Test).
-# Für hellen Grund abgedunkelt (Kontrast auf #FAFBFC).
+# Kräftig abgedunkelt für lesbaren Kontrast auf hellem Button-Grund.
 CATEGORY_COLORS = {
-    "verstehen": "#3F7FC4",   # blau — lesen/prüfen
-    "layout": "#8A5CC9",      # violett — Geometrie/Skizze
-    "elektrik": "#B8860B",    # gold — Strom/Norm
-    "fertigung": "#4F9D54",   # grün — Fertigung/Kosten
-    "simulation": "#C05A8A",  # magenta — Simulation
-    "kreativ": "#1F998C",     # türkis — Brücken/Kreativ
+    "verstehen": "#255FA0",   # blau — lesen/prüfen
+    "layout": "#6E3FB0",      # violett — Geometrie/Skizze
+    "elektrik": "#8A6108",    # gold/braun — Strom/Norm
+    "fertigung": "#357A3B",   # grün — Fertigung/Kosten
+    "simulation": "#A63A6E",  # magenta — Simulation
+    "kreativ": "#127567",     # türkis — Brücken/Kreativ
 }
 
 # Markdown-Segment → (Farbe, fett, Hintergrund | None). "text" nimmt die

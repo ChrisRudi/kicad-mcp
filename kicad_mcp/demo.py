@@ -186,3 +186,27 @@ def summary_line(result: dict) -> str:
         return (f"✅ Demo fertig ({ok}/{total} Schritte) — Schaltplan & "
                 "Platine liegen im Projekt.")
     return f"⚠ Demo mit Problemen ({ok}/{total} Schritte) — Details oben."
+
+
+def main(argv=None) -> int:
+    """CLI-Einstieg für den Plugin-Knopf: als Subprozess mit dem sys.path-
+    Bootstrap gestartet (das Plugin-GUI-Python hat ``kicad_mcp`` nicht auf dem
+    Pfad). Streamt je Schritt eine Zeile auf stdout; letzte Zeile = Board-Pfad.
+    """
+    import argparse
+    import warnings
+    warnings.filterwarnings("ignore", message=".*coroutine.*never awaited.*",
+                            category=RuntimeWarning)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--out", required=True)
+    args = parser.parse_args(argv)
+    result = run_demo(args.out, on_step=lambda line: print(line, flush=True))
+    print(summary_line(result), flush=True)
+    if result.get("board_path"):
+        print("BOARD\t" + result["board_path"], flush=True)
+    return 0 if result["ok"] else 1
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())

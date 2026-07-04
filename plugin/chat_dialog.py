@@ -199,18 +199,19 @@ class ClaudeChatPanel(wx.Panel):
         # (letzter Zug), IPC (Link-Fähigkeit), ngspice (Simulation).
         # Drei EIGENE, größere Elemente mit je eigenem Tooltip; Klick öffnet
         # die Einrichtung (dort wohnen Diagnose + Fixes).
-        self._light_state = {"mcp": None, "ipc": None, "ngspice": None}
+        # Nur die zwei Ampeln, die im Chat-Alltag zählen: MCP (Tool-Server)
+        # und IPC (Live-GUI-Verbindung). ngspice gehört zur Simulation und
+        # steht in der Diagnose — unten war es nur Rauschen (Feld-Feedback).
+        self._light_state = {"mcp": None, "ipc": None}
         self._light_widgets = {}
         light_font = self._mono.Bold()
         light_font.SetPointSize(theme.FONT_SIZE_PT + 2)
         light_tips = {
             "mcp": tr("Status des Tool-Servers (letzter Zug)"),
             "ipc": tr("Live-Verbindung zur KiCad-GUI (Links/Selektion)"),
-            "ngspice": tr("SPICE-Simulator gefunden? (für 📈 Simulation)"),
         }
-        for key in ("mcp", "ipc", "ngspice"):
-            lw = wx.StaticText(
-                self, label="○ " + (key.upper() if key != "ngspice" else key))
+        for key in ("mcp", "ipc"):
+            lw = wx.StaticText(self, label="○ " + key.upper())
             lw.SetFont(light_font)
             lw.SetForegroundColour(wx.Colour(theme.DIM))
             lw.SetToolTip(light_tips[key] + "\n"
@@ -219,8 +220,6 @@ class ClaudeChatPanel(wx.Panel):
             lw.Bind(wx.EVT_LEFT_UP, self._on_light_click)
             self._light_widgets[key] = lw
             foot.Add(lw, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
-        threading.Thread(target=self._probe_ngspice_light,
-                         daemon=True).start()
 
         undo_btn = wx.Button(self, label=tr("↶ Rückgängig"))
         undo_btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
@@ -534,13 +533,6 @@ class ClaudeChatPanel(wx.Panel):
             pass
 
     # ---- Ampel-Zeile ------------------------------------------------------
-    def _probe_ngspice_light(self) -> None:
-        import shutil as _shutil
-        found = bool(os.environ.get("KICAD_MCP_NGSPICE")
-                     or _shutil.which("ngspice")
-                     or _shutil.which("ngspice.exe"))
-        wx.CallAfter(self._set_light, "ngspice", found)
-
     def _set_light(self, key: str, ok) -> None:
         if not self:
             return
@@ -548,7 +540,7 @@ class ClaudeChatPanel(wx.Panel):
         lw = self._light_widgets.get(key)
         if lw is None:
             return
-        name = key.upper() if key != "ngspice" else key
+        name = key.upper()
         # Je Ampel eigene Farbe: grün läuft, rot kaputt, grau unbekannt.
         dot, color = (("○", theme.DIM) if ok is None
                       else ("●", theme.OK_GREEN) if ok
@@ -971,36 +963,27 @@ class ClaudeChatPanel(wx.Panel):
         wx.CallAfter(self._flash_status, msg)
 
     def _build_superfeature_bar(self, root) -> None:
-        """Render the Super-Feature roadmap as a wrapping button row, driven by
-        ``plugin/superfeatures.py``. Every entry gets a button; ``SOON`` ones are
-        dimmed and print their pitch on click, ``SHIPPED`` ones will dispatch to
-        a live handler (wired in ``_on_superfeature``)."""
+        """Ein Button PRO Feature, nach Kategorie gruppiert (farbiger
+        Gruppen-Titel), Hover zeigt die Beschreibung in der Statuszeile —
+        kein Dropdown-Klick nötig. Klick dispatcht ``_on_superfeature``.
+        Best-effort so a layout hiccup can never break the panel."""
         from . import superfeatures
-        # Gruppen-Leiste statt 34-Button-Wand: ein Button je Kategorie öffnet
-        # ein Menü seiner Features — eine Zeile statt vier, und das Transkript
-        # behält seine Höhe. Menüpunkt-Klick dispatcht wie zuvor der Button.
         bar = wx.WrapSizer(wx.HORIZONTAL)
-        tag = wx.StaticText(self, label=tr("✨ Super-Features"))
-        tag.SetForegroundColour(wx.Colour(theme.CLAUDE_ORANGE))
-        tag.SetFont(self._mono)
-        bar.Add(tag, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 6)
         for cat_key, cat_label in superfeatures.CATEGORIES:
             feats = superfeatures.by_category(cat_key)
             if not feats:
                 continue
-            btn = wx.Button(self, label=tr(cat_label) + " ▾",
-                            style=wx.BU_EXACTFIT)
-            btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
-            # Gruppenfarbe statt Einheits-Orange: die Leiste wird scanbar
-            # (blau=verstehen, gelb=elektrik, grün=fertigung, …).
-            btn.SetForegroundColour(wx.Colour(theme.CATEGORY_COLORS.get(
-                cat_key, theme.CLAUDE_ORANGE)))
-            btn.SetToolTip(" · ".join(tr(f.label) for f in feats))
-            btn.Bind(wx.EVT_BUTTON,
-                     lambda _e, b=btn, fl=feats: self._popup_feature_menu(b, fl))
-            bar.Add(btn, 0, wx.ALL, 2)
+            color = theme.CATEGORY_COLORS.get(cat_key, theme.CLAUDE_ORANGE)
+            # kleiner Gruppen-Titel (nur der Name ohne Emoji), in Gruppenfarbe
+            lbl = wx.StaticText(self, label=" " + tr(cat_label).split(" ", 1)[-1])
+            lbl.SetForegroundColour(wx.Colour(color))
+            lf = lbl.GetFont(); lf.SetPointSize(max(7, theme.FONT_SIZE_PT - 2))
+            lbl.SetFont(lf)
+            bar.Add(lbl, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 4)
+            for feat in feats:
+                self._add_feature_button(bar, feat, color)
         # Demo-Knopf: baut die Testschaltung sichtbar (Idee→Schaltplan→
-        # Berechnung→Platine), ohne Modell-Kontingent — Onboarding + Live-Beweis.
+        # Berechnung→Platine), ohne Modell-Kontingent — Onboarding + Beweis.
         demo_btn = wx.Button(self, label=tr("▶ Demo"), style=wx.BU_EXACTFIT)
         demo_btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
         demo_btn.SetForegroundColour(wx.Colour(theme.CLAUDE_ORANGE))
@@ -1011,38 +994,26 @@ class ClaudeChatPanel(wx.Panel):
         bar.Add(demo_btn, 0, wx.ALL, 2)
         root.Add(bar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
 
-    def _popup_feature_menu(self, anchor_btn, feats) -> None:
-        """Das Kategorie-Menü: ein Eintrag pro Feature, Klick dispatcht.
-
-        Hover-Erklärung OHNE Klick: während die Maus über einem Menüpunkt
-        steht (EVT_MENU_HIGHLIGHT), zeigt die Statuszeile unten live den
-        Tooltip des Features — die kompakte Gruppen-Darstellung bleibt, die
-        Beschreibung geht trotzdem nicht verloren."""
+    def _add_feature_button(self, bar, feat, color) -> None:
+        """Ein einzelner Feature-Button: Klick dispatcht, Hover schreibt die
+        Beschreibung in die Statuszeile (ohne Klick). SOON-Features sind
+        dimmed und deaktiviert."""
         from . import superfeatures
-        menu = wx.Menu()
-        tips = {}
-        for feat in feats:
-            item = menu.Append(wx.ID_ANY, tr(feat.label))
-            tips[item.GetId()] = tr(feat.tooltip)
-            if feat.status == superfeatures.SOON:
-                item.Enable(False)
-            self.Bind(wx.EVT_MENU,
-                      lambda _e, f=feat: self._on_superfeature(f), item)
-
-        def _on_highlight(evt):
-            tip = tips.get(evt.GetMenuId())
-            if tip and not self._busy:
-                self._set_status(tip, theme.DIM)
-            evt.Skip()
-
-        self.Bind(wx.EVT_MENU_HIGHLIGHT, _on_highlight)
-        try:
-            anchor_btn.PopupMenu(menu)
-        finally:
-            self.Unbind(wx.EVT_MENU_HIGHLIGHT, handler=_on_highlight)
-            menu.Destroy()
-            if not self._busy:  # Statuszeile wieder freigeben
-                self._set_status(tr(theme.STATUS_READY), theme.DIM)
+        btn = wx.Button(self, label=tr(feat.label), style=wx.BU_EXACTFIT)
+        btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
+        btn.SetForegroundColour(wx.Colour(color))
+        btn.SetToolTip(tr(feat.tooltip))
+        if feat.status == superfeatures.SOON:
+            btn.Enable(False)
+        btn.Bind(wx.EVT_BUTTON, lambda _e, f=feat: self._on_superfeature(f))
+        tip = tr(feat.tooltip)
+        btn.Bind(wx.EVT_ENTER_WINDOW,
+                 lambda _e, t=tip: (not self._busy)
+                 and self._set_status(t, theme.DIM))
+        btn.Bind(wx.EVT_LEAVE_WINDOW,
+                 lambda _e: (not self._busy)
+                 and self._set_status(tr(theme.STATUS_READY), theme.DIM))
+        bar.Add(btn, 0, wx.ALL, 1)
 
     def _on_superfeature(self, feat) -> None:
         """Click on a Super-Feature button. SHIPPED features dispatch their
@@ -1083,19 +1054,38 @@ class ClaudeChatPanel(wx.Panel):
         threading.Thread(target=self._demo_worker, daemon=True).start()
 
     def _demo_worker(self) -> None:
-        """Off-GUI: Demo-Ablauf fahren (bundled server), Schritte live ins
-        Transkript. Öffnen muss der Nutzer selbst — KiCad-10-IPC kann kein
-        Dokument öffnen (nur lesen), daher nennen wir den Pfad prominent."""
+        """Off-GUI: Demo als Subprozess mit sys.path-Bootstrap fahren (das
+        Plugin-GUI-Python hat ``kicad_mcp`` NICHT auf dem Pfad — deshalb kein
+        In-Process-Import), Schritte live ins Transkript. Öffnen muss der
+        Nutzer selbst (KiCad-10-IPC kann kein Dokument öffnen)."""
         import os as _os
-        step = lambda line: wx.CallAfter(self._write, "  " + line + "\n",
-                                         theme.FOREGROUND)
+        import subprocess
+        from . import deps as _deps, mcp_config, server_manager
+        board = ""
         try:
-            from kicad_mcp import demo
+            py = mcp_config.find_kicad_python()
+            if not py:
+                raise RuntimeError("KiCad-Python nicht gefunden.")
+            mcp_root = getattr(self._plan, "config_pythonpath", "") \
+                or server_manager.default_mcp_root()
             out_dir = _os.path.join(self._plan.run_cwd, ".kicad-mcp", "demo")
-            result = demo.run_demo(out_dir, on_step=step)
-            wx.CallAfter(self._write, "  " + demo.summary_line(result) + "\n",
-                         theme.CLAUDE_ORANGE)
-            board = result.get("board_path", "")
+            cmd = [py, "-c",
+                   mcp_config.demo_bootstrap_code(mcp_root,
+                                                  _deps.active_deps_dir()),
+                   "--out", out_dir]
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, encoding="utf-8", errors="replace",
+                **claude_bridge.hidden_console_kwargs())
+            for line in proc.stdout:
+                line = line.rstrip("\n")
+                if line.startswith("BOARD\t"):
+                    board = line.split("\t", 1)[1]
+                    continue
+                col = theme.CLAUDE_ORANGE if line.startswith(("✅", "⚠")) \
+                    else theme.FOREGROUND
+                wx.CallAfter(self._write, "  " + line + "\n", col)
+            proc.wait()
             if board:
                 wx.CallAfter(self._write,
                              "  📂 " + tr("In KiCad öffnen: Datei → Öffnen →")
