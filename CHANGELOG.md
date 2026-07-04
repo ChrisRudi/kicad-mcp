@@ -8,6 +8,34 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Schaltung als Vorlage — „du zeichnest, der MCP merkt sich und baut", Plugin 0.11.0)
+- **Nutzer-Wunsch:** „nein also ich zeichne eins vor die speicherst ins mcp und
+  dann magic". KiCad 10 hat keine Schaltplan-Schreib-API (empirisch verifiziert:
+  leerer IPC-Befehlssatz), also zeichnet der Nutzer den Block selbst, der MCP
+  liest ihn ein, merkt ihn sich und baut daraus auf Wunsch ein Board.
+- **3 neue Tools** (Tool-Count 186 → 189): `save_circuit_template`,
+  `list_circuit_templates`, `build_circuit_template` in
+  `kicad_mcp/tools/circuit_template_tools.py`.
+  - `save_circuit_template(schematic_path, name, description)`: liest den
+    gezeichneten `.kicad_sch` via `kicad-cli sch export netlist` +
+    `_parse_netlist_to_spec` (korrekt für Busse/Power/hierarchisch) und legt
+    Bauteile+Netze als benannte Vorlage ab.
+  - `list_circuit_templates()`: alle gemerkten Vorlagen (Name, Slug,
+    Beschreibung, Bauteil-/Netz-Zahl).
+  - `build_circuit_template(name, output_dir, project_name)`: baut Schaltplan
+    **und** Platine über die bestehende Pipeline (`expand_netlist` →
+    `build_schematic`/`build_pcb`), Pins/Footprints auto-aufgelöst.
+- **`kicad_mcp/utils/circuit_templates.py`** (neu, rein/stdlib): persistenter
+  Vorlagen-Speicher (`~/.local/state/kicad-claude/circuit_templates` bzw.
+  `%LOCALAPPDATA%`, override `KICAD_MCP_TEMPLATE_DIR`); pfadsicherer Slug,
+  Save/Load-Round-Trip, `to_compact` (Vorlagen-Netze `R1.1` →
+  Generator-Form `R1:1`).
+- **Ende-zu-Ende gegen echtes KiCad geprüft:** gezeichnet → Vorlage (7 Bauteile
+  / 4 Netze) → gebautes Board (11 Footprints / 27 Symbole). Tests in
+  `tests/test_circuit_templates.py` (Store rein + Tool-Weg self-skip ohne
+  kicad-cli). `EXPECTED_TOOL_COUNT` 189, `__tool_count__` 189, Bundle-Sync,
+  CLAUDE.md „189 Tools"; Version 0.10.3 → 0.11.0.
+
 ### Fixed (Demo-Board wirkte „leer" — überlappendes Auto-Layout, Plugin 0.10.3)
 - **Feld-Report:** „Demo startet, aber nichts im Schaltplan, Platine leer." Die
   Dateien waren NICHT leer (7 Footprints, 31 Symbole, geroutete Tracks —

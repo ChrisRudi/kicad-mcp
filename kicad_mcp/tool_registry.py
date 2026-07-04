@@ -47,6 +47,9 @@ from kicad_mcp.tools.connectivity_tools import register_connectivity_tools
 from kicad_mcp.tools.via_promote_tools import register_via_promote_tools
 from kicad_mcp.tools.sim_tools import register_sim_tools
 from kicad_mcp.tools.safety_tools import register_safety_tools
+from kicad_mcp.tools.circuit_template_tools import (
+    register_circuit_template_tools,
+)
 from kicad_mcp.tools.ipc_live_tools import register_ipc_live_tools
 from kicad_mcp.tools.ipc_interact_tools import register_ipc_interact_tools
 from kicad_mcp.tools.ipc_markup_tools import register_ipc_markup_tools
@@ -112,6 +115,7 @@ TOOL_REGISTRARS: list[Registrar] = [
     register_via_promote_tools,
     register_sim_tools,
     register_safety_tools,
+    register_circuit_template_tools,
     register_ipc_live_tools,
     register_ipc_interact_tools,
     register_ipc_markup_tools,

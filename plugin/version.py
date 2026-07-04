@@ -10,7 +10,7 @@ metadata.
 
 from __future__ import annotations
 
-__version__ = "0.10.3"
+__version__ = "0.11.0"
 
 # Number of MCP tools shipped by this version. Coupled to the registry via
 # ``tests/test_version_release.py``: adding/removing a tool bumps
@@ -19,4 +19,4 @@ __version__ = "0.10.3"
 # bump ``__version__`` as well, or the plugin self-updater (updater.py compares
 # ``__version__`` remote-vs-local) will never offer the new tools to users. This
 # is the guard that stops "shipped new tools but forgot to bump the version".
-__tool_count__ = 186
+__tool_count__ = 189

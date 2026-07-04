@@ -1,7 +1,26 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.10.3**
+Aktuelle Version: **0.11.0**
+
+---
+
+## 🎨 Neu in 0.11.0 — Schaltung als Vorlage: du zeichnest, der MCP merkt sich und baut
+
+- **Deine Lieblings-Schaltung einmal zeichnen, immer wieder bauen.** KiCad 10
+  kann Schaltpläne nicht selbst zeichnen (die Live-API ist leer) — also
+  zeichnest **du** einen schönen Block (ein LDO-Frontend, einen MCU-Reset,
+  was auch immer), und der MCP merkt ihn sich unter einem Namen.
+- **Drei neue Werkzeuge:**
+  - „Vorlage speichern" liest deinen gezeichneten `.kicad_sch` (Bauteile +
+    Netze über KiCads eigene Netzliste) und legt ihn persistent ab.
+  - „Vorlagen auflisten" zeigt, was du bisher gemerkt hast (Name,
+    Beschreibung, Bauteil-/Netz-Zahl).
+  - „Vorlage bauen" macht daraus auf Knopfdruck ein komplettes Projekt —
+    Schaltplan **und** Platine, Pins/Footprints automatisch aufgelöst.
+- **Ende-zu-Ende gegen echtes KiCad geprüft:** gezeichnet → als Vorlage
+  „Mein LDO" gemerkt (7 Bauteile / 4 Netze) → Board gebaut (11 Footprints /
+  27 Symbole). Der Kreis schließt sich: einmal schön, beliebig oft.
 
 ---
 

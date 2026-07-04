@@ -319,8 +319,9 @@ def test_allowlist_has_no_obsolete_entries(tool_list):
 # 2026-06-09: -5 — FreeRouting/autoroute removed entirely (autoroute_tools.py
 # deleted): install_autorouter, autoroute_pcb, check_autorouter_status,
 # export_pcb_dsn, import_pcb_ses.
-EXPECTED_TOOL_COUNT = 186  # +get_safety_spacing (IEC-60664-Snapshot)
+EXPECTED_TOOL_COUNT = 189  # +save/list/build_circuit_template (Draw-once)
 # 2026-06-13: +1 (ipc_markup_to_tracks — markup-layer User.9 → copper tracks)
+# 2026-07-04: +3 (circuit_template_tools — Nutzer zeichnet, MCP merkt+baut)
 # 2026-07-03: +1 (evaluate_layout — non-mutating placement scorer for Entwirren)
 # 2026-07-03: +1 (get_board_layout — read board into evaluate_layout shape)
 # 2026-07-03: +1 (list_bus_members — Bus-Radar: semantic bus grouping)
