@@ -1,7 +1,28 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.8.6**
+Aktuelle Version: **0.8.7**
+
+---
+
+## 🎨 Neu in 0.8.7 — schöneres Chat-Panel (Markdown, Farben, klickbare Ampeln)
+
+- **Antworten werden jetzt formatiert gerendert:** **fett** ist fett,
+  Überschriften sind orange hervorgehoben, Listen bekommen saubere •-Punkte,
+  `Code` und Codeblöcke liegen auf abgesetzter Fläche in Blau, `---` wird
+  eine Trennlinie — statt roher `**`/`#`-Markdown-Zeichen im Text.
+- **Board-Links bleiben voll funktionsfähig** (die Auflage!): Die
+  Link-Erkennung läuft in jedem formatierten Abschnitt weiter — auch eine
+  **fette** Referenz oder ein Netz in einer Überschrift ist klickbar und
+  markiert/zoomt im Editor. Einzige Ausnahme: Codeblöcke bleiben
+  buchstaben-treu roh (fürs 📋-Kopieren).
+- **Super-Feature-Gruppen mit Farbakzent:** Verstehen=blau, Layout=violett,
+  Elektrik=gelb, Fertigung=grün, Simulation=rosa, Kreativ=türkis — die
+  Leiste ist auf einen Blick scanbar.
+- **Ampeln unten sind jetzt größer, einzeln erklärt und klickbar:** jede
+  Ampel (MCP/IPC/ngspice) hat ihren eigenen Tooltip und ihre eigene Farbe
+  (grün läuft / rot kaputt / grau unbekannt); ein Klick öffnet direkt die
+  Einrichtung mit Diagnose und Fixes.
 
 ---
 

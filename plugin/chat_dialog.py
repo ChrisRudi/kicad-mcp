@@ -197,15 +197,28 @@ class ClaudeChatPanel(wx.Panel):
         # Claude just did" is one click away — no need to find the PCB window.
         # Ampel-Zeile: „läuft es gerade?" ohne Diagnose-Report — MCP
         # (letzter Zug), IPC (Link-Fähigkeit), ngspice (Simulation).
-        self._lights = wx.StaticText(self, label="")
-        self._lights.SetFont(self._mono)
-        self._lights.SetForegroundColour(wx.Colour(theme.DIM))
-        self._lights.SetToolTip(
-            tr("Status des Tool-Servers (letzter Zug)") + " · "
-            + tr("Live-Verbindung zur KiCad-GUI (Links/Selektion)") + " · "
-            + tr("SPICE-Simulator gefunden? (für 📈 Simulation)"))
-        foot.Add(self._lights, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
+        # Drei EIGENE, größere Elemente mit je eigenem Tooltip; Klick öffnet
+        # die Einrichtung (dort wohnen Diagnose + Fixes).
         self._light_state = {"mcp": None, "ipc": None, "ngspice": None}
+        self._light_widgets = {}
+        light_font = self._mono.Bold()
+        light_font.SetPointSize(theme.FONT_SIZE_PT + 2)
+        light_tips = {
+            "mcp": tr("Status des Tool-Servers (letzter Zug)"),
+            "ipc": tr("Live-Verbindung zur KiCad-GUI (Links/Selektion)"),
+            "ngspice": tr("SPICE-Simulator gefunden? (für 📈 Simulation)"),
+        }
+        for key in ("mcp", "ipc", "ngspice"):
+            lw = wx.StaticText(
+                self, label="○ " + (key.upper() if key != "ngspice" else key))
+            lw.SetFont(light_font)
+            lw.SetForegroundColour(wx.Colour(theme.DIM))
+            lw.SetToolTip(light_tips[key] + "\n"
+                          + tr("Klick: Einrichtung/Diagnose öffnen"))
+            lw.SetCursor(wx.Cursor(wx.CURSOR_HAND))
+            lw.Bind(wx.EVT_LEFT_UP, self._on_light_click)
+            self._light_widgets[key] = lw
+            foot.Add(lw, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
         threading.Thread(target=self._probe_ngspice_light,
                          daemon=True).start()
 
@@ -247,10 +260,12 @@ class ClaudeChatPanel(wx.Panel):
     # -- ui helpers ---------------------------------------------------------
 
     def _write(self, text: str, color: str, bold: bool = False,
-               underline: bool = False) -> None:
+               underline: bool = False, bg: str = None) -> None:
         attr = wx.TextAttr(wx.Colour(color))
         attr.SetFontWeight(wx.FONTWEIGHT_BOLD if bold else wx.FONTWEIGHT_NORMAL)
         attr.SetFontUnderlined(underline)
+        if bg:  # Code-Spans bekommen die SURFACE-Fläche hinterlegt
+            attr.SetBackgroundColour(wx.Colour(bg))
         self._out.SetDefaultStyle(attr)
         self._out.AppendText(text)
 
@@ -260,30 +275,43 @@ class ClaudeChatPanel(wx.Panel):
         self._write(text + "\n\n", style["text_color"])
 
     def _append_claude(self, text: str) -> int:
-        """Claude reply with board references / nets / layers rendered as
+        """Claude reply, markdown-gerendert (fett/Überschrift/Code/Listen via
+        :mod:`chat_markdown`) UND mit board references / nets / layers als
         clickable links (orange + underlined); clicking selects+zooms an
         element or sets the active layer in the editor.
+
+        Die Linkifizierung läuft PRO Markdown-Segment durch
+        ``board_links.tokenize`` — Links funktionieren also auch in fetten
+        Passagen und Überschriften; nur Codeblöcke bleiben copy-treu roh.
 
         Returns the number of clickable spans actually rendered in THIS reply,
         so the caller can tell "board data present but nothing in the text
         matched" (0 returned despite a non-empty board) apart from a genuine
         success — otherwise that case is silent and undiagnosable."""
-        from . import board_links
+        from . import board_links, chat_markdown
         style = theme.style_for("claude")
         self._write(style["prefix"], style["prefix_color"], bold=True)
         rendered = 0
         marks: list = []
-        for chunk, target in board_links.tokenize(text + "\n\n", self._refs,
-                                                   self._nets, self._layers,
-                                                   known_pins=self._pins):
-            if target is None:
-                self._write(chunk, style["text_color"])
+        for segment, seg_style in chat_markdown.parse(text + "\n\n"):
+            color, bold, bg = theme.MARKDOWN_STYLES.get(
+                seg_style, theme.MARKDOWN_STYLES["text"])
+            color = color or style["text_color"]
+            if seg_style == chat_markdown.CODEBLOCK:
+                self._write(segment, color, bg=bg)
                 continue
-            kind, value = target
-            self._write_link(chunk, kind, value)
-            rendered += 1
-            if kind in ("ref", "net", "pin", "coord") and target not in marks:
-                marks.append(target)
+            for chunk, target in board_links.tokenize(segment, self._refs,
+                                                      self._nets, self._layers,
+                                                      known_pins=self._pins):
+                if target is None:
+                    self._write(chunk, color, bold=bold, bg=bg)
+                    continue
+                kind, value = target
+                self._write_link(chunk, kind, value)
+                rendered += 1
+                if kind in ("ref", "net", "pin", "coord") \
+                        and target not in marks:
+                    marks.append(target)
         # P4 (Dok 1): when a reply names several board elements, offer a single
         # click that selects+zooms ALL of them at once ("zeig's mir auf dem
         # Board") instead of clicking each link in turn.
@@ -516,17 +544,25 @@ class ClaudeChatPanel(wx.Panel):
         if not self:
             return
         self._light_state[key] = ok
-        parts = []
-        for name in ("mcp", "ipc", "ngspice"):
-            state = self._light_state[name]
-            dot = "○" if state is None else ("●" if state else "●")
-            parts.append(f"{dot} {tr(name.upper() if name != 'ngspice' else 'ngspice')}")
-        self._lights.SetLabel("  ".join(parts))
-        # Farbe: alles ok → dim; irgendwo rot → Fehlerfarbe zieht den Blick.
-        any_bad = any(v is False for v in self._light_state.values())
-        self._lights.SetForegroundColour(
-            wx.Colour(theme.ERROR_RED if any_bad else theme.DIM))
-        self._lights.Refresh()
+        lw = self._light_widgets.get(key)
+        if lw is None:
+            return
+        name = key.upper() if key != "ngspice" else key
+        # Je Ampel eigene Farbe: grün läuft, rot kaputt, grau unbekannt.
+        dot, color = (("○", theme.DIM) if ok is None
+                      else ("●", theme.OK_GREEN) if ok
+                      else ("●", theme.ERROR_RED))
+        lw.SetLabel(f"{dot} {name}")
+        lw.SetForegroundColour(wx.Colour(color))
+        lw.Refresh()
+        self.Layout()
+
+    def _on_light_click(self, _evt) -> None:
+        """Ampel-Klick: direkt in die Einrichtung (Diagnose + Fixes)."""
+        if self._on_open_setup:
+            self._on_open_setup()
+        else:
+            self._flash_status(tr("Diagnose: Einrichtung / Update öffnen"))
 
     def _dispatch_prompt(self, prompt: str, include_sel: bool = True) -> None:
         """Start one chat turn with ``prompt`` — the shared path for typed
@@ -954,7 +990,10 @@ class ClaudeChatPanel(wx.Panel):
             btn = wx.Button(self, label=tr(cat_label) + " ▾",
                             style=wx.BU_EXACTFIT)
             btn.SetBackgroundColour(wx.Colour(theme.SURFACE))
-            btn.SetForegroundColour(wx.Colour(theme.CLAUDE_ORANGE))
+            # Gruppenfarbe statt Einheits-Orange: die Leiste wird scanbar
+            # (blau=verstehen, gelb=elektrik, grün=fertigung, …).
+            btn.SetForegroundColour(wx.Colour(theme.CATEGORY_COLORS.get(
+                cat_key, theme.CLAUDE_ORANGE)))
             btn.SetToolTip(" · ".join(tr(f.label) for f in feats))
             btn.Bind(wx.EVT_BUTTON,
                      lambda _e, b=btn, fl=feats: self._popup_feature_menu(b, fl))

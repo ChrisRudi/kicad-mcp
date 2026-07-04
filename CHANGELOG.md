@@ -8,6 +8,25 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (GUI: Markdown-Rendering, Gruppenfarben, klickbare Ampeln, Plugin 0.8.7)
+- **`plugin/chat_markdown.py` (neu, pure logic):** zerlegt eine Antwort in
+  ``(text, stil)``-Segmente (bold/heading/bullet/code/codeblock/rule;
+  bewusst KEIN kursiv — ``_``/``*`` stecken in Netznamen wie ``GND_3V3``).
+  Link-Invariante: nur Marker werden entfernt, nie Wortlaut —
+  ``_append_claude`` schickt jedes Segment weiterhin durch
+  ``board_links.tokenize``, Links funktionieren auch in fetten Passagen
+  und Überschriften; nur Codeblöcke bleiben roh (copy-treu, 📋-Chips).
+  Styles zentral in ``chat_theme.MARKDOWN_STYLES`` (+ ``CODE_FG``,
+  ``OK_GREEN``); ``_write`` kann jetzt Hintergrundfarbe (Code auf SURFACE).
+- **Super-Feature-Leiste mit Gruppenfarben:** ``chat_theme.CATEGORY_COLORS``
+  (Key-gekoppelt an ``superfeatures.CATEGORIES``, Guard-Test) färbt die
+  sechs Gruppen-Buttons (blau/violett/gelb/grün/rosa/türkis).
+- **Ampeln einzeln, größer, klickbar:** drei StaticTexts (MCP/IPC/ngspice)
+  mit je eigenem Tooltip + Handcursor, Farbe pro Zustand
+  (grün/rot/grau), Klick öffnet die Einrichtung (`_on_light_click`).
+  Tests: ``tests/test_plugin_chat_markdown.py`` (13, inkl. Link-Invariante
+  und Theme-Kopplungs-Guards). Version 0.8.6 → 0.8.7.
+
 ### Fixed (MCP-Status-Fehldiagnose — Init-Event lügt beim Kaltstart, Plugin 0.8.6)
 - **Vierter Feld-Report (zweiter E2E-Lauf):** wieder 34/34 FAIL
   `mcp-nicht-verbunden` — aber das Log beweist: die Features riefen

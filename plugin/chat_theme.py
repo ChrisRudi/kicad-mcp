@@ -17,6 +17,30 @@ FOREGROUND = "#E8E6E3"     # Claude-Antworttext (helles Off-White)
 CLAUDE_ORANGE = "#D97757"  # Markenfarbe: Spinner, Bullets, Prompt-Chevron
 DIM = "#8A8782"            # gedimmt: eigene Eingabe, Banner, Status "Bereit."
 ERROR_RED = "#E5484D"
+OK_GREEN = "#3FB950"       # Ampel „läuft"
+CODE_FG = "#9AD1F5"        # Inline-Code & Codeblöcke (kühles Blau auf SURFACE)
+
+# Gruppenfarben der Super-Feature-Leiste — ein Akzent je Kategorie, damit die
+# Leiste scanbar wird. Keys = superfeatures.CATEGORIES-Keys (Guard-Test).
+CATEGORY_COLORS = {
+    "verstehen": "#7FB4E8",   # blau — lesen/prüfen
+    "layout": "#B78AE8",      # violett — Geometrie/Skizze
+    "elektrik": "#E8C558",    # gelb — Strom/Norm
+    "fertigung": "#8AC98A",   # grün — Fertigung/Kosten
+    "simulation": "#E88AB0",  # rosa — Simulation
+    "kreativ": "#6FD3C7",     # türkis — Brücken/Kreativ
+}
+
+# Markdown-Segment → (Farbe, fett, Hintergrund | None). "text" nimmt die
+# Rollenfarbe des Aufrufers (None = einsetzen), Links behalten ihr Orange.
+MARKDOWN_STYLES = {
+    "text": (None, False, None),
+    "bold": (None, True, None),
+    "heading": (CLAUDE_ORANGE, True, None),
+    "code": (CODE_FG, False, SURFACE),
+    "codeblock": (CODE_FG, False, SURFACE),
+    "rule": (DIM, False, None),
+}
 
 # Monospace-Kandidaten, beste zuerst; der Dialog nimmt den ersten installierten.
 FONT_FACES = ("Cascadia Code", "Cascadia Mono", "Consolas", "JetBrains Mono",

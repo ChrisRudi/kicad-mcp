@@ -143,6 +143,9 @@ _EN: dict = {
         "Live connection to the KiCad GUI (links/selection)",
     "SPICE-Simulator gefunden? (für 📈 Simulation)":
         "SPICE simulator found? (for 📈 Simulation)",
+    "Klick: Einrichtung/Diagnose öffnen": "Click: open setup/diagnosis",
+    "Diagnose: Einrichtung / Update öffnen":
+        "Diagnosis: open Setup / Update",
 
     # --- Gruppen der Super-Feature-Leiste --------------------------------
     "🔎 Verstehen & Prüfen": "🔎 Understand & Check",
