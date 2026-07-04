@@ -51,3 +51,4 @@ plugin/**/*.pyc
 /plugin.zip
 plugin/_deps/
 dist/
+kicad_mcp/.cache/
