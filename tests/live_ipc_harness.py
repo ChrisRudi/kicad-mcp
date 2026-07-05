@@ -77,6 +77,8 @@ class LiveEditor:
         self._xvfb: Optional[subprocess.Popen] = None
         self._pcbnew: Optional[subprocess.Popen] = None
         self.kicad = None
+        self._stderr_path = ""
+        self._stderr_file = None
 
     def __enter__(self):
         # Xvfb nur starten, wenn das Display noch nicht lebt (CI kann eins
@@ -92,9 +94,15 @@ class LiveEditor:
             os.remove("/tmp/kicad/api.sock")
         except OSError:
             pass
+        # stderr in Datei statt DEVNULL: beim Timeout ist pcbnews eigene
+        # Meldung die einzige Diagnose („zuletzt: None" hilft niemandem).
+        self._stderr_path = os.path.join(
+            os.path.dirname(self.board_path) or ".", "pcbnew_stderr.log")
+        self._stderr_file = open(  # pylint: disable=consider-using-with
+            self._stderr_path, "w", encoding="utf-8")
         self._pcbnew = subprocess.Popen(
             ["pcbnew", self.board_path], env=env,
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            stdout=self._stderr_file, stderr=self._stderr_file)
         self.kicad = self._await_ready()
         return self.kicad, self.display
 
@@ -114,10 +122,26 @@ class LiveEditor:
                     # „not ready to reply" = Modaldialog blockiert → wegklicken
                     _dismiss_setup_dialog(self.display)
             time.sleep(2.0)
-        raise RuntimeError(f"Live-Editor nicht bereit in "
-                           f"{int(self.ready_timeout)}s (zuletzt: {last})")
+        tail = ""
+        try:
+            self._stderr_file.flush()
+            with open(self._stderr_path, encoding="utf-8",
+                      errors="replace") as fh:
+                tail = fh.read()[-1500:]
+        except OSError:
+            pass
+        raise RuntimeError(
+            f"Live-Editor nicht bereit in {int(self.ready_timeout)}s "
+            f"(zuletzt: {last}; api.sock existiert: "
+            f"{os.path.exists('/tmp/kicad/api.sock')}; pcbnew-stderr: "
+            f"{tail or '<leer>'})")
 
     def __exit__(self, *exc):
+        if self._stderr_file is not None:
+            try:
+                self._stderr_file.close()
+            except OSError:
+                pass
         for proc in (self._pcbnew, self._xvfb):
             if proc is not None:
                 try:

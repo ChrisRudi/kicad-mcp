@@ -11,8 +11,20 @@ from __future__ import annotations
 
 import math
 
+import pytest
+
+from kicad_mcp.generators.symbol_cache import get_real_symbol
+
 from kicad_mcp.generators.schematic import route
 from kicad_mcp.generators.common.constants import PIN_STUB_LEN
+
+# Diese Tests prüfen gegen die ECHTE KiCad-Symbol-Bibliothek (reale Bbox,
+# Pin-Zahlen, Gegenrotation) — ohne installiertes KiCad liefert die
+# Symbol-Auflösung Fallback-Geometrie und die Aussagen stimmen nicht mehr
+# (CI-Job "KiCad mocked"). Der Echt-KiCad-Job fährt sie weiterhin.
+_needs_symbol_lib = pytest.mark.skipif(
+    not get_real_symbol("74xx:74HC595"),
+    reason="KiCad-Symbol-Bibliothek nicht installiert")
 
 
 def test_pin_stub_points_outward_from_body():
@@ -24,6 +36,7 @@ def test_pin_stub_points_outward_from_body():
     assert tip == (100.0, 90.0 - PIN_STUB_LEN)
 
 
+@_needs_symbol_lib
 def test_obstacle_set_is_rotation_aware():
     # Ein um 90° gedrehter Widerstand ist BREIT (x) und niedrig (y). Ohne den
     # Rotations-Swap modelliert der Router ihn schmal-hoch → ein waagrechter Bus
@@ -63,6 +76,7 @@ def test_wired_ic_pins_get_a_stub():
     assert stubs, "kein Pin-Stub der Länge PIN_STUB_LEN gefunden"
 
 
+@_needs_symbol_lib
 def test_rotated_part_annotations_are_counter_rotated():
     # KiCad rendert Property-Text relativ zur Symbol-Rotation: bei rot=90/270
     # muss der Property-Winkel gegenrotieren (270/90), sonst stehen Referenz
@@ -83,6 +97,7 @@ def test_rotated_part_annotations_are_counter_rotated():
     assert m.group(1) == "270", f"Value-Winkel {m.group(1)} statt 270 (rot=90)"
 
 
+@_needs_symbol_lib
 def test_fuzzy_symbol_match_rejects_oversized_symbol():
     # „STM32F407" mit 11 deklarierten Pins darf NICHT aufs 176-Pin-BGA-Symbol
     # gematcht werden (der ethernet_device-Fall) → Platzhalter-Box. Ein Teil

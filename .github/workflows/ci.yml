@@ -126,6 +126,23 @@ jobs:
       - name: Install KiCad 10 + GUI-Live-Zutaten (Xvfb/xdotool)
         run: sudo sh scripts/setup_container_kicad.sh ""
 
+      - name: IPC-API-Config als TEST-Nutzer sicherstellen
+        # pcbnew läuft im Test-Schritt als 'runner' und liest NUR dessen
+        # Config. Das Setup-Skript lief unter sudo — hier ohne sudo schreiben
+        # wir die Config garantiert dorthin, wo pcbnew sie sucht (Erst-Lauf
+        # zeigte: /root-Config → IPC-Server aus → kein api.sock in 90 s).
+        run: |
+          mkdir -p ~/.config/kicad/10.0
+          cat > ~/.config/kicad/10.0/kicad_common.json <<'JSON'
+          {
+            "api": { "enable_server": true, "interpreter_path": "" },
+            "do_not_show_again": { "data_collection": true, "update_check_prompt": true },
+            "environment": { "show_warning_dialog": false },
+            "system": { "first_run_shown": true, "language": "en" }
+          }
+          JSON
+          ls -la ~/.config/kicad/10.0/
+
       - name: Install project (venv mit System-Site → kipy/pcbnew sichtbar)
         run: |
           python3 -m venv --system-site-packages .venv-kicad

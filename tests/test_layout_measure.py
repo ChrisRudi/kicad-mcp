@@ -11,6 +11,15 @@ import os
 import pytest
 
 from kicad_mcp.generators.schematic import layout_measure as lm
+from kicad_mcp.generators.symbol_cache import get_real_symbol
+
+# Diese Tests prüfen gegen die ECHTE KiCad-Symbol-Bibliothek (reale Bbox,
+# Pin-Zahlen, Gegenrotation) — ohne installiertes KiCad liefert die
+# Symbol-Auflösung Fallback-Geometrie und die Aussagen stimmen nicht mehr
+# (CI-Job "KiCad mocked"). Der Echt-KiCad-Job fährt sie weiterhin.
+_needs_symbol_lib = pytest.mark.skipif(
+    not get_real_symbol("74xx:74HC595"),
+    reason="KiCad-Symbol-Bibliothek nicht installiert")
 
 _REF_DIR = os.path.join(os.path.dirname(__file__), "data", "reference_schematics")
 _REFS = ("sallen_key", "rectifier")
@@ -58,6 +67,7 @@ def test_diagonal_wire_is_flagged():
     assert lm.measure_text(sch).diag_wires == 1
 
 
+@_needs_symbol_lib
 def test_ic_bbox_is_real_not_fallback():
     # Regression: eine Closure-``+=``-Falle ließ _bbox_for_lib bei JEDEM Symbol
     # mit Rechteck-Körper auf die 2.54×2.54-Fallback-Bbox zurückfallen → die
@@ -225,6 +235,7 @@ def test_custom_power_symbol_is_not_a_body():
     assert m.n_symbols == 1
 
 
+@_needs_symbol_lib
 def test_two_large_ics_side_by_side_overlap_is_detected():
     # Zwei ICs 3 mm auseinander: mit Fallback-Bbox (Halb-Breite 1.27) würde das
     # NICHT als Überlappung zählen; mit echter Bbox (Halb-Breite ~7.6) schon.
