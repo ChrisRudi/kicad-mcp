@@ -1,7 +1,21 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.23.0**
+Aktuelle Version: **0.24.0**
+
+---
+
+## 🛡️ Neu in 0.24.0 — Codequalität: Kopien abgeräumt und per CI-Wächter verriegelt
+
+- **Alle größeren Code-Kopien im Server konsolidiert** (S-Expression-Helfer,
+  Track-Emitter, Datei-Editier-Abschluss, Warm-Worker-Boilerplate,
+  Netzlisten-Parser ×2, BOM-Kern, Tool-Präambeln) — und ein neuer
+  CI-Wächter lässt ab jetzt keine neue Groß-Kopie mehr durch.
+- **102 stille Fehler-Schlucker auditiert:** jeder trägt jetzt seinen Grund
+  als Kommentar, sechs diagnose-wichtige Stellen schreiben ins Log,
+  sechs fangen gezielter. Felddiagnosen enden nicht mehr im Nichts.
+- Schaltplan-Ausgabe nachweislich unverändert (byte-gleich auf allen
+  10 Demo-Schaltungen), Roundtrip 10/10.
 
 ---
 

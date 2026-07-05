@@ -8,6 +8,28 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (Codequalität: Duplikat-Gate, geteilte Helfer, except-Audit — 0.24.0)
+- **Duplikat-Abbau auf 0 + CI-Gate:** pylints `duplicate-code` (Schwelle 10
+  Zeilen) läuft jetzt als eigener CI-Schritt und der Bestand ist abgeräumt:
+  Klammer-Walker → `utils/sexpr_parser.block_end`; Segment-Emitter →
+  `utils/pcb_net_format.segment_block`; File-Edit-Abschluss →
+  `tools/_text_edit.apply_text_edit` (7 Tool-Bodies); Warm-Worker-Server-
+  Seite → `tools/_worker_common.py` (pcbnew-Import stumm + Request-Loop,
+  von allen 3 Workern genutzt; Start per Dateipfad UND Paket-Import
+  verifiziert); Inline-S-Expr-Parser in `audit_tools`/`netlist_tools` →
+  `parse_sexpr`; `_build_ref_to_nets`-Kopie in `defrag_place` → Import aus
+  `placement_cost`; BOM-Sammel-Kern → `bom_consolidate.
+  iter_classified_footprints`; Netzlisten-Tool-Präambel →
+  `netlist_parser.load_netlist_with_progress`.
+- **except-pass-Audit (102 Stellen):** 82 stille Schlucker tragen jetzt
+  einen Begründungs-Kommentar, 6 diagnose-kritische Fallbacks loggen per
+  `logger.debug` (Symbol-Index-Cache, Pad-Cache, Constraint-Solver-,
+  Template-Matcher-Fallback, `drop_commit`), 6 Exception-Typen verengt
+  (`OSError`/`SubprocessError` statt breitem `Exception`). Kein
+  Erfolgspfad geändert.
+- Emission byte-identisch über alle 10 Kits (Hash-Vergleich vor/nach),
+  Roundtrip 10/10, volle Suite grün.
+
 ### Changed (Doppelungen raus, Runde 2 — 0.23.0)
 - **Trainings-Pipeline entfernt (−626 Zeilen):** die drei PDF-Extraktions-
   Skripte in `kicad_mcp/training/` (`extract_pages`, `detect_content`,
