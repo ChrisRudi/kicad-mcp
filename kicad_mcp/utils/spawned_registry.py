@@ -56,6 +56,7 @@ def _write(pids, path: Optional[str] = None) -> None:
         with open(path or registry_path(), "w", encoding="utf-8") as fh:
             json.dump(sorted({int(p) for p in pids}), fh)
     except Exception:
+        # best effort: Registry-Write darf den Editor-Start nicht brechen
         pass
 
 
@@ -102,7 +103,8 @@ def _default_killer(pid: int) -> None:
         else:
             import signal
             os.kill(pid, signal.SIGTERM)
-    except Exception:
+    except (OSError, subprocess.SubprocessError):
+        # Prozess bereits beendet oder kill nicht erlaubt — best effort
         pass
 
 

@@ -21,6 +21,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
+from kicad_mcp.utils.sexpr_parser import parse_sexpr
 from kicad_mcp.utils.path_env import to_local_path
 from kicad_mcp.utils.pcb_board_parse import (
     parse_pcb_footprints as _parse_pcb_for_audit,
@@ -209,44 +210,10 @@ def _audit_schematic(netlist_text: str) -> dict[str, Any]:
     """Run topology audits against the schematic-exported netlist
     (kicadsexpr format).
     """
-    # Reuse the netlist parser from netlist_tools — small inline copy to
-    # avoid cross-tool import circular.
-    def parse(s: str, pos: int):
-        while pos < len(s) and s[pos].isspace():
-            pos += 1
-        if pos >= len(s):
-            return None, pos
-        if s[pos] == "(":
-            items: list = []
-            pos += 1
-            while True:
-                while pos < len(s) and s[pos].isspace():
-                    pos += 1
-                if pos >= len(s):
-                    break
-                if s[pos] == ")":
-                    pos += 1
-                    break
-                item, pos = parse(s, pos)
-                if item is not None:
-                    items.append(item)
-            return items, pos
-        if s[pos] == '"':
-            pos += 1
-            start = pos
-            while pos < len(s) and s[pos] != '"':
-                if s[pos] == "\\":
-                    pos += 1
-                pos += 1
-            val = s[start:pos]
-            pos += 1
-            return val, pos
-        start = pos
-        while pos < len(s) and not s[pos].isspace() and s[pos] not in "()":
-            pos += 1
-        return s[start:pos], pos
-
-    tree, _ = parse(netlist_text, 0)
+    try:
+        tree = parse_sexpr(netlist_text)
+    except Exception:  # kaputte Netzliste → wie bisher leer degradieren
+        tree = None
     if not isinstance(tree, list):
         return {"success": False, "error": "Netlist parse failed."}
 
@@ -517,6 +484,7 @@ def register_audit_tools(mcp: FastMCP) -> None:
             try:
                 os.unlink(tmp_net)
             except OSError:
+                # best effort: Temp-Netzliste ggf. schon entfernt
                 pass
 
         result = _audit_schematic(netlist_text)

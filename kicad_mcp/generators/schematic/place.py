@@ -163,8 +163,8 @@ def place_schematic(parts: list[dict], nets: list[dict]) -> list[dict]:
                     placed_refs.add(ref)
             solver_used = True
             logger.info("Constraint solver placed %d parts", len(solver_result))
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Constraint-Solver fehlgeschlagen — inkrementelle Platzierung: %s", exc)
 
     if not solver_used:
         # Incremental place+score: like a human, one part at a time

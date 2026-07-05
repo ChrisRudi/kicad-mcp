@@ -62,6 +62,7 @@ def detect_environment() -> str:
         if "microsoft" in text or "wsl" in text:
             return "wsl"
     except OSError:
+        # /proc/version nicht lesbar → als natives Linux behandeln
         pass
     return "linux"
 
@@ -107,6 +108,7 @@ def _wsl_to_windows(path: str) -> str:
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout.strip()
     except (subprocess.SubprocessError, FileNotFoundError, OSError):
+        # wslpath nicht verfügbar/fehlgeschlagen — Regex-Fallback unten
         pass
     m = _WSL_MNT_RE.match(path)
     if not m:

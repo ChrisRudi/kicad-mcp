@@ -36,6 +36,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from kicad_mcp.cache import get_text, write_text
+from kicad_mcp.tools._text_edit import apply_text_edit
 from kicad_mcp.utils.path_env import kicad_lib_root, to_local_path
 from kicad_mcp.utils.pcb_geometry import (
     align_radial_rotation,
@@ -48,7 +49,9 @@ from kicad_mcp.utils.pcb_net_format import (
     ensure_net_tag,
     ensure_pad_net_tag,
     pcb_net_format,
+    segment_block as _segment_block,
 )
+from kicad_mcp.utils.sexpr_parser import block_end as _find_block_end
 
 # ---------------------------------------------------------------------------
 # Text-function registry (Universal Callable convention).
@@ -351,21 +354,6 @@ def _patch_fp_pose(
 # ---------------------------------------------------------------------------
 
 
-def _find_block_end(text: str, start: int) -> int:
-    """Return the index just past the matching closing parenthesis for the
-    opening parenthesis at ``start`` (must satisfy ``text[start] == '('``)."""
-    depth = 0
-    for i in range(start, len(text)):
-        ch = text[i]
-        if ch == "(":
-            depth += 1
-        elif ch == ")":
-            depth -= 1
-            if depth == 0:
-                return i + 1
-    return len(text)
-
-
 def _find_footprint_header_at_end(block: str) -> int:
     """Return the index just past the footprint-header ``(at …)`` token.
 
@@ -481,6 +469,7 @@ def _extract_netlist_text(schematic_path: str) -> str | None:
         try:
             os.unlink(out_path)
         except OSError:
+            # best effort: Temp-Datei ggf. schon entfernt
             pass
 
 
@@ -2372,12 +2361,14 @@ def _try_pcbnew_rotate(pcb_path: str, angle_deg: float) -> dict[str, Any]:
             import wx as _wx  # type: ignore
             _wx.DisableAsserts()  # pylint: disable=no-member
         except Exception:
+            # wx (noch) nicht importierbar — DisableAsserts nur Windows-Kosmetik
             pass
         import pcbnew  # type: ignore
         try:
             import wx as _wx2  # type: ignore
             _wx2.DisableAsserts()  # pylint: disable=no-member
         except Exception:
+            # wx auch nach pcbnew-Import nicht da — Asserts bleiben aktiv
             pass
     except Exception as exc:  # pragma: no cover - import-time only
         return {
@@ -2434,22 +2425,6 @@ def _insert_before_root_close(pcb_text: str, blob: str) -> str:
     ``(kicad_pcb …)`` root expression."""
     last = pcb_text.rstrip().rfind(")")
     return pcb_text[:last] + blob + pcb_text[last:]
-
-
-def _segment_block(
-    p1: tuple[float, float], p2: tuple[float, float],
-    width_mm: float, layer: str, net_tag: str,
-) -> str:
-    return (
-        "\t(segment\n"
-        f"\t\t(start {p1[0]:.6f} {p1[1]:.6f})\n"
-        f"\t\t(end {p2[0]:.6f} {p2[1]:.6f})\n"
-        f"\t\t(width {width_mm:.6f})\n"
-        f'\t\t(layer "{layer}")\n'
-        f"\t\t{net_tag}\n"
-        f'\t\t(uuid "{uuid.uuid4()}")\n'
-        "\t)\n"
-    )
 
 
 def _read_fp_header_info(block: str) -> dict[str, Any]:
@@ -3308,19 +3283,14 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
             with open(mod_path, encoding="utf-8") as fh:
                 mod_text = fh.read()
 
-        text = get_text(pcb_path)
-        new_text, result = place_at_pivot_text(
-            text, ref, target_x_mm, target_y_mm,
+        return apply_text_edit(
+            pcb_path, place_at_pivot_text, dry_run,
+            ref, target_x_mm, target_y_mm,
             pivot_kind=pivot_kind, pivot_arg=pivot_arg,
             rotation_deg=rotation_deg, auto_rotation=auto_rotation,
             center_x_mm=center_x_mm, center_y_mm=center_y_mm,
             layer=layer, mod_text=mod_text,
         )
-        if not result.get("success"):
-            return result
-        if not dry_run:
-            write_text(pcb_path, new_text)
-        return {"dry_run": dry_run, **result}
 
     @mcp.tool()
     def clone_layout_around_pivot(
@@ -3403,15 +3373,10 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
         pcb_path = to_local_path(pcb_path)
         if not os.path.isfile(pcb_path):
             return {"success": False, "error": f"PCB not found: {pcb_path}"}
-        text = get_text(pcb_path)
-        new_text, result = clone_layout_around_pivot_text(
-            text, source_ref, source_peripherals, target_pivots,
+        return apply_text_edit(
+            pcb_path, clone_layout_around_pivot_text, dry_run,
+            source_ref, source_peripherals, target_pivots,
         )
-        if not result.get("success"):
-            return result
-        if not dry_run:
-            write_text(pcb_path, new_text)
-        return {"dry_run": dry_run, **result}
 
     @mcp.tool()
     def clone_routing(
@@ -3502,16 +3467,11 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
         pcb_path = to_local_path(pcb_path)
         if not os.path.isfile(pcb_path):
             return {"success": False, "error": f"PCB not found: {pcb_path}"}
-        text = get_text(pcb_path)
-        new_text, result = clone_routing_text(
-            text, source_anchor, target_anchors, net_filter,
+        return apply_text_edit(
+            pcb_path, clone_routing_text, dry_run,
+            source_anchor, target_anchors, net_filter,
             radius_mm, bbox_xy_mm, clear_target,
         )
-        if not result.get("success"):
-            return result
-        if not dry_run:
-            write_text(pcb_path, new_text)
-        return {"dry_run": dry_run, **result}
 
     @mcp.tool()
     def delete_pcb_routing(
@@ -3724,10 +3684,9 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
                          "Ensure KICAD_BIN points at a working install.",
             }
 
-        pcb_text = get_text(pcb_path)
-
-        new_text, result = update_pcb_from_schematic_text(
-            pcb_text, netlist_text, lib_root,
+        return apply_text_edit(
+            pcb_path, update_pcb_from_schematic_text, dry_run,
+            netlist_text, lib_root,
             add_new=add_new,
             update_values=update_values,
             update_footprints=update_footprints,
@@ -3737,11 +3696,6 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
             stage_position_y_mm=stage_position_y_mm,
             stage_pitch_mm=stage_pitch_mm,
         )
-        if not result.get("success"):
-            return result
-        if not dry_run:
-            write_text(pcb_path, new_text)
-        return {"dry_run": dry_run, **result}
 
     @mcp.tool()
     def pcb_batch(
@@ -4450,6 +4404,7 @@ def register_pcb_patch_tools(mcp: FastMCP) -> None:
                                 roots.insert(0, parent)
                             break
                 except Exception:  # pylint: disable=broad-except
+                    # fp-lib-table unlesbar/defekt — Suche läuft über Standard-Roots weiter
                     pass
 
         template = None

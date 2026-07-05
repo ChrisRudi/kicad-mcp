@@ -118,8 +118,8 @@ def _should_wire_net(
         from ..template_matcher import should_use_label
         if should_use_label(net, parts, distance_mm=max_dist):
             return False
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Template-Matcher nicht verfügbar — Distanz-Heuristik: %s", exc)
 
     # Fallback: original heuristic
     return pin_count <= WIRE_MAX_PINS and max_dist <= WIRE_MAX_LENGTH

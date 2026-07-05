@@ -30,6 +30,7 @@ def extract_voltage_from_regulator(value: str) -> str:
             if voltage < 50:  # Sanity check to prevent weird values
                 return f"{voltage}V"
         except ValueError:
+            # kein parsebarer Spannungscode — weiter mit den Pattern unten
             pass
 
     # Look for common voltage indicators in the string
@@ -52,6 +53,7 @@ def extract_voltage_from_regulator(value: str) -> str:
                     else:
                         return f"{voltage}V"
             except ValueError:
+                # keine parsebare Spannungszahl — weiter mit der Regulator-Tabelle
                 pass
 
     # Check for common fixed voltage regulators
@@ -127,6 +129,7 @@ def extract_frequency_from_value(value: str) -> str:
                         else:
                             return f"{freq/1000000000:.3f}GHz"
             except ValueError:
+                # keine parsebare Frequenz — weiter mit den bekannten Quarz-Werten
                 pass
 
     # Check for common crystal frequencies
@@ -169,6 +172,7 @@ def extract_resistance_value(value: str) -> tuple[float | None, str | None]:
 
             return resistance, unit
         except ValueError:
+            # kein parsebarer Widerstandswert — 4k7-Sonderform unten probieren
             pass
 
     # Handle special case like "4k7" (means 4.7k)
@@ -182,6 +186,7 @@ def extract_resistance_value(value: str) -> tuple[float | None, str | None]:
 
             return resistance, unit
         except ValueError:
+            # auch 4k7-Form nicht parsebar — (None, None) unten
             pass
 
     return None, None
@@ -216,6 +221,7 @@ def extract_capacitance_value(value: str) -> tuple[float | None, str | None]:
 
             return capacitance, unit
         except ValueError:
+            # kein parsebarer Kapazitätswert — 4n7-Sonderform unten probieren
             pass
 
     # Handle special case like "4n7" (means 4.7nF)
@@ -237,6 +243,7 @@ def extract_capacitance_value(value: str) -> tuple[float | None, str | None]:
 
             return capacitance, unit
         except ValueError:
+            # auch 4n7-Form nicht parsebar — (None, None) unten
             pass
 
     return None, None
@@ -273,6 +280,7 @@ def extract_inductance_value(value: str) -> tuple[float | None, str | None]:
 
             return inductance, unit
         except ValueError:
+            # kein parsebarer Induktivitätswert — 4u7-Sonderform unten probieren
             pass
 
     # Handle special case like "4u7" (means 4.7uH)
@@ -296,6 +304,7 @@ def extract_inductance_value(value: str) -> tuple[float | None, str | None]:
 
             return inductance, unit
         except ValueError:
+            # auch 4u7-Form nicht parsebar — (None, None) unten
             pass
 
     return None, None

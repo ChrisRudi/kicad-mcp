@@ -53,6 +53,7 @@ def _schematic_to_spec(schematic_path: str) -> dict:
         try:
             os.unlink(tmp.name)
         except OSError:
+            # best effort: Temp-Netzliste ggf. schon entfernt
             pass
     return _parse_netlist_to_spec(netlist_text, schematic_path)
 

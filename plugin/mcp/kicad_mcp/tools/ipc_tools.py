@@ -190,7 +190,8 @@ def _kill_editor_process(doc_type: str) -> bool:
                 ["pkill", "-x", name],
                 capture_output=True, text=True, timeout=10, check=False,
             )
-    except Exception:
+    except (OSError, subprocess.SubprocessError):
+        # Kill best effort — die Warteschleife unten prüft den echten Zustand
         pass
     deadline = time.time() + 5
     while time.time() < deadline and _editor_process_running(doc_type):
@@ -226,6 +227,7 @@ def _project_path_from_other_editor(client, want_doc_type: str) -> Optional[str]
             proj_dir = d.project.path
             proj_name = d.project.name
     except Exception:
+        # kipy-API-Variante ohne project-Feld — unten greift der None-Return
         pass
     if not proj_dir or not proj_name:
         return None
@@ -459,6 +461,7 @@ def _require_editor(
                 _AUTO_OPEN_LAST["project_file"] = project_file
                 return None
         except Exception:
+            # Editor antwortet noch nicht — weiter pollen bis zur Deadline
             pass
         time.sleep(0.3)
 
@@ -589,11 +592,13 @@ def _close_editor_silent(doc_type: str) -> dict[str, Any]:
                 # (silently swallowed here), so the graceful close never ran.
                 client._client.send(cmd, Empty)  # noqa: SLF001
             except Exception:
+                # Graceful Close je Dokument best effort — unten OS-Terminate-Fallback
                 pass
     except ImportError:
         try:
             client.run_action("common.Control.close")
         except Exception:
+            # run_action-Fallback fehlgeschlagen — unten OS-Terminate-Fallback
             pass
     # CloseDocument leaves the editor PROCESS alive — verify it actually
     # exited, and OS-terminate it if not, so close_after truly closes.
@@ -873,6 +878,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
                     if d.HasField("project"):
                         proj = d.project.name
                 except Exception:
+                    # kipy-API-Variante ohne project-Feld — Projektname bleibt leer
                     pass
                 out.append(
                     {
@@ -1240,6 +1246,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
                                 getattr(d, "board_filename", "") or ""
                             )
                     except Exception:
+                        # Dokumenttyp nicht abfragbar — Statusbericht bleibt ohne diesen Typ
                         pass
             except Exception:
                 kicad_running = False
@@ -1937,6 +1944,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
             try:
                 track.net = pad1.net
             except Exception:
+                # Net-Zuweisung je nach kipy-Version nicht möglich — Track bleibt netzlos
                 pass
             commit = board.begin_commit()
             board.create_items(track)
@@ -1954,6 +1962,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
                 try:
                     via.net = pad1.net
                 except Exception:
+                    # Net-Zuweisung je nach kipy-Version nicht möglich — Via bleibt netzlos
                     pass
                 board.create_items(via)
                 via_added = True
@@ -2150,6 +2159,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
                     try:
                         track.net = net
                     except Exception:
+                        # Net-Zuweisung je nach kipy-Version nicht möglich — Track bleibt netzlos
                         pass
                 tracks.append(track)
                 segments_added += 1
@@ -2163,6 +2173,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
             try:
                 board.drop_commit(commit)
             except Exception:
+                # drop_commit ist Aufräumen — der Original-Fehler wird unten gemeldet
                 pass
             return {"success": False, "error": f"commit failed: {exc}"}
         return _attach_auto_open(
@@ -2448,6 +2459,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
                                 os.path.join(d.project.path, d.project.name)
                             )
                     except Exception:
+                        # kipy-API-Variante ohne project-Feld — Dokument überspringen
                         pass
                 if save and docs:
                     try:
@@ -2481,6 +2493,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
                                 cmd.document.CopyFrom(d)
                             client._client.send(cmd, Empty)  # noqa: SLF001
                     except Exception:
+                        # Graceful Close best effort — unten folgt der Prozess-Terminate
                         pass
             except Exception as exc:
                 result["ipc_note"] = f"IPC unreachable: {exc}"
@@ -2507,6 +2520,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
             from kicad_mcp.utils import spawned_registry
             result["reaped_spawned"] = spawned_registry.reap()
         except Exception:
+            # Registry-Reap ist Aufräumen — Close-Ergebnis steht schon fest
             pass
 
         # Remove the stale lock file a force-terminate leaves behind.
@@ -2521,6 +2535,7 @@ def register_ipc_tools(mcp: FastMCP) -> None:
                         os.remove(lck)
                         removed.append(lck)
                     except Exception:
+                        # best effort: Lock-Datei nicht löschbar — nicht kritisch
                         pass
         if removed:
             result["locks_removed"] = removed

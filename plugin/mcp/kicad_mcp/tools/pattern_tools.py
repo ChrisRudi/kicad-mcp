@@ -8,7 +8,7 @@ from typing import Any
 from fastmcp import Context, FastMCP
 
 from kicad_mcp.utils.file_utils import get_project_files
-from kicad_mcp.utils.netlist_parser import extract_netlist
+from kicad_mcp.utils.netlist_parser import load_netlist_with_progress
 from kicad_mcp.utils.path_env import to_local_path
 from kicad_mcp.utils.pattern_recognition import (
     identify_amplifiers,
@@ -51,29 +51,11 @@ def register_pattern_tools(mcp: FastMCP) -> None:
             summary, totals}``.
         """
         schematic_path = to_local_path(schematic_path)
-        if not os.path.exists(schematic_path):
-            if ctx:
-                ctx.info(f"Schematic file not found: {schematic_path}")
-            return {"success": False, "error": f"Schematic file not found: {schematic_path}"}
-
-        # Report progress
-        if ctx:
-            await ctx.report_progress(10, 100)
-            ctx.info(f"Loading schematic file: {os.path.basename(schematic_path)}")
+        netlist_data, err = await load_netlist_with_progress(schematic_path, ctx)
+        if err:
+            return err
 
         try:
-            # Extract netlist information
-            if ctx:
-                await ctx.report_progress(20, 100)
-                ctx.info("Parsing schematic structure...")
-
-            netlist_data = extract_netlist(schematic_path)
-
-            if "error" in netlist_data:
-                if ctx:
-                    ctx.info(f"Error extracting netlist: {netlist_data['error']}")
-                return {"success": False, "error": netlist_data['error']}
-
             # Analyze components and nets
             if ctx:
                 await ctx.report_progress(30, 100)

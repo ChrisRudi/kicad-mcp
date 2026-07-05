@@ -88,6 +88,7 @@ def _bbox_for_lib(lib_id: str, n_pins: int = 2) -> tuple[float, float]:
                 w = max(max(pxs) - min(pxs) - 2 * _PIN_LEN, GRID)
                 h = max(max(pys) - min(pys) - 2 * _PIN_LEN, GRID)
     except Exception:
+        # Symbol-Geometrie nicht parsebar → Pin-Zahl-Fallback-Bbox unten
         pass
     if w <= 0 or h <= 0:
         h = max(n_pins * GRID, GRID * 2)
@@ -430,6 +431,7 @@ def _pins_for_lib(lib_id: str) -> list[tuple[float, float]]:
                         _walk(c)
             _walk(parse_sexpr(raw))
     except Exception:
+        # Symbol nicht lesbar → leere Pin-Liste (Aufrufer behandelt das)
         pass
     _PINS_LOCAL[lib_id] = pts
     return pts

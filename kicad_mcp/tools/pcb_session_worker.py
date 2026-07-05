@@ -42,22 +42,17 @@ _DEFAULT_MAX_CHARS = 8000
 pcbnew = None  # type: ignore[assignment]
 
 
-def _import_pcbnew() -> None:
-    """Import pcbnew into the module global once, with stdout muted.
+try:
+    import _worker_common as _wc          # Subprozess-Start per Dateipfad
+except ImportError:                        # Paket-Import (Tests)
+    from kicad_mcp.tools import _worker_common as _wc
 
-    pcbnew prints "Adding duplicate image handler …" to stdout on import;
-    route that to stderr so the ``@@PCBEVAL@@`` protocol stream stays clean.
-    """
+
+def _import_pcbnew() -> None:
+    """pcbnew einmalig in das Modul-Global laden (stdout-stumm, s. _worker_common)."""
     global pcbnew
-    if pcbnew is not None:
-        return
-    _real_stdout = sys.stdout
-    sys.stdout = sys.stderr
-    try:
-        import pcbnew as _pcbnew  # noqa: E402
-    finally:
-        sys.stdout = _real_stdout
-    pcbnew = _pcbnew
+    if pcbnew is None:
+        pcbnew = _wc.import_pcbnew()
 
 _CACHE: "dict[str, dict]" = {}   # path -> {mtime, board, filled, ctx}
 _LOADS = 0
@@ -107,6 +102,7 @@ def _load(path: str):
         load_ms["n_tracks"] = board.GetTracks().size() if hasattr(board.GetTracks(), "size") else len(board.GetTracks())
         load_ms["n_footprints"] = len(board.GetFootprints())
     except Exception:
+        # Statistik ist optional — Load-Zeiten bleiben aussagekräftig
         pass
     load_ms["total"] = round(sum(v for k, v in load_ms.items()
                                  if k in ("load_board", "zone_fill", "build_connectivity")), 1)
@@ -117,6 +113,7 @@ def _load(path: str):
                              % (os.path.basename(path), load_ms))
         sys.__stderr__.flush()
     except Exception:
+        # stderr ggf. geschlossen (Daemon-Betrieb) — Log-Zeile entfällt
         pass
     _LOADS += 1
     ent = {"mtime": st.st_mtime_ns, "board": board, "filled": filled,
@@ -328,6 +325,7 @@ def _safe_json(value, max_chars):
             return {"_truncated_list": True, "shown": len(head), "total": len(value),
                     "head": json.loads(json.dumps(head, default=str))}, True
         except Exception:
+            # Head nicht JSON-serialisierbar → generische Preview unten
             pass
     return {"_truncated": True, "preview": s[:max_chars]}, True
 
@@ -399,31 +397,7 @@ def _handle(req):
 
 def main():
     _import_pcbnew()  # subprocess entry — pay pcbnew's init once, up front
-    sys.stderr.write("pcb_session_worker ready\n")
-    sys.stderr.flush()
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            req = json.loads(line)
-        except Exception:
-            continue
-        rid = req.get("id")
-        try:
-            resp = _handle(req)
-        except Exception:
-            resp = {"ok": False, "error": "daemon error", "traceback": traceback.format_exc()[-2000:]}
-        resp["id"] = rid
-        sys.stdout.write(MARK + json.dumps(resp) + "\n")
-        sys.stdout.flush()
-        # NOTE: the client (pcb_session_tools) owns recycling. After a
-        # response flagged ``mutated`` (a what-if poisons the pcbnew
-        # interpreter so badly even the next LoadBoard returns un-typed
-        # objects), or one carrying 'SwigPyObject', or once loads hit the
-        # cap, the client KILLS this process synchronously and respawns on
-        # its next request. Self-exiting here instead would race the
-        # client's next write (write-to-dying-daemon → hang).
+    _wc.serve(_handle, MARK, "pcb_session_worker")
 
 
 if __name__ == "__main__":

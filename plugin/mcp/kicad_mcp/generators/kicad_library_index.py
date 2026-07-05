@@ -111,8 +111,8 @@ def _load_symbol_index() -> dict[str, str]:
                 _sym_index = cache_data["index"]
                 logger.info("Symbol index loaded from cache: %d entries", len(_sym_index))
                 return _sym_index
-        except (json.JSONDecodeError, KeyError):
-            pass
+        except (json.JSONDecodeError, KeyError) as exc:
+            logger.debug("Symbol-Index-Cache unlesbar/veraltet, baue neu: %s", exc)
 
     # Build fresh index
     sym_dir = _find_dir(_SYM_DIRS)
@@ -211,8 +211,8 @@ def _load_footprint_index() -> dict[str, str]:
                 _fp_index = cache_data["index"]
                 logger.info("Footprint index loaded from cache: %d entries", len(_fp_index))
                 return _fp_index
-        except (json.JSONDecodeError, KeyError):
-            pass
+        except (json.JSONDecodeError, KeyError) as exc:
+            logger.debug("Footprint-Index-Cache unlesbar/veraltet, baue neu: %s", exc)
 
     fp_dir = _find_dir(_FP_DIRS)
     if not fp_dir:

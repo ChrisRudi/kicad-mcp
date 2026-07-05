@@ -92,6 +92,7 @@ def _wsl_socket_hint() -> str:
                     "Windows-KiCad gestarteten Server (start_mcp.bat). Aus WSL "
                     "geht nur die datei-basierte (headless) Arbeit.]")
     except Exception:
+        # WSL-Sniffing ist nur Diagnose-Komfort — ohne Hinweis weitermachen
         pass
     return ""
 
@@ -254,6 +255,7 @@ def board_log_dir(client: Any = None) -> str:
             if name and os.path.dirname(name):
                 return os.path.dirname(name)
     except Exception:
+        # kein offenes Board ermittelbar → Log landet im Temp-Verzeichnis
         pass
     return tempfile.gettempdir()
 

@@ -154,8 +154,8 @@ def register_ipc_markup_tools(mcp: FastMCP) -> None:
         except Exception as exc:
             try:
                 board.drop_commit(commit)
-            except Exception:
-                pass
+            except Exception as drop_exc:
+                log.debug("drop_commit nach create-Fehler scheiterte: %s", drop_exc)
             return {"success": False, "error": f"create failed: {exc}"}
 
         log.info("markup→tracks: %d created (%d seg, %d arc) %s→%s @%.3fmm",

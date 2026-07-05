@@ -81,6 +81,26 @@ def _parse_tokens(tokens: list[str], pos: int) -> tuple[Any, int]:
     return tokens[pos], pos + 1
 
 
+def block_end(text: str, start: int) -> int:
+    """Index just past the ``)`` that closes the ``(`` at ``start``.
+
+    Text-level companion to :func:`parse_sexpr` for surgical patching:
+    callers slice whole ``(footprint …)``/``(segment …)`` blocks out of a
+    file without tokenising it. ``text[start]`` must be ``"("``; an
+    unclosed block yields ``len(text)``.
+    """
+    depth = 0
+    for i in range(start, len(text)):
+        ch = text[i]
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+    return len(text)
+
+
 def find_nodes(tree: list, tag: str) -> list[list]:
     """Find all child nodes with a given tag in an S-expression tree.
 

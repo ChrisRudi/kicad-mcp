@@ -57,6 +57,7 @@ class WarmDaemon:
                 if line.startswith(self.mark):
                     q.put(line[len(self.mark):].strip())
         except Exception:
+            # Pipe endet mit dem Daemon-Prozess — Reader-Thread still beenden
             pass
 
     def _spawn(self) -> None:
@@ -74,6 +75,7 @@ class WarmDaemon:
             try:
                 self.proc.kill()
             except Exception:
+                # Prozess schon tot — kill ist nur Aufräumen
                 pass
         self.proc = None
         self.q = None

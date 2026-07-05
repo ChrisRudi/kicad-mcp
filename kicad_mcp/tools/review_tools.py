@@ -491,6 +491,7 @@ def register_review_tools(mcp: FastMCP) -> None:
                     elif os.path.isdir(full):
                         shutil.rmtree(full)
                 except OSError:
+                    # best effort: Aufräumen alter Renders darf den Review nicht stoppen
                     pass
         os.makedirs(output_dir, exist_ok=True)
 
@@ -792,6 +793,7 @@ def register_review_tools(mcp: FastMCP) -> None:
                     if os.path.isfile(full):
                         os.unlink(full)
                 except OSError:
+                    # best effort: Aufräumen alter Renders darf den Review nicht stoppen
                     pass
         os.makedirs(output_dir, exist_ok=True)
 

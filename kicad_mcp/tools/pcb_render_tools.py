@@ -85,6 +85,7 @@ def _load_cairosvg():
     try:
         os.add_dll_directory(kbin)
     except (AttributeError, OSError):
+        # add_dll_directory gibt es nur unter Windows-Python — sonst irrelevant
         pass
     import cairosvg
     return cairosvg

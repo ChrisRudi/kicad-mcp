@@ -158,6 +158,7 @@ def _symbol_pin_count(lib_id: str) -> int:
         if raw:
             return len(_re.findall(r"\(pin\s", raw))
     except Exception:
+        # best effort: Symbol nicht lesbar → 0 Pins, Sanity-Check greift nicht
         pass
     return 0
 

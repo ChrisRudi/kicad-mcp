@@ -37,9 +37,15 @@ from typing import Any, Callable
 from mcp.server.fastmcp import FastMCP
 
 from kicad_mcp.cache import get_text, write_text
+from kicad_mcp.tools._text_edit import apply_text_edit
 from kicad_mcp.utils.path_env import to_local_path
 from kicad_mcp.utils.pcb_geometry import pcb_local_to_world
-from kicad_mcp.utils.pcb_net_format import ensure_net_tag, pcb_net_format
+from kicad_mcp.utils.sexpr_parser import block_end as _block_end
+from kicad_mcp.utils.pcb_net_format import (
+    ensure_net_tag,
+    pcb_net_format,
+    segment_block as _segment_block,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -57,25 +63,6 @@ def _register_text_fn(name: str) -> Callable[[Callable], Callable]:
         PCB_GEOMETRY_TEXT_FNS[name] = fn
         return fn
     return deco
-
-
-# ---------------------------------------------------------------------------
-# Generic S-expression depth-balanced block walker (kept local to avoid an
-# import cycle with pcb_patch_tools — same shape, identical semantics).
-# ---------------------------------------------------------------------------
-
-
-def _block_end(text: str, start: int) -> int:
-    depth = 0
-    for i in range(start, len(text)):
-        ch = text[i]
-        if ch == "(":
-            depth += 1
-        elif ch == ")":
-            depth -= 1
-            if depth == 0:
-                return i + 1
-    return len(text)
 
 
 _FOOTPRINT_HEADER_RE = re.compile(r'\(footprint\s+"([^"]*)"')
@@ -293,22 +280,6 @@ def _ensure_net(pcb_text: str, net_name: str) -> tuple[str, int]:
 # ---------------------------------------------------------------------------
 # S-expression emitters for tracks / vias / zones
 # ---------------------------------------------------------------------------
-
-
-def _segment_block(
-    p1: tuple[float, float], p2: tuple[float, float],
-    width_mm: float, layer: str, net_tag: str,
-) -> str:
-    return (
-        "\t(segment\n"
-        f"\t\t(start {p1[0]:.6f} {p1[1]:.6f})\n"
-        f"\t\t(end {p2[0]:.6f} {p2[1]:.6f})\n"
-        f"\t\t(width {width_mm:.6f})\n"
-        f'\t\t(layer "{layer}")\n'
-        f"\t\t{net_tag}\n"
-        f'\t\t(uuid "{uuid_lib.uuid4()}")\n'
-        "\t)\n"
-    )
 
 
 def _circumradius(
@@ -897,20 +868,14 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
         pcb_path = to_local_path(pcb_path)
         if not os.path.isfile(pcb_path):
             return {"success": False, "error": f"PCB not found: {pcb_path}"}
-        text = get_text(pcb_path)
-        new_text, result = add_arc_to_pcb_text(
-            text,
+        return apply_text_edit(
+            pcb_path, add_arc_to_pcb_text, dry_run,
             start_x_mm, start_y_mm, end_x_mm, end_y_mm,
             layer, net_name,
             width_mm=width_mm,
             center_x_mm=center_x_mm, center_y_mm=center_y_mm,
             mid_x_mm=mid_x_mm, mid_y_mm=mid_y_mm,
         )
-        if not result.get("success"):
-            return result
-        if not dry_run:
-            write_text(pcb_path, new_text)  # board-open guard (see above)
-        return {"dry_run": dry_run, **result}
 
     @mcp.tool()
     def add_via_to_pcb(
@@ -978,17 +943,12 @@ def register_pcb_geometry_tools(mcp: FastMCP) -> None:
         pcb_path = to_local_path(pcb_path)
         if not os.path.isfile(pcb_path):
             return {"success": False, "error": f"PCB not found: {pcb_path}"}
-        text = get_text(pcb_path)
-        new_text, result = add_via_to_pcb_text(
-            text, x_mm, y_mm, net_name,
+        return apply_text_edit(
+            pcb_path, add_via_to_pcb_text, dry_run,
+            x_mm, y_mm, net_name,
             layer_pair=layer_pair,
             size_mm=size_mm, drill_mm=drill_mm,
         )
-        if not result.get("success"):
-            return result
-        if not dry_run:
-            write_text(pcb_path, new_text)  # board-open guard (see above)
-        return {"dry_run": dry_run, **result}
 
     @mcp.tool()
     def add_vias_to_pcb(

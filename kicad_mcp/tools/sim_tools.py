@@ -120,6 +120,7 @@ def _collect(msg, _id, _user):
     try:
         out_lines.append((msg or b"").decode("utf-8", "replace"))
     except Exception:
+        # ngspice-C-Callback darf nie eine Exception nach C propagieren
         pass
     return 0
 
@@ -207,6 +208,7 @@ def parse_ngspice_output(text: str) -> dict[str, Any]:
             try:
                 values[m.group(1)] = float(m.group(2))
             except ValueError:
+                # nicht-numerischer Messwert — Zeile überspringen
                 pass
             continue
         low = line.strip().lower()
@@ -324,6 +326,7 @@ def register_sim_tools(mcp: FastMCP) -> None:
                 try:
                     os.remove(tmp_file)
                 except OSError:
+                    # best effort: Temp-Netzliste ggf. schon entfernt
                     pass
 
         output = (proc.stdout or "") + (proc.stderr or "")

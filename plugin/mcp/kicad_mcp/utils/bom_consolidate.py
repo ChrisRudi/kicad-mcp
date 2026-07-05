@@ -224,3 +224,22 @@ def consolidate(items: list[dict[str, Any]], series: str = DEFAULT_SERIES,
         "distinct_after": total_after,
         "feeders_saved": total_before - total_after,
     }
+
+
+def iter_classified_footprints(footprints, want):
+    """R/C/L-Footprints mit Klasse + normalisiertem Wert durchlaufen.
+
+    Gemeinsamer Kern von ``consolidate_bom`` (bom_consolidate_tools) und
+    ``map_fab_parts`` (fab_parts_tools): Ref-Filter anwenden, Nicht-R/C/L
+    überspringen, Wert normalisieren. Liefert ``(fp, ref, cls, si)`` —
+    ``si`` ist ``None`` bei unparsebarem Wert (Skip-Entscheidung beim
+    Aufrufer, die Gründe unterscheiden sich je Tool).
+    """
+    for fp in footprints:
+        ref = fp["ref"]
+        if want is not None and ref not in want:
+            continue
+        cls = ref_class(ref)
+        if cls is None:
+            continue
+        yield fp, ref, cls, normalize_value(fp.get("value", ""), cls)

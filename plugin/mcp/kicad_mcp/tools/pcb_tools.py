@@ -65,6 +65,7 @@ def _get_pcbnew():
             import wx as _wx2  # type: ignore
             _wx2.DisableAsserts()  # pylint: disable=no-member
         except Exception:
+            # wx auch nach pcbnew-Import nicht da — Asserts bleiben aktiv
             pass
         _pcbnew = _mod
         logger.info("pcbnew imported successfully")

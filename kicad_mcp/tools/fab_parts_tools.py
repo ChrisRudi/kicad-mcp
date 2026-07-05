@@ -68,14 +68,8 @@ def register_fab_parts_tools(mcp: FastMCP) -> None:
         want = {r.strip() for r in refs.split(",") if r.strip()} or None
         items: list[dict[str, Any]] = []
         skipped: list[dict[str, str]] = []
-        for fp in parsed["footprints"]:
-            ref = fp["ref"]
-            if want is not None and ref not in want:
-                continue
-            cls = bom_consolidate.ref_class(ref)
-            if cls is None:
-                continue
-            si = bom_consolidate.normalize_value(fp.get("value", ""), cls)
+        for fp, ref, cls, si in bom_consolidate.iter_classified_footprints(
+                parsed["footprints"], want):
             package = fab_parts.extract_package(fp.get("fpid", ""))
             if si is None or not package:
                 skipped.append({"ref": ref, "value": fp.get("value", ""),

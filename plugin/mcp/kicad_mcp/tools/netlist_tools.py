@@ -9,7 +9,12 @@ from typing import Any
 from fastmcp import Context, FastMCP
 
 from kicad_mcp.utils.file_utils import get_project_files
-from kicad_mcp.utils.netlist_parser import analyze_netlist, extract_netlist
+from kicad_mcp.utils.sexpr_parser import parse_sexpr
+from kicad_mcp.utils.netlist_parser import (
+    analyze_netlist,
+    extract_netlist,
+    load_netlist_with_progress,
+)
 from kicad_mcp.utils.path_env import to_local_path
 
 logger = logging.getLogger(__name__)
@@ -50,31 +55,12 @@ def register_netlist_tools(mcp: FastMCP) -> None:
         schematic_path = to_local_path(schematic_path)
         logger.info(f"Extracting netlist from schematic: {schematic_path}")
 
-        if not os.path.exists(schematic_path):
-            logger.warning(f"Schematic file not found: {schematic_path}")
-            if ctx:
-                ctx.info(f"Schematic file not found: {schematic_path}")
-            return {"success": False, "error": f"Schematic file not found: {schematic_path}"}
+        netlist_data, err = await load_netlist_with_progress(schematic_path, ctx)
+        if err:
+            logger.warning(err["error"])
+            return err
 
-        # Report progress
-        if ctx:
-            await ctx.report_progress(10, 100)
-            ctx.info(f"Loading schematic file: {os.path.basename(schematic_path)}")
-
-        # Extract netlist information
         try:
-            if ctx:
-                await ctx.report_progress(20, 100)
-                ctx.info("Parsing schematic structure...")
-
-            netlist_data = extract_netlist(schematic_path)
-
-            if "error" in netlist_data:
-                logger.error(f"Error extracting netlist: {netlist_data['error']}")
-                if ctx:
-                    ctx.info(f"Error extracting netlist: {netlist_data['error']}")
-                return {"success": False, "error": netlist_data['error']}
-
             if ctx:
                 await ctx.report_progress(60, 100)
                 ctx.info(f"Extracted {netlist_data['component_count']} components and {netlist_data['net_count']} nets")
@@ -567,6 +553,7 @@ def register_netlist_tools(mcp: FastMCP) -> None:
             try:
                 os.unlink(tmp_net)
             except OSError:
+                # best effort: Temp-Netzliste ggf. schon entfernt
                 pass
 
         # Parse netlist into normalized structure
@@ -665,6 +652,7 @@ def register_netlist_tools(mcp: FastMCP) -> None:
             try:
                 os.unlink(tmp_net)
             except OSError:
+                # best effort: Temp-Netzliste ggf. schon entfernt
                 pass
 
         live_spec = _parse_netlist_to_spec(live_netlist, schematic_path)
@@ -746,43 +734,10 @@ def _parse_netlist_to_spec(netlist_text: str, schematic_path: str) -> dict[str, 
     """
     import re as _re
 
-    # Sexpr parser
-    def parse(s: str, pos: int):
-        while pos < len(s) and s[pos].isspace():
-            pos += 1
-        if pos >= len(s):
-            return None, pos
-        if s[pos] == "(":
-            items: list = []
-            pos += 1
-            while True:
-                while pos < len(s) and s[pos].isspace():
-                    pos += 1
-                if pos >= len(s):
-                    break
-                if s[pos] == ")":
-                    pos += 1
-                    break
-                item, pos = parse(s, pos)
-                if item is not None:
-                    items.append(item)
-            return items, pos
-        if s[pos] == '"':
-            pos += 1
-            start = pos
-            while pos < len(s) and s[pos] != '"':
-                if s[pos] == "\\":
-                    pos += 1
-                pos += 1
-            val = s[start:pos]
-            pos += 1
-            return val, pos
-        start = pos
-        while pos < len(s) and not s[pos].isspace() and s[pos] not in "()":
-            pos += 1
-        return s[start:pos], pos
-
-    tree, _ = parse(netlist_text, 0)
+    try:
+        tree = parse_sexpr(netlist_text)
+    except Exception:  # kaputte Netzliste → wie bisher leer degradieren
+        tree = None
     if not isinstance(tree, list):
         return {"meta": {}, "components": [], "nets": [], "power_rails": []}
 

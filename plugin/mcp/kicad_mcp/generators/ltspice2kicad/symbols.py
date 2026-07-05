@@ -64,6 +64,7 @@ def parse_asy(filepath: str) -> SymbolMeta | None:
                             int(parts[3]), int(parts[4]),
                         ))
                     except (ValueError, IndexError):
+                        # fehlerhafte LINE-Koordinaten — Geometrie-Zeile überspringen
                         pass
 
                 elif parts[0] == "RECTANGLE" and len(parts) >= 5:
@@ -73,6 +74,7 @@ def parse_asy(filepath: str) -> SymbolMeta | None:
                             int(parts[3]), int(parts[4]),
                         ))
                     except (ValueError, IndexError):
+                        # fehlerhafte RECTANGLE-Koordinaten — Geometrie-Zeile überspringen
                         pass
 
     except (OSError, IOError):

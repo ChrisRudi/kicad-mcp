@@ -29,7 +29,6 @@ violation. Zones are filled first so the check sees the real copper.
 cache) kept for direct/unit-test use and re-exported by
 ``via_promote_tools`` as ``_run_in_process``.
 """
-import json
 import os
 import sys
 import time
@@ -45,18 +44,17 @@ _MM = 1_000_000          # nm per mm
 pcbnew = None  # type: ignore[assignment]
 
 
+try:
+    import _worker_common as _wc          # Subprozess-Start per Dateipfad
+except ImportError:                        # Paket-Import (Tests)
+    from kicad_mcp.tools import _worker_common as _wc
+
+
 def _import_pcbnew() -> None:
-    """Import pcbnew into the module global once, muting its import chatter."""
+    """pcbnew einmalig in das Modul-Global laden (stdout-stumm, s. _worker_common)."""
     global pcbnew
-    if pcbnew is not None:
-        return
-    _real = sys.stdout
-    sys.stdout = sys.stderr
-    try:
-        import pcbnew as _p  # noqa: E402
-    finally:
-        sys.stdout = _real
-    pcbnew = _p
+    if pcbnew is None:
+        pcbnew = _wc.import_pcbnew()
 
 
 def _load(pcb_path: str):
@@ -178,6 +176,7 @@ def _is_smd_pad(p) -> bool:
         if attr in smd:
             return True
     except Exception:
+        # ältere pcbnew-API ohne GetAttribute — Drill-Fallback unten
         pass
     try:  # fallback: no drill → surface pad
         return p.GetDrillSizeX() == 0
@@ -407,24 +406,7 @@ def _handle(req: dict) -> dict:
 
 def main():
     _import_pcbnew()  # subprocess entry — pay pcbnew's init once, up front
-    sys.stderr.write("via_promote_worker ready\n")
-    sys.stderr.flush()
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            req = json.loads(line)
-        except Exception:
-            continue
-        rid = req.get("id")
-        try:
-            resp = _handle(req)
-        except Exception:
-            resp = {"ok": False, "error": "daemon error", "traceback": traceback.format_exc()[-2000:]}
-        resp["id"] = rid
-        sys.stdout.write(MARK + json.dumps(resp) + "\n")
-        sys.stdout.flush()
+    _wc.serve(_handle, MARK, "via_promote_worker")
 
 
 if __name__ == "__main__":

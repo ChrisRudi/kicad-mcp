@@ -20,6 +20,7 @@ import logging
 
 from ..common.bbox import _get_symbol_height, _get_symbol_width
 from ..common.bus_detect import find_bus_groups
+from ..common.placement_cost import build_ref_to_nets as _build_ref_to_nets
 from ..common.chain_detect import find_series_chains
 from ..common.classify import _is_bypass_cap
 from ..common.connectivity import _build_connection_graph
@@ -113,26 +114,6 @@ def _compute_net_roles(
 # ---------------------------------------------------------------------------
 # Incremental Place+Score  (like a human: place one part, score, next)
 # ---------------------------------------------------------------------------
-
-def _build_ref_to_nets(nets: list[dict]) -> dict[str, list[tuple[str, list[tuple[str, str]]]]]:
-    """Pre-compute ref → [(my_pin, [(other_ref, other_pin), ...])] index.
-
-    For each ref, collects the nets it participates in and the other
-    endpoints on those nets.  Avoids scanning all nets per cost call.
-    """
-    # net_index: ref → list of (my_pin, other_endpoints)
-    idx: dict[str, list[tuple[str, list[tuple[str, str]]]]] = {}
-    for net in nets:
-        conns = net.get("connections", [])
-        parsed = []
-        for conn in conns:
-            if ":" in conn:
-                parsed.append(conn.split(":", 1))
-        for cref, cpname in parsed:
-            others = [(r, p) for r, p in parsed if r != cref]
-            idx.setdefault(cref, []).append((cpname, others))
-    return idx
-
 
 def _placement_cost(
     ref: str,

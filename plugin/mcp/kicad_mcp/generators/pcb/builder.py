@@ -449,8 +449,8 @@ def _read_footprint_pad_positions(fp_id: str) -> dict[str, tuple[float, float]]:
             result = {num: (float(x), float(y)) for num, x, y in pads}
             _pad_pos_cache[fp_id] = result
             return result
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Pad-Positionen für %s nicht lesbar: %s", fp_id, exc)
 
     _pad_pos_cache[fp_id] = {}
     return {}

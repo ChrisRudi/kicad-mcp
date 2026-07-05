@@ -34,6 +34,18 @@ jobs:
             --disable=C,R \
             kicad_mcp tests
 
+      - name: Duplicate-code gate (blocks >= 10 similar lines)
+        # Drift-Wächter gegen Copy-Paste zwischen Modulen (0.24.0: Bestand
+        # auf 0 abgebaut — Scorer, Bus-Tabellen, Inline-Parser, Worker-
+        # Boilerplate). Schwelle 10 Zeilen: das kurze, konventionsbedingte
+        # Tool-Boilerplate (Konvention #1/#4) bleibt erlaubt, echte Kopien
+        # nicht. Neue Gemeinsamkeiten gehören in utils/ bzw. common/.
+        run: |
+          pylint --rcfile=pyproject.toml --score=n \
+            --disable=all --enable=duplicate-code \
+            --min-similarity-lines=10 \
+            kicad_mcp
+
   tests:
     name: pytest (Linux, KiCad mocked)
     runs-on: ubuntu-latest

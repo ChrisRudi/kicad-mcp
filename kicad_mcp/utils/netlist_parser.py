@@ -61,6 +61,7 @@ def _extract_netlist_via_cli(schematic_path: str) -> dict[str, Any] | None:
         try:
             os.unlink(out_path)
         except OSError:
+            # best effort: Temp-Netzliste ggf. schon entfernt
             pass
 
     try:
@@ -592,3 +593,29 @@ def analyze_netlist(netlist_data: dict[str, Any]) -> dict[str, Any]:
     results["total_pin_connections"] = total_pins
 
     return results
+
+
+async def load_netlist_with_progress(schematic_path, ctx):
+    """Gemeinsame Tool-Präambel: Existenz-Check → Progress → extract_netlist.
+
+    ``ctx`` ist der (optionale) FastMCP-Context, duck-typed genutzt (info/
+    report_progress) — kein MCP-Import nötig. Rückgabe ``(netlist_data,
+    error_result)``: genau eines von beiden ist gesetzt; bei Fehler gibt der
+    Aufrufer ``error_result`` direkt als Tool-Result zurück.
+    """
+    if not os.path.exists(schematic_path):
+        if ctx:
+            ctx.info(f"Schematic file not found: {schematic_path}")
+        return None, {"success": False,
+                      "error": f"Schematic file not found: {schematic_path}"}
+    if ctx:
+        await ctx.report_progress(10, 100)
+        ctx.info(f"Loading schematic file: {os.path.basename(schematic_path)}")
+        await ctx.report_progress(20, 100)
+        ctx.info("Parsing schematic structure...")
+    netlist_data = extract_netlist(schematic_path)
+    if "error" in netlist_data:
+        if ctx:
+            ctx.info(f"Error extracting netlist: {netlist_data['error']}")
+        return None, {"success": False, "error": netlist_data["error"]}
+    return netlist_data, None

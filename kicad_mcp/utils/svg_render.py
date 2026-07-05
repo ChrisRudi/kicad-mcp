@@ -52,16 +52,19 @@ def ensure_cairo_dll_searchable() -> None:
             import shutil as _sh
 
             _sh.copy2(src, dst)
-    except Exception:
+    except OSError:
+        # Mirror-Copy fehlgeschlagen — ggf. tut es ein älterer Mirror noch
         pass
     try:
         add_dll(mirror_dir)
-    except Exception:
+    except OSError:
+        # Mirror-Dir nicht registrierbar — cairocffi sucht dann nur im PATH
         pass
     try:
         # Also register KiCad's bin directory itself for future native deps.
         add_dll(bin_dir)
-    except Exception:
+    except OSError:
+        # bin_dir nicht registrierbar — für cairo zählt der Mirror oben
         pass
 
 
@@ -75,6 +78,7 @@ def ensure_cairosvg():
         import cairosvg  # type: ignore
         return cairosvg
     except ImportError:
+        # cairosvg fehlt noch — unten folgt die Auto-Installation
         pass
     import importlib
     import sys

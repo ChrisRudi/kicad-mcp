@@ -245,12 +245,14 @@ def _index_signature(library_root: str) -> str:
         try:
             files += len(os.listdir(sub))
         except OSError:
+            # unlesbares .pretty-Verzeichnis fließt nicht in die Signatur ein
             pass
         try:
             mt = os.path.getmtime(sub)
             if mt > latest:
                 latest = mt
         except OSError:
+            # mtime nicht lesbar — Verzeichnis für die Signatur ignorieren
             pass
     return f"{library_root}|{files}|{int(latest)}"
 
@@ -272,6 +274,7 @@ def _load_or_build_index(
                 records = [FootprintRecord(**r) for r in payload.get("records", [])]
                 return records, INDEX_FILE, False
         except Exception:
+            # Index-Cache defekt/unlesbar — unten frisch scannen
             pass
 
     records = _scan_library(library_root)
@@ -287,6 +290,7 @@ def _load_or_build_index(
         with open(INDEX_FILE, "w", encoding="utf-8") as fh:
             json.dump(payload, fh)
     except OSError:
+        # best effort: Cache-Write optional, Index bleibt im Speicher
         pass
     return records, INDEX_FILE, True
 
@@ -617,6 +621,7 @@ def register_footprint_search_tools(mcp: FastMCP) -> None:
             try:
                 os.unlink(tmp_path)
             except OSError:
+                # best effort: Temp-Datei ggf. schon entfernt
                 pass
             if tmp is None:
                 return {"success": False, "error": "Could not parse custom text."}

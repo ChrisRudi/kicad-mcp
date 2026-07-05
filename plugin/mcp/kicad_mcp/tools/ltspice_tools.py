@@ -85,6 +85,7 @@ def register_ltspice_tools(mcp: FastMCP) -> None:
             try:
                 response["windows_path"] = to_windows_path(result.output_path)
             except Exception:
+                # Windows-Pfad ist reine Konvenienz — ohne wslpath entfällt das Feld
                 pass
 
         return response

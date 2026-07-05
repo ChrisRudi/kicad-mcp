@@ -58,6 +58,7 @@ def board_default_via_nm(board) -> tuple[int, int]:
                 if d > 0 and k > 0:
                     return d, k
     except Exception:
+        # Netzklassen nicht lesbar → KiCad-Standard-Via (0.4/0.2 mm) unten
         pass
     return 400_000, 200_000
 

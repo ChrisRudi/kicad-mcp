@@ -59,6 +59,7 @@ def parse_asc(filepath: str) -> ParsedSchematic:
                         x2=int(parts[3]), y2=int(parts[4]),
                     ))
                 except ValueError:
+                    # fehlerhafte WIRE-Koordinaten — Zeile tolerant überspringen
                     pass
 
             elif cmd == "SYMBOL" and len(parts) >= 4:
@@ -99,6 +100,7 @@ def parse_asc(filepath: str) -> ParsedSchematic:
                         y=int(parts[2]),
                     ))
                 except ValueError:
+                    # fehlerhafte FLAG-Koordinaten — Zeile tolerant überspringen
                     pass
 
             elif cmd == "IOPIN" and len(parts) >= 3:

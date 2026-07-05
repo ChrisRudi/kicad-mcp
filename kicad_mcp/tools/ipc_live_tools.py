@@ -102,6 +102,7 @@ def _board_identity(k, board) -> str:
                         if val:
                             return str(val)
         except Exception:
+            # API-Variante ohne diese Felder — nächste Identitätsquelle probieren
             pass
     try:
         proj = board.get_project()
@@ -110,6 +111,7 @@ def _board_identity(k, board) -> str:
             if val:
                 return str(val)
     except Exception:
+        # auch Projekt-Attribute nicht lesbar → generischer Board-Key unten
         pass
     return "board:unknown"
 
@@ -147,7 +149,8 @@ def _angle_deg(angle) -> float:
         if val is not None:
             try:
                 return float(val)
-            except Exception:
+            except (TypeError, ValueError):
+                # degrees-Attribut nicht numerisch — unten float(angle) probieren
                 pass
     try:
         return float(angle)

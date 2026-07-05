@@ -218,6 +218,7 @@ def _ensure_layer_enabled(board: Any, layer_enum: int) -> bool:
         if layer_enum not in vis:
             board.set_visible_layers(vis + [layer_enum])
     except Exception:
+        # best effort: Sichtbarkeit ist Komfort — der Marker existiert trotzdem
         pass
     return changed
 
@@ -336,6 +337,7 @@ def _legend_items_on_layer(board: Any, layer_enum: int) -> list[Any]:
             if str(getattr(t, "value", "") or "").startswith(_LEGEND_TAG):
                 out.append(t)
     except Exception:
+        # Text-Scan fehlgeschlagen — Alt-Legende bleibt ggf. stehen (best effort)
         pass
     return out
 
@@ -390,6 +392,7 @@ def ensure_mcp_presence(board: Any) -> None:
         if layer_enum not in vis:
             board.set_visible_layers(vis + [layer_enum])
     except Exception:
+        # Presence-Beacon ist rein kosmetisch — darf keinen Tool-Call brechen
         pass
 
 
@@ -565,6 +568,7 @@ def _pad_rect_mm(board: Any, pad: Any) -> Optional[tuple[float, float, float, fl
             cy = (bp.y + sz.y / 2.0) / 1_000_000.0
             return cx, cy, abs(sz.x) / 2.0 / 1_000_000.0, abs(sz.y) / 2.0 / 1_000_000.0
     except Exception:
+        # bbox nicht verfügbar — unten Fallback über die Pad-Position
         pass
     pos = getattr(pad, "position", None)
     if pos is None:
@@ -735,6 +739,7 @@ def _resolve_drc_items(board: Any, uuids: list[str]) -> dict[str, Any]:
                     if not missing:
                         break
         except Exception:
+            # Pad-Scan abgebrochen — Aufrufer arbeitet mit den bereits gefundenen
             pass
     return found
 
@@ -1341,6 +1346,7 @@ def register_ipc_interact_tools(mcp) -> None:
         try:
             _ensure_layer_enabled(board, layer_enum)
         except Exception:
+            # Layer-Aktivierung ist best effort — Legende wird trotzdem gesetzt
             pass
 
         lines = list(_LEGEND_LINES)
@@ -1860,6 +1866,7 @@ def register_ipc_interact_tools(mcp) -> None:
         try:
             _ensure_layer_enabled(board, layer_enum)
         except Exception:
+            # Layer-Aktivierung ist best effort — Marker werden trotzdem gesetzt
             pass
         existing = _scan_marker_texts(board, layer_enum)
         next_n = 1 + max(

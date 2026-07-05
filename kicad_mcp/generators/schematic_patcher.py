@@ -697,6 +697,7 @@ def get_lib_symbol_pins(
                         y = float(child[2])
                         angle = int(float(child[3])) if len(child) > 3 else 0
                     except (TypeError, ValueError):
+                        # defektes (at ...)-Feld — Default-Koordinaten behalten
                         pass
                 elif child[0] == "name" and len(child) > 1:
                     name = str(child[1])

@@ -24,6 +24,7 @@ format detection + tag emission so the two emitter modules stay in sync.
 from __future__ import annotations
 
 import re
+import uuid
 
 _NET_TABLE_RE = re.compile(
     r'^\s*\(net\s+(\d+)\s+"((?:[^"\\]|\\.)*)"\s*\)', re.MULTILINE,
@@ -137,4 +138,26 @@ def _ensure_index_net(pcb_text: str, net_name: str) -> tuple[str, int]:
     return (
         pcb_text[:insert_at] + new_line + "\n" + pcb_text[insert_at:],
         next_id,
+    )
+
+
+def segment_block(
+    p1: tuple[float, float], p2: tuple[float, float],
+    width_mm: float, layer: str, net_tag: str,
+) -> str:
+    """Emit one ``(segment …)`` block (KiCad-10-Format, Tab-Einrückung).
+
+    Die EINE Quelle für Track-Segmente — ``pcb_geometry_tools`` und
+    ``pcb_patch_tools`` emittieren beide hierüber. ``net_tag`` kommt aus
+    :func:`ensure_net_tag` (Index- oder String-Form, je nach Board).
+    """
+    return (
+        "\t(segment\n"
+        f"\t\t(start {p1[0]:.6f} {p1[1]:.6f})\n"
+        f"\t\t(end {p2[0]:.6f} {p2[1]:.6f})\n"
+        f"\t\t(width {width_mm:.6f})\n"
+        f'\t\t(layer "{layer}")\n'
+        f"\t\t{net_tag}\n"
+        f'\t\t(uuid "{uuid.uuid4()}")\n'
+        "\t)\n"
     )

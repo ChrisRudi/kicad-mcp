@@ -414,6 +414,7 @@ def register_cli_export_tools(mcp: FastMCP) -> None:
                 try:
                     os.replace(produced, output_path)
                 except OSError:
+                    # Move fehlgeschlagen — unten wird der produced-Pfad zurückgegeben
                     pass
             actual_output_path = output_path if os.path.isfile(output_path) else produced
         else:
