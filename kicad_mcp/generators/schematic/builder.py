@@ -23,6 +23,75 @@ Routing rules (IEC 61082 / EDA best practices):
 
 # pylint: disable=unsubscriptable-object  # find_node() returns list|None; if-checks suffice
 import logging
+import re as _re
+
+# Eine emittierte Draht-Zeile: (wire (pts (xy x1 y1) (xy x2 y2)) (uuid "…"))
+_WIRE_LINE_RE = _re.compile(
+    r'^(\s*)\(wire \(pts \(xy (-?[\d.]+) (-?[\d.]+)\) '
+    r'\(xy (-?[\d.]+) (-?[\d.]+)\)\) \(uuid "([^"]+)"\)\)\s*$')
+
+
+def _merge_overlapping_wires(lines: list[str]) -> list[str]:
+    """Führe kollinear ÜBEREINANDER liegende Draht-Segmente zusammen.
+
+    „keine Leitungen übereinander": der Router legt gelegentlich zwei Segmente
+    desselben Netzes auf dieselbe Spur (teil-überlappend). Da sich überlappende
+    kollineare Segmente in KiCad elektrisch mit ihrer Vereinigung decken (und ein
+    Über­lappen zweier Netze wäre ohnehin schon ein Kurzschluss, den das Vereinen
+    nicht ändert), ersetzen wir überlappende Intervalle durch ihre Vereinigung.
+    NUR echt überlappende (nicht bloß sich berührende) Segmente — eine
+    fortlaufende Leitung mit geteiltem Endpunkt bleibt unangetastet."""
+    slots, horiz, vert, indent = [], {}, {}, ""
+    for i, ln in enumerate(lines):
+        m = _WIRE_LINE_RE.match(ln)
+        if not m:
+            continue
+        indent = m.group(1)
+        x1, y1, x2, y2 = (float(m.group(2)), float(m.group(3)),
+                          float(m.group(4)), float(m.group(5)))
+        uid_ = m.group(6)
+        slots.append(i)
+        if abs(y1 - y2) < 0.01:            # waagrecht
+            horiz.setdefault(round(y1, 2), []).append(
+                (min(x1, x2), max(x1, x2), uid_))
+        elif abs(x1 - x2) < 0.01:          # senkrecht
+            vert.setdefault(round(x1, 2), []).append(
+                (min(y1, y2), max(y1, y2), uid_))
+        else:                              # diagonal → unverändert lassen
+            horiz.setdefault(("diag", i), []).append((x1, y1, x2, y2, uid_))
+    if not slots:
+        return lines
+
+    def _merge(intervals):
+        out = []
+        for lo, hi, uid_ in sorted(intervals):
+            if out and lo < out[-1][1] - 0.05:   # ECHTE Überlappung
+                out[-1] = (out[-1][0], max(out[-1][1], hi), out[-1][2])
+            else:
+                out.append((lo, hi, uid_))
+        return out
+
+    merged: list[tuple] = []
+    for key, lst in horiz.items():
+        if isinstance(key, tuple):          # Diagonale unverändert
+            for x1, y1, x2, y2, uid_ in lst:
+                merged.append((x1, y1, x2, y2, uid_))
+        else:
+            for lo, hi, uid_ in _merge(lst):
+                merged.append((lo, key, hi, key, uid_))
+    for x, lst in vert.items():
+        for lo, hi, uid_ in _merge(lst):
+            merged.append((x, lo, x, hi, uid_))
+
+    out_lines = list(lines)
+    for k, idx in enumerate(slots):
+        if k < len(merged):
+            x1, y1, x2, y2, uid_ = merged[k]
+            out_lines[idx] = (f'{indent}(wire (pts (xy {_fmt(x1)} {_fmt(y1)}) '
+                              f'(xy {_fmt(x2)} {_fmt(y2)})) (uuid "{uid_}"))')
+        else:
+            out_lines[idx] = None
+    return [ln for ln in out_lines if ln is not None]
 
 from ..sexpr import (
     SExpr, uid, KICAD_SCH_VERSION, FONT_SIZE, PIN_SPACING,
@@ -146,6 +215,10 @@ def build_schematic(
     _emit_instances(s, parts, project_name)
 
     s.close()  # kicad_sch
+
+    # „keine Leitungen übereinander": kollinear überlappende Draht-Segmente
+    # (Router-Artefakt) zu ihrer Vereinigung zusammenführen.
+    s._lines = _merge_overlapping_wires(s._lines)
 
     # Clean up placement metadata — unless the caller wants to re-emit (optimizer)
     if not keep_placement:
@@ -273,7 +346,6 @@ def _detect_units(lib_id: str) -> dict[int, list[dict]]:
         if not isinstance(node, list) or not node:
             return
         if node[0] == "symbol" and len(node) > 1 and isinstance(node[1], str):
-            import re as _re
             m = _re.match(r'.*_(\d+)_(\d+)$', node[1])
             if m:
                 unit_num = int(m.group(1))

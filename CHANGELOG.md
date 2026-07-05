@@ -8,6 +8,21 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Draht-Merge: „keine Leitungen übereinander" jetzt hart bei 0 — 0.15.3)
+- **`builder._merge_overlapping_wires` (neu):** ein Nach-Emit-Schritt führt
+  kollinear ÜBEREINANDER liegende Draht-Segmente (Router-Artefakt desselben
+  Netzes) zu ihrer Vereinigung zusammen. Nur ECHT überlappende Intervalle —
+  fortlaufende Leitungen (geteilter Endpunkt), Lücken (verschiedene Netze) und
+  Diagonalen bleiben unangetastet. Elektrisch neutral (überlappende kollineare
+  Segmente decken sich mit ihrer Vereinigung), **ERC-Gate bleibt grün**.
+- **Wirkung:** ``wire_overlaps`` ist jetzt schon beim Bauen **0 für ALLE Kits**
+  (vorher buck 24, production 14 …). Damit erreichen **8/9 Kits badness 0** —
+  auch die vorher hängenden usb_sensor_hub (85→0) und buck (50→0); der
+  Optimierer musste den Rest gar nicht mehr suchen. Nur ethernet_device bleibt
+  (überdimensioniertes MCU-Symbol). Kreuzungen sind dabei erlaubt und kommen vor.
+- Tests: überlappende Segmente mergen, fortlaufende/getrennte/diagonale nicht;
+  alle Kits ``wire_overlaps=0`` nach dem Build.
+
 ### Added/Changed (Regel „keine Leitungen übereinander"; Kreuzungen sind OK — 0.15.2)
 - **Nutzer-Vorgabe:** „keine Leitungen übereinander" UND „Kreuzungen sind ok".
 - **`layout_measure.wire_overlaps` (neu):** zählt Paare von Draht-Segmenten, die

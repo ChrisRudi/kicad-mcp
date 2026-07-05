@@ -1,7 +1,19 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.15.2**
+Aktuelle Version: **0.15.3**
+
+---
+
+## ✅ Neu in 0.15.3 — Leitungen übereinander jetzt komplett weg
+
+- Der Generator führt jetzt beim Zeichnen zwei Leitungen, die auf derselben
+  Linie übereinander liegen, automatisch zu einer zusammen. Ergebnis: bei ALLEN
+  Schaltungen liegt keine Leitung mehr über einer anderen.
+- Dadurch sind jetzt **8 von 9 Demo-Schaltungen komplett sauber** (Bestnote) —
+  auch die vorher hartnäckigen (USB-Hub, Buck-Wandler). Nur die Ethernet-
+  Schaltung bleibt der bekannte Sonderfall (überdimensioniertes MCU-Symbol).
+  Sich kreuzende Leitungen sind dabei erlaubt.
 
 ---
 
