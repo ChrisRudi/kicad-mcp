@@ -1,7 +1,20 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.20.1**
+Aktuelle Version: **0.21.0**
+
+---
+
+## 📐 Neu in 0.21.0 — Widerstände & Kondensatoren an GND/VCC stehen senkrecht
+
+- **Neue Zeichenregel:** Ein R, C oder L, der an ein Power-Netz geht, wird
+  senkrecht gestellt — Pins oben/unten, das GND-/VCC-Symbol direkt darüber
+  bzw. darunter. Genau so zeichnet es jedes professionelle Schaltbild
+  (Pull-up-Widerstand, Abblock-Kondensator).
+- Der Layout-Optimierer respektiert die Konvention: er darf solche Bauteile
+  weiter verschieben und um 180° drehen, aber nicht mehr quer legen.
+- Elektrik unverändert bewacht: Netzlisten-Roundtrip 10/10, Ausgabe
+  byte-deterministisch.
 
 ---
 

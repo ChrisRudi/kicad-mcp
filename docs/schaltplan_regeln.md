@@ -42,7 +42,11 @@ Geometrie, Emission und Netzlisten-Vergleich.)*
   Überdeckung selbst ein.
 - **Pins dürfen nie aufeinander liegen** — Pin-auf-Pin ist in KiCad eine harte
   Verbindung; Kollisionen werden nach der Platzierung deterministisch entzerrt.
-  *(place.py, defrag_place.py, builder._resolve_pin_collisions.)*
+- **R/C/L an GND/VCC stehen senkrecht** (Rotation 0/180, Power-Symbol direkt
+  drüber/drunter) — Pull-up und Abblock-C wie im Profi-Schaltbild; der
+  Optimierer darf die Konvention nicht wegdrehen (`_rot_locked`).
+  *(place.py inkl. _orient_power_passives, defrag_place.py,
+  builder._resolve_pin_collisions.)*
 
 ## 3. Verdrahten: erst schützen, dann zeichnen
 

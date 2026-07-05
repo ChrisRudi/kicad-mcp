@@ -234,6 +234,12 @@ def _restore(parts: list[dict], snap: list[dict]) -> None:
 
 def _apply(cand: Candidate) -> None:
     for part, field, value in cand:
+        # Nutzer-Regel „Power-Passives senkrecht": rotations-gesperrte Teile
+        # (R/C/L an GND/VCC, siehe place._orient_power_passives) behalten
+        # 0/180 — der Optimierer darf die Konvention nicht wegdrehen.
+        if field == "_rotation" and part.get("_rot_locked") \
+                and int(value) % 180 != 0:
+            continue
         part[field] = value
 
 

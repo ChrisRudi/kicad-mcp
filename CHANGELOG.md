@@ -8,6 +8,18 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Power-Passives senkrecht — 0.21.0)
+- **Nutzer-Regel:** Geht ein 2-Pin-R/C/L an ein Power-Netz (GND/VCC/3V3 …),
+  steht er SENKRECHT (Rotation 0/180, Pins oben/unten, Power-Symbol direkt
+  drüber/drunter) — wie in jedem Profi-Schaltbild (Pull-up, Abblock-C).
+  `place._orient_power_passives` setzt die Konvention vor der finalen
+  Abstands-/Überlappungs-Runde; `_rot_locked` verhindert, dass der
+  Layout-Optimierer sie wieder wegdreht (90/270-Kandidaten werden für
+  gesperrte Teile verworfen, 0↔180 bleibt erlaubt). Regelwerk
+  `docs/schaltplan_regeln.md` §2 ergänzt. Gates unverändert grün: Roundtrip
+  10/10, byte-deterministisch über PYTHONHASHSEED 1/2/7. Neuer Wächter
+  `tests/test_power_passives.py` (Einheit + Optimierer-Sperre + Ende-zu-Ende).
+
 ### Changed (Code-Diät & Tempo, Runde 1 — 0.20.1)
 - **`resolve_lib_id` memoisiert** (`symbol_lib._RESOLVE_CACHE`, Schlüssel =
   Name/Wert/lib_id/Ref-Präfix/Pin-Zahl): Profil zeigte 528 Aufrufe je Emission

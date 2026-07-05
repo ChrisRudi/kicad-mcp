@@ -183,6 +183,27 @@ def place_schematic(parts: list[dict], nets: list[dict]) -> list[dict]:
 
 # ── Listen-getriebene Regel-Durchsetzung ────────────────────────────────────
 
+def _orient_power_passives(parts: list[dict], nets: list[dict]) -> None:
+    """Nutzer-Regel: Geht ein R, C oder L an GND/VCC (Power-Netz), steht er
+    SENKRECHT (rot 0/180 — Pins oben/unten), das Power-Symbol direkt drüber
+    bzw. drunter. So zeichnet es jedes Profi-Schaltbild (Pull-up, Abblock-C).
+    Zusätzlich ``_rot_locked``, damit der Layout-Optimierer die Konvention
+    nicht wieder wegdreht."""
+    power_pins: set[str] = set()
+    for net in nets:
+        if net.get("type") == "power":
+            for conn in net.get("connections", []):
+                power_pins.add(conn.split(":")[0])
+    for p in parts:
+        ref = p.get("ref", "")
+        prefix = "".join(c for c in ref if c.isalpha())
+        if prefix in ("R", "C", "L") and ref in power_pins \
+                and len(p.get("pins", [])) == 2:
+            if int(p.get("_rotation", 0)) in (90, 270):
+                p["_rotation"] = 0
+            p["_rot_locked"] = True
+
+
 def _enforce_layout_rules(parts: list[dict], nets: list[dict]) -> None:
     """Setzt die Post-Placement-Regeln aus ``layout_rules`` durch — die Liste
     ist die Single Source der Reihenfolge/Auswahl, dieser Code nur der Motor.
@@ -194,6 +215,10 @@ def _enforce_layout_rules(parts: list[dict], nets: list[dict]) -> None:
     keine Pipeline-Chirurgie."""
     from ..common.geometry import force_no_overlap
     from . import layout_rules as rules
+
+    # Power-Passives senkrecht stellen, BEVOR Abstand/Überlappung final laufen
+    # (die Fixpunkt-Schleife räumt etwaige Dreh-Folgen gleich mit auf).
+    _orient_power_passives(parts, nets)
 
     # sanfter Vorlauf (kleine Verschiebungen, bevor die harte Garantie greift)
     for _ in range(OVERLAP_PASSES):
