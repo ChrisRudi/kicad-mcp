@@ -1,7 +1,24 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.13.0**
+Aktuelle Version: **0.14.0**
+
+---
+
+## ✨ Neu in 0.14.0 — Schaltpläne werden automatisch aufgeräumt (Selbst-Optimierung)
+
+- **Der Generator platziert nicht nur, er OPTIMIERT jetzt.** Nach dem Platzieren
+  läuft eine echte Such-Schleife: sie verschiebt und dreht Bauteile in kleinen
+  Schritten, zeichnet den fertigen Schaltplan jedes Mal neu und misst ihn — und
+  behält einen Schritt nur, wenn der Plan dadurch **lesbarer** wird.
+- **Gemessen wird gegen echte Profi-Schaltbilder** (die offiziellen KiCad-Demos).
+  Ergebnis: alle 10 Demo-Schaltungen erreichen jetzt **die gleiche Bestnote wie
+  ein von Hand gezeichneter Profi-Plan** — nichts liegt mehr übereinander (auch
+  keine Beschriftung), alle Netz-Labels zeigen vom Bauteil weg in freien Raum,
+  keine Leitung kreuzt eine andere, alles rechtwinklig auf dem Raster.
+- **Ganz nebenbei 35× schneller:** ein Fehler im Symbol-Zwischenspeicher ließ
+  jeden Schaltplan ~18 Sekunden brauchen; jetzt sind es ~0,5 Sekunden. Das gilt
+  für JEDE Schaltplan-Erzeugung, nicht nur die neue Optimierung.
 
 ---
 

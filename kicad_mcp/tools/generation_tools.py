@@ -202,7 +202,7 @@ def register_generation_tools(mcp: FastMCP) -> None:
 
         if not sch_files:
             sch_content = build_schematic(parts_data, nets_data, project_name,
-                                          simulation=simulation)
+                                          simulation=simulation, optimize=True)
             sch_files["main"] = sch_content
 
         pcb_content = build_pcb(parts_data, nets_data, board_data, project_name)
@@ -304,7 +304,8 @@ def register_generation_tools(mcp: FastMCP) -> None:
         if ctx:
             ctx.info(f"Generating schematic with {len(parts_data)} components")
 
-        content = build_schematic(parts_data, nets_data, project_name, simulation=simulation)
+        content = build_schematic(parts_data, nets_data, project_name,
+                                  simulation=simulation, optimize=True)
 
         output_path = to_local_path(output_path)
         out_dir = os.path.dirname(output_path) or "."
@@ -390,7 +391,8 @@ def register_generation_tools(mcp: FastMCP) -> None:
             ctx.info(f"Expanded {len(parts_data)} parts ({resolved} with auto-resolved pins)")
 
         # Build schematic using the existing pipeline
-        content = build_schematic(expanded_parts, expanded_nets, project_name, simulation=simulation)
+        content = build_schematic(expanded_parts, expanded_nets, project_name,
+                                  simulation=simulation, optimize=True)
 
         output_path = to_local_path(output_path)
         out_dir = os.path.dirname(output_path) or "."

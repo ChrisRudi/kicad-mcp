@@ -25,6 +25,21 @@ _KICAD_SYM_DIRS: list[str] = []
 
 _SYM_LIB_TABLE_CACHE: dict[str, str] | None = None
 
+#: Memo für die FERTIG extrahierten Symbol-Definitionen je lib_id. Ohne diesen
+#: Cache re-parst jeder ``get_real_symbol``-Aufruf das Symbol aus dem (zwar
+#: gecachten) Lib-Text neu — und ``_paren_depth_before`` scannt dabei bis zum
+#: Symbol-Offset, bei Stock-Libs zig MB. Ein Emit ruft ~170× auf → ~18 s nur
+#: fürs Wiederfinden. Die extrahierten Strings sind klein (~KB), also
+#: RAM-unkritisch (anders als das Cachen ganzer Lib-Dateien). ``None`` =
+#: Sentinel „schon nachgeschlagen, nicht gefunden".
+_SYMBOL_CACHE: dict[str, str | None] = {}
+
+
+def _reset_symbol_cache() -> None:
+    """Test-Hook: den extrahierten-Symbol-Memo leeren."""
+    _SYMBOL_CACHE.clear()
+
+
 _NAME_KEY_RE = re.compile(r'\(name\s+"([^"]+)"\)')
 _URI_KEY_RE = re.compile(r'\(uri\s+"([^"]+)"\)')
 
@@ -260,6 +275,8 @@ def _reset_user_sym_libs_cache() -> None:
     """Test hook: drop the cached user-sym-lib-table parse."""
     global _SYM_LIB_TABLE_CACHE
     _SYM_LIB_TABLE_CACHE = None
+    # Ein Lib-Table-Wechsel kann andere Symbole liefern → Symbol-Memo mit leeren.
+    _SYMBOL_CACHE.clear()
 
 
 def _extract_top_level_symbol(content: str, sym_name: str) -> str | None:
@@ -409,27 +426,32 @@ def get_real_symbol(lib_id: str) -> str | None:
     if ":" not in lib_id:
         return None
 
+    # Memo: dasselbe lib_id wird pro Emit dutzendfach angefragt (Instanz,
+    # Pins, No-Connects, Multi-Unit …). Einmal auflösen reicht.
+    if lib_id in _SYMBOL_CACHE:
+        return _SYMBOL_CACHE[lib_id]
+
     lib_name, sym_name = lib_id.split(":", 1)
+    result: str | None = None
 
     # 1. Stock library lookup (cheap, hits for the vast majority of lib_ids).
     sym_dir = _find_kicad_sym_dir()
     if sym_dir:
         stock_path = os.path.join(sym_dir, f"{lib_name}.kicad_sym")
         if os.path.isfile(stock_path):
-            resolved = _resolve_symbol_from_lib(stock_path, sym_name, lib_id)
-            if resolved is not None:
-                return resolved
+            result = _resolve_symbol_from_lib(stock_path, sym_name, lib_id)
 
     # 2. User-configured libraries (custom / third-party).
-    user_libs = _load_user_sym_libs()
-    custom_path = user_libs.get(lib_name)
-    if custom_path:
-        resolved = _resolve_symbol_from_lib(custom_path, sym_name, lib_id)
-        if resolved is not None:
-            return resolved
+    if result is None:
+        user_libs = _load_user_sym_libs()
+        custom_path = user_libs.get(lib_name)
+        if custom_path:
+            result = _resolve_symbol_from_lib(custom_path, sym_name, lib_id)
 
-    logger.debug(f"lib_id '{lib_id}' not resolved in stock or user libraries")
-    return None
+    if result is None:
+        logger.debug(f"lib_id '{lib_id}' not resolved in stock or user libraries")
+    _SYMBOL_CACHE[lib_id] = result
+    return result
 
 
 def get_project_symbol(lib_id: str, project_dir: str) -> str | None:

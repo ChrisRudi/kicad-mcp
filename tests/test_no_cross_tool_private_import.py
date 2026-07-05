@@ -38,6 +38,10 @@ ALLOWED: set[tuple[str, str, str]] = {
     # pre-existing: polar_grid reuses pcb_geometry's footprint indexer; a clean
     # utils/ move, but outside this refactor's scope.
     ("tools/polar_grid_tools.py", "pcb_geometry_tools", "_index_footprints"),
+    # circuit_template reuses netlist_tools' erprobten Netlist→Spec-Parser
+    # (Single Source der KiCad-Netlist-Syntax); ein sauberer utils/-Umzug,
+    # aber außerhalb dieser Passe (Layout-Optimierer).
+    ("tools/circuit_template_tools.py", "netlist_tools", "_parse_netlist_to_spec"),
 }
 
 

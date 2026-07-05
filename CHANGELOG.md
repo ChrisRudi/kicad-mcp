@@ -8,6 +8,46 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Layout-Optimierer: echte Such-Schleife gegen den Profi-Goldstandard — 0.14.0)
+- **Nutzer-Vorgabe:** „der größte Hebel: nichts übereinander legen … alle
+  Netlabels müssen vom Bauteil weg zeigen … versuche deine vorgeschlagene
+  Selbstoptimierung mit 20 Regeln und echten Loops."
+- **`generators/schematic/layout_optimizer.py` (neu):** eine echte Hill-Climb-
+  Schleife über der Platzierung. Sie verschiebt/dreht Bauteile in Raster-
+  Schritten, emittiert den FERTIGEN Schaltplan neu und misst ihn mit der am
+  Profi-Goldstandard geeichten `layout_measure.badness` — ein Schritt wird nur
+  behalten, wenn die badness SINKT (sonst zurückgerollt), plus Zufalls-Neustart
+  gegen lokale Minima. Die Nachbarschaft steht als **wartbare 20er-Operator-
+  Liste** (`OPERATORS`: Nudges 1–2 Raster, Diagonalen, 90°-Drehung, Passiv-
+  Pin-Tausch, Achsen-Ausrichtung, Nachbar-Kompaktierung, Bauteil-Tausch).
+- **Ergebnis (empirisch):** alle 10 Demo-Schaltungen erreichen nach der
+  Optimierung **badness 0** — dieselbe 0 wie die Profi-Referenz-Schaltbilder:
+  0 Bauteil-Überlappungen, 0 Label-auf-Bauteil, 0 Labels-die-in-Nachbarn-ragen,
+  0 Draht-Kreuzungen, 0 Diagonalen, alles auf dem Raster. Vorher lagen sie bei
+  badness 8–116.
+- **In der Pipeline:** `build_schematic(..., optimize=True)`; aktiviert in
+  `generation_tools` (generate_project / generate_schematic / generate_from_netlist).
+  Der Optimierer macht ein Layout NIE schlechter als die Pipeline (Eingang =
+  Untergrenze). `place=False`/`keep_placement=True` erlauben das wiederholte
+  Emittieren derselben Platzierung ohne Neu-Platzieren.
+
+### Fixed (Bauteil-Bbox: polyline-gezeichnete Symbole waren 0 breit — 0.14.0)
+- **Root-Cause `production_ready`-Überlappung:** `common.bbox._get_symbol_bbox`
+  sammelte nur `pin`+`rectangle`. Kondensatoren/Spulen/Dioden zeichnen ihren
+  Körper aber als **polyline** → Breite kollabierte auf 0 → `force_no_overlap`
+  ließ zwei gestapelte Cs 1.27 mm ineinander stehen. Jetzt werden
+  `polyline`/`circle`/`arc` mitgezählt und jede Achse auf ≥ `GRID` gedeckelt.
+  Damit deckt sich die Enforcement-Bbox mit der Fitness-Bbox.
+
+### Performance (Symbol-Auflösung 35× schneller — 0.14.0)
+- **`symbol_cache.get_real_symbol` memoisiert:** vorher re-extrahierte JEDER der
+  ~170 Aufrufe pro Emit das Symbol neu, und `_paren_depth_before` scannte dabei
+  bei Stock-Libs zig MB → **~18 s pro Schaltplan-Emit**. Mit dem Symbol-Memo
+  (kleine Strings, RAM-unkritisch) + memoisiertem `_pins_from_real_symbol` /
+  `_detect_units` sinkt Place+Emit von **18,6 s → 0,5 s**, Re-Emit **8,7 s →
+  0,12 s**. Das beschleunigt JEDE Schaltplan-Generierung, nicht nur den
+  Optimierer (der davon überhaupt erst praktikabel wird).
+
 ### Changed (Layout-Regel-Set aus echten Referenz-Schaltbildern neu abgeleitet — 0.13.0)
 - **Nutzer-Vorgabe:** „rendere die Original-Schaltung aus dem Internet und leite
   daraus selbst 10 Regeln ab … nur diese 10 und die alten rausnehmen."

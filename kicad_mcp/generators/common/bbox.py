@@ -30,6 +30,18 @@ logger = logging.getLogger(__name__)
 _bbox_cache: dict[str, tuple[float, float]] = {}
 
 
+def _iter_xy(node: list):
+    """Alle ``(xy x y)``-Punkte unterhalb eines ``pts``-Knotens (polyline/arc)."""
+    from ...utils.sexpr_parser import find_node
+    pts = find_node(node, "pts")
+    for pt in (pts or []):
+        if isinstance(pt, list) and pt and pt[0] == "xy" and len(pt) >= 3:
+            try:
+                yield (float(pt[1]), float(pt[2]))
+            except (TypeError, ValueError):
+                continue
+
+
 def _get_symbol_bbox(comp: dict) -> tuple[float, float]:
     from ..symbol_lib import resolve_lib_id
     lib_id = resolve_lib_id(comp)
@@ -57,13 +69,31 @@ def _get_symbol_bbox(comp: dict) -> tuple[float, float]:
                     if s and e:
                         xs.extend([float(s[1]), float(e[1])])
                         ys.extend([float(s[2]), float(e[2])])
+                elif node[0] == "circle":
+                    c0 = find_node(node, "center")
+                    r = find_node(node, "radius")
+                    if c0 and r and len(c0) >= 3 and len(r) >= 2:
+                        cx, cy, rad = float(c0[1]), float(c0[2]), float(r[1])
+                        xs.extend([cx - rad, cx + rad])
+                        ys.extend([cy - rad, cy + rad])
+                elif node[0] in ("polyline", "arc"):
+                    # Kondensatoren/Spulen/Dioden zeichnen ihren Körper als
+                    # polyline/arc, NICHT als rectangle — ohne diese Punkte
+                    # kollabiert die Bbox auf die Pin-Achse (Breite 0 für C/L)
+                    # und die Überlappungsprüfung greift nicht.
+                    for pt in _iter_xy(node):
+                        xs.append(pt[0])
+                        ys.append(pt[1])
                 for c in node:
                     if isinstance(c, list):
                         _walk(c)
 
             _walk(tree)
             if xs and ys:
-                w, h = max(xs) - min(xs), max(ys) - min(ys)
+                # Untergrenze je Achse: ein Symbol ist nie 0 breit/hoch (sonst
+                # „unsichtbare" Bauteile, die andere durchdringen dürfen).
+                w = max(max(xs) - min(xs), GRID)
+                h = max(max(ys) - min(ys), GRID)
                 _bbox_cache[lib_id] = (w, h)
                 return (w, h)
     except Exception:

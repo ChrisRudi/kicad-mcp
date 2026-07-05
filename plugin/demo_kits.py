@@ -36,7 +36,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from plugin import superfeatures as sf
+from . import superfeatures as sf
 
 
 @dataclass(frozen=True)

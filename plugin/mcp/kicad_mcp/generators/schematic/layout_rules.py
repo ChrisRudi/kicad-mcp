@@ -14,7 +14,14 @@ als Regeln formuliert. ``derived_from`` nennt je Regel den Beleg.
 Die Durchsetzung: geometrische Regeln (Phase GEOMETRY/FINISH mit ``enforcer``)
 fährt die listen-getriebene Engine ``schematic.place._enforce_layout_rules`` ab;
 die übrigen (Phase PLACEMENT) sind intrinsisch im Platzierer/Router bzw. noch
-PLANNED. Pure/stdlib — headless importierbar, unit-getestet ohne KiCad.
+PLANNED. **Darüber** sitzt der ganzheitliche Erzwinger
+``schematic.layout_optimizer``: eine echte Such-Schleife, die den fertigen
+Schaltplan gegen die am Profi-Goldstandard geeichte Metrik
+(``schematic.layout_measure.badness``) optimiert und mehrere dieser Regeln
+GEMEINSAM auf das messbare Optimum treibt (kein Überlappen von Bauteilen UND
+Labels, Labels weg vom Bauteil, keine Kreuzungen) — dort, wo eine Einzelregel
+lokal gegen eine andere arbeitet. Pure/stdlib — headless importierbar,
+unit-getestet ohne KiCad.
 """
 
 from __future__ import annotations
@@ -151,10 +158,15 @@ RULES: tuple[LayoutRule, ...] = (
         derived_from="beide Referenzen: überall großzügiger Abstand, lange "
                      "sichtbare Leitungen, nichts klebt aneinander.",
         enforced_in=("schematic.place._enforce_min_wire (≥ 5 mm)",
-                     "common.geometry.force_no_overlap (kein Überlappen)"),
+                     "common.geometry.force_no_overlap (kein Überlappen)",
+                     "schematic.layout_optimizer.optimize (garantiert kein "
+                     "Bauteil- UND kein Label-Überlappen am fertigen Blatt)"),
         exemptions=("Power-Pins gehen über Symbole; zwei Pins desselben ICs "
                     "sind fixiert",),
-        status=PARTIAL,
+        # ENFORCED: der Optimierer treibt comp_overlaps UND label_overlaps auf
+        # allen 10 Demo-Schaltungen messbar auf 0 (layout_measure am Profi-
+        # Goldstandard geeicht). Die 10–20-mm-Ziel-Länge bleibt aspirativ.
+        status=ENFORCED,
         phase=GEOMETRY,
         enforcer="spacing",
     ),
@@ -163,12 +175,17 @@ RULES: tuple[LayoutRule, ...] = (
         title="Power als Symbole, Ein-/Ausgänge als Netz-Labels",
         rule="Versorgung/Masse werden als Power-Symbole (GND/VDD/VSS) gesetzt, "
              "nicht als durchgezogene Rails-Drähte; Ein-/Ausgänge tragen "
-             "sprechende Netz-Labels an ihren Enden.",
-        rationale="Weniger kreuzende Leitungen, klar benannte Schnittstellen.",
+             "sprechende Netz-Labels an ihren Enden — die vom Bauteil WEG in "
+             "freien Raum zeigen, nicht in einen Nachbarkörper.",
+        rationale="Weniger kreuzende Leitungen, klar benannte Schnittstellen; "
+                  "ein Label, das in ein Bauteil ragt, ist unlesbar.",
         derived_from="beide Referenzen: GND/VDD/VSS als Symbole; Labels "
-                     "'signal_in'/'lowpass'/'rect_out' an den Enden.",
+                     "'signal_in'/'lowpass'/'rect_out' an den Enden, alle nach "
+                     "außen zeigend.",
         enforced_in=("schematic.route._place_power_symbol",
-                     "schematic.route._place_label_with_stub"),
+                     "schematic.route._place_label_with_stub",
+                     "schematic.layout_optimizer.optimize (treibt "
+                     "label_wrong_dir → 0)"),
         status=ENFORCED,
     ),
     LayoutRule(

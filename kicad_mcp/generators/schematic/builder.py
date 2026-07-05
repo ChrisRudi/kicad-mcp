@@ -51,6 +51,10 @@ def build_schematic(
     project_name: str = "project",
     simulation: bool = False,
     intersheet_nets: list[dict] | None = None,
+    place: bool = True,
+    keep_placement: bool = False,
+    optimize: bool = False,
+    optimize_evals: int = 1500,
 ) -> str:
     """Build a .kicad_sch file from parts and nets.
 
@@ -60,9 +64,41 @@ def build_schematic(
     Signal nets with a name in this set get a hierarchical_label on the
     sub-sheet so the matching pin on the root's sheet-symbol resolves.
     Pass ``None`` (default) on single-sheet projects.
+
+    ``place`` (default True) runs the auto-placement pipeline. Pass ``False``
+    to emit from a placement the caller already put on the parts (used by the
+    layout optimizer to re-emit candidate placements without the pipeline
+    overwriting its moves). ``keep_placement`` (default False) leaves the
+    ``_place_*`` metadata on the parts after emission so the caller can emit
+    again — the optimizer needs this; normal one-shot builds clean up.
+
+    ``optimize`` (default False) runs the layout optimizer
+    (:func:`layout_optimizer.optimize`) after placement: a real hill-climb that
+    re-emits + measures candidate placements and keeps only those that lower
+    the objective ``badness`` (overlaps, label direction, crossings). It never
+    makes the layout worse than the pipeline's. ``optimize_evals`` caps the
+    search budget. Only meaningful together with ``place=True``.
     """
     # Auto-place components
-    place_schematic(parts, nets)
+    if place:
+        place_schematic(parts, nets)
+        if optimize:
+            from .layout_optimizer import optimize as _optimize_layout
+
+            def _emit_candidate() -> str:
+                return build_schematic(
+                    parts, nets, project_name, simulation,
+                    intersheet_nets, place=False, keep_placement=True,
+                )
+            _optimize_layout(parts, nets, _emit_candidate,
+                             max_evals=optimize_evals)
+
+    # ``_extra_units`` wird bei jedem Emit aus der Platzierung neu berechnet
+    # (``_emit_symbol_instances``). Beim wiederholten Emit derselben Parts
+    # (Optimizer, keep_placement) würde es sich sonst aufsummieren → doppelte
+    # Zusatz-Units. Vor jedem Emit zurücksetzen.
+    for part in parts:
+        part.pop("_extra_units", None)
 
     s = SExpr()
 
@@ -111,13 +147,14 @@ def build_schematic(
 
     s.close()  # kicad_sch
 
-    # Clean up placement metadata
-    for part in parts:
-        part.pop("_place_x", None)
-        part.pop("_place_y", None)
-        part.pop("_group", None)
-        part.pop("_rotation", None)
-        part.pop("_extra_units", None)
+    # Clean up placement metadata — unless the caller wants to re-emit (optimizer)
+    if not keep_placement:
+        for part in parts:
+            part.pop("_place_x", None)
+            part.pop("_place_y", None)
+            part.pop("_group", None)
+            part.pop("_rotation", None)
+            part.pop("_extra_units", None)
 
     return s.render()
 
@@ -210,14 +247,23 @@ def _emit_placeholder_symbol(s: SExpr, part: dict, lib_id: str) -> None:
 
 # ── Multi-unit detection ─────────────────────────────────────────────────────
 
+_UNITS_CACHE: dict[str, dict[int, list[dict]]] = {}
+
+
 def _detect_units(lib_id: str) -> dict[int, list[dict]]:
     """Detect units in a multi-unit KiCad symbol.
 
     Returns: {unit_number: [{'num': pin_num, 'x': x, 'y': y, 'type': type}, ...]}
     Empty dict if single-unit or not found.
+
+    Memoisiert je lib_id — reines Parsen des (stabilen) Symbol-Texts, aber
+    Emit ruft es pro Bauteil mehrfach (Instanz, No-Connect, Sheet-Instanz).
     """
+    if lib_id in _UNITS_CACHE:
+        return _UNITS_CACHE[lib_id]
     raw = get_real_symbol(lib_id)
     if not raw:
+        _UNITS_CACHE[lib_id] = {}
         return {}
 
     tree = parse_sexpr(raw)

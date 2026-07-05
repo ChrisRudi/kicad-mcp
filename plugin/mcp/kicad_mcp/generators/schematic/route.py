@@ -16,6 +16,7 @@ Callers:
 import heapq  # noqa: F401 — used by _astar_route
 import math
 import logging
+from functools import lru_cache
 
 from ..sexpr import SExpr, uid, FONT_SIZE, PIN_SPACING, SYM_HALF_WIDTH, PIN_LENGTH
 from ..common.constants import (
@@ -1062,12 +1063,16 @@ def _extract_pin_positions(lib_id: str, part: dict) -> dict[str, tuple[float, fl
     return result
 
 
+@lru_cache(maxsize=256)
 def _pins_from_real_symbol(raw_sexpr: str) -> dict[str, tuple[float, float]]:
     """Extract pin positions from real KiCad symbol S-expression.
 
     Returns {pin_num: (x, -y)} — Y is negated because KiCad schematic
     Y-axis points downward, while lib_symbol pin coordinates use
     mathematical Y-axis (upward).
+
+    Reines Parsen desselben (nun gecachten) Symbol-Texts — memoisiert, weil
+    Emit/Routing es pro lib_id dutzendfach anfragt (der Text ist stabil).
     """
     tree = parse_sexpr(raw_sexpr)
     pins: dict[str, tuple[float, float]] = {}

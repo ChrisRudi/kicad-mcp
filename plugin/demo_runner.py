@@ -23,8 +23,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from plugin import demo_kits
-from plugin import superfeatures as sf
+from . import demo_kits
+from . import superfeatures as sf
 
 # Wo die (separat zu bauenden) Bausatz-Schaltplan-Specs liegen werden.
 _SPEC_DIR = (Path(__file__).resolve().parents[1]
