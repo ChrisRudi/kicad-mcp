@@ -574,10 +574,12 @@ def _pin_stub_point(
 
 def _point_in_any_body(
     x: float, y: float, bodies: list[tuple[float, float, float, float]],
+    margin: float = 0.0,
 ) -> bool:
-    """Liegt ``(x, y)`` in einem Bauteil-Rahmen (Liste (cx, cy, hw, hh))?"""
+    """Liegt ``(x, y)`` in einem Bauteil-Rahmen (Liste (cx, cy, hw, hh)),
+    optional um ``margin`` (Pin-/Beschriftungs-Zone) erweitert?"""
     for cx, cy, hw, hh in bodies:
-        if abs(x - cx) < hw and abs(y - cy) < hh:
+        if abs(x - cx) < hw + margin and abs(y - cy) < hh + margin:
             return True
     return False
 
@@ -792,10 +794,44 @@ def _emit_wires_and_labels(
                 return True
         return False
 
+    def _seg_through_body_core(x1, y1, x2, y2) -> bool:
+        """Quert das Segment das INNERE eines Bauteil-Körpers? (Kern-Zone =
+        Rahmen minus Pin-Reichweite; kleine Bauteile ohne Kern zählen nicht.)
+        A* meidet Hindernis-Zellen, aber geöffnete Start/Ziel-Nachbarschaften
+        und Optimizer-Verschiebungen ließen vereinzelt Routen durch Körper
+        (led_ring: „Draht quert WS2812B")."""
+        for cx, cy, hw, hh in _bodies:
+            chw, chh = hw - 2.84, hh - 2.84
+            if chw <= 0.3 or chh <= 0.3:
+                continue
+            xmin, xmax = cx - chw, cx + chw
+            ymin, ymax = cy - chh, cy + chh
+            dx, dy = x2 - x1, y2 - y1
+            t0, t1 = 0.0, 1.0
+            ok = True
+            for p, q in ((-dx, x1 - xmin), (dx, xmax - x1),
+                         (-dy, y1 - ymin), (dy, ymax - y1)):
+                if abs(p) < 1e-9:
+                    if q < 0:
+                        ok = False
+                        break
+                else:
+                    r = q / p
+                    if p < 0:
+                        t0 = max(t0, r)
+                    else:
+                        t1 = min(t1, r)
+            if ok and t0 < t1 - 1e-6:
+                return True
+        return False
+
     def _path_conflicts(path: list[tuple[float, float]], net: str) -> bool:
         for j in range(len(path) - 1):
             if _seg_conflicts(path[j][0], path[j][1],
                               path[j + 1][0], path[j + 1][1], net):
+                return True
+            if _seg_through_body_core(path[j][0], path[j][1],
+                                      path[j + 1][0], path[j + 1][1]):
                 return True
         return False
 
@@ -822,7 +858,8 @@ def _emit_wires_and_labels(
         natural = _free_stub_direction(ax, ay, sx, sy, _bodies)
         order = [natural] + [d for d in ("right", "left", "up", "down")
                              if d != natural]
-        clean_only: tuple[str, float] | None = None
+        tip_free: tuple[str, float] | None = None
+        any_clean: tuple[str, float] | None = None
         # feine Längen zuerst mit dabei: ein 1.27-mm-Stub erreicht den
         # Nachbar-Stub (2.54-Raster) nicht — fast immer konfliktfrei.
         for ln in (length, 2.54, 1.27, length * 1.5, length * 2.0):
@@ -831,12 +868,25 @@ def _emit_wires_and_labels(
                 tx, ty = _r2(ax + vx * ln), _r2(ay + vy * ln)
                 if _seg_conflicts(ax, ay, tx, ty, net):
                     continue
-                if not _point_in_any_body(tx, ty, _bodies):
+                # Zone wie die Metrik: Körper + Pin-Zone (2.84) — ein Label
+                # in der Pin-Nummern-Spalte zählt dort als Überdeckung.
+                tip_in = _point_in_any_body(tx, ty, _bodies, margin=2.84)
+                # Sonde HINTER dem Anker: der Text ragt in Winkel-Richtung über
+                # den Anker hinaus — liegt die Sonde in einem Körper/der
+                # Pin-Zone, schreibt das Label „ins Bauteil rein" (der
+                # USB-Hub-Befund: Labels längs durch die Pin-Nummern-Spalte).
+                px, py = _r2(tx + vx * length), _r2(ty + vy * length)
+                probe_in = _point_in_any_body(px, py, _bodies, margin=2.84)
+                if not tip_in and not probe_in:
                     return (d, ln)
-                if clean_only is None:
-                    clean_only = (d, ln)
-        if clean_only is not None:
-            return clean_only
+                if not tip_in and tip_free is None:
+                    tip_free = (d, ln)
+                if any_clean is None:
+                    any_clean = (d, ln)
+        if tip_free is not None:
+            return tip_free
+        if any_clean is not None:
+            return any_clean
         # KEINE elektrisch saubere Richtung: None → der Aufrufer setzt das
         # Label OHNE Stub direkt an den Pin (immer sicher). Der frühere
         # Natural-Fallback erzeugte hier Fremd-Netz-Kontakt (USB_DM/USB_DP:
@@ -942,8 +992,6 @@ def _emit_wires_and_labels(
     # Build obstacle grids — signal nets use standard clearance,
     # power nets use wider clearance for cleaner separation
     obstacles = _build_obstacle_set(parts, WIRE_CLEARANCE)
-    # Minimal obstacle set for L-bend fallback (core bounding boxes only, no clearance)
-    lbend_obstacles = _build_obstacle_set(parts, WIRE_CLEARANCE / 2)
 
     # Bauteil-Rahmen (rotations-bewusst) für die freie Label-Richtung: ein Label
     # soll vom Bauteil WEG in freien Raum zeigen, nicht in einen Nachbarn.
@@ -1125,7 +1173,10 @@ def _emit_wires_and_labels(
                 path = _astar_route(start, end, obstacles, set())
                 if not (path and len(path) >= 2) \
                         or _path_conflicts(path, net_name):
-                    path = _try_lbend(start, end, lbend_obstacles, [obstacles])
+                    # L-Bend gegen das VOLLE Hindernis-Set — das frühere
+                    # halbe-Clearance-Set ließ den Fallback quer durch kleine
+                    # Bauteile winkeln; scheitert er jetzt, heilt das Label.
+                    path = _try_lbend(start, end, obstacles, [obstacles])
                     if path and _path_conflicts(path, net_name):
                         path = None
                 if not path or len(path) < 2:
@@ -1181,12 +1232,18 @@ def _emit_wires_and_labels(
                 lbl_uid = uid(f"{project_name}_lbl_{net_name}_{ref}_{pnum}_{label_count}")
                 label_count += 1
                 if idx in wired_set:
-                    # Label direkt am Pin — dort beginnt der Stub, der Anker
-                    # liegt also auf einem Draht-Endpunkt (verbunden).
+                    # Label an der PIN-STUB-SPITZE (Draht-Endpunkt → verbunden),
+                    # nicht am Pin selbst: der Pin liegt IN der Pin-Zone des
+                    # Bauteils (Metrik: „Label auf/an Bauteil"), und der Text
+                    # zeigte in die Schaltung statt nach außen.
+                    d_out = _stub_direction(ax, ay, sx, sy)
+                    tx, ty = _pin_stub_point(ax, ay, sx, sy)
                     if is_hier:
-                        s.hierarchical_label(net_name, ax, ay, lbl_uid)
+                        s.hierarchical_label(net_name, tx, ty, lbl_uid,
+                                             angle=_LABEL_ANGLE[d_out])
                     else:
-                        s.net_label(net_name, ax, ay, lbl_uid)
+                        s.net_label(net_name, tx, ty, lbl_uid,
+                                    angle=_LABEL_ANGLE[d_out])
                 else:
                     w_uid = uid(f"{project_name}_stub_{net_name}_{ref}_{pnum}_{wire_count}")
                     wire_count += 1

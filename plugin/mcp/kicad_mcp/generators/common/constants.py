@@ -63,8 +63,11 @@ class PlacementConfig:
 GRID = 2.54
 HALF_GRID = 1.27
 _RAW_SCH_FACTOR = _env_float("KICAD_SCH_FACTOR", 0.0)  # 0 = auto
-# For module-level defaults, use 1.4 when auto (preserves backward compat)
-SCHEMATIC_LAYOUT_FACTOR = _RAW_SCH_FACTOR if _RAW_SCH_FACTOR > 0 else 1.4
+# „Einfach mehr Luft lassen": 1.4 → 1.7. Die Platzierung setzte Kondensatoren
+# ohne Not mitten ins Gewühl (BME280 so nah am MCU, dass Netz-Beschriftungen
+# keinen Platz hatten). Die crowding-Metrik wacht darüber, der Faktor sorgt
+# vor. Übersteuerbar per KICAD_SCH_FACTOR.
+SCHEMATIC_LAYOUT_FACTOR = _RAW_SCH_FACTOR if _RAW_SCH_FACTOR > 0 else 1.7
 
 
 INLINE_GAP = 15.0 * SCHEMATIC_LAYOUT_FACTOR

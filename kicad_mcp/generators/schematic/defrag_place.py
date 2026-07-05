@@ -200,7 +200,11 @@ def _placement_cost(
 
     # 4.4: Overlap penalty — heavily penalise positions inside existing parts
     w_self, h_self = _get_symbol_width(part), _get_symbol_height(part)
-    for other_ref in placed_refs:
+    # sorted(): placed_refs ist eine STRING-Menge — ihre Hash-Ordnung wechselt
+    # mit PYTHONHASHSEED pro Prozess. Unsortiert war die PLATZIERUNG (und damit
+    # jede Schaltplan-Emission) von Lauf zu Lauf verschieden — die „flaky"
+    # led_ring-Optimizer-Tests und die springenden Galerie-badness-Werte.
+    for other_ref in sorted(placed_refs):
         if other_ref == ref:
             continue
         op = ref_to_part.get(other_ref)
@@ -464,7 +468,11 @@ def incremental_place_and_score(
 
     # Round-robin: assign each cap to the IC with fewest caps so far,
     # breaking ties by physical proximity (after ICs are placed).
-    ic_list = sorted(ic_ref_set, key=lambda ic: ref_to_part[ic].get("_place_x", 0))
+    # (x, ref)-Schlüssel: bei gleicher X-Position (Template platziert ICs
+    # übereinander) entschied sonst die PYTHONHASHSEED-Set-Ordnung, welches IC
+    # zuerst Caps zugeteilt bekommt → Platzierung variierte pro Prozess.
+    ic_list = sorted(ic_ref_set,
+                     key=lambda ic: (ref_to_part[ic].get("_place_x", 0), ic))
     ic_cap_count: dict[str, int] = dict.fromkeys(ic_list, 0)
 
     for cap_ref in bypass_caps:
@@ -738,12 +746,15 @@ def incremental_place_and_score(
         if not ic_refs_here or not non_ic:
             continue
 
-        ic_x_avg = sum(ref_to_part[r]["_place_x"] for r in ic_refs_here) / len(ic_refs_here)
-        other_x_avg = sum(ref_to_part[r]["_place_x"] for r in non_ic) / len(non_ic)
+        # sorted(): Float-Summen über SET-Iteration ändern mit der Hash-
+        # Ordnung ihre LSBs → _snap kippt an Rasterkanten → Platzierung
+        # variiert pro Prozess (PYTHONHASHSEED).
+        ic_x_avg = sum(ref_to_part[r]["_place_x"] for r in sorted(ic_refs_here)) / len(ic_refs_here)
+        other_x_avg = sum(ref_to_part[r]["_place_x"] for r in sorted(non_ic)) / len(non_ic)
         bus_axis_x = _snap((ic_x_avg + other_x_avg) / 2)
 
         # Move non-IC bus participants toward the bus axis (only X adjustment)
-        for r in non_ic:
+        for r in sorted(non_ic):
             p = ref_to_part[r]
             if p.get("_group", "").startswith("connector"):
                 continue  # Don't move connectors off the edge

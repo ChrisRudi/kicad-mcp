@@ -78,11 +78,13 @@ def _build_connection_graph(
     for net in nets:
         net_name = net["name"]
         net_type = net.get("type", "signal")
-        members = set()
-        for conn in net.get("connections", []):
-            ref = conn.split(":")[0]
-            if ref:
-                members.add(ref)
+        # sorted(): members ist eine STRING-Menge — ihre Iterations-Reihenfolge
+        # wechselt mit PYTHONHASHSEED pro Prozess. Unsortiert war die gesamte
+        # Platzierung (Kanten-/Zähl-Reihenfolge → Tie-Breaks) von Lauf zu Lauf
+        # verschieden: „flaky" Optimizer-Tests, springende Galerie-badness.
+        members = sorted({conn.split(":")[0]
+                          for conn in net.get("connections", [])
+                          if conn.split(":")[0]})
         for ref in members:
             for other in members:
                 if other != ref:

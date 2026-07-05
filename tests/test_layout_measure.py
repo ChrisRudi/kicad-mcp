@@ -23,6 +23,7 @@ def test_professional_reference_scores_zero(ref):
     m = lm.measure_file(os.path.join(_REF_DIR, f"{ref}.kicad_sch"))
     d = m.as_dict()
     assert d["comp_overlaps"] == 0, m.details
+    assert d["crowding"] == 0, m.details
     assert d["label_overlaps"] == 0, m.details
     assert d["label_wrong_dir"] == 0, m.details
     assert d["label_label_overlaps"] == 0, m.details
@@ -233,3 +234,16 @@ def test_two_large_ics_side_by_side_overlap_is_detected():
            '(symbol (lib_id "74xx:74HC595") (at 103 100 0) (unit 1)'
            ' (in_bom yes) (on_board yes))\n)')
     assert lm.measure_text(sch).comp_overlaps >= 1
+
+
+def test_crowding_is_detected():
+    # „mehr Luft lassen": zwei Widerstände fast Körper an Körper (Spalt < 2.54)
+    # → Gedränge; mit ordentlichem Abstand → 0.
+    tight = ('(kicad_sch\n'
+             '(symbol (lib_id "Device:R") (at 100 100 0) (unit 1)'
+             ' (in_bom yes) (on_board yes))\n'
+             '(symbol (lib_id "Device:R") (at 103.5 100 0) (unit 1)'
+             ' (in_bom yes) (on_board yes))\n)')
+    roomy = tight.replace("103.5", "112")
+    assert lm.measure_text(tight).crowding >= 1
+    assert lm.measure_text(roomy).crowding == 0

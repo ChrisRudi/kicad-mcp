@@ -1,7 +1,29 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.19.0**
+Aktuelle Version: **0.20.0**
+
+---
+
+## 🧹 Neu in 0.20.0 — Kosmetik: mehr Luft, Pin-Zonen-Schutz, deterministisch
+
+- **„Einfach mehr Luft lassen":** Platzierungs-Abstände +20 % (Faktor 1.4→1.7)
+  und eine neue Enge-Metrik (Körper-Spalt < 2.54 mm zählt als Gedränge, an den
+  Profi-Referenzen geeicht). Der BME280 im USB-Hub hat jetzt Platz für seine
+  Netz-Beschriftungen.
+- **Labels raus aus der Pin-Zone:** Beschriftungen, die längs durch die
+  Pin-Nummern-Spalte schreiben oder in ein Bauteil ragen, werden jetzt erkannt
+  (Metrik), beim Zeichnen vermieden (Richtungswahl mit Sonde) und vom
+  Aufräumer repariert. Heilungs-Labels sitzen an der Stub-Spitze statt am Pin.
+- **Keine Fallback-Winkel mehr durch kleine Bauteile:** Der L-Bend-Notweg
+  prüft gegen das volle Hindernis-Set; Routen werden zusätzlich geometrisch
+  gegen Körper-Innenzonen geprüft.
+- **Generator jetzt 100 % deterministisch:** Drei versteckte Zufallsquellen
+  (String-Mengen-Iteration in Verbindungsgraph, Cap-Zuteilung und
+  Pin-Emission) machten jede Platzierung von Lauf zu Lauf verschieden —
+  gefunden und fixiert. Gleiche Eingabe = byte-gleicher Schaltplan.
+- Ergebnis: 7/10 Kits badness 0 unter der VERSCHÄRFTEN Metrik; Rest je eine
+  Text-Berührung. Netzlisten-Roundtrip weiterhin 10/10.
 
 ---
 

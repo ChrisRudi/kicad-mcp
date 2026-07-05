@@ -8,6 +8,31 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added/Fixed (Kosmetik-Runde: Luft, Pin-Zonen, Determinismus — 0.20.0)
+- **Mehr Luft (Nutzer: „einfach mehr Luft lassen"):** `SCHEMATIC_LAYOUT_FACTOR`
+  1.4→1.7; neue Metrik ``crowding`` (Körper-Spalt < 2.54 mm, Gewicht 10, an den
+  Referenzen auf 0 geeicht) treibt den Optimizer zum Auseinanderziehen.
+- **Pin-Zonen-Schutz für Labels:** ``label_overlaps`` misst jetzt gegen Körper
+  + Pin-Zone (+2.84 mm, effektive Größe = min(Grafik-Bbox, Pin-Käfig) — WS2812B/
+  MB6S-Deko zählt nicht); ``_stub_dir_free`` dreistufig (Zone frei → Spitze
+  frei → elektrisch sauber) mit Sonde über die Label-Länge; Declutter nutzt
+  dieselbe Zone; Heilungs-Label sitzt an der Pin-Stub-Spitze mit Auswärts-
+  Winkel statt am Pin (Pin liegt IN der Zone).
+- **wire_through_body:** Pin-Anschluss-Ausnahme generalisiert (Segment-Endpunkt
+  auf einem PIN des Symbols = Anschluss, auch wenn der Pin innerhalb der
+  Grafik-Bbox liegt); L-Bend prüft gegen das VOLLE Hindernis-Set; Routen
+  zusätzlich geometrisch gegen Körper-Innenzonen (`_seg_through_body_core`).
+- **Determinismus (Wurzelursache der „flaky" Tests + springender badness):**
+  drei PYTHONHASHSEED-abhängige Stellen fixiert — String-Set-Iteration in
+  ``connectivity._build_connection_graph`` (Kanten-/Zählreihenfolge → alle
+  Tie-Breaks), Cap-Zuteilungs-Sortierung ohne Ref-Tie-Break in
+  ``defrag_place`` (+ sortierte Set-Summen), Pin-Emissions-Sort mit
+  kollabierendem Key für nicht-numerische Pin-Nummern in ``builder``.
+  Gleiche Eingabe → byte-identisches ``.kicad_sch`` über Prozesse.
+- ``build_schematic(optimize_seconds=…)``: Optimizer-Zeitbudget durchreichbar.
+- **Stand:** 7/10 Kits badness 0 unter der VERSCHÄRFTEN Metrik (ethernet 50,
+  motor 25, usb 25 — je Referenz/Wert-Text-Berührungen); Roundtrip 10/10.
+
 ### Added/Fixed (Netzlisten-Roundtrip: gezeichnet = gewollt, 10/10 — 0.19.0)
 - **Nutzer-Vorschlag als hartes Gate:** „Nimm die Original-Schaltung, mach eine
   Netzliste; nimm deine gezeichnete Schaltung, erstelle daraus eine Netzliste;

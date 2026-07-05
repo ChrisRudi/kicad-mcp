@@ -129,6 +129,7 @@ class _Wire:
 @dataclass
 class Metrics:
     comp_overlaps: int = 0
+    crowding: int = 0
     label_overlaps: int = 0
     label_wrong_dir: int = 0
     label_label_overlaps: int = 0
@@ -147,7 +148,7 @@ class Metrics:
 
     def as_dict(self) -> dict:
         return {k: getattr(self, k) for k in (
-            "comp_overlaps", "label_overlaps", "label_wrong_dir",
+            "comp_overlaps", "crowding", "label_overlaps", "label_wrong_dir",
             "label_label_overlaps", "label_wire_overlaps",
             "annot_overlaps", "wire_through_body", "wire_overlaps",
             "wire_crossings", "diag_wires", "offgrid",
@@ -158,6 +159,7 @@ class Metrics:
         Lesbarkeits-Killer (Überlappungen) wiegen am schwersten."""
         w = weights or _DEFAULT_WEIGHTS
         return (w["comp_overlaps"] * self.comp_overlaps
+                + w["crowding"] * self.crowding
                 + w["label_overlaps"] * self.label_overlaps
                 + w["label_wrong_dir"] * self.label_wrong_dir
                 + w["label_label_overlaps"] * self.label_label_overlaps
@@ -172,6 +174,8 @@ class Metrics:
 
 _DEFAULT_WEIGHTS = {
     "comp_overlaps": 100.0,   # größter Hebel: nichts übereinander
+    "crowding": 10.0,         # „mehr Luft lassen": Körper-Spalt < 2.54 mm ist
+    #                           Gedränge (Profi-Referenzen: überall ≥ 3 mm)
     "label_overlaps": 100.0,  # dito für Labels
     "label_wrong_dir": 20.0,
     "label_label_overlaps": 25.0,  # zwei Netz-Labels überdecken sich
@@ -393,6 +397,65 @@ def _label_box(lb: _Label) -> tuple[float, float, float, float]:
     return (x, y - h / 2, x + w, y + h / 2)   # 0 = rechts (Default)
 
 
+_PINS_LOCAL: dict[str, list[tuple[float, float]]] = {}
+
+
+def _pins_for_lib(lib_id: str) -> list[tuple[float, float]]:
+    """Lokale Pin-ANSCHLUSSPUNKTE eines Lib-Symbols (Blatt-Rahmen, Y-down)."""
+    if lib_id in _PINS_LOCAL:
+        return _PINS_LOCAL[lib_id]
+    pts: list[tuple[float, float]] = []
+    try:
+        from ..symbol_cache import get_real_symbol
+        from ...utils.sexpr_parser import find_node, parse_sexpr
+
+        raw = get_real_symbol(lib_id)
+        if raw:
+            def _walk(node):
+                if not isinstance(node, list) or not node:
+                    return
+                if node[0] == "pin":
+                    at = find_node(node, "at")
+                    if at and len(at) >= 3:
+                        pts.append((float(at[1]), -float(at[2])))
+                for c in node:
+                    if isinstance(c, list):
+                        _walk(c)
+            _walk(parse_sexpr(raw))
+    except Exception:
+        pass
+    _PINS_LOCAL[lib_id] = pts
+    return pts
+
+
+def _sym_pin_world(s: "_Sym") -> list[tuple[float, float]]:
+    """Pin-Anschlusspunkte einer Symbol-INSTANZ in Welt-Koordinaten."""
+    out = []
+    rad = math.radians(-s.rot)
+    ca, sa = math.cos(rad), math.sin(rad)
+    for lx, ly in _pins_for_lib(s.lib_id):
+        rx = lx * ca - ly * sa
+        ry = lx * sa + ly * ca
+        out.append((s.x + rx, s.y + ry))
+    return out
+
+
+def _eff_half(s: "_Sym") -> tuple[float, float]:
+    """Effektive Halb-Maße für Zonen-Prüfungen: min(Grafik-Bbox, Pin-Käfig).
+    Symbole wie WS2812B/MB6S zeichnen Deko-Polylines ÜBER den Pin-Käfig hinaus
+    — Labels/Drähte an ihren Pins sind dann keine Überdeckung des „Körpers"."""
+    hw, hh = s.half()
+    pw = _sym_pin_world(s)
+    if pw:
+        phw = max(abs(px - s.x) for px, py in pw)
+        phh = max(abs(py - s.y) for px, py in pw)
+        if phw > 0.1:
+            hw = min(hw, phw)
+        if phh > 0.1:
+            hh = min(hh, phh)
+    return hw, hh
+
+
 def measure_text(text: str) -> Metrics:
     """Ein ``.kicad_sch`` (als String) parsen und objektiv vermessen."""
     syms, labels, wires = _parse(text)
@@ -408,6 +471,14 @@ def measure_text(text: str) -> Metrics:
             if (abs(bodies[i].x - bodies[j].x) < ahw + bhw - 0.1
                     and abs(bodies[i].y - bodies[j].y) < ahh + bhh - 0.1):
                 m.comp_overlaps += 1
+            else:
+                # Enge („mehr Luft lassen"): beide Achsen-Spalte < 2.54 mm —
+                # das Bauteil klebt ohne Not am Nachbarn (an den Profi-
+                # Referenzen geeicht: dort ist ÜBERALL mehr Platz).
+                gx = abs(bodies[i].x - bodies[j].x) - (ahw + bhw)
+                gy = abs(bodies[i].y - bodies[j].y) - (ahh + bhh)
+                if gx < 2.54 and gy < 2.54:
+                    m.crowding += 1
 
     # Draht-Endpunkte → für die Label-Richtung (welcher Draht kommt am Label an)
     ends: dict[tuple[float, float], list[_Wire]] = {}
@@ -425,11 +496,16 @@ def measure_text(text: str) -> Metrics:
         lcx, lcy = (lx0 + lx1) / 2, (ly0 + ly1) / 2
         lhw, lhh = (lx1 - lx0) / 2, (ly1 - ly0) / 2
         for s in bodies:
-            hw, hh = s.half()
-            if (abs(lcx - s.x) < hw + lhw - 0.2
-                    and abs(lcy - s.y) < hh + lhh - 0.2):
+            hw, hh = _eff_half(s)
+            # Pin-Zone zählt zum Körper (+2.84 = Pin-Länge + Rand): ein Label,
+            # das längs durch die Pin-Nummern-Spalte eines ICs schreibt oder in
+            # den Körper ragt, ist Überdeckung — die Profi-Referenzen bleiben
+            # auch mit dieser Zone bei 0 (geeicht).
+            zx, zy = hw + _PIN_REACH + 0.3, hh + _PIN_REACH + 0.3
+            if (abs(lcx - s.x) < zx + lhw - 0.2
+                    and abs(lcy - s.y) < zy + lhh - 0.2):
                 m.label_overlaps += 1
-                m.details.append(f"Label '{lb.text}' auf {s.lib_id}")
+                m.details.append(f"Label '{lb.text}' auf/an {s.lib_id}")
                 break
         # „Weg zeigen": das Label sitzt am Draht-Ende und soll in FREIEN Raum
         # ragen. Auswärts-Richtung = weg vom Draht (der zur Schaltung führt) =
@@ -476,7 +552,7 @@ def measure_text(text: str) -> Metrics:
     # Kante entlangläuft, nicht schon zählt.
     for w in wires:
         for s in bodies:
-            hw, hh = s.half()
+            hw, hh = _eff_half(s)
             # Ein-Pin-Bauteile (TestPoint, Mount, Flag) haben ihren Anschluss GENAU
             # im Symbol-Ursprung = Körper-Mitte; ein Anschluss-Stub startet dann
             # zwangsläufig „im" (winzigen) Körper. Endet ein Segment an der Mitte
@@ -484,6 +560,15 @@ def measure_text(text: str) -> Metrics:
             # durchs Bauteil — echte Busse haben NIE einen Endpunkt im Zentrum.
             if (math.hypot(w.x1 - s.x, w.y1 - s.y) <= 0.6
                     or math.hypot(w.x2 - s.x, w.y2 - s.y) <= 0.6):
+                continue
+            # Endet das Segment AN EINEM PIN dieses Symbols, ist es dessen
+            # Anschluss — auch wenn der Pin INNERHALB der Grafik-Bbox sitzt
+            # (WS2812B/MB6S: Deko-Polylines größer als der Pin-Käfig; der
+            # Power-Stub zum VDD-Pin ist keine Querung).
+            _pw = _sym_pin_world(s)
+            if any(math.hypot(w.x1 - px, w.y1 - py) <= 0.4
+                   or math.hypot(w.x2 - px, w.y2 - py) <= 0.4
+                   for px, py in _pw):
                 continue
             if _seg_through_rect(w.x1, w.y1, w.x2, w.y2,
                                  s.x, s.y, hw - 0.4, hh - 0.4):

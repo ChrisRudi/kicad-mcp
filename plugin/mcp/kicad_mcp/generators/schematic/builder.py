@@ -109,7 +109,10 @@ def _declutter_labels(lines: list[str], parts: list[dict]) -> list[str]:
         cx, cy = (box[0]+box[2])/2, (box[1]+box[3])/2
         hw, hh = (box[2]-box[0])/2 - 0.2, (box[3]-box[1])/2 - 0.2
         for bx, by, bhw, bhh in bodies:
-            if abs(cx-bx) < bhw+hw and abs(cy-by) < bhh+hh:
+            # Zone wie die Metrik: Körper + Pin-Zone (2.84) — sonst hält der
+            # Declutter Positionen für frei, die die Metrik als „Label in der
+            # Pin-Nummern-Spalte" zählt, und repariert sie nie.
+            if abs(cx-bx) < bhw+2.84+hw and abs(cy-by) < bhh+2.84+hh:
                 return True
         return False
 
@@ -355,6 +358,7 @@ def build_schematic(
     keep_placement: bool = False,
     optimize: bool = False,
     optimize_evals: int = 1500,
+    optimize_seconds: float = 30.0,
 ) -> str:
     """Build a .kicad_sch file from parts and nets.
 
@@ -391,7 +395,8 @@ def build_schematic(
                     intersheet_nets, place=False, keep_placement=True,
                 )
             _optimize_layout(parts, nets, _emit_candidate,
-                             max_evals=optimize_evals)
+                             max_evals=optimize_evals,
+                             max_seconds=optimize_seconds)
 
     # ``_extra_units`` wird bei jedem Emit aus der Platzierung neu berechnet
     # (``_emit_symbol_instances``). Beim wiederholten Emit derselben Parts
@@ -711,7 +716,12 @@ def _emit_symbol_instances(s: SExpr, parts: list[dict], project_name: str, simul
                 unit_pins |= {p["num"] for p in units.get(0, [])}
             else:
                 unit_pins = set(real_pins.keys())
-            for pnum in sorted(unit_pins, key=lambda x: int(x) if x.isdigit() else 0):
+            # Voll-deterministischer Schlüssel: nicht-numerische Pin-Namen
+            # ("A3", "B9", "SH") kollabierten auf 0 → der Stable-Sort ließ die
+            # PYTHONHASHSEED-Set-Ordnung durch (Emission variierte je Prozess).
+            for pnum in sorted(unit_pins,
+                               key=lambda x: (0, int(x), "") if x.isdigit()
+                               else (1, 0, x)):
                 if pnum not in emitted_pins and pnum in real_pins:
                     pin_uid = uid(f"{project_name}_{ref}_pin{pnum}")
                     s.pin_instance(pnum, pin_uid)
