@@ -48,7 +48,18 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
 # KiCad-Config seeden: IPC-API-Server AN (sonst kein Socket für kipy). Der
 # 'Welcome to KiCad'-Erststart-Dialog erscheint bei pcbnew-Standalone dennoch
 # je Start neu — das Live-Harness klickt ihn per xdotool weg.
-KCFG="${HOME}/.config/kicad/10.0"
+#
+# WICHTIG: Unter ``sudo`` gehört die Config dem AUFRUFER (GitHub-CI: runner),
+# nicht root — pcbnew läuft im Test-Schritt als dieser Nutzer, und eine nach
+# /root geseedete Config ist für ihn unsichtbar (IPC-Server bleibt AUS →
+# „Live-Editor nicht bereit"). Genau so fiel der erste Remote-Lauf des
+# live-ipc-Jobs um, während der Root-Container lokal grün war.
+if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+    SEED_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+else
+    SEED_HOME="$HOME"
+fi
+KCFG="${SEED_HOME}/.config/kicad/10.0"
 mkdir -p "$KCFG"
 if [ ! -f "$KCFG/kicad_common.json" ]; then
     cat > "$KCFG/kicad_common.json" <<'JSON'
@@ -59,7 +70,12 @@ if [ ! -f "$KCFG/kicad_common.json" ]; then
   "system": { "first_run_shown": true, "language": "en" }
 }
 JSON
-    echo "kicad_common.json geseedet (IPC-API an)"
+    echo "kicad_common.json geseedet (IPC-API an) → $KCFG"
+fi
+# Root hat geschrieben, der Nutzer muss lesen UND schreiben (pcbnew sichert
+# seine Config beim Beenden) — sonst halb-kaputter Zustand.
+if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+    chown -R "$SUDO_USER" "${SEED_HOME}/.config/kicad"
 fi
 
 # pcbnew-Brücke ins venv (nur wenn ein venv da ist und pcbnew dort fehlt)

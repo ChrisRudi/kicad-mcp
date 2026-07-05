@@ -12,10 +12,12 @@ import pytest
 
 from fastmcp import FastMCP
 from kicad_mcp.tools.generation_tools import register_generation_tools
-from kicad_mcp.utils.kicad_cli import get_kicad_cli_path
+from kicad_mcp.utils.kicad_cli import is_kicad_cli_available
 
+# is_kicad_cli_available statt get_kicad_cli_path: Letztere WIRFT ohne KiCad
+# und riss die Collection auf KiCad-losen Runnern (CI-Job "KiCad mocked").
 pytestmark = pytest.mark.skipif(
-    not get_kicad_cli_path(), reason="kicad-cli not available for ERC")
+    not is_kicad_cli_available(), reason="kicad-cli not available for ERC")
 
 
 def _call(server, name, **kw):
