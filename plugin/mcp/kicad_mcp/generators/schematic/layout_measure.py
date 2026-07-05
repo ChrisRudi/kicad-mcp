@@ -16,6 +16,7 @@ Metriken (alles „weniger = besser", 0 = ideal):
     comp_overlaps      Paare überlappender Bauteil-Rahmen
     label_overlaps     Labels, die auf einem Bauteilkörper liegen
     label_wrong_dir    Netz-Labels, die NICHT vom Bauteil weg zeigen
+    annot_overlaps     Paare, deren Referenz/Wert-Text (R1/1k) übereinanderliegt
     wire_crossings     sich kreuzende Draht-Segmente (ohne Junction)
     diag_wires         nicht-orthogonale (diagonale) Draht-Segmente
     offgrid            Elemente nicht auf dem 1.27-mm-Raster
@@ -129,6 +130,7 @@ class Metrics:
     comp_overlaps: int = 0
     label_overlaps: int = 0
     label_wrong_dir: int = 0
+    annot_overlaps: int = 0
     wire_crossings: int = 0
     diag_wires: int = 0
     offgrid: int = 0
@@ -141,7 +143,7 @@ class Metrics:
     def as_dict(self) -> dict:
         return {k: getattr(self, k) for k in (
             "comp_overlaps", "label_overlaps", "label_wrong_dir",
-            "wire_crossings", "diag_wires", "offgrid",
+            "annot_overlaps", "wire_crossings", "diag_wires", "offgrid",
             "wirelength_mm", "n_symbols", "n_labels", "n_wires")}
 
     def badness(self, weights: dict | None = None) -> float:
@@ -151,6 +153,7 @@ class Metrics:
         return (w["comp_overlaps"] * self.comp_overlaps
                 + w["label_overlaps"] * self.label_overlaps
                 + w["label_wrong_dir"] * self.label_wrong_dir
+                + w["annot_overlaps"] * self.annot_overlaps
                 + w["wire_crossings"] * self.wire_crossings
                 + w["diag_wires"] * self.diag_wires
                 + w["offgrid"] * self.offgrid)
@@ -160,6 +163,7 @@ _DEFAULT_WEIGHTS = {
     "comp_overlaps": 100.0,   # größter Hebel: nichts übereinander
     "label_overlaps": 100.0,  # dito für Labels
     "label_wrong_dir": 20.0,
+    "annot_overlaps": 25.0,   # Referenz/Wert-Text zweier Bauteile übereinander
     "wire_crossings": 8.0,
     "diag_wires": 15.0,
     "offgrid": 5.0,
@@ -175,6 +179,77 @@ _LABEL_RE = re.compile(
 _WIRE_RE = re.compile(
     r'\(wire\b.*?\(xy\s+([-\d.]+)\s+([-\d.]+)\).*?\(xy\s+([-\d.]+)\s+([-\d.]+)\)',
     re.DOTALL)
+
+# Kopf einer Referenz/Wert-Property; Position & hide werden aus dem BALANCIERTEN
+# Property-Block geholt (das reale Format ist mehrzeilig, mit ``(hide yes)`` NACH
+# verschachtelten Klammern — ein simpler Tail-Regex verpasst es).
+_PROP_HEAD_RE = re.compile(r'\(property\s+"(Reference|Value)"\s+"([^"]*)"')
+_PROP_AT_RE = re.compile(r'\(at\s+([-\d.]+)\s+([-\d.]+)\s+\d+\)')
+
+#: geschätzte KiCad-Zeichenbreite (mm) bei Standard-Textgröße 1.27 — konservativ
+#: gewählt, sodass die Profi-Referenz-Schaltbilder 0 Annotations-Überlappungen
+#: haben (am Goldstandard geeicht), wir aber die echten Kollisionen sehen.
+_ANNOT_CHAR_W = 0.6
+_ANNOT_LINE_H = 1.27
+_ANNOT_MARGIN = 0.3
+
+
+def _balanced_end(text: str, start: int) -> int:
+    """Index knapp hinter der zu ``text[start]=='('`` passenden ``)`` (naiv,
+    ohne String-Literale mit Klammern — für Property-Blöcke ausreichend)."""
+    depth = 0
+    for i in range(start, len(text)):
+        c = text[i]
+        if c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+    return len(text)
+
+
+def _annotation_overlaps(text: str) -> int:
+    """Paare von Bauteilen, deren SICHTBARE Referenz/Wert-Texte sich überlappen.
+
+    Nur zwischen VERSCHIEDENEN Bauteilen (das eigene Referenz-über-Wert-Paar ist
+    erlaubt/normal). Block-genau geparst über die Symbol-Grenzen; verborgene
+    Felder (``(hide yes)`` — Footprint, Power-Ref) zählen nicht. Der Text ragt vom
+    Anker nach außen — die Box ist ``len*char_w`` breit, ``line_h`` hoch."""
+    starts = [m.start() for m in _SYM_RE.finditer(text)]
+    starts.append(len(text))
+    syms: list[list[tuple[float, float, float, float]]] = []
+    for k in range(len(starts) - 1):
+        block = text[starts[k]:starts[k + 1]]
+        boxes = []
+        for hm in _PROP_HEAD_RE.finditer(block):
+            val = hm.group(2)
+            if not val:
+                continue
+            pend = _balanced_end(block, hm.start())
+            prop = block[hm.start():pend]
+            if "(hide yes)" in prop:
+                continue
+            at = _PROP_AT_RE.search(prop)
+            if not at:
+                continue
+            x, y = float(at.group(1)), float(at.group(2))
+            w = max(len(val), 1) * _ANNOT_CHAR_W
+            # Box-Mitte = Anker + halbe Breite (Text läuft nach rechts)
+            boxes.append((x + w / 2.0, y, w, _ANNOT_LINE_H))
+        if boxes:
+            syms.append(boxes)
+
+    def _ov(a, b) -> bool:
+        return (abs(a[0] - b[0]) < (a[2] + b[2]) / 2 - _ANNOT_MARGIN
+                and abs(a[1] - b[1]) < (a[3] + b[3]) / 2 - _ANNOT_MARGIN)
+
+    count = 0
+    for i in range(len(syms)):
+        for j in range(i + 1, len(syms)):
+            if any(_ov(a, b) for a in syms[i] for b in syms[j]):
+                count += 1
+    return count
 
 
 def _parse(text: str) -> tuple[list[_Sym], list[_Label], list[_Wire]]:
@@ -229,6 +304,7 @@ def measure_text(text: str) -> Metrics:
     """Ein ``.kicad_sch`` (als String) parsen und objektiv vermessen."""
     syms, labels, wires = _parse(text)
     m = Metrics(n_symbols=len(syms), n_labels=len(labels), n_wires=len(wires))
+    m.annot_overlaps = _annotation_overlaps(text)
     bodies = [s for s in syms if not s.is_power]
 
     # Bauteil-Überlappungen (Rahmen, mit kleinem Spalt)

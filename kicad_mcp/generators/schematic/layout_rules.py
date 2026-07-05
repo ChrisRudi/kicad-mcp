@@ -152,15 +152,17 @@ RULES: tuple[LayoutRule, ...] = (
         title="Großzügige, sichtbare Drahtlängen — nie Pin-an-Pin, kein Überlappen",
         rule="Bauteile stehen weit genug auseinander, dass zwischen ihnen "
              "sichtbare Leitung liegt (≥ 5 mm, Ziel eher 10–20 mm); kein "
-             "Bauteil überlappt ein anderes.",
+             "Bauteil überlappt ein anderes — und auch die Referenz/Wert-"
+             "Beschriftung (R1 / 1k) zweier Bauteile liegt nicht übereinander.",
         rationale="Luft zwischen den Bauteilen macht den Plan lesbar; "
-                  "Pin-an-Pin oder Überlappung ist unlesbar.",
+                  "Pin-an-Pin, Körper- ODER Text-Überlappung ist unlesbar.",
         derived_from="beide Referenzen: überall großzügiger Abstand, lange "
                      "sichtbare Leitungen, nichts klebt aneinander.",
         enforced_in=("schematic.place._enforce_min_wire (≥ 5 mm)",
                      "common.geometry.force_no_overlap (kein Überlappen)",
                      "schematic.layout_optimizer.optimize (garantiert kein "
-                     "Bauteil- UND kein Label-Überlappen am fertigen Blatt)"),
+                     "Bauteil-, Label- UND kein Referenz/Wert-Text-Überlappen am "
+                     "fertigen Blatt — layout_measure.annot_overlaps)"),
         exemptions=("Power-Pins gehen über Symbole; zwei Pins desselben ICs "
                     "sind fixiert",),
         # ENFORCED: der Optimierer treibt comp_overlaps UND label_overlaps auf

@@ -1,7 +1,21 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.14.1**
+Aktuelle Version: **0.14.2**
+
+---
+
+## 🔤 Neu in 0.14.2 — auch die Beschriftungen liegen nicht mehr übereinander
+
+- **Am gerenderten Bild aufgefallen:** bei eng gepackten Widerständen/Kondensatoren
+  überlappte die **Beschriftung** (z. B. „R1 / 1k") zweier Bauteile, obwohl die
+  Bauteile selbst nicht überlappten. Die Aufräum-Messung hat das bisher nicht
+  gesehen.
+- Jetzt misst sie es — geeicht an den Profi-Vorlagen (die 0 haben). Der
+  Aufräum-Lauf zieht die Bauteile so weit auseinander, dass sich auch die
+  Beschriftungen nicht mehr in die Quere kommen. **8 von 9 Demo-Schaltungen sind
+  damit vollständig sauber** (die Ethernet-Schaltung bleibt der bekannte
+  Sonderfall mit dem überdimensionierten Mikrocontroller-Symbol).
 
 ---
 

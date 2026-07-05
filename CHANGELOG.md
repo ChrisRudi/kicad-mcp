@@ -8,6 +8,26 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Regel 6 vollständig: auch Referenz/Wert-Text darf nicht überlappen — 0.14.2)
+- **Nutzer-Fund am gerenderten Bild:** bei den Widerständen war Regel 6 NICHT
+  eingehalten — die Bauteil-Körper überlappten zwar nicht (badness 0), aber die
+  Referenz/Wert-**Beschriftung** eng gepackter Passives lag übereinander. Die
+  Metrik hatte diesen Fall nicht gemessen.
+- **`layout_measure.annot_overlaps` (neu):** zählt Paare von Bauteilen, deren
+  SICHTBARE Referenz/Wert-Texte sich überlappen (block-genau je Symbol; verborgene
+  Felder via balanciertem ``(hide yes)`` ausgeschlossen — ein simpler Tail-Regex
+  verpasste das mehrzeilige Format). Konservative Zeichenbreite (0.6 mm), sodass
+  die Profi-Referenzen **0** bleiben (am Goldstandard geeicht), die echten
+  Kollisionen aber sichtbar werden. Gewicht 25 in ``badness``.
+- **Ergebnis:** der Optimierer treibt jetzt auch die Text-Überlappung auf 0 —
+  **8 von 9 Kits erreichen badness 0** (buck 66→0, production_ready 81→0,
+  usb_sensor_hub 93→0), alle mit ``annot_overlaps=0``. Am gerenderten Bild
+  bestätigt: die Widerstands-Beschriftung liegt nicht mehr übereinander.
+  ethernet_device unverändert der bekannte Sonderfall (überdimensioniertes
+  MCU-Symbol).
+- Tests: gecraftete Annotations-Überlappung wird erkannt; verborgene Felder
+  zählen nicht; Referenzen bleiben ``annot_overlaps=0``.
+
 ### Fixed (KRITISCH: Überlappungs-Metrik war blind — Closure-``+=``-Falle — 0.14.1)
 - **`layout_measure._bbox_for_lib` fiel bei JEDEM Symbol mit Rechteck-Körper
   auf die 2.54×2.54-Fallback-Bbox zurück:** in der verschachtelten ``_walk``-

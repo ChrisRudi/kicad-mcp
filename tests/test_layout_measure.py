@@ -25,6 +25,7 @@ def test_professional_reference_scores_zero(ref):
     assert d["comp_overlaps"] == 0, m.details
     assert d["label_overlaps"] == 0, m.details
     assert d["label_wrong_dir"] == 0, m.details
+    assert d["annot_overlaps"] == 0, m.details
     assert d["wire_crossings"] == 0
     assert d["diag_wires"] == 0
     assert m.badness() == 0.0
@@ -61,6 +62,34 @@ def test_ic_bbox_is_real_not_fallback():
     assert w > 8.0 and h > 15.0, f"IC-Bbox sieht nach Fallback aus: {(w, h)}"
     rw, rh = lm._bbox_for_lib("Device:R")
     assert rh > 4.0, f"R-Bbox sieht nach Fallback aus: {(rw, rh)}"
+
+
+def test_annotation_text_overlap_is_detected():
+    # Referenz/Wert-Texte ZWEIER Bauteile an derselben Stelle → 1 Annotations-
+    # Überlappung (der visuelle Dreck bei eng gepackten Passives). Körper weit
+    # auseinander, damit NUR die Beschriftung kollidiert.
+    sch = ('(kicad_sch\n'
+           '(symbol (lib_id "Device:R") (at 100 100 0) (unit 1)'
+           ' (in_bom yes) (on_board yes)\n'
+           '  (property "Reference" "R1" (at 120 99 0))\n'
+           '  (property "Value" "10k" (at 120 101 0)))\n'
+           '(symbol (lib_id "Device:R") (at 160 100 0) (unit 1)'
+           ' (in_bom yes) (on_board yes)\n'
+           '  (property "Reference" "R2" (at 120 99 0))\n'
+           '  (property "Value" "10k" (at 120 101 0)))\n)')
+    assert lm.measure_text(sch).annot_overlaps >= 1
+
+
+def test_hidden_annotation_does_not_count():
+    # Verborgene Felder (Footprint, Power-Ref) zeichnen nicht → keine Kollision.
+    sch = ('(kicad_sch\n'
+           '(symbol (lib_id "Device:R") (at 100 100 0) (unit 1)'
+           ' (in_bom yes) (on_board yes)\n'
+           '  (property "Reference" "R1" (at 120 99 0) (hide yes)))\n'
+           '(symbol (lib_id "Device:R") (at 160 100 0) (unit 1)'
+           ' (in_bom yes) (on_board yes)\n'
+           '  (property "Reference" "R2" (at 120 99 0) (hide yes)))\n)')
+    assert lm.measure_text(sch).annot_overlaps == 0
 
 
 def test_two_large_ics_side_by_side_overlap_is_detected():
