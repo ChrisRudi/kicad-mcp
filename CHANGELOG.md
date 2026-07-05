@@ -8,6 +8,17 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (Ein Qualitäts-Richter statt zwei — 0.22.0)
+- **`schematic_scorer.py` entfernt (−953 Zeilen):** der Vor-Emissions-Scorer
+  (0–100-Score auf `parts/nets`) war seit der geeichten Metrik ein zweites,
+  divergenzfähiges Urteil. Seine einzigen Nutzer (`benchmark_schematic`,
+  `benchmark_loop`) messen jetzt das EMITTIERTE Blatt mit
+  `layout_measure` — Result-Felder `score` → `badness` (0 = Profi-Referenz)
+  + `badness_breakdown` (Verstoß-Zähler je Dimension); `violations` sind
+  jetzt die konkreten Befunde der Metrik („Label 'THR' auf/an Device:R").
+  Neu: `Metrics.breakdown()`. Emission byte-identisch (10-Kit-Hash-Vergleich
+  vor/nach), Roundtrip 10/10, Tool-Zahl unverändert 189.
+
 ### Added (Power-Passives senkrecht — 0.21.0)
 - **Nutzer-Regel:** Geht ein 2-Pin-R/C/L an ein Power-Netz (GND/VCC/3V3 …),
   steht er SENKRECHT (Rotation 0/180, Pins oben/unten, Power-Symbol direkt

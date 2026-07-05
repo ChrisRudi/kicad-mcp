@@ -10,7 +10,6 @@ Callers:
   - pcb_builder.py         (via auto_place re-export: _classify_component,
                              _is_bypass_cap)
   - template_matcher.py    (via auto_place re-export: _classify)
-  - schematic_scorer.py    (via auto_place re-export: _get_power_net_names, _*_PATTERNS)
   - common/fd_refine.py    (_classify_component — fuer PCB fixed-set)
 """
 

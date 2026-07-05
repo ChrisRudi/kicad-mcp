@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Objektive Qualitäts-Messung eines FERTIGEN Schaltplans (``.kicad_sch``).
 
-Anders als ``schematic_scorer`` (bewertet die ``parts/nets``-Platzierung VOR der
-Emission) parst dieses Modul das erzeugte ``.kicad_sch`` und misst, was am Ende
-wirklich auf dem Blatt steht — inklusive **Labels, Power-Symbolen und Drähten**.
-Damit sieht es den größten Lesbarkeits-Killer, den der parts/nets-Scorer NICHT
-sehen kann: Labels/Bauteile, die ÜBEREINANDER liegen.
+DER eine Qualitäts-Richter des Projekts (der Vorgänger ``schematic_scorer``,
+der die ``parts/nets``-Platzierung VOR der Emission bewertete, ist ersetzt —
+ein Urteil statt zwei): dieses Modul parst das erzeugte ``.kicad_sch`` und
+misst, was am Ende wirklich auf dem Blatt steht — inklusive **Labels,
+Power-Symbolen und Drähten** und damit auch den größten Lesbarkeits-Killer:
+Labels/Bauteile, die ÜBEREINANDER liegen.
 
 Kernnutzen: dieselbe Messung läuft auf UNSEREM Output UND auf echten
 Profi-Referenz-Schaltbildern (deren ``.kicad_sch`` wir haben) → direkte,
@@ -153,6 +154,12 @@ class Metrics:
             "annot_overlaps", "wire_through_body", "wire_overlaps",
             "wire_crossings", "diag_wires", "offgrid",
             "wirelength_mm", "n_symbols", "n_labels", "n_wires")}
+
+    def breakdown(self) -> dict[str, int]:
+        """Nur die Verstoß-Zähler ≠ 0 (die badness-Dimensionen, ohne
+        Kontextfelder wie Drahtlänge) — für Tool-Results und Reports."""
+        return {k: getattr(self, k) for k in _DEFAULT_WEIGHTS
+                if getattr(self, k)}
 
     def badness(self, weights: dict | None = None) -> float:
         """Gewichtete Gesamt-Schlechtigkeit (0 = ideal). Die harten

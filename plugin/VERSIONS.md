@@ -1,7 +1,19 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.21.0**
+Aktuelle Version: **0.22.0**
+
+---
+
+## ⚖️ Neu in 0.22.0 — Ein Qualitäts-Richter statt zwei (−953 Zeilen)
+
+- Der alte Schaltplan-Bewerter (0–100-Punkte, schaute nur auf die geplante
+  Platzierung) ist entfernt. Die Benchmark-Werkzeuge messen jetzt das
+  **fertig gezeichnete Blatt** mit derselben an Profi-Schaltplänen geeichten
+  Metrik, die auch der Layout-Optimierer nutzt — badness 0 = Profi-Niveau,
+  mit Aufschlüsselung, WAS genau stört (z. B. „Label 'THR' auf Widerstand").
+- Ein Urteil statt zwei, die auseinanderlaufen können; 953 Zeilen weniger
+  Code bei identischer Schaltplan-Ausgabe (byte-gleich verifiziert).
 
 ---
 

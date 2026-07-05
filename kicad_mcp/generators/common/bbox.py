@@ -7,7 +7,6 @@ Extracted from auto_place.py and pcb_builder.py.
 Callers:
   - auto_place.py          (_bbox_cache, _get_symbol_bbox, _get_symbol_width, _get_symbol_height)
   - schematic_builder.py   (via auto_place re-export: _get_symbol_bbox)
-  - schematic_scorer.py    (via auto_place re-export: _get_symbol_bbox)
   - test_generators.py     (via auto_place re-export: _get_symbol_bbox)
   - pcb_builder.py         (_fp_size, _read_courtyard_size, _courtyard_cache)
   - common/geometry.py     (_get_symbol_width, _get_symbol_height)

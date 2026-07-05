@@ -17,7 +17,7 @@ from fastmcp import Context, FastMCP
 
 from kicad_mcp.generators.pcb.builder import build_pcb
 from kicad_mcp.generators.schematic.builder import build_schematic
-from kicad_mcp.generators.schematic_scorer import score_schematic
+from kicad_mcp.generators.schematic.layout_measure import measure_text
 from kicad_mcp.generators.validator import validate_all
 from kicad_mcp.utils.path_env import to_local_path
 from kicad_mcp.utils.wsl_path import to_windows_path
@@ -543,16 +543,17 @@ def register_generation_tools(mcp: FastMCP) -> None:
         project_name: str = "benchmark",
         ctx: Context | None = None,
     ) -> dict[str, Any]:
-        """Generate schematic and measure quality metrics (wire:label ratio, score).
+        """Generate schematic and measure quality metrics (wire:label ratio, badness).
 
         Use this when tuning the schematic generator and you need quantified
-        quality feedback (wire/label counts, ratios, 15-rule score) on a spec
-        without writing any files to disk.
+        quality feedback (wire/label counts, ratios, calibrated badness) on a
+        spec without writing any files to disk.
 
         Hidden benchmarking tool for iterative improvement loops.
-        Generates a schematic from the given parts/nets, then analyzes
-        the output for wire count, label count, wire:label ratio,
-        and the 15-rule schematic quality score.
+        Generates a schematic from the given parts/nets, then measures the
+        EMITTED sheet with the professional-reference-calibrated metric
+        (layout_measure): badness 0 = nothing overlaps, labels clear of
+        bodies/pins, wires orthogonal and on-grid.
 
         Args:
             parts: JSON string - list of components
@@ -561,7 +562,8 @@ def register_generation_tools(mcp: FastMCP) -> None:
             ctx: MCP context
 
         Returns:
-            Detailed quality metrics including wire:label ratio and score
+            Detailed quality metrics including wire:label ratio and badness
+            (0 = professional reference level) with per-dimension breakdown
         """
         try:
             parts_data = json.loads(parts)
@@ -587,8 +589,8 @@ def register_generation_tools(mcp: FastMCP) -> None:
         wire_label_ratio = wire_count / max(total_labels, 1)
         signal_ratio = wire_count / max(label_count, 1)
 
-        # Score the schematic layout
-        score, violations = score_schematic(parts_data, nets_data)
+        # Qualität des EMITTIERTEN Blatts messen (an Profi-Referenzen geeicht)
+        measured = measure_text(sch)
 
         # Power vs signal net breakdown
         power_nets = [n for n in nets_data if n.get("type") == "power"]
@@ -612,10 +614,11 @@ def register_generation_tools(mcp: FastMCP) -> None:
                 "no_connects": no_connect_count,
                 "wire_label_ratio": round(wire_label_ratio, 2),
                 "signal_wire_label_ratio": round(signal_ratio, 2),
-                "score": score,
-                "violation_count": len(violations),
+                "badness": measured.badness(),
+                "badness_breakdown": measured.breakdown(),
+                "violation_count": int(sum(measured.breakdown().values())),
             },
-            "violations": violations[:10],
+            "violations": measured.details[:10],
             "schematic_size_bytes": len(sch),
         }
 
@@ -628,16 +631,16 @@ def register_generation_tools(mcp: FastMCP) -> None:
         project_name: str = "benchmark",
         ctx: Context | None = None,
     ) -> dict[str, Any]:
-        """Generate project, export SVG, score, and report — full benchmark loop.
+        """Generate project, export SVG, measure, and report — full benchmark loop.
 
         Use this when you want the full quality cycle in one shot — write the
-        project files, render an SVG for visual comparison, and score it — so
-        you can eyeball and measure a generated layout end to end.
+        project files, render an SVG for visual comparison, and measure the
+        emitted sheet — so you can eyeball and quantify a layout end to end.
 
         Complete quality analysis loop:
         1. Generate .kicad_sch + .kicad_pcb
         2. Export schematic SVG via kicad-cli (for visual comparison)
-        3. Measure wire:label ratio and quality score
+        3. Measure wire:label ratio and calibrated badness (0 = professional)
         4. Return comprehensive report with file paths
 
         Args:
@@ -708,7 +711,7 @@ def register_generation_tools(mcp: FastMCP) -> None:
         wire_label_ratio = wire_count / max(total_labels, 1)
         signal_ratio = wire_count / max(label_count, 1)
 
-        score, violations = score_schematic(parts_data, nets_data)
+        measured = measure_text(sch)
 
         _power_nets = [n for n in nets_data if n.get("type") == "power"]
         _signal_nets = [n for n in nets_data if n.get("type") != "power"]
@@ -730,10 +733,11 @@ def register_generation_tools(mcp: FastMCP) -> None:
                 "total_labels": total_labels,
                 "wire_label_ratio": round(wire_label_ratio, 2),
                 "signal_wire_label_ratio": round(signal_ratio, 2),
-                "score": score,
-                "violation_count": len(violations),
+                "badness": measured.badness(),
+                "badness_breakdown": measured.breakdown(),
+                "violation_count": int(sum(measured.breakdown().values())),
             },
-            "violations": violations[:10],
+            "violations": measured.details[:10],
             "visual_review": (
                 f"SVG exported to {svg_path} — open in browser for visual check"
                 if svg_ok else

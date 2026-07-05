@@ -7,7 +7,6 @@ Extracted from auto_place.py, schematic_builder.py, pcb_router.py, pcb_builder.p
 Callers:
   - auto_place.py          (GRID, HALF_GRID, SHEET_*, MARGIN, *_GAP, IC_*, Y_*, OVERLAP_*)
   - schematic_builder.py   (WIRE_MAX_*, WIRE_CLEARANCE, POWER_CLEARANCE, LABEL_STUB_LEN)
-  - schematic_scorer.py    (via auto_place re-exports: SHEET_*, MARGIN, Y_CENTER, *_GAP)
   - pcb_builder.py         (JLCPCB_RULES, EURO_DIVIDER_SIZES)
   - pcb_router.py          (POWER_TRACE_W, SIGNAL_TRACE_W, VIA_*, TRACE_CLEARANCE, LAYER_*)
   - common/geometry.py     (HALF_GRID)
