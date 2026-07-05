@@ -174,31 +174,55 @@ def place_schematic(parts: list[dict], nets: list[dict]) -> list[dict]:
     # Ensure all parts have placement coordinates
     placed_refs |= {p["ref"] for p in parts if "_place_x" in p}
 
-    # 11. Resolve overlaps — sanft (kleine Verschiebungen), dann garantiert.
+    # 11+12. Post-Placement-Regeln listen-getrieben durchsetzen (Überlappung,
+    # Mindest-Draht, Pin-Richtung, Grid-Snap) — die Reihenfolge/Auswahl steht im
+    # wartbaren Regel-Set ``layout_rules``, nicht hier fest verdrahtet.
+    _enforce_layout_rules(parts, nets)
+    return parts
+
+
+# ── Listen-getriebene Regel-Durchsetzung ────────────────────────────────────
+
+def _enforce_layout_rules(parts: list[dict], nets: list[dict]) -> None:
+    """Setzt die Post-Placement-Regeln aus ``layout_rules`` durch — die Liste
+    ist die Single Source der Reihenfolge/Auswahl, dieser Code nur der Motor.
+
+    GEOMETRY-Regeln laufen in einer Fixpunkt-Schleife (bis kein Regel-Schritt
+    mehr etwas bewegt — Überlappung ↔ Mindest-Draht wechselwirken), FINISH-Regeln
+    genau einmal am Ende. Eine neue geometrische Regel = Eintrag im Regel-Set
+    (phase=GEOMETRY) + Enforcer hier registrieren; keine Pipeline-Chirurgie."""
+    from ..common.geometry import force_no_overlap
+    from . import layout_rules as rules
+
+    # sanfter Vorlauf (kleine Verschiebungen, bevor die harte Garantie greift)
     for _ in range(OVERLAP_PASSES):
         if not _resolve_overlaps(parts):
             break
-    # 11b. Harte Garantie: kein Bauteil liegt mehr über einem anderen (der
-    # sanfte Schritt kann bei riesigen Symbolen oszillieren).
-    from ..common.geometry import force_no_overlap
-    force_no_overlap(parts)
 
-    # 11c. Mindest-Draht: direkt verdrahtete Signal-Pins verschiedener Bauteile
-    # müssen ≥ MIN_WIRE_MM auseinander liegen (nie Pin-an-Pin ohne sichtbare
-    # Leitung). Danach die Überlappungs-Garantie erneut — ein paar Runden, bis
-    # beides zugleich hält.
-    for _ in range(6):
-        if not _enforce_min_wire(parts, nets):
+    # Regel-Key → Enforcer (gibt True zurück, wenn etwas bewegt wurde).
+    # ``wire_along_pin_exit`` ist eine Facette von ``min_wire`` (dort mit
+    # umgesetzt) → kein eigener Schritt.
+    enforcers = {
+        "no_overlap": lambda: force_no_overlap(parts),
+        "min_wire": lambda: _enforce_min_wire(parts, nets),
+    }
+
+    geometry = [r for r in rules.by_phase(rules.GEOMETRY)
+                if r.key in enforcers]
+    for _ in range(12):  # Fixpunkt: bis keine GEOMETRY-Regel mehr etwas bewegt
+        changed = False
+        for rule in geometry:
+            if enforcers[rule.key]():
+                changed = True
+        if not changed:
             break
-        force_no_overlap(parts)
 
-    # 12. Final grid snap
-    for part in parts:
-        if "_place_x" in part:
-            part["_place_x"] = _snap(part["_place_x"])
-            part["_place_y"] = _snap(part["_place_y"])
-
-    return parts
+    for rule in rules.by_phase(rules.FINISH):
+        if rule.key == "grid_snap":
+            for part in parts:
+                if "_place_x" in part:
+                    part["_place_x"] = _snap(part["_place_x"])
+                    part["_place_y"] = _snap(part["_place_y"])
 
 
 #: Minimale sichtbare Leitungslänge zwischen zwei verbundenen Bauteil-Pins (mm).

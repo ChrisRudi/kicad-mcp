@@ -72,8 +72,11 @@ def _boxes_overlap(a: dict, b: dict, margin: float = _OVERLAP_MARGIN) -> bool:
             and abs(a["_place_y"] - b["_place_y"]) < ahh + bhh + margin)
 
 
-def force_no_overlap(parts: list[dict], max_ring: int = 60) -> None:
+def force_no_overlap(parts: list[dict], max_ring: int = 60) -> bool:
     """GARANTIE: nach diesem Aufruf überlappt kein Bauteil mehr.
+
+    Gibt ``True`` zurück, wenn dabei mindestens ein Bauteil verschoben wurde
+    (für die listen-getriebene Fixpunkt-Schleife in ``layout_rules``).
 
     Das sanfte ``_resolve_overlaps`` kann bei sehr großen Symbolen (z. B. ein
     volles LQFP-48 mit 81 mm Höhe) oszillieren — ein kleines Bauteil wird aus
@@ -88,6 +91,7 @@ def force_no_overlap(parts: list[dict], max_ring: int = 60) -> None:
     # Anker-Reihenfolge: größte Fläche zuerst (kleine Teile weichen, nicht ICs).
     placed.sort(key=lambda p: -(_get_symbol_width(p) * _get_symbol_height(p)))
     fixed: list[dict] = []
+    moved = False
     for p in placed:
         if not any(_boxes_overlap(p, f) for f in fixed):
             fixed.append(p)
@@ -111,7 +115,10 @@ def force_no_overlap(parts: list[dict], max_ring: int = 60) -> None:
         if not done:  # extrem unwahrscheinlich — zur Sicherheit weit weg
             p["_place_x"] = ox + max_ring * GRID
             p["_place_y"] = oy
+        if p["_place_x"] != ox or p["_place_y"] != oy:
+            moved = True
         fixed.append(p)
+    return moved
 
 
 def clamp_to_bounds(

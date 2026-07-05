@@ -27,6 +27,17 @@ PLANNED = "planned"     # spezifiziert, noch nicht umgesetzt
 
 _VALID_STATUS = (ENFORCED, PARTIAL, PLANNED)
 
+# Durchsetzungs-Phase — steuert die listen-getriebene Engine
+# (``schematic.place._enforce_layout_rules``):
+#   PLACEMENT  intrinsisch im Platzierer/Router (kein separater Nachlauf)
+#   GEOMETRY   Post-Placement-Nachlauf in einer Fixpunkt-Schleife (bis stabil)
+#   FINISH     genau einmal ganz am Ende
+PLACEMENT = "placement"
+GEOMETRY = "geometry"
+FINISH = "finish"
+
+_VALID_PHASE = (PLACEMENT, GEOMETRY, FINISH)
+
 
 @dataclass(frozen=True)
 class LayoutRule:
@@ -39,6 +50,9 @@ class LayoutRule:
     enforced_in Liste ``modul.funktion``-Verweise, die die Regel durchsetzen
     exemptions  Fälle, in denen die Regel bewusst NICHT greift
     status      ENFORCED | PARTIAL | PLANNED
+    phase       PLACEMENT | GEOMETRY | FINISH — steuert die listen-getriebene
+                Durchsetzungs-Engine (Default PLACEMENT = intrinsisch im
+                Platzierer/Router, kein separater Nachlauf)
     """
     key: str
     title: str
@@ -47,6 +61,7 @@ class LayoutRule:
     enforced_in: tuple[str, ...]
     exemptions: tuple[str, ...] = ()
     status: str = ENFORCED
+    phase: str = PLACEMENT
 
 
 # Reihenfolge = logischer Ablauf: verstehen → platzieren → verdrahten →
@@ -113,6 +128,7 @@ RULES: tuple[LayoutRule, ...] = (
         rationale="Überlappende Symbole sind unlesbar und ERC-gefährlich.",
         enforced_in=("common.geometry._resolve_overlaps (rotations-bewusst)",
                      "common.geometry.force_no_overlap (harte Garantie)"),
+        phase=GEOMETRY,
     ),
     LayoutRule(
         key="min_wire",
@@ -126,6 +142,7 @@ RULES: tuple[LayoutRule, ...] = (
         exemptions=("Power-Pins (gehen über GND/VCC-Symbole, kein direkter "
                     "Draht)",
                     "zwei Pins DESSELBEN ICs (durch Symbol-Geometrie fixiert)"),
+        phase=GEOMETRY,
     ),
     LayoutRule(
         key="wire_along_pin_exit",
@@ -140,6 +157,7 @@ RULES: tuple[LayoutRule, ...] = (
         exemptions=("Partner nicht auf der Pin-Achse → Fallback trennt "
                     "zusätzlich direkt (Garantie ≥ 5 mm hat Vorrang)",),
         status=PARTIAL,
+        phase=GEOMETRY,
     ),
     LayoutRule(
         key="ref_value_right",
@@ -167,6 +185,7 @@ RULES: tuple[LayoutRule, ...] = (
              "Raster (HALF_GRID) gesnappt.",
         rationale="Off-Grid-Pins verhindern saubere, orthogonale Drähte.",
         enforced_in=("schematic.place.place_schematic (finaler _snap)",),
+        phase=FINISH,
     ),
 )
 
@@ -186,6 +205,12 @@ def by_status(status: str) -> list[LayoutRule]:
     return [r for r in RULES if r.status == status]
 
 
+def by_phase(phase: str) -> list[LayoutRule]:
+    """Regeln einer Durchsetzungs-Phase, in Listen-Reihenfolge — die
+    listen-getriebene Engine iteriert genau hierüber."""
+    return [r for r in RULES if r.phase == phase]
+
+
 def validate() -> None:
     """Integritäts-Check — wirft ``ValueError`` bei Verstoß. Vom Test genutzt,
     damit kein halbgarer Eintrag ins Set kommt."""
@@ -197,6 +222,8 @@ def validate() -> None:
             raise ValueError(f"Regel-Key ungültig: {r.key!r}")
         if r.status not in _VALID_STATUS:
             raise ValueError(f"Regel '{r.key}': Status {r.status!r} ungültig")
+        if r.phase not in _VALID_PHASE:
+            raise ValueError(f"Regel '{r.key}': Phase {r.phase!r} ungültig")
         if len(r.rule) < 20 or len(r.rationale) < 15:
             raise ValueError(f"Regel '{r.key}': rule/rationale zu knapp")
         if not r.enforced_in:

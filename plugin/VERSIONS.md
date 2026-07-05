@@ -1,7 +1,20 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.12.4**
+Aktuelle Version: **0.12.5**
+
+---
+
+## 🧩 Neu in 0.12.5 — die Layout-Regeln steuern den Generator (aus einer Liste)
+
+- **Die Schaltplan-Regeln sind jetzt fest im Generator verdrahtet — aber
+  gesteuert aus der einen wartbaren Liste.** Der Generator arbeitet die
+  Regeln (keine Überlappung, ≥5 mm Leitung, Leitung folgt Pin, Raster) ab,
+  indem er über das Regel-Set läuft, statt die Schritte fest im Code zu haben.
+- **Vorteil:** eine Regel hinzufügen, entfernen oder umsortieren = die Liste
+  ändern; die Reihenfolge und Auswahl der Durchsetzung folgt automatisch.
+- Verhalten unverändert geprüft: alle 10 Demo-Schaltpläne weiterhin **null**
+  Überlappungen und **null** zu-kurze Leitungen.
 
 ---
 

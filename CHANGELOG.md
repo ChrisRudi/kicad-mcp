@@ -8,6 +8,24 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (Regeln listen-getrieben in den Generator eingebaut — Plugin 0.12.5)
+- **Nutzer-Vorgabe:** „die Regeln in die Generatoren einbauen, aber möglichst
+  weiterhin mit einer Liste wartbar."
+- **`layout_rules`** bekommt eine `phase` je Regel (PLACEMENT | GEOMETRY |
+  FINISH) + `by_phase()`. GEOMETRY = no_overlap, min_wire, wire_along_pin_exit;
+  FINISH = grid_snap; der Rest ist intrinsisch im Platzierer/Router (PLACEMENT).
+- **`place._enforce_layout_rules`** (neu): der Motor, der das Regel-Set abfährt
+  statt fest verdrahteter Schritte — GEOMETRY-Regeln in einer Fixpunkt-Schleife
+  (Überlappung ↔ Mindest-Draht wechselwirken, bis stabil), FINISH einmal. Eine
+  neue geometrische Regel = Eintrag im Set (phase=GEOMETRY) + Enforcer
+  registrieren, keine Pipeline-Chirurgie in `place_schematic`.
+- **`common.geometry.force_no_overlap`** gibt jetzt `bool` (moved) zurück, damit
+  es in die Fixpunkt-Schleife passt.
+- **`tests/test_layout_rules.py`:** +Tests (Phasen-Zuordnung, by_phase-Partition,
+  Engine deckt GEOMETRY-Regeln ab). Verhalten unverändert: alle 10
+  Demo-Schaltpläne 0 Überlappungen UND 0 Verbindungen <5 mm; Selftest 10/10,
+  pylint 10/10. Version 0.12.4 → 0.12.5.
+
 ### Changed (Layout-Regel-Set kuratiert — Nutzer-Vorgabe)
 - **Regel 1 „tight_cluster" gelöscht**, dafür neu **`pin_swap_passives`**: bei
   Kondensatoren, Spulen und Widerständen (unpolare 2-Pin-Bauteile) dürfen Pin 1

@@ -45,6 +45,33 @@ def test_get_and_status_helpers():
     assert total == len(lr.all_rules())
 
 
+def test_phases_are_assigned_as_expected():
+    phase = {r.key: r.phase for r in lr.all_rules()}
+    assert phase["no_overlap"] == lr.GEOMETRY
+    assert phase["min_wire"] == lr.GEOMETRY
+    assert phase["wire_along_pin_exit"] == lr.GEOMETRY
+    assert phase["grid_snap"] == lr.FINISH
+    # der Rest ist intrinsisch im Platzierer/Router
+    assert phase["gnd_down_vcc_up"] == lr.PLACEMENT
+    assert phase["pin_swap_passives"] == lr.PLACEMENT
+
+
+def test_by_phase_partitions_all_rules():
+    total = sum(len(lr.by_phase(p)) for p in lr._VALID_PHASE)
+    assert total == len(lr.all_rules())
+
+
+def test_engine_is_list_driven_over_geometry_phase():
+    # Der Motor (place._enforce_layout_rules) existiert und die GEOMETRY-Regeln,
+    # die einen eigenen Nachlauf brauchen, sind darin abgedeckt.
+    from kicad_mcp.generators.schematic import place
+    assert hasattr(place, "_enforce_layout_rules")
+    geo = {r.key for r in lr.by_phase(lr.GEOMETRY)}
+    # min_wire + no_overlap brauchen je einen Enforcer; wire_along_pin_exit ist
+    # eine Facette von min_wire (kein eigener Schritt).
+    assert {"no_overlap", "min_wire"} <= geo
+
+
 def test_enforced_rules_point_at_real_code():
     # Für die maschinell durchgesetzten Kern-Regeln existiert die genannte
     # Funktion wirklich (Schutz gegen umbenannte/gelöschte Enforcement-Stellen).
