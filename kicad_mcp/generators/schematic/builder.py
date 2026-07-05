@@ -341,21 +341,38 @@ def _emit_symbol_instances(s: SExpr, parts: list[dict], project_name: str, simul
         s.emit('(in_bom yes) (on_board yes)')
         s.emit(f'(uuid "{sym_uid}")')
 
-        # Rule R12: Reference and Value always to the RIGHT of the component
-        # Adjust for rotation: vertical parts need label offset in different direction
+        # Referenz/Wert-Platzierung: bei mehrpinnigen ICs (Pins links/rechts)
+        # kommen sie ÜBER bzw. UNTER den Körper — sonst liegen sie auf den
+        # seitlichen Pinreihen und Pin-Namen (der Text-Stau am IC). 2-Pin-
+        # Passives behalten die Seiten-Platzierung (bewährt, an der Referenz auf
+        # 0 Annotations-Überlappung geeicht). „IC" = > 4 Pins.
         sym_w, sym_h = _get_symbol_bbox(part)
-        if rot == 90 or rot == 270:
-            label_x = round(x + sym_h / 2 + 2.0, 2)
+        n_pins = len(part.get("pins", []))
+        is_ic = n_pins > 4
+        if is_ic and rot in (0, 180):
+            # Pins liegen links/rechts → Referenz oben, Wert unten (auf x zentriert)
+            ref_x = round(x, 2)
+            ref_y = round(y - sym_h / 2 - FONT_SIZE, 2)
+            val_x = round(x, 2)
+            val_y = round(y + sym_h / 2 + FONT_SIZE, 2)
+            hidden_x, hidden_y = ref_x, ref_y
         else:
-            label_x = round(x + sym_w / 2 + 2.0, 2)
-        s.kicad_property("Reference", ref, label_x, round(y - FONT_SIZE, 2), angle=0)
-        s.kicad_property("Value", part.get("value", part["name"]), label_x, round(y + FONT_SIZE, 2), angle=0)
-        s.kicad_property("Footprint", part.get("footprint", ""), label_x, round(y + FONT_SIZE * 3, 2), hide=True)
+            if rot == 90 or rot == 270:
+                label_x = round(x + sym_h / 2 + 2.0, 2)
+            else:
+                label_x = round(x + sym_w / 2 + 2.0, 2)
+            ref_x = val_x = label_x
+            ref_y = round(y - FONT_SIZE, 2)
+            val_y = round(y + FONT_SIZE, 2)
+            hidden_x, hidden_y = label_x, round(y + FONT_SIZE * 3, 2)
+        s.kicad_property("Reference", ref, ref_x, ref_y, angle=0)
+        s.kicad_property("Value", part.get("value", part["name"]), val_x, val_y, angle=0)
+        s.kicad_property("Footprint", part.get("footprint", ""), hidden_x, hidden_y, hide=True)
 
         if simulation:
             sim_props = part.get("sim_properties") or get_spice_properties(part)
             for key, val in sim_props.items():
-                s.kicad_property(key, val, label_x, round(y + FONT_SIZE * 5, 2), hide=True)
+                s.kicad_property(key, val, hidden_x, round(hidden_y + FONT_SIZE * 2, 2), hide=True)
 
         real_sym = get_real_symbol(lib_id)
         if real_sym:

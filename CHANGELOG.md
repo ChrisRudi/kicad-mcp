@@ -8,6 +8,16 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (Struktur-Angleichung Phase A.2: Referenz/Wert bei ICs über/unter den Körper — 0.15.1)
+- **Referenz/Wert-Platzierung (`builder._emit_symbol_instances`):** bei
+  mehrpinnigen ICs (> 4 Pins, Pins links/rechts) kommen ``U1`` / ``74HC595`` jetzt
+  ÜBER bzw. UNTER den Körper, x-zentriert — statt rechts auf die seitliche
+  Pinreihe. Damit sind die Pin-Namen (SER, SRCLK, QA–QH …) wieder lesbar, nicht
+  mehr unter „U1 74HC595" begraben. 2-Pin-Passives behalten die bewährte
+  Seiten-Platzierung (an der Referenz auf 0 Annotations-Überlappung geeicht).
+- **Wirkung:** am 74HC595 (production_ready) sind die Pin-Namen jetzt frei; alle
+  8/9 Kits weiter badness 0 (production 218→0). Referenzen unverändert 0.
+
 ### Changed (Struktur-Angleichung an die Original-Schaltbilder, Phase A.1: Power-Rails als Symbole — 0.15.0)
 - **Nutzer-Vorgabe:** „Warum orientieren wir uns nicht an den Original-Schaltungen
   und versuchen diesen nahe zu kommen." — Kern-Erkenntnis (gemessen): die Profis

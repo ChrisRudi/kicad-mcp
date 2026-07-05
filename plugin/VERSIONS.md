@@ -1,7 +1,17 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.15.0**
+Aktuelle Version: **0.15.1**
+
+---
+
+## 🏷️ Neu in 0.15.1 — IC-Beschriftung liegt nicht mehr auf den Anschlüssen
+
+- Bei ICs (Chips mit vielen Anschlüssen) standen Name und Wert („U1 / 74HC595")
+  bisher rechts auf den Anschluss-Namen — alles überlagert, unlesbar.
+- Jetzt stehen Name über und Wert unter dem Chip. Die Anschluss-Namen (SER,
+  SRCLK, QA…) sind wieder frei lesbar. Kleine Bauteile (Widerstände, Cs) bleiben
+  wie gehabt.
 
 ---
 
