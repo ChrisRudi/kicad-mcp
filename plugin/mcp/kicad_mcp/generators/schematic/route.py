@@ -62,9 +62,45 @@ _SUPPLY_ROTATION = {"up": 0, "down": 180, "right": 270, "left": 90}
 _pwr_ref_counter: int = 0
 
 
+def _normalize_power_name(net_name: str) -> str | None:
+    """Häufige Rail-Schreibweisen auf einen Map-Schlüssel normalisieren.
+
+    Die Kits nennen Rails ``P5V`` / ``P3V3`` / ``5V`` / ``3V3`` / ``3.3V`` —
+    ohne Normalisierung landen die als TEXT-Label statt als kompaktes
+    KiCad-Power-Symbol (so zeichnen es die Profi-Referenzen). Gibt einen
+    passenden ``POWER_SYMBOL_MAP``-Schlüssel zurück oder ``None``."""
+    import re as _re
+    s = net_name.strip().upper()
+    if s in POWER_SYMBOL_MAP:
+        return s
+    # führendes P vor einer Ziffer (P5V, P3V3) wegnehmen
+    m = _re.match(r'^P(\d.*)$', s)
+    if m:
+        s = m.group(1)
+    # 3V3 / 3.3V / 3.3 → +3V3 ; 5V / 5 → +5V ; …
+    s = s.replace("V", "V").replace("_", "")
+    canon = {
+        "5V": "+5V", "5": "+5V",
+        "3V3": "+3V3", "3.3V": "+3V3", "3.3": "+3V3", "3V": "+3V3",
+        "1V8": "+3V3", "1.8V": "+3V3",  # kein +1V8-Symbol → nächstbestes Supply
+        "9V": "+9V", "12V": "+12V", "24V": "+24V",
+    }
+    key = canon.get(s)
+    if key:
+        return key
+    # „+5V" bleibt +5V etc.
+    if s in POWER_SYMBOL_MAP:
+        return s
+    return None
+
+
 def get_power_symbol_info(net_name: str) -> tuple[str, str] | None:
     """Return (lib_id, sym_type) for a recognised power net, else None."""
-    return POWER_SYMBOL_MAP.get(net_name) or POWER_SYMBOL_MAP.get(net_name.upper())
+    direct = POWER_SYMBOL_MAP.get(net_name) or POWER_SYMBOL_MAP.get(net_name.upper())
+    if direct:
+        return direct
+    norm = _normalize_power_name(net_name)
+    return POWER_SYMBOL_MAP.get(norm) if norm else None
 
 
 # ── Wiring decision helpers ─────────────────────────────────────────────────

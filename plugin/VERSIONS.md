@@ -1,7 +1,20 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.14.3**
+Aktuelle Version: **0.15.0**
+
+---
+
+## 🔌 Neu in 0.15.0 — Versorgung als saubere Symbole (näher an den Originalen)
+
+- Wir richten den Generator jetzt an echten Profi-Schaltbildern aus. Erster
+  Schritt: **Versorgungs-Leitungen (5 V, 3,3 V …) werden als kompakte Power-
+  Symbole gezeichnet** statt als wiederholte Textbeschriftung.
+- Wirkung z. B. bei der LED-Ring-Schaltung: die vielen „P5V"-Texte verschwinden,
+  die Versorgung sieht aus wie von Hand gezeichnet. Die Verbindung bleibt exakt
+  gleich — nur die Darstellung wird sauber.
+- Das ist der Auftakt zu mehreren Schritten, die die erzeugten Schaltpläne
+  strukturell an die Originale annähern.
 
 ---
 

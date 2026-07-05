@@ -8,6 +8,25 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (Struktur-Angleichung an die Original-Schaltbilder, Phase A.1: Power-Rails als Symbole — 0.15.0)
+- **Nutzer-Vorgabe:** „Warum orientieren wir uns nicht an den Original-Schaltungen
+  und versuchen diesen nahe zu kommen." — Kern-Erkenntnis (gemessen): die Profis
+  sind nicht besser *platziert*, sondern strukturell anders verdrahtet. Label-
+  Dichte Referenz ~0.06–0.33/Symbol, wir bis 1.38 → Text-Stau an ICs/Steckern.
+- **Power-Rail-Namen normalisiert (`route._normalize_power_name`):** die Kits
+  nennen Rails ``P5V`` / ``P3V3`` (auch ``5V`` / ``3V3`` / ``3.3V``). Ohne
+  Normalisierung wurden die als wiederholtes TEXT-Label emittiert; jetzt mappen
+  sie auf die kompakten KiCad-Power-Symbole (``power:+5V`` / ``power:+3V3``) — so
+  zeichnen es die Referenzen. Die Verbindung bleibt intakt: das Symbol trägt den
+  ORIGINAL-Netznamen als Value (``P5V``), nur der Graph ist das Rail-Symbol.
+- **Wirkung:** led_ring 16→**8** Labels (Dichte 0.73→**0.29**, Referenz-Niveau),
+  usb 22→14, ethernet leicht besser. 8/9 Kits weiter badness 0; ethernet 985→840.
+  Am Render sichtbar: die P5V-Textflut an den LEDs ist weg, Versorgung sind jetzt
+  saubere Symbole.
+- Erster Schritt der vollen Struktur-Angleichung; es folgen: Signal-Label-
+  Sparsamkeit (lokale Netze verdrahten), die 3 Struktur-Regeln (Rails/Reihe-
+  Shunt/getrennte Blöcke) und eine Nähe-zur-Referenz-Metrik.
+
 ### Added (Regel „keine Leitung durch ein Bauteil" als harte Wächter-Metrik — 0.14.3)
 - **Nutzer-Vorgabe:** „Es dürfen auch keine Leitungen durch Bauteile gehen."
 - **`layout_measure.wire_through_body` (neu):** zählt Draht-Segmente, die das
