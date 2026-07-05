@@ -508,6 +508,46 @@ def _stub_direction(
 # 270 = text downward      (connection at top)
 _LABEL_ANGLE = {"right": 0, "left": 180, "up": 90, "down": 270}
 
+_DIR_VEC = {"right": (1.0, 0.0), "left": (-1.0, 0.0),
+            "up": (0.0, -1.0), "down": (0.0, 1.0)}
+
+
+def _point_in_any_body(
+    x: float, y: float, bodies: list[tuple[float, float, float, float]],
+) -> bool:
+    """Liegt ``(x, y)`` in einem Bauteil-Rahmen (Liste (cx, cy, hw, hh))?"""
+    for cx, cy, hw, hh in bodies:
+        if abs(x - cx) < hw and abs(y - cy) < hh:
+            return True
+    return False
+
+
+def _free_stub_direction(
+    pin_x: float, pin_y: float, sym_x: float, sym_y: float,
+    bodies: list[tuple[float, float, float, float]],
+) -> str:
+    """Wähle eine Auswärts-Richtung, deren LABEL in FREIEM Raum landet.
+
+    Nutzer-Regel „alle Netlabels müssen vom Bauteil weg zeigen": die natürliche
+    Auswärts-Richtung (weg vom eigenen Bauteil-Zentrum) wird zuerst versucht;
+    zeigt sie in einen NACHBAR-Körper, werden die anderen drei geprüft und die
+    erste genommen, deren Label-Anker samt kurzer Sonde in KEINEM Bauteilkörper
+    liegt. Findet sich keine freie, bleibt es bei der natürlichen (kein
+    schlechterer Fallback als vorher). ``bodies`` schließt das eigene Bauteil
+    ein — so wird auch eine Richtung „quer über den eigenen Körper" verworfen."""
+    natural = _stub_direction(pin_x, pin_y, sym_x, sym_y)
+    order = [natural] + [d for d in ("right", "left", "up", "down")
+                         if d != natural]
+    for d in order:
+        vx, vy = _DIR_VEC[d]
+        lx, ly = pin_x + vx * LABEL_STUB_LEN, pin_y + vy * LABEL_STUB_LEN
+        # Sonde ein Stück ÜBER den Label-Anker hinaus (der Text ragt nach außen)
+        px, py = lx + vx * LABEL_STUB_LEN, ly + vy * LABEL_STUB_LEN
+        if not _point_in_any_body(lx, ly, bodies) \
+                and not _point_in_any_body(px, py, bodies):
+            return d
+    return natural
+
 # Offset vectors for each stub direction
 _STUB_DX = {"right": LABEL_STUB_LEN, "left": -LABEL_STUB_LEN, "up": 0.0, "down": 0.0}
 _STUB_DY = {"right": 0.0, "left": 0.0, "up": -LABEL_STUB_LEN, "down": LABEL_STUB_LEN}
@@ -659,6 +699,22 @@ def _emit_wires_and_labels(
     # Minimal obstacle set for L-bend fallback (core bounding boxes only, no clearance)
     lbend_obstacles = _build_obstacle_set(parts, WIRE_CLEARANCE / 2)
 
+    # Bauteil-Rahmen (rotations-bewusst) für die freie Label-Richtung: ein Label
+    # soll vom Bauteil WEG in freien Raum zeigen, nicht in einen Nachbarn.
+    _bodies: list[tuple[float, float, float, float]] = []
+    for _p in parts:
+        if "_place_x" not in _p:
+            continue
+        _w, _h = _get_symbol_bbox(_p)
+        if int(_p.get("_rotation", 0)) in (90, 270):
+            _w, _h = _h, _w
+        _bodies.append((round(_p["_place_x"], 2), round(_p["_place_y"], 2),
+                        _w / 2.0, _h / 2.0))
+
+    def _dir(px: float, py: float, cx: float, cy: float) -> str:
+        """Freie Auswärts-Richtung fürs Label an Pin (px,py) von Bauteil (cx,cy)."""
+        return _free_stub_direction(px, py, cx, cy, _bodies)
+
     # Collect pin cells that should not be blocked (start/end of wires)
     all_pin_cells: set[tuple[int, int]] = set()
 
@@ -740,7 +796,7 @@ def _emit_wires_and_labels(
                 # Simple circuit: wire the power net like a signal net
                 # Place one global label at the first pin with stub
                 ax0, ay0, ref0, pnum0, sx0, sy0 = pins[0]
-                d0 = _stub_direction(ax0, ay0, sx0, sy0)
+                d0 = _dir(ax0, ay0, sx0, sy0)
                 _place_power_or_label(net_name, ax0, ay0, d0)
 
                 # Wire between pins using MST
@@ -772,14 +828,14 @@ def _emit_wires_and_labels(
                         else:
                             # L-bend also blocked — label the far pin with stub
                             ax, ay, ref, pnum, sx, sy = pins[pj]
-                            d = _stub_direction(ax, ay, sx, sy)
+                            d = _dir(ax, ay, sx, sy)
                             _place_power_or_label(net_name, ax, ay, d)
             else:
                 # Mixed approach (Elektor style): try wiring what we can,
                 # label the rest. Even complex power nets benefit from
                 # partial wiring where pins are nearby.
                 ax0, ay0, ref0, pnum0, sx0, sy0 = pins[0]
-                d0 = _stub_direction(ax0, ay0, sx0, sy0)
+                d0 = _dir(ax0, ay0, sx0, sy0)
                 _place_power_or_label(net_name, ax0, ay0, d0)
 
                 wired_power = {0}  # first pin has the label
@@ -817,7 +873,7 @@ def _emit_wires_and_labels(
                 # Label only unreached pins
                 for idx, (ax, ay, ref, pnum, sx, sy) in enumerate(pins):
                     if idx not in wired_power:
-                        d = _stub_direction(ax, ay, sx, sy)
+                        d = _dir(ax, ay, sx, sy)
                         _place_power_or_label(net_name, ax, ay, d)
             continue
 
@@ -825,7 +881,7 @@ def _emit_wires_and_labels(
 
         if len(pins) == 1:
             ax, ay, ref, pnum, sx, sy = pins[0]
-            d = _stub_direction(ax, ay, sx, sy)
+            d = _dir(ax, ay, sx, sy)
             lbl_uid = uid(f"{project_name}_lbl_{net_name}_{ref}_{pnum}_{label_count}")
             w_uid = uid(f"{project_name}_stub_{net_name}_{ref}_{pnum}_{wire_count}")
             label_count += 1
@@ -839,7 +895,7 @@ def _emit_wires_and_labels(
         # Feedback paths: always labels with stubs
         if _is_feedback_net(net, nets, parts):
             for ax, ay, ref, pnum, sx, sy in pins:
-                d = _stub_direction(ax, ay, sx, sy)
+                d = _dir(ax, ay, sx, sy)
                 lbl_uid = uid(f"{project_name}_lbl_{net_name}_{ref}_{pnum}_{label_count}")
                 w_uid = uid(f"{project_name}_stub_{net_name}_{ref}_{pnum}_{wire_count}")
                 label_count += 1
@@ -915,7 +971,7 @@ def _emit_wires_and_labels(
             # Label any pins that couldn't be reached by wire (with stubs)
             for idx, (ax, ay, ref, pnum, sx, sy) in enumerate(pins):
                 if idx not in wired_pin_indices:
-                    stub_dir = _stub_direction(ax, ay, sx, sy)
+                    stub_dir = _dir(ax, ay, sx, sy)
                     lbl_uid = uid(f"{project_name}_lbl_{net_name}_{ref}_{pnum}_{label_count}")
                     w_uid = uid(f"{project_name}_stub_{net_name}_{ref}_{pnum}_{wire_count}")
                     label_count += 1
@@ -976,7 +1032,7 @@ def _emit_wires_and_labels(
             # Label pins that couldn't be wired
             for idx, (ax, ay, ref, pnum, sx, sy) in enumerate(pins):
                 if idx not in wired_label_indices:
-                    stub_dir = _stub_direction(ax, ay, sx, sy)
+                    stub_dir = _dir(ax, ay, sx, sy)
                     lbl_uid = uid(f"{project_name}_lbl_{net_name}_{ref}_{pnum}_{label_count}")
                     w_uid = uid(f"{project_name}_stub_{net_name}_{ref}_{pnum}_{wire_count}")
                     label_count += 1

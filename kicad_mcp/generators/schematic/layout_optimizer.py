@@ -29,6 +29,7 @@ zerstört.
 from __future__ import annotations
 
 import random
+import time
 from dataclasses import dataclass
 from typing import Callable, Iterator
 
@@ -138,6 +139,29 @@ def _align_axis(axis: str):
     return make
 
 
+def _spread_from_centroid(placed, nets, rng) -> Iterator[Candidate]:
+    """EIN Kandidat, der ALLE Bauteile vom gemeinsamen Schwerpunkt weg skaliert
+    (auf Raster gerundet). Der stärkste Hebel gegen dichte Cluster, wo ein Label
+    in JEDER Richtung einen Nachbarn trifft — mehr Abstand statt lokaler
+    Einzelschritte, die der Greedy-Climber nicht koordiniert bekommt."""
+    if len(placed) < 3:
+        return
+    cx = sum(p["_place_x"] for p in placed) / len(placed)
+    cy = sum(p["_place_y"] for p in placed) / len(placed)
+    for factor in (1.15, 1.3, 1.5):
+        cand: Candidate = []
+        for p in placed:
+            nx = _round_grid(cx + (p["_place_x"] - cx) * factor)
+            ny = _round_grid(cy + (p["_place_y"] - cy) * factor)
+            cand.append((p, "_place_x", nx))
+            cand.append((p, "_place_y", ny))
+        yield cand
+
+
+def _round_grid(v: float) -> float:
+    return round(round(v / GRID) * GRID, 2)
+
+
 def _swap_partners(placed, nets, rng) -> Iterator[Candidate]:
     """Zwei über ein Netz verbundene Bauteile ihre Plätze tauschen lassen —
     kann verhedderte Reihenfolgen (Kreuzungen) auf einen Schlag entwirren."""
@@ -186,6 +210,7 @@ OPERATORS: list[MoveOp] = [
     MoveOp("align_x", "X auf Netz-Nachbarn ausrichten", _align_axis("x")),
     MoveOp("align_y", "Y auf Netz-Nachbarn ausrichten", _align_axis("y")),
     MoveOp("pull_partners", "zum Nachbar-Schwerpunkt kompaktieren", _pull_to_partners),
+    MoveOp("spread", "alles vom Schwerpunkt weg spreizen (dichte Cluster)", _spread_from_centroid),
     MoveOp("swap_partners", "verbundene Bauteile tauschen", _swap_partners),
     MoveOp("settle", "1 Raster nach oben (2. Runde)", _translators((0, -1))),
 ]
@@ -230,6 +255,7 @@ def optimize(
     *,
     weights: dict | None = None,
     max_evals: int = 1500,
+    max_seconds: float | None = 30.0,
     restarts: int = 1,
     seed: int = 0,
 ) -> dict:
@@ -243,6 +269,11 @@ def optimize(
     Mutiert die ``_place_*``-Felder der ``parts`` in-place auf das beste
     gefundene Layout. Gibt ``{start, badness, evals, improved}`` zurück.
 
+    ``max_seconds`` deckelt die Wanduhr-Laufzeit (Default 45 s), damit dichte
+    Extremfälle (viele Labels, tiefer Cluster) die Generierung nie minutenlang
+    blockieren — der Optimierer gibt dann das bis dahin beste (nie schlechtere)
+    Layout zurück. ``None`` = kein Zeitlimit (Batch/Test).
+
     Use this when a generated schematic still shows crossings, labels pointing
     into neighbours, or a residual overlap: it searches real placements and
     keeps only measured improvements. It never makes the metric worse than the
@@ -253,6 +284,10 @@ def optimize(
         return {"start": 0.0, "badness": 0.0, "evals": 0, "improved": False}
 
     rng = random.Random(seed)
+    deadline = (time.monotonic() + max_seconds) if max_seconds else None
+
+    def _out_of_time() -> bool:
+        return deadline is not None and time.monotonic() >= deadline
 
     def fit() -> float:
         return lm.measure_text(emit_fn()).badness(weights)
@@ -264,6 +299,8 @@ def optimize(
     gbest_snap, gbest_bad = best_snap, best_bad
 
     for r in range(restarts + 1):
+        if _out_of_time():
+            break
         if r > 0:
             _restore(parts, gbest_snap)
             _kick(placed, rng)
@@ -272,11 +309,12 @@ def optimize(
             evals += 1
 
         improving = True
-        while improving and evals < max_evals and best_bad > 0:
+        while improving and evals < max_evals and best_bad > 0 \
+                and not _out_of_time():
             improving = False
             for op in OPERATORS:
                 for cand in op.make(placed, nets, rng):
-                    if evals >= max_evals:
+                    if evals >= max_evals or _out_of_time():
                         break
                     _apply(cand)
                     b = fit()
@@ -287,7 +325,7 @@ def optimize(
                         improving = True
                     else:
                         _restore(parts, best_snap)
-                if evals >= max_evals or best_bad <= 0:
+                if evals >= max_evals or best_bad <= 0 or _out_of_time():
                     break
 
         if best_bad < gbest_bad:

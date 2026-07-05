@@ -1,7 +1,25 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.14.0**
+Aktuelle Version: **0.14.1**
+
+---
+
+## 🔎 Neu in 0.14.1 — Aufräum-Messung war zu blind, jetzt ehrlich
+
+- **Wichtige Korrektur:** die Qualitäts-Messung hat Bauteile fälschlich als
+  winzige Kästchen betrachtet und dadurch echte Überlappungen übersehen. Ein
+  Programmierfehler (eine falsche „+=“-Zeile) ließ sie bei fast jedem Bauteil
+  auf eine Notgröße zurückfallen. Behoben — die Messung sieht jetzt die echte
+  Bauteil-Größe.
+- **Ehrliches Ergebnis:** 8 von 9 Demo-Schaltungen werden sauber wie ein
+  Profi-Plan (Bestnote). Die Ethernet-Schaltung nicht — sie benutzt für 11
+  benötigte Anschlüsse ein riesiges 176-Pin-Mikrocontroller-Symbol (22 cm hoch);
+  darin lassen sich die Beschriftungen nicht sinnvoll unterbringen. Das ist eine
+  Frage der Symbol-Wahl, kein Layout-Fehler — bleibt als Aufgabe offen.
+- **Beschriftungen zeigen jetzt zuverlässiger vom Bauteil weg** (sie suchen sich
+  aktiv freien Raum), und der Aufräum-Lauf hat ein Zeitlimit, damit die
+  Erzeugung nie minutenlang hängt.
 
 ---
 

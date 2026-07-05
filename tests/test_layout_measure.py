@@ -50,3 +50,25 @@ def test_overlap_is_detected():
 def test_diagonal_wire_is_flagged():
     sch = '(kicad_sch (wire (pts (xy 10 10) (xy 20 25))))'
     assert lm.measure_text(sch).diag_wires == 1
+
+
+def test_ic_bbox_is_real_not_fallback():
+    # Regression: eine Closure-``+=``-Falle ließ _bbox_for_lib bei JEDEM Symbol
+    # mit Rechteck-Körper auf die 2.54×2.54-Fallback-Bbox zurückfallen → die
+    # Überlappungs-Metrik war blind. Ein echter IC ist DEUTLICH größer als der
+    # Fallback; ein 2-Pin-R schmaler-aber-höher als der Fallback.
+    w, h = lm._bbox_for_lib("74xx:74HC595")
+    assert w > 8.0 and h > 15.0, f"IC-Bbox sieht nach Fallback aus: {(w, h)}"
+    rw, rh = lm._bbox_for_lib("Device:R")
+    assert rh > 4.0, f"R-Bbox sieht nach Fallback aus: {(rw, rh)}"
+
+
+def test_two_large_ics_side_by_side_overlap_is_detected():
+    # Zwei ICs 3 mm auseinander: mit Fallback-Bbox (Halb-Breite 1.27) würde das
+    # NICHT als Überlappung zählen; mit echter Bbox (Halb-Breite ~7.6) schon.
+    sch = ('(kicad_sch\n'
+           '(symbol (lib_id "74xx:74HC595") (at 100 100 0) (unit 1)'
+           ' (in_bom yes) (on_board yes))\n'
+           '(symbol (lib_id "74xx:74HC595") (at 103 100 0) (unit 1)'
+           ' (in_bom yes) (on_board yes))\n)')
+    assert lm.measure_text(sch).comp_overlaps >= 1

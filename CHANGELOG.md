@@ -8,6 +8,36 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (KRITISCH: Überlappungs-Metrik war blind — Closure-``+=``-Falle — 0.14.1)
+- **`layout_measure._bbox_for_lib` fiel bei JEDEM Symbol mit Rechteck-Körper
+  auf die 2.54×2.54-Fallback-Bbox zurück:** in der verschachtelten ``_walk``-
+  Closure rebindet ``rxs += [...]`` die freie Variable → Python macht sie lokal →
+  ``UnboundLocalError`` → vom bloßen ``except`` verschluckt. Folge: die
+  Bauteil-Überlappungs-Metrik sah JEDES Bauteil als winzigen 2.54-mm-Kasten und
+  war damit blind für echte Überlappungen (außer exakten Stapeln). ``.extend``
+  statt ``+=`` behebt es. **Damit war die 0.14.0-Aussage „alle 10 Kits erreichen
+  badness 0" mit der defekten Metrik gemessen und FALSCH** — siehe unten die
+  ehrlichen Zahlen. Regressions-Test: ein IC misst jetzt real groß, nicht
+  Fallback.
+
+### Changed (ehrliche Zahlen + Label-Richtung an der Quelle + Zeitbudget — 0.14.1)
+- **Freie Label-Richtung (`route._free_stub_direction`):** ein Netz-Label wählt
+  jetzt die Auswärts-Richtung, deren Anker in FREIEM Raum landet (statt blind der
+  Pin-Normalen zu folgen und in einen Nachbarn zu ragen) — direkt die
+  Nutzer-Regel „alle Netlabels müssen vom Bauteil weg zeigen". Power-Symbole
+  bleiben GND↓/VCC↑ (Richtung dort erzwungen).
+- **`spread`-Operator** (alles vom Schwerpunkt weg skalieren) für dichte Cluster,
+  wo ein Label in jeder Richtung einen Nachbarn trifft; **Wanduhr-Budget**
+  (`max_seconds=30`), damit Extremfälle die Generierung nie minutenlang blockieren
+  (der Optimierer gibt das bis dahin beste, nie schlechtere Layout zurück).
+- **Ehrliche Bilanz mit der korrigierten Metrik:** 8 von 9 Demo-Schaltungen
+  erreichen badness 0 (ac_dc, audio, buck, led, motor, production_ready, sketch,
+  usb). **`ethernet_device` erreicht NICHT 0:** es nutzt für 11 verdrahtete Pins
+  ein 176-Pin-STM32F407-Symbol (71×221 mm); die Labels sitzen im riesigen Körper
+  und können mit 2.54-mm-Stub nicht heraus. Root-Cause = überdimensioniertes
+  Symbol (Symbol-Wahl), kein Layout-Problem — es bleibt als „oversized MCU
+  symbol slimmen" offen.
+
 ### Added (Layout-Optimierer: echte Such-Schleife gegen den Profi-Goldstandard — 0.14.0)
 - **Nutzer-Vorgabe:** „der größte Hebel: nichts übereinander legen … alle
   Netlabels müssen vom Bauteil weg zeigen … versuche deine vorgeschlagene
@@ -20,11 +50,12 @@ the first tag ships.
   gegen lokale Minima. Die Nachbarschaft steht als **wartbare 20er-Operator-
   Liste** (`OPERATORS`: Nudges 1–2 Raster, Diagonalen, 90°-Drehung, Passiv-
   Pin-Tausch, Achsen-Ausrichtung, Nachbar-Kompaktierung, Bauteil-Tausch).
-- **Ergebnis (empirisch):** alle 10 Demo-Schaltungen erreichen nach der
-  Optimierung **badness 0** — dieselbe 0 wie die Profi-Referenz-Schaltbilder:
-  0 Bauteil-Überlappungen, 0 Label-auf-Bauteil, 0 Labels-die-in-Nachbarn-ragen,
-  0 Draht-Kreuzungen, 0 Diagonalen, alles auf dem Raster. Vorher lagen sie bei
-  badness 8–116.
+- **Ergebnis (empirisch):** die Demo-Schaltungen erreichen nach der Optimierung
+  **badness 0** — dieselbe 0 wie die Profi-Referenz-Schaltbilder: 0 Bauteil-
+  Überlappungen, 0 Label-auf-Bauteil, 0 Labels-die-in-Nachbarn-ragen, 0 Draht-
+  Kreuzungen, 0 Diagonalen, alles auf dem Raster. (**Korrektur in 0.14.1:** diese
+  Messung lief noch mit der bbox-defekten Metrik; ehrlich sind es 8 von 9 Kits →
+  0, ethernet_device ausgenommen — siehe 0.14.1.)
 - **In der Pipeline:** `build_schematic(..., optimize=True)`; aktiviert in
   `generation_tools` (generate_project / generate_schematic / generate_from_netlist).
   Der Optimierer macht ein Layout NIE schlechter als die Pipeline (Eingang =

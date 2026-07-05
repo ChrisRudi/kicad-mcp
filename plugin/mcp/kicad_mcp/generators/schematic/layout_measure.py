@@ -60,8 +60,13 @@ def _bbox_for_lib(lib_id: str, n_pins: int = 2) -> tuple[float, float]:
                 elif node[0] == "rectangle":
                     s, e = find_node(node, "start"), find_node(node, "end")
                     if s and e:
-                        rxs += [float(s[1]), float(e[1])]
-                        rys += [float(s[2]), float(e[2])]
+                        # .extend (nicht +=): in dieser verschachtelten Closure
+                        # rebindet ``rxs += [...]`` die freie Variable → local →
+                        # UnboundLocalError → alle Symbole fielen auf die
+                        # 2.54×2.54-Fallback-Bbox zurück (Metrik war blind für
+                        # Bauteil-Überlappungen außer exakten Stapeln).
+                        rxs.extend([float(s[1]), float(e[1])])
+                        rys.extend([float(s[2]), float(e[2])])
                 elif node[0] == "polyline":
                     for pt in (find_node(node, "pts") or []):
                         if isinstance(pt, list) and pt and pt[0] == "xy" \
