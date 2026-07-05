@@ -1,7 +1,23 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.12.5**
+Aktuelle Version: **0.13.0**
+
+---
+
+## 📐 Neu in 0.13.0 — Layout-Regeln aus echten Schaltbildern abgeleitet
+
+- **Die 10 Schaltplan-Regeln sind jetzt nicht mehr erfunden, sondern aus echten,
+  professionell gezeichneten KiCad-Referenz-Schaltbildern abgeleitet** (die
+  offiziellen Demos „sallen_key" und „rectifier"): angesehen, Konventionen
+  notiert, als Regeln formuliert — jede mit Beleg, woher sie stammt.
+- Neu aufgenommen (aus der Referenz sichtbar, bei uns noch offen): Signal fließt
+  als Kette entlang einer oberen Versorgungs- und unteren Masse-Schiene,
+  Reihen-Bauteile liegen horizontal / Quer-nach-Masse-Bauteile vertikal,
+  Versorgung als eigener Block. Die alten, erfundenen Regeln sind raus.
+- Das Verhalten selbst ist unverändert (kein Überlappen, ≥5 mm Draht, Raster) —
+  die neuen Struktur-Regeln sind als „geplant" markiert; sie umzusetzen ist der
+  nächste große Hebel Richtung „sieht aus wie von Hand gezeichnet".
 
 ---
 

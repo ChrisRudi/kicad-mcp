@@ -3,32 +3,32 @@
 
 Single Source of Truth dafür, WELCHE Konventionen der Schaltplan-Generator
 einhält. Jede Regel steht hier einmal als Datensatz (Aussage + Begründung +
-wo erzwungen + Ausnahmen + Status), damit sie auffindbar, review-bar und
-wartbar ist — statt verstreut in Kommentaren über place.py/route.py/geometry.py.
+Beleg + wo erzwungen + Ausnahmen + Status + Phase), damit sie auffindbar,
+review-bar und wartbar ist.
 
-Absicht (Nutzer-Vorgabe): „Alle Regeln … müssen als eigenes wartbares Set in die
-Generatoren." Dieses Modul IST dieses Set. Die eigentliche Durchsetzung lebt
-(noch) in den genannten Funktionen; ``enforced_in`` verweist darauf. Ein
-späterer Refactor kann die Logik gegen diese Keys zentralisieren, ohne dass die
-Regel-Liste selbst wandert.
+Diese 10 Regeln sind NICHT erfunden, sondern aus echten, professionell
+gezeichneten KiCad-Referenz-Schaltbildern abgeleitet (die offiziellen
+KiCad-Demos ``sallen_key`` und ``rectifier``): angesehen, Konventionen notiert,
+als Regeln formuliert. ``derived_from`` nennt je Regel den Beleg.
 
-Pure/stdlib — importiert headless, unit-getestet ohne KiCad
-(``tests/test_layout_rules.py``).
+Die Durchsetzung: geometrische Regeln (Phase GEOMETRY/FINISH mit ``enforcer``)
+fährt die listen-getriebene Engine ``schematic.place._enforce_layout_rules`` ab;
+die übrigen (Phase PLACEMENT) sind intrinsisch im Platzierer/Router bzw. noch
+PLANNED. Pure/stdlib — headless importierbar, unit-getestet ohne KiCad.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-# Status-Werte.
-ENFORCED = "enforced"   # implementiert UND verifiziert (Messung im Test/Render)
-PARTIAL = "partial"     # implementiert, aber mit bekannten Randfällen
-PLANNED = "planned"     # spezifiziert, noch nicht umgesetzt
+# Status — wie weit ist die Regel real umgesetzt?
+ENFORCED = "enforced"   # implementiert UND verifiziert (Messung/Render)
+PARTIAL = "partial"     # teilweise umgesetzt (Minimalform / Heuristik)
+PLANNED = "planned"     # aus der Referenz abgeleitet, noch nicht umgesetzt
 
 _VALID_STATUS = (ENFORCED, PARTIAL, PLANNED)
 
-# Durchsetzungs-Phase — steuert die listen-getriebene Engine
-# (``schematic.place._enforce_layout_rules``):
+# Durchsetzungs-Phase — steuert die listen-getriebene Engine.
 #   PLACEMENT  intrinsisch im Platzierer/Router (kein separater Nachlauf)
 #   GEOMETRY   Post-Placement-Nachlauf in einer Fixpunkt-Schleife (bis stabil)
 #   FINISH     genau einmal ganz am Ende
@@ -41,157 +41,178 @@ _VALID_PHASE = (PLACEMENT, GEOMETRY, FINISH)
 
 @dataclass(frozen=True)
 class LayoutRule:
-    """Eine Schaltplan-Layout-Regel.
+    """Eine aus echten Referenz-Schaltbildern abgeleitete Layout-Regel.
 
-    key         stabile id
-    title       Kurzname
-    rule        die Regel-Aussage (was gilt), knapp und prüfbar
-    rationale   warum — welche Lesbarkeits-/Konventions-Absicht dahinter steht
-    enforced_in Liste ``modul.funktion``-Verweise, die die Regel durchsetzen
-    exemptions  Fälle, in denen die Regel bewusst NICHT greift
-    status      ENFORCED | PARTIAL | PLANNED
-    phase       PLACEMENT | GEOMETRY | FINISH — steuert die listen-getriebene
-                Durchsetzungs-Engine (Default PLACEMENT = intrinsisch im
-                Platzierer/Router, kein separater Nachlauf)
+    key          stabile id
+    title        Kurzname
+    rule         die Regel-Aussage (was gilt), knapp und prüfbar
+    rationale    warum — welche Lesbarkeits-/Konventions-Absicht dahinter steht
+    derived_from Beleg: was im Referenz-Schaltbild diese Regel zeigt
+    enforced_in  ``modul.funktion``-Verweise, die die Regel durchsetzen (leer
+                 bei PLANNED)
+    exemptions   Fälle, in denen die Regel bewusst NICHT greift
+    status       ENFORCED | PARTIAL | PLANNED
+    phase        PLACEMENT | GEOMETRY | FINISH — für die Engine
+    enforcer     Name des mechanischen Enforcers (``spacing`` | ``grid_snap``)
+                 oder leer (intrinsisch/PLANNED)
     """
     key: str
     title: str
     rule: str
     rationale: str
-    enforced_in: tuple[str, ...]
+    derived_from: str
+    enforced_in: tuple[str, ...] = ()
     exemptions: tuple[str, ...] = ()
-    status: str = ENFORCED
+    status: str = PLANNED
     phase: str = PLACEMENT
+    enforcer: str = ""
 
 
-# Reihenfolge = logischer Ablauf: verstehen → platzieren → verdrahten →
-# Abstände/Konventionen → Feinschliff.
+# Reihenfolge = die 10 abgeleiteten Regeln, wie in der Analyse nummeriert.
 RULES: tuple[LayoutRule, ...] = (
     LayoutRule(
-        key="pin_swap_passives",
-        title="Pin-Tausch bei C/L/R (Pin 1 ↔ 2 vertauschbar)",
-        rule="Bei Kondensatoren, Spulen und Widerständen (symmetrische "
-             "2-Pin-Bauteile ohne Polarität) dürfen Pin 1 und Pin 2 vertauscht "
-             "werden, um kürzere, kreuzungsärmere Leitungen zu erhalten.",
-        rationale="Ein unpolarer R/C/L ist an beiden Enden gleich — welches "
-                  "Ende an welches Netz geht, ist frei und darf zur "
-                  "Draht-Verkürzung genutzt werden.",
-        enforced_in=("schematic.defrag_place._best_rotation (die 180°-Drehung "
-                     "eines 2-Pin-Symbols vertauscht die Pin-Seiten)",),
-        exemptions=("polarisierte Bauteile: Elkos (CP), Dioden/LEDs, "
-                    "getaktete/gerichtete Teile — Pin-Zuordnung ist fix",),
+        key="signal_flow_ltr",
+        title="Signalfluss links → rechts",
+        rule="Der Signalweg verläuft von links (Quelle/Eingang) nach rechts "
+             "(Last/Ausgang); Ein-/Ausgangsstecker sitzen an den Blatträndern.",
+        rationale="Ein Schaltbild liest man wie einen Text — Eingang links, "
+                  "Ausgang rechts.",
+        derived_from="sallen_key: V1→R1→R2→U1→'lowpass'; rectifier: "
+                     "V1→R1→D1→'rect_out'.",
+        enforced_in=("schematic.defrag_place (Connectors am Rand)",
+                     "schematic.place._compute_net_roles (Source/Sink)"),
+        status=PARTIAL,
     ),
     LayoutRule(
-        key="smart_rotation",
-        title="Pin-bewusste Rotation",
-        rule="Die Rotation eines Bauteils wird so gewählt, dass seine "
-             "verbundenen Pins zu ihren Partnern zeigen (kürzeste Drähte).",
-        rationale="Ohne passende Drehung entstehen unnötige Bögen und "
-                  "Kreuzungen.",
-        enforced_in=("schematic.place._classify/_assign_rotation",
-                     "schematic.defrag_place._best_rotation"),
+        key="power_rails",
+        title="Versorgung oben, Masse unten — als Schienen",
+        rule="Das Schaltbild spannt sich zwischen einer oberen Versorgungs- "
+             "und einer unteren Masse-Ebene auf; Versorgung wird oben, Masse "
+             "unten geführt.",
+        rationale="Auf einen Blick erkennbar, wo Versorgung und Masse liegen.",
+        derived_from="rectifier: GND-Rückleitung ist die untere waagrechte "
+                     "Leitung; sallen_key: VDD oben, VSS/GND unten.",
+        enforced_in=("schematic.route._place_power_symbol (GND↓ / Supply↑)",),
+        exemptions=("volle Rail-Struktur (durchgehende obere/untere Schiene) "
+                    "noch nicht — bisher nur die Symbol-Richtung",),
+        status=PARTIAL,
     ),
     LayoutRule(
-        key="no_labels",
-        title="Echte Drähte statt Netz-Labels",
-        rule="Verbindungen werden als gezeichnete Leitungen ausgeführt, nicht "
-             "als Netz-Labels (für kleine Schaltungen).",
-        rationale="Labels zerreißen kleine Schaltpläne optisch; gezeichnete "
-                  "Drähte sind direkt lesbar.",
-        enforced_in=("schematic.route._emit_wires_and_labels",),
-        exemptions=("Power-Netze → Power-Symbole (GND/VCC)",
-                    "sehr lange / hoch-fan-out Netze → Label (A*-Fallback)"),
+        key="series_horizontal_shunt_vertical",
+        title="Reihe horizontal, Quer-nach-Masse vertikal",
+        rule="Bauteile IM Signalpfad (in Reihe) liegen horizontal; Bauteile "
+             "nach Masse (Quer/Shunt: Abblock-Cs, Last, Filter-C) stehen "
+             "vertikal und verbinden die Signalschiene mit der Masse unten.",
+        rationale="Der wichtigste Struktur-Unterschied zu 'geclustert': echte "
+                  "Schaltbilder reihen entlang einer Schiene mit senkrechten "
+                  "Abzweigen.",
+        derived_from="rectifier: R1/D1 waagrecht in der Kette, C1 und Last-R2 "
+                     "senkrecht runter zu GND; sallen_key: R1/R2 waagrecht, "
+                     "C2 senkrecht nach GND.",
+        status=PLANNED,
     ),
     LayoutRule(
-        key="connectors_outermost",
-        title="Stecker außen, Leitung nach innen",
-        rule="Ein-/Ausgangs-Stecker sitzen am äußersten Rand; die Leitung "
-             "läuft von dort nach innen zur Schaltung (Signalfluss "
-             "links→rechts).",
-        rationale="Konvention: man findet Ein-/Ausgang am Blattrand.",
-        enforced_in=("schematic.defrag_place (Connectors zuletzt, am nächsten "
-                     "Rand)",),
+        key="ic_in_signal_direction",
+        title="ICs zeigen in Signalrichtung",
+        rule="ICs werden so orientiert, dass Eingänge links und Ausgänge "
+             "rechts liegen (das OpAmp-Dreieck zeigt nach rechts); "
+             "Versorgungspins vertikal (V+ oben, V− unten).",
+        rationale="Passt zum Links→rechts-Signalfluss und hält die "
+                  "Versorgung an der Rail-Konvention.",
+        derived_from="sallen_key: U1-Dreieck zeigt rechts, Eingänge 1/2 links, "
+                     "Ausgang 5 rechts, V+ (3) oben, V− (4) unten.",
+        enforced_in=("schematic.place._assign_rotation (Heuristik)",),
+        status=PARTIAL,
     ),
     LayoutRule(
-        key="gnd_down_vcc_up",
-        title="GND unten, Versorgung oben",
-        rule="Ground-Symbole zeigen IMMER nach unten, Versorgungs-Symbole "
-             "(VCC/+5V/…) IMMER nach oben — unabhängig von der Pin-Richtung.",
-        rationale="KiCad-/Schaltplan-Standard; sofort lesbar, wo Masse und "
-                  "Versorgung sind.",
-        enforced_in=("schematic.route._place_power_symbol (direction erzwungen)",),
+        key="orthogonal_on_grid",
+        title="Nur orthogonale Drähte auf dem Raster",
+        rule="Leitungen laufen ausschließlich waagrecht/senkrecht mit "
+             "rechtwinkligen Knicken; alle Bauteile und Knicke liegen auf dem "
+             "Schaltplan-Raster. Keine Diagonalen.",
+        rationale="Diagonale/off-grid-Drähte sind das klarste Kennzeichen "
+                  "eines 'maschinellen', unfertigen Schaltbilds.",
+        derived_from="beide Referenzen: nicht eine einzige diagonale Leitung, "
+                     "alles rechtwinklig und rastergebunden.",
+        enforced_in=("schematic.route._emit_wires_and_labels (A*, orthogonal)",
+                     "schematic.place (finaler Grid-Snap)"),
+        status=ENFORCED,
+        phase=FINISH,
+        enforcer="grid_snap",
     ),
     LayoutRule(
-        key="no_overlap",
-        title="Bauteile überlappen nie",
-        rule="Kein Bauteil-Rahmen überlappt einen anderen — garantiert.",
-        rationale="Überlappende Symbole sind unlesbar und ERC-gefährlich.",
-        enforced_in=("common.geometry._resolve_overlaps (rotations-bewusst)",
-                     "common.geometry.force_no_overlap (harte Garantie)"),
-        phase=GEOMETRY,
-    ),
-    LayoutRule(
-        key="min_wire",
-        title="Mindestens 5 mm Leitung je Verbindung",
-        rule="Zwischen zwei direkt verdrahteten Pins VERSCHIEDENER Bauteile "
-             "liegen immer ≥ 5 mm (MIN_WIRE_MM) sichtbare Leitung — nie "
-             "Pin-an-Pin ohne Draht.",
-        rationale="Ohne sichtbaren Draht sieht es aus, als klebten Bauteile "
-                  "direkt aneinander.",
-        enforced_in=("schematic.place._enforce_min_wire",),
-        exemptions=("Power-Pins (gehen über GND/VCC-Symbole, kein direkter "
-                    "Draht)",
-                    "zwei Pins DESSELBEN ICs (durch Symbol-Geometrie fixiert)"),
-        phase=GEOMETRY,
-    ),
-    LayoutRule(
-        key="wire_along_pin_exit",
-        title="Leitung folgt der Pin-Austrittsrichtung",
-        rule="Die 5-mm-Leitung verläuft entlang der Richtung, in der der "
-             "Anschluss aus dem Bauteilkörper austritt (geradlinig aus dem "
-             "Pin), nicht schräg.",
-        rationale="Ein Draht, der seitlich aus einem nach unten zeigenden Pin "
-                  "abknickt, wirkt falsch; die Leitung soll dem Pin folgen.",
-        enforced_in=("schematic.place._enforce_min_wire (_RETREAT via "
-                     "route._stub_direction)",),
-        exemptions=("Partner nicht auf der Pin-Achse → Fallback trennt "
-                    "zusätzlich direkt (Garantie ≥ 5 mm hat Vorrang)",),
+        key="generous_spacing",
+        title="Großzügige, sichtbare Drahtlängen — nie Pin-an-Pin, kein Überlappen",
+        rule="Bauteile stehen weit genug auseinander, dass zwischen ihnen "
+             "sichtbare Leitung liegt (≥ 5 mm, Ziel eher 10–20 mm); kein "
+             "Bauteil überlappt ein anderes.",
+        rationale="Luft zwischen den Bauteilen macht den Plan lesbar; "
+                  "Pin-an-Pin oder Überlappung ist unlesbar.",
+        derived_from="beide Referenzen: überall großzügiger Abstand, lange "
+                     "sichtbare Leitungen, nichts klebt aneinander.",
+        enforced_in=("schematic.place._enforce_min_wire (≥ 5 mm)",
+                     "common.geometry.force_no_overlap (kein Überlappen)"),
+        exemptions=("Power-Pins gehen über Symbole; zwei Pins desselben ICs "
+                    "sind fixiert",),
         status=PARTIAL,
         phase=GEOMETRY,
+        enforcer="spacing",
     ),
     LayoutRule(
-        key="ref_value_right",
-        title="Referenz & Wert rechts vom Bauteil",
-        rule="Reference (z. B. R1) und Value (z. B. 10k) stehen rechts neben "
-             "dem Bauteil, auseinandergezogen.",
-        rationale="Einheitliche, lesbare Beschriftung.",
-        enforced_in=("schematic.builder._emit_symbol_instances (Rule R12)",),
+        key="power_symbols_and_io_labels",
+        title="Power als Symbole, Ein-/Ausgänge als Netz-Labels",
+        rule="Versorgung/Masse werden als Power-Symbole (GND/VDD/VSS) gesetzt, "
+             "nicht als durchgezogene Rails-Drähte; Ein-/Ausgänge tragen "
+             "sprechende Netz-Labels an ihren Enden.",
+        rationale="Weniger kreuzende Leitungen, klar benannte Schnittstellen.",
+        derived_from="beide Referenzen: GND/VDD/VSS als Symbole; Labels "
+                     "'signal_in'/'lowpass'/'rect_out' an den Enden.",
+        enforced_in=("schematic.route._place_power_symbol",
+                     "schematic.route._place_label_with_stub"),
+        status=ENFORCED,
     ),
     LayoutRule(
-        key="no_wire_through_parts",
-        title="Drähte gehen niemals durch Bauteile",
-        rule="Keine Leitung verläuft durch einen Bauteilkörper — der A*-Router "
-             "führt jeden Draht um die Bauteil-Rahmen herum; findet er keinen "
-             "freien Weg, wird statt eines Durchstich-Drahts ein Label gesetzt.",
-        rationale="Ein Draht quer durch ein Symbol ist mehrdeutig (sieht aus "
-                  "wie eine Verbindung, die keine ist) und schlicht unlesbar.",
-        enforced_in=("schematic.route._emit_wires_and_labels (A* + "
-                     "Label-Fallback)",),
+        key="ref_value_stacked",
+        title="Referenz & Wert konsistent gestapelt",
+        rule="Referenz (R1) und Wert (1k) stehen konsistent gestapelt auf "
+             "derselben Seite jedes Bauteils, für gleichartige Teile gleich "
+             "ausgerichtet.",
+        rationale="Einheitliche Beschriftung, schnell erfassbar.",
+        derived_from="beide Referenzen: R1 über 1k, C1 über 100n — überall "
+                     "gleich.",
+        enforced_in=("schematic.builder._emit_symbol_instances",),
+        exemptions=("aktuell rechts vom Bauteil statt oben — noch nicht die "
+                    "Referenz-Anordnung",),
+        status=PARTIAL,
     ),
     LayoutRule(
-        key="grid_snap",
-        title="Alles auf dem Raster",
-        rule="Alle Bauteil-Positionen werden abschließend auf das Schaltplan-"
-             "Raster (HALF_GRID) gesnappt.",
-        rationale="Off-Grid-Pins verhindern saubere, orthogonale Drähte.",
-        enforced_in=("schematic.place.place_schematic (finaler _snap)",),
-        phase=FINISH,
+        key="junctions_at_tees",
+        title="Junction-Punkt an jeder 3-Wege-Verbindung",
+        rule="An jeder T-/Kreuz-Verbindung von 3+ Leitungen sitzt ein "
+             "Junction-Punkt, damit 'verbunden' und 'nur gekreuzt' eindeutig "
+             "unterscheidbar sind.",
+        rationale="Ohne Junction ist eine Kreuzung mehrdeutig — verbunden oder "
+                  "nicht?",
+        derived_from="beide Referenzen: grüne Punkte an allen T-Verzweigungen.",
+        enforced_in=("schematic.route (Junctions an Mehrfach-Knoten)",),
+        status=ENFORCED,
+    ),
+    LayoutRule(
+        key="separate_supply_blocks",
+        title="Versorgungs-/Hilfsblöcke getrennt vom Signalpfad",
+        rule="Stromversorgung und Hilfsschaltungen werden als eigener, "
+             "räumlich getrennter Block gezeichnet, nicht in den Signalpfad "
+             "gemischt.",
+        rationale="Der Signalpfad bleibt sauber lesbar; Versorgung stört nicht.",
+        derived_from="sallen_key: die Quellen V2/V3 als eigener Cluster oben "
+                     "rechts, getrennt von der Filter-Signalkette.",
+        status=PLANNED,
     ),
 )
 
 
 def all_rules() -> tuple[LayoutRule, ...]:
-    """Alle Layout-Regeln, in logischer Reihenfolge."""
+    """Alle 10 abgeleiteten Layout-Regeln, in Analyse-Reihenfolge."""
     return RULES
 
 
@@ -212,11 +233,12 @@ def by_phase(phase: str) -> list[LayoutRule]:
 
 
 def validate() -> None:
-    """Integritäts-Check — wirft ``ValueError`` bei Verstoß. Vom Test genutzt,
-    damit kein halbgarer Eintrag ins Set kommt."""
+    """Integritäts-Check — wirft ``ValueError`` bei Verstoß."""
     keys = [r.key for r in RULES]
     if len(keys) != len(set(keys)):
         raise ValueError("Doppelter Regel-Key in layout_rules.RULES")
+    if len(RULES) != 10:
+        raise ValueError(f"Erwartet 10 abgeleitete Regeln, sind {len(RULES)}")
     for r in RULES:
         if not (r.key and r.key.islower()):
             raise ValueError(f"Regel-Key ungültig: {r.key!r}")
@@ -224,7 +246,8 @@ def validate() -> None:
             raise ValueError(f"Regel '{r.key}': Status {r.status!r} ungültig")
         if r.phase not in _VALID_PHASE:
             raise ValueError(f"Regel '{r.key}': Phase {r.phase!r} ungültig")
-        if len(r.rule) < 20 or len(r.rationale) < 15:
-            raise ValueError(f"Regel '{r.key}': rule/rationale zu knapp")
-        if not r.enforced_in:
-            raise ValueError(f"Regel '{r.key}': enforced_in fehlt")
+        if len(r.rule) < 20 or len(r.rationale) < 15 or not r.derived_from:
+            raise ValueError(f"Regel '{r.key}': rule/rationale/derived_from "
+                             "zu knapp")
+        if r.status != PLANNED and not r.enforced_in:
+            raise ValueError(f"Regel '{r.key}': enforced_in fehlt (nicht PLANNED)")

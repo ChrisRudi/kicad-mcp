@@ -8,6 +8,29 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (Layout-Regel-Set aus echten Referenz-Schaltbildern neu abgeleitet — 0.13.0)
+- **Nutzer-Vorgabe:** „rendere die Original-Schaltung aus dem Internet und leite
+  daraus selbst 10 Regeln ab … nur diese 10 und die alten rausnehmen."
+- **Referenz:** die offiziellen KiCad-Demos `sallen_key` + `rectifier`
+  (gitlab.com/kicad) heruntergeladen, mit `kicad-cli`+cairosvg gerendert,
+  angesehen. `layout_rules.RULES` komplett ersetzt durch **10 daraus abgeleitete
+  Regeln** (je mit `derived_from`-Beleg): signal_flow_ltr, power_rails,
+  series_horizontal_shunt_vertical, ic_in_signal_direction, orthogonal_on_grid,
+  generous_spacing, power_symbols_and_io_labels, ref_value_stacked,
+  junctions_at_tees, separate_supply_blocks. Die alten (erfundenen) Keys sind
+  raus.
+- **`LayoutRule`** bekommt `derived_from` (Beleg) und `enforcer`
+  (`spacing`|`grid_snap`|""); `validate()` erzwingt genau 10 Regeln + Beleg.
+- **`place._enforce_layout_rules`** ist jetzt über das `enforcer`-Feld getrieben
+  (nicht mehr Key-Mapping): `generous_spacing`→`spacing` (force_no_overlap +
+  min_wire, GEOMETRY-Fixpunkt), `orthogonal_on_grid`→`grid_snap` (FINISH). Reihen-
+  folge im `_spacing`: erst Überlappung, dann Draht (Konvergenz).
+- **Verhalten unverändert:** alle 10 Demo-Schaltpläne weiter 0 Überlappungen UND
+  0 Verbindungen <5 mm. Die 3 Struktur-Regeln (power_rails,
+  series_horizontal_shunt_vertical, separate_supply_blocks) sind PLANNED — noch
+  nicht umgesetzt. `tests/test_layout_rules.py` neu (exakt-10-Check, Beleg-Pflicht,
+  Enforcer-Feld). Selftest 10/10, pylint 10/10. Version 0.12.5 → 0.13.0.
+
 ### Changed (Regeln listen-getrieben in den Generator eingebaut — Plugin 0.12.5)
 - **Nutzer-Vorgabe:** „die Regeln in die Generatoren einbauen, aber möglichst
   weiterhin mit einer Liste wartbar."

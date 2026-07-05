@@ -188,9 +188,10 @@ def _enforce_layout_rules(parts: list[dict], nets: list[dict]) -> None:
     ist die Single Source der Reihenfolge/Auswahl, dieser Code nur der Motor.
 
     GEOMETRY-Regeln laufen in einer Fixpunkt-Schleife (bis kein Regel-Schritt
-    mehr etwas bewegt — Überlappung ↔ Mindest-Draht wechselwirken), FINISH-Regeln
-    genau einmal am Ende. Eine neue geometrische Regel = Eintrag im Regel-Set
-    (phase=GEOMETRY) + Enforcer hier registrieren; keine Pipeline-Chirurgie."""
+    mehr etwas bewegt — Abstand ↔ Überlappung wechselwirken), FINISH-Regeln
+    genau einmal am Ende. Die Auswahl steuert das ``enforcer``-Feld der Regeln
+    im Set; eine neue geometrische Regel = Eintrag mit passendem ``enforcer``,
+    keine Pipeline-Chirurgie."""
     from ..common.geometry import force_no_overlap
     from . import layout_rules as rules
 
@@ -199,30 +200,43 @@ def _enforce_layout_rules(parts: list[dict], nets: list[dict]) -> None:
         if not _resolve_overlaps(parts):
             break
 
-    # Regel-Key → Enforcer (gibt True zurück, wenn etwas bewegt wurde).
-    # ``wire_along_pin_exit`` ist eine Facette von ``min_wire`` (dort mit
-    # umgesetzt) → kein eigener Schritt.
-    enforcers = {
-        "no_overlap": lambda: force_no_overlap(parts),
-        "min_wire": lambda: _enforce_min_wire(parts, nets),
-    }
+    def _spacing() -> bool:
+        # Regel ``generous_spacing``: ≥ 5 mm Draht UND kein Überlappen. Erst
+        # Überlappung auflösen, dann Mindest-Draht ZULETZT — so endet eine
+        # Runde nie auf einem frisch erzeugten <5-mm-Verstoß (Konvergenz).
+        moved_ov = force_no_overlap(parts)
+        moved_wire = _enforce_min_wire(parts, nets)
+        return moved_ov or moved_wire
+
+    def _grid_snap() -> bool:
+        # Regel ``orthogonal_on_grid`` (FINISH-Teil): alles aufs Raster.
+        moved = False
+        for part in parts:
+            if "_place_x" not in part:
+                continue
+            nx, ny = _snap(part["_place_x"]), _snap(part["_place_y"])
+            if nx != part["_place_x"] or ny != part["_place_y"]:
+                moved = True
+            part["_place_x"], part["_place_y"] = nx, ny
+        return moved
+
+    # ``enforcer``-Name (im Regel-Set) → mechanische Funktion.
+    enforcers = {"spacing": _spacing, "grid_snap": _grid_snap}
 
     geometry = [r for r in rules.by_phase(rules.GEOMETRY)
-                if r.key in enforcers]
+                if r.enforcer in enforcers]
     for _ in range(12):  # Fixpunkt: bis keine GEOMETRY-Regel mehr etwas bewegt
         changed = False
         for rule in geometry:
-            if enforcers[rule.key]():
+            if enforcers[rule.enforcer]():
                 changed = True
         if not changed:
             break
 
     for rule in rules.by_phase(rules.FINISH):
-        if rule.key == "grid_snap":
-            for part in parts:
-                if "_place_x" in part:
-                    part["_place_x"] = _snap(part["_place_x"])
-                    part["_place_y"] = _snap(part["_place_y"])
+        fn = enforcers.get(rule.enforcer)
+        if fn:
+            fn()
 
 
 #: Minimale sichtbare Leitungslänge zwischen zwei verbundenen Bauteil-Pins (mm).
