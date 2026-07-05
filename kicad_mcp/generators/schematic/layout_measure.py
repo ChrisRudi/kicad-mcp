@@ -273,10 +273,18 @@ def _parse(text: str) -> tuple[list[_Sym], list[_Label], list[_Wire]]:
     for m in _SYM_RE.finditer(text):
         lib = m.group(1)
         # „echtes Bauteil?" — semantisch über in_bom/on_board (die kurz nach dem
-        # Symbol-Kopf stehen). Power-Symbole & PWR_FLAG sind no/no → keine
-        # Bauteile → aus der Überlappungs-Wertung raus (kalibriert am Profi).
-        tail = text[m.end():m.end() + 140]
+        # Symbol-Kopf stehen) und über die Referenz. Power-/Flag-Symbole tragen
+        # in KiCad IMMER eine Referenz mit führendem ``#`` (``#PWR``/``#FLG``) —
+        # der universelle Marker, unabhängig vom lib_id. Profi-Referenzen nutzen
+        # eine EIGENE Symbol-Lib (``sallen_key_schlib:GND``) mit ``in_bom yes``;
+        # ohne die ``#``-Erkennung zählten deren GND/VDD/VSS als „Bauteil" und
+        # ein Draht in ihren Stub als „Draht quer durchs Bauteil" (falsch-positiv,
+        # das die Metrik-Eichung auf 0 sprengte).
+        tail = text[m.end():m.end() + 500]
+        ref_m = re.search(r'\(property\s+"Reference"\s+"([^"]*)"', tail)
+        ref_val = ref_m.group(1) if ref_m else ""
         is_power = (lib.startswith("power:") or "PWR_FLAG" in lib
+                    or ref_val.startswith("#")
                     or "(in_bom no)" in tail or "(on_board no)" in tail)
         syms.append(_Sym(lib, float(m.group(2)), float(m.group(3)),
                          int(m.group(4)), is_power))
@@ -456,21 +464,29 @@ def measure_text(text: str) -> Metrics:
             elif _seg_overlap(wires[i], wires[j]):
                 m.wire_overlaps += 1
 
-    # Leitung quer durch ein FREMDES Bauteil (Regel: Drähte gehen nie durch
-    # Bauteile). Das eigene Anschluss-Bauteil ausschließen: endet ein Draht in
-    # dessen Pin-Ring (Körper + Pin-Länge), verbindet er nur dort, quert nicht.
+    # Leitung quer durch einen Bauteil-Körper (Regel: Drähte gehen nie durch
+    # Bauteile — auch nicht durchs EIGENE). Kalibriert am Goldstandard: ein
+    # KORREKT angeschlossener Draht endet am Pin-Tip, der ~2.54 mm AUSSERHALB der
+    # Körper-Kante sitzt — sein Segment betritt das Körper-Innere also gar nicht.
+    # Nur ein Segment, das das Innere WIRKLICH durchquert (Bus über den Chip,
+    # Stub in die falsche Richtung), wird gezählt. Die früher nötige Pin-Ring-
+    # Ausnahme („Endpunkt < 2.84 mm vom Rand → ganzes Segment ignorieren") ist
+    # RAUS: sie versteckte reale Busse quer über große ICs (STM32) und
+    # Widerstands-Körper. Kleiner Shrink 0.4, damit ein Draht, der exakt an der
+    # Kante entlangläuft, nicht schon zählt.
     for w in wires:
         for s in bodies:
             hw, hh = s.half()
-            # „gehört zu diesem Bauteil" = ein Endpunkt liegt im Pin-Ring am
-            # RAND (Abstand zur Kante ≤ Pin-Länge) — NICHT zentrums-basiert,
-            # sonst bekäme ein großes Symbol eine riesige Ausnahme-Zone.
-            d1 = _dist_point_rect(w.x1, w.y1, s.x, s.y, hw, hh)
-            d2 = _dist_point_rect(w.x2, w.y2, s.x, s.y, hw, hh)
-            if d1 <= _PIN_REACH + 0.3 or d2 <= _PIN_REACH + 0.3:
-                continue  # Draht endet an einem Pin dieses Bauteils
+            # Ein-Pin-Bauteile (TestPoint, Mount, Flag) haben ihren Anschluss GENAU
+            # im Symbol-Ursprung = Körper-Mitte; ein Anschluss-Stub startet dann
+            # zwangsläufig „im" (winzigen) Körper. Endet ein Segment an der Mitte
+            # (≤0.6 mm), ist das eine legitime Ein-Pin-Verbindung, kein Bus quer
+            # durchs Bauteil — echte Busse haben NIE einen Endpunkt im Zentrum.
+            if (math.hypot(w.x1 - s.x, w.y1 - s.y) <= 0.6
+                    or math.hypot(w.x2 - s.x, w.y2 - s.y) <= 0.6):
+                continue
             if _seg_through_rect(w.x1, w.y1, w.x2, w.y2,
-                                 s.x, s.y, hw - 0.2, hh - 0.2):
+                                 s.x, s.y, hw - 0.4, hh - 0.4):
                 m.wire_through_body += 1
                 m.details.append(f"Draht quert {s.lib_id}")
 

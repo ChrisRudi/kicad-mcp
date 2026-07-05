@@ -109,6 +109,15 @@ POWER_CLEARANCE = 3.0
 # Nachbar-Drähten weg.
 LABEL_STUB_LEN = 5.08
 
+# Jeder verdrahtete Pin bekommt eine kurze axiale Leitung (1 Grid) aus dem
+# Bauteil HERAUS, bevor der A*-Draht abbiegt — die „Stubs an den ICs", die ein
+# Profi-Schaltbild an jedem Pin hat. Zwei Zwecke: (1) sichtbarer, sauberer
+# Anschluss-Stummel; (2) der A*-Router startet damit AUSSERHALB des Körpers, statt
+# den Draht direkt am Pin durch den (eigenen, großen) Bauteil-Körper zu ziehen —
+# genau die „lokalen Busse über die Bauteile", die entstanden, wenn zwei Pins
+# desselben ICs über eine durch den Körper gefräste Gasse verbunden wurden.
+PIN_STUB_LEN = 2.54
+
 # ---------------------------------------------------------------------------
 # PCB routing
 # ---------------------------------------------------------------------------

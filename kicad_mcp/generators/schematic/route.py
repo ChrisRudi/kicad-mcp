@@ -21,7 +21,7 @@ from functools import lru_cache
 from ..sexpr import SExpr, uid, FONT_SIZE, PIN_SPACING, SYM_HALF_WIDTH, PIN_LENGTH
 from ..common.constants import (
     WIRE_CLEARANCE, POWER_CLEARANCE, WIRE_MAX_LENGTH, WIRE_MAX_PINS,
-    LABEL_STUB_LEN,
+    LABEL_STUB_LEN, PIN_STUB_LEN,
 )
 from ..common.routing import ROUTE_GRID, _rasterize_path_cells, _l_path_clear, _try_lbend
 from ..common.connectivity import _build_mst_edges
@@ -179,6 +179,13 @@ def _build_obstacle_set(
             continue
         cx, cy = part["_place_x"], part["_place_y"]
         w, h = _get_symbol_bbox(part)
+        # Rotation-bewusst: ein um 90/270° gedrehtes Bauteil (waagrechter R,
+        # gekippter IC) hat vertauschte Breite/Höhe. Ohne diesen Swap modelliert
+        # der Router einen waagrechten Widerstand als schmal-hohes Hindernis und
+        # zieht einen waagrechten Bus MITTEN durch den Körper — genau die „Busse
+        # über die Bauteile". Metrik & Label-Richtung tun den Swap längst.
+        if int(part.get("_rotation", 0)) in (90, 270):
+            w, h = h, w
         x1 = int((cx - w / 2 - clearance) / ROUTE_GRID) - 1
         x2 = int((cx + w / 2 + clearance) / ROUTE_GRID) + 1
         y1 = int((cy - h / 2 - clearance) / ROUTE_GRID) - 1
@@ -194,6 +201,8 @@ def _cells_owned_by(part: dict, clearance: float = WIRE_CLEARANCE) -> set[tuple[
     cells: set[tuple[int, int]] = set()
     cx, cy = part["_place_x"], part["_place_y"]
     w, h = _get_symbol_bbox(part)
+    if int(part.get("_rotation", 0)) in (90, 270):
+        w, h = h, w
     x1 = int((cx - w / 2 - clearance) / ROUTE_GRID) - 1
     x2 = int((cx + w / 2 + clearance) / ROUTE_GRID) + 1
     y1 = int((cy - h / 2 - clearance) / ROUTE_GRID) - 1
@@ -548,6 +557,21 @@ _DIR_VEC = {"right": (1.0, 0.0), "left": (-1.0, 0.0),
             "up": (0.0, -1.0), "down": (0.0, 1.0)}
 
 
+def _pin_stub_point(
+    pin_x: float, pin_y: float, sym_x: float, sym_y: float,
+) -> tuple[float, float]:
+    """Kurzer axialer Stub-Endpunkt AUSWÄRTS vom Bauteil an einem Pin.
+
+    Der Stub zeigt entlang der Pin-Achse (dominante Richtung vom Bauteil-Zentrum
+    weg) um ``PIN_STUB_LEN`` nach außen. Von diesem Punkt startet der A*-Draht —
+    außerhalb des Körpers, sodass nie ein Bus quer durch das eigene Bauteil
+    gezogen wird, und der Pin einen sichtbaren Anschluss-Stummel bekommt."""
+    d = _stub_direction(pin_x, pin_y, sym_x, sym_y)
+    vx, vy = _DIR_VEC[d]
+    return (round(pin_x + vx * PIN_STUB_LEN, 2),
+            round(pin_y + vy * PIN_STUB_LEN, 2))
+
+
 def _point_in_any_body(
     x: float, y: float, bodies: list[tuple[float, float, float, float]],
 ) -> bool:
@@ -751,6 +775,23 @@ def _emit_wires_and_labels(
         """Freie Auswärts-Richtung fürs Label an Pin (px,py) von Bauteil (cx,cy)."""
         return _free_stub_direction(px, py, cx, cy, _bodies)
 
+    # Pin-Stubs: jeder A*-verdrahtete Pin bekommt eine kurze axiale Leitung nach
+    # außen; der A*-Draht startet erst an DEREN Spitze (außerhalb des Körpers).
+    # ``_stub_done`` dedupliziert pro Pin-Position über alle MST-Kanten/Netze.
+    _stub_done: set[tuple[float, float]] = set()
+
+    def _emit_pin_stub(ax: float, ay: float, sx: float, sy: float) -> tuple[float, float]:
+        """Kurzen Pin-Stub emittieren (einmal je Pin) und dessen Spitze liefern.
+        Von der Spitze aus routet A* — nie ein Bus quer durchs eigene Bauteil."""
+        nonlocal wire_count
+        tip = _pin_stub_point(ax, ay, sx, sy)
+        if (ax, ay) not in _stub_done:
+            _stub_done.add((ax, ay))
+            w_uid = uid(f"{project_name}_pinstub_{ax}_{ay}_{wire_count}")
+            wire_count += 1
+            s.wire(ax, ay, tip[0], tip[1], w_uid)
+        return tip
+
     # Collect pin cells that should not be blocked (start/end of wires)
     all_pin_cells: set[tuple[int, int]] = set()
 
@@ -835,16 +876,17 @@ def _emit_wires_and_labels(
                 d0 = _dir(ax0, ay0, sx0, sy0)
                 _place_power_or_label(net_name, ax0, ay0, d0)
 
-                # Wire between pins using MST
+                # Wire between pins using MST (from pin-stub tips, see signal path)
                 mst_edges = _build_mst_edges(pins)
                 for pi, pj in mst_edges:
-                    start = (pins[pi][0], pins[pi][1])
-                    end = (pins[pj][0], pins[pj][1])
-                    route_obs = _carve_pin_corridors(
-                        power_obstacles, parts,
-                        [f"{pins[pi][2]}:{pins[pi][3]}", f"{pins[pj][2]}:{pins[pj][3]}"])
-                    path = _astar_route(start, end, route_obs, all_pin_cells, power=True)
+                    pin_i = (pins[pi][0], pins[pi][1])
+                    pin_j = (pins[pj][0], pins[pj][1])
+                    start = _pin_stub_point(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
+                    end = _pin_stub_point(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
+                    path = _astar_route(start, end, power_obstacles, set(), power=True)
                     if path and len(path) >= 2:
+                        _emit_pin_stub(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
+                        _emit_pin_stub(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
                         for j in range(len(path) - 1):
                             w_uid = uid(f"{project_name}_wire_{net_name}_{wire_count}")
                             wire_count += 1
@@ -857,6 +899,8 @@ def _emit_wires_and_labels(
                         l_path = _try_lbend(start, end, lbend_obstacles,
                                             [power_obstacles, obstacles])
                         if l_path:
+                            _emit_pin_stub(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
+                            _emit_pin_stub(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
                             for j in range(len(l_path) - 1):
                                 w_uid = uid(f"{project_name}_wire_{net_name}_{wire_count}")
                                 wire_count += 1
@@ -878,13 +922,14 @@ def _emit_wires_and_labels(
                 if len(pins) >= 2:
                     mst_edges = _build_mst_edges(pins)
                     for pi, pj in mst_edges:
-                        start = (pins[pi][0], pins[pi][1])
-                        end = (pins[pj][0], pins[pj][1])
-                        route_obs = _carve_pin_corridors(
-                            power_obstacles, parts,
-                            [f"{pins[pi][2]}:{pins[pi][3]}", f"{pins[pj][2]}:{pins[pj][3]}"])
-                        path = _astar_route(start, end, route_obs, all_pin_cells, power=True)
+                        pin_i = (pins[pi][0], pins[pi][1])
+                        pin_j = (pins[pj][0], pins[pj][1])
+                        start = _pin_stub_point(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
+                        end = _pin_stub_point(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
+                        path = _astar_route(start, end, power_obstacles, set(), power=True)
                         if path and len(path) >= 2:
+                            _emit_pin_stub(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
+                            _emit_pin_stub(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
                             for j in range(len(path) - 1):
                                 w_uid = uid(f"{project_name}_wire_{net_name}_{wire_count}")
                                 wire_count += 1
@@ -899,6 +944,8 @@ def _emit_wires_and_labels(
                             l_path = _try_lbend(start, end, lbend_obstacles,
                                                 [power_obstacles, obstacles])
                             if l_path:
+                                _emit_pin_stub(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
+                                _emit_pin_stub(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
                                 for j in range(len(l_path) - 1):
                                     w_uid = uid(f"{project_name}_wire_{net_name}_{wire_count}")
                                     wire_count += 1
@@ -956,19 +1003,25 @@ def _emit_wires_and_labels(
             # Build MST edges (greedy nearest-neighbor) for shorter total wire length
             mst_edges = _build_mst_edges(pins)
 
-            # A* route each MST edge; track which pins got wired
+            # A* route each MST edge; track which pins got wired.
+            # Routes run from PIN-STUB tips (a short axial lead out of each
+            # component), never pin→pin: so the router starts OUTSIDE the body
+            # and goes AROUND it — no bus gets fräst through the own IC. Because
+            # the stub already escapes the body, no corridor is carved through
+            # it (that carving was exactly what let buses cross the chip).
             _wire_failed = False
             wired_pin_indices = set()
             for pi, pj in mst_edges:
-                start = (pins[pi][0], pins[pi][1])
-                end = (pins[pj][0], pins[pj][1])
+                si = (pins[pi][0], pins[pi][1])
+                sj = (pins[pj][0], pins[pj][1])
+                start = _pin_stub_point(si[0], si[1], pins[pi][4], pins[pi][5])
+                end = _pin_stub_point(sj[0], sj[1], pins[pj][4], pins[pj][5])
 
-                route_obs = _carve_pin_corridors(
-                    obstacles, parts,
-                    [f"{pins[pi][2]}:{pins[pi][3]}", f"{pins[pj][2]}:{pins[pj][3]}"])
-                path = _astar_route(start, end, route_obs, all_pin_cells)
+                path = _astar_route(start, end, obstacles, set())
 
                 if path and len(path) >= 2:
+                    _emit_pin_stub(si[0], si[1], pins[pi][4], pins[pi][5])
+                    _emit_pin_stub(sj[0], sj[1], pins[pj][4], pins[pj][5])
                     for j in range(len(path) - 1):
                         w_uid = uid(f"{project_name}_wire_{net_name}_{wire_count}")
                         wire_count += 1
@@ -981,9 +1034,11 @@ def _emit_wires_and_labels(
                         gc = (round(wp[0] / ROUTE_GRID), round(wp[1] / ROUTE_GRID))
                         obstacles.add(gc)
                 else:
-                    # A* failed — try L-bend fallback
+                    # A* failed — try L-bend fallback (also from stub tips)
                     l_path = _try_lbend(start, end, lbend_obstacles, [obstacles])
                     if l_path:
+                        _emit_pin_stub(si[0], si[1], pins[pi][4], pins[pi][5])
+                        _emit_pin_stub(sj[0], sj[1], pins[pj][4], pins[pj][5])
                         for j in range(len(l_path) - 1):
                             w_uid = uid(f"{project_name}_wire_{net_name}_{wire_count}")
                             wire_count += 1
@@ -1025,16 +1080,17 @@ def _emit_wires_and_labels(
             if len(pins) >= 2:
                 mst_edges = _build_mst_edges(pins)
                 for pi, pj in mst_edges:
-                    start = (pins[pi][0], pins[pi][1])
-                    end = (pins[pj][0], pins[pj][1])
-                    edge_dist = math.sqrt((start[0] - end[0]) ** 2 + (start[1] - end[1]) ** 2)
+                    pin_i = (pins[pi][0], pins[pi][1])
+                    pin_j = (pins[pj][0], pins[pj][1])
+                    edge_dist = math.sqrt((pin_i[0] - pin_j[0]) ** 2 + (pin_i[1] - pin_j[1]) ** 2)
                     if edge_dist > SHORT_EDGE_THRESHOLD:
                         continue  # too long — label these pins
-                    route_obs = _carve_pin_corridors(
-                        obstacles, parts,
-                        [f"{pins[pi][2]}:{pins[pi][3]}", f"{pins[pj][2]}:{pins[pj][3]}"])
-                    path = _astar_route(start, end, route_obs, all_pin_cells)
+                    start = _pin_stub_point(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
+                    end = _pin_stub_point(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
+                    path = _astar_route(start, end, obstacles, set())
                     if path and len(path) >= 2:
+                        _emit_pin_stub(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
+                        _emit_pin_stub(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
                         for j in range(len(path) - 1):
                             w_uid = uid(f"{project_name}_wire_{net_name}_{wire_count}")
                             wire_count += 1
@@ -1047,6 +1103,8 @@ def _emit_wires_and_labels(
                     else:
                         l_path = _try_lbend(start, end, lbend_obstacles, [obstacles])
                         if l_path:
+                            _emit_pin_stub(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
+                            _emit_pin_stub(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
                             for j in range(len(l_path) - 1):
                                 w_uid = uid(f"{project_name}_wire_{net_name}_{wire_count}")
                                 wire_count += 1

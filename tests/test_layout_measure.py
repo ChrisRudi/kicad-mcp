@@ -183,6 +183,47 @@ def test_pin_stub_wire_is_not_through_body():
     assert lm.measure_text(sch).wire_through_body == 0
 
 
+def test_bus_across_component_counts_even_with_a_pin_endpoint():
+    # Regression: die alte Pin-Ring-Ausnahme („ein Endpunkt < 2.84 mm vom Rand →
+    # ganzes Segment ignorieren") versteckte reale Busse quer über große ICs.
+    # Ein waagrechter Draht, der AN einem IC-Pin (linke Kante) beginnt und quer
+    # durch den ganzen Körper zur anderen Seite läuft, MUSS zählen.
+    w, _h = lm._bbox_for_lib("74xx:74HC595")  # ~ breit×hoch, Körper real
+    x_left = 100 - w / 2            # linke Körperkante (~ Pin-Bereich)
+    x_far = 100 + w / 2 + 10        # weit rechts, jenseits des Körpers
+    sch = ('(kicad_sch\n'
+           '(symbol (lib_id "74xx:74HC595") (at 100 100 0) (unit 1)'
+           ' (in_bom yes) (on_board yes))\n'
+           f'(wire (pts (xy {x_left:.2f} 100) (xy {x_far:.2f} 100)))\n)')
+    assert lm.measure_text(sch).wire_through_body >= 1
+
+
+def test_single_pin_center_connection_is_not_through_body():
+    # Ein-Pin-Bauteil (TestPoint): Anschluss = Symbol-Ursprung = Körper-Mitte.
+    # Der Anschluss-Stub startet zwangsläufig in der (winzigen) Körper-Mitte —
+    # das ist eine legitime Ein-Pin-Verbindung, KEIN Bus quer durchs Bauteil.
+    sch = ('(kicad_sch\n'
+           '(symbol (lib_id "Connector:TestPoint") (at 100 100 0) (unit 1)'
+           ' (in_bom yes) (on_board yes))\n'
+           '(wire (pts (xy 100 100) (xy 102.54 100)))\n)')
+    assert lm.measure_text(sch).wire_through_body == 0
+
+
+def test_custom_power_symbol_is_not_a_body():
+    # Profi-Referenzen nutzen eine EIGENE Symbol-Lib (z. B. "myschlib:GND") mit
+    # (in_bom yes). Erkannt wird das Power-Symbol an der Referenz "#PWR…" —
+    # sonst zählt ein Draht in seinen Stub als „quer durchs Bauteil" (der
+    # Falsch-Positiv, der die 0-Eichung der Referenzen zerstörte).
+    sch = ('(kicad_sch\n'
+           '(symbol (lib_id "myschlib:GND") (at 100 100 0) (unit 1)'
+           ' (in_bom yes) (on_board yes)\n'
+           '  (property "Reference" "#PWR01" (at 100 106 0) (effects (hide yes))))\n'
+           '(wire (pts (xy 100 96) (xy 100 100)))\n)')
+    m = lm.measure_text(sch)
+    assert m.wire_through_body == 0
+    assert m.n_symbols == 1
+
+
 def test_two_large_ics_side_by_side_overlap_is_detected():
     # Zwei ICs 3 mm auseinander: mit Fallback-Bbox (Halb-Breite 1.27) würde das
     # NICHT als Überlappung zählen; mit echter Bbox (Halb-Breite ~7.6) schon.

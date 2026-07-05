@@ -1,7 +1,27 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.16.1**
+Aktuelle Version: **0.17.0**
+
+---
+
+## 🔌 Neu in 0.17.0 — Stubs an den ICs, keine Busse mehr über die Bauteile
+
+- **Nutzer:** „noch immer viele lokale Busse über die Bauteile drübergezeichnet
+  und keine Stubs an den ICs???" — beides behoben.
+- **Stubs an jedem Pin:** Jeder verdrahtete Anschluss bekommt jetzt eine kurze
+  Leitung aus dem Bauteil heraus (wie es ein Profi-Schaltbild zeichnet), bevor
+  der Draht abbiegt. Dadurch hat jeder IC-Pin einen sauberen Anschluss-Stummel.
+- **Keine Leitungen mehr quer durch die Bauteile:** Der Router startet die
+  Verdrahtung jetzt außerhalb des Körpers (an der Stub-Spitze) und modelliert
+  gedrehte Bauteile mit der richtigen Breite/Höhe — ein waagrechter Widerstand
+  ist jetzt ein waagrechtes Hindernis. So wird kein Bus mehr mitten durch einen
+  Widerstand oder IC gezogen.
+- **Der Sauberkeits-Check sieht es jetzt auch:** „Leitung quer durchs Bauteil"
+  wird korrekt gemessen (vorher blind für Busse über große ICs). Ergebnis:
+  9 von 10 Beispiel-Schaltungen mit Bestnote (badness 0); nur das Ethernet-Kit
+  bleibt, weil sein STM32-Symbol völlig überdimensioniert aus der Lib kommt
+  (ein Symbol-Problem, keine Routing-Frage).
 
 ---
 

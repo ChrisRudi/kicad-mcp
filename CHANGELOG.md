@@ -8,6 +8,48 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added/Fixed (Pin-Stubs an den ICs + keine Busse mehr quer durch die Bauteile — 0.17.0)
+- **Nutzer:** „noch immer viele vor allem Lokale Busse über die Bauteile
+  drübergezeichnet und keine Stubs an den ICs???" → zwei Wurzelursachen behoben,
+  am Goldstandard geeicht (Profi-Referenzen bleiben badness 0).
+- **Pin-Stubs (`route._pin_stub_point` + `_emit_pin_stub`, neu):** Jeder
+  A*-verdrahtete Pin bekommt eine kurze axiale Leitung (`PIN_STUB_LEN = 2.54`)
+  aus dem Körper heraus; der A*-Draht startet erst an DEREN Spitze. Zwei Effekte:
+  (1) sichtbarer Anschluss-Stub an jedem IC-Pin; (2) der Router beginnt
+  AUSSERHALB des Körpers → nie ein Bus quer durchs eigene (große) Bauteil.
+  Angewandt auf alle vier verdrahteten Pfade (Signal-`use_wires`, Signal-
+  Kurzkanten, Power-verdrahtet, Power-gemischt). ERC-Gate bleibt grün.
+- **Rotations-bewusste Hindernisse (`_build_obstacle_set` / `_cells_owned_by`):**
+  Ein um 90/270° gedrehtes Bauteil hatte im Router vertauschte Breite/Höhe — ein
+  waagrechter Widerstand wurde als schmal-hohes Hindernis modelliert, sodass A*
+  einen waagrechten Bus MITTEN durch die Körpermitte zog. Der Swap (wie in Metrik
+  und Label-Richtung längst) blockiert jetzt den echten Körper.
+- **A* nutzt keine globalen Pin-Zellen mehr:** Da Routen jetzt Stub-Spitze→
+  Stub-Spitze laufen (beide außerhalb der Körper), wird kein Pin mehr global als
+  passierbar markiert — vorher konnte A* über die eigenen Pins eines waagrechten
+  Widerstands durch dessen Körper „springen".
+- **Metrik `wire_through_body` (geschärft, `layout_measure`):** die alte
+  aggressive Pin-Ring-Ausnahme („Endpunkt < 2.84 mm vom Rand → ganzes Segment
+  ignorieren") ist RAUS — sie versteckte reale Busse quer über große ICs (STM32)
+  und Widerstands-Körper. Voller Körper-Rahmen (Shrink 0.4). Neue, enge Ausnahme
+  nur für Ein-Pin-Bauteile (TestPoint/Flag), deren Anschluss GENAU im Zentrum
+  liegt (≤0.6 mm) — ein Stub startet dort zwangsläufig „im" winzigen Körper.
+- **Power-Symbol-Erkennung (`layout_measure._parse`):** Power-/Flag-Symbole
+  werden jetzt auch an der Referenz `#PWR…`/`#FLG…` erkannt (universeller
+  KiCad-Marker), nicht nur an `power:`-lib_id/`in_bom no`. Profi-Referenzen mit
+  eigener Symbol-Lib (`sallen_key_schlib:GND`, `in_bom yes`) zählten sonst als
+  „Bauteil" → ein Draht in ihren Stub als „quer durchs Bauteil" (Falsch-Positiv,
+  das die 0-Eichung sprengte). Jetzt Referenzen wieder sauber 0.
+- **Wirkung:** 9/10 Demo-Kits **badness 0** (ac_dc, audio, buck, kit_seeding,
+  led, motor, production, sketch, usb — usb von 50 → 0). Nur ethernet_device
+  bleibt (überdimensioniertes 176-Pin-STM32-Symbol aus der Lib — Symbol-Wahl,
+  kein Routing-Problem). Visuell: Drähte routen um U1 herum statt hindurch,
+  jeder Pin trägt einen Stub.
+- Tests: `test_pin_stubs.py` (Stub zeigt auswärts; Hindernis rotations-bewusst;
+  verdrahtete Pins bekommen einen Stub); `test_layout_measure.py` erweitert (Bus
+  quer über IC zählt trotz Pin-Endpunkt; Ein-Pin-Zentrums-Anschluss zählt nicht;
+  Custom-`#PWR`-Symbol ist kein Bauteil).
+
 ### Added (draht-bewusste Label-Umdrehung — Labels überdecken keine Drähte mehr — 0.16.1)
 - **Nutzer:** „die Beschriftungen sind das Letzte, was sich gegenseitig überdeckt"
   → **`builder._declutter_labels` (neu):** ein Nach-Emit-Schritt dreht/spiegelt
