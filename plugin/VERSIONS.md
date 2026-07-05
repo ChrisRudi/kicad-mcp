@@ -1,7 +1,20 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.12.1**
+Aktuelle Version: **0.12.2**
+
+---
+
+## 📐 Neu in 0.12.2 — Bauteile liegen nie mehr übereinander
+
+- **Garantie: kein Bauteil überlappt ein anderes im Schaltplan.** Der bisherige
+  „sanfte" Auseinanderschieber konnte bei sehr großen Symbolen (ein volles
+  Mikrocontroller-Symbol ist über 8 cm hoch) endlos hin- und herschieben, ohne
+  sauber zu trennen. Jetzt gibt es einen harten Nachlauf: große Symbole sind
+  Anker, jedes weitere Bauteil rückt ringförmig nach außen, bis es frei steht.
+- Nebenbei war der Auseinanderschieber vorher **nicht rotations-bewusst** und
+  übersah gedrehte Bauteile — auch das ist behoben.
+- Geprüft: alle 10 Demo-Schaltpläne jetzt mit **null** Überlappungen.
 
 ---
 

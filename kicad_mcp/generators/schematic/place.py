@@ -174,10 +174,14 @@ def place_schematic(parts: list[dict], nets: list[dict]) -> list[dict]:
     # Ensure all parts have placement coordinates
     placed_refs |= {p["ref"] for p in parts if "_place_x" in p}
 
-    # 11. Resolve overlaps
+    # 11. Resolve overlaps — sanft (kleine Verschiebungen), dann garantiert.
     for _ in range(OVERLAP_PASSES):
         if not _resolve_overlaps(parts):
             break
+    # 11b. Harte Garantie: kein Bauteil liegt mehr über einem anderen (der
+    # sanfte Schritt kann bei riesigen Symbolen oszillieren).
+    from ..common.geometry import force_no_overlap
+    force_no_overlap(parts)
 
     # 12. Final grid snap
     for part in parts:

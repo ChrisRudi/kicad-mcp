@@ -8,6 +8,24 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Schaltplan: Bauteile überlappen nie mehr — Plugin 0.12.2)
+- **Nutzer-Anforderung:** „Bauteile dürfen niemals übereinander liegen."
+- **Root-Cause 1 — Rotation:** `_resolve_overlaps` (common/geometry.py) nahm für
+  gedrehte Bauteile die UNgedrehten Maße → übersah gedrehte Kollisionen (ließ
+  kleine Rs im Rahmen eines gedrehten Nachbarn). Jetzt rotations-bewusst
+  (`_half_extents` tauscht w/h bei 90/270°), Trennung entlang geringster
+  Durchdringung mit `_OVERLAP_MARGIN`=2 mm (> HALF_GRID, snap-stabil).
+- **Root-Cause 2 — Oszillation bei Riesensymbolen:** ein volles LQFP-48-Symbol
+  ist ~81 mm hoch; der sanfte Schieber drückte kleine Teile raus→in Nachbarn→
+  zurück, konvergierte nie (auch 60 Durchgänge nicht). Neu:
+  `geometry.force_no_overlap()` als harte GARANTIE — größte Symbole zuerst als
+  Anker, jedes weitere Teil sucht ringweise nach außen die nächste freie Zelle
+  (Grid-Schritte, terminiert immer). In `place.py` nach dem sanften Schritt
+  aufgerufen.
+- **Verifiziert:** alle 10 Demo-Schaltpläne mit 0 Überlappungen (vorher 3, davon
+  2 hartnäckig am MCU). Wirkt auf ALLE erzeugten Schaltpläne. Version 0.12.1 →
+  0.12.2, pylint 10/10.
+
 ### Fixed (Schaltplan-Lesbarkeit — Platzierung, GND/VCC-Konvention, Plugin 0.12.1)
 - **Besserer Platzierer greift jetzt.** `constraint_solver.solve_placement`
   fiel ohne OR-Tools auf einen schwachen Greedy-„Simple solver" zurück, der die
