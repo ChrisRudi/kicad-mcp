@@ -20,10 +20,10 @@ from functools import lru_cache
 
 from ..sexpr import SExpr, uid, FONT_SIZE, PIN_SPACING, SYM_HALF_WIDTH, PIN_LENGTH
 from ..common.constants import (
-    WIRE_CLEARANCE, POWER_CLEARANCE, WIRE_MAX_LENGTH, WIRE_MAX_PINS,
+    WIRE_CLEARANCE, WIRE_MAX_LENGTH, WIRE_MAX_PINS,
     LABEL_STUB_LEN, PIN_STUB_LEN,
 )
-from ..common.routing import ROUTE_GRID, _rasterize_path_cells, _l_path_clear, _try_lbend
+from ..common.routing import ROUTE_GRID, _l_path_clear, _try_lbend
 from ..common.connectivity import _build_mst_edges
 from ..common.bbox import _get_symbol_bbox
 from ..symbol_lib import resolve_lib_id
@@ -618,6 +618,7 @@ def _place_label_with_stub(
     lbl_uid: str, wire_uid: str, is_global: bool = False,
     is_hierarchical: bool = False,
     direction: str = "right",
+    stub_len: float | None = None,
 ) -> tuple[float, float]:
     """Place a label with a short wire stub to ensure ERC pin connectivity.
 
@@ -634,8 +635,10 @@ def _place_label_with_stub(
 
     Returns the label position (for tracking).
     """
-    lbl_x = round(pin_x + _STUB_DX[direction], 2)
-    lbl_y = round(pin_y + _STUB_DY[direction], 2)
+    ln = LABEL_STUB_LEN if stub_len is None else stub_len
+    vx, vy = _DIR_VEC[direction]
+    lbl_x = round(pin_x + vx * ln, 2)
+    lbl_y = round(pin_y + vy * ln, 2)
     angle = _LABEL_ANGLE[direction]
     s.wire(pin_x, pin_y, lbl_x, lbl_y, wire_uid)
     if is_hierarchical:
@@ -651,6 +654,7 @@ def _place_power_symbol(
     s: SExpr, net_name: str, pin_x: float, pin_y: float,
     sym_uid: str, wire_uid: str, pin_uid: str,
     lib_id: str, sym_type: str, direction: str = "right",
+    stub_len: float | None = None,
 ) -> tuple[float, float]:
     """Place a real KiCad power symbol (e.g. power:GND) with a stub wire.
 
@@ -662,13 +666,15 @@ def _place_power_symbol(
     global _pwr_ref_counter
     _pwr_ref_counter += 1
 
-    if sym_type == "ground":
-        direction = "down"
-    elif sym_type == "supply":
-        direction = "up"
+    # Konvention erzwingen (GND unten, Versorgung oben) — außer der Aufrufer
+    # hat bereits eine vertikale Ausweich-Richtung verhandelt (Konfliktfall).
+    if direction not in ("up", "down"):
+        direction = "down" if sym_type == "ground" else "up"
 
-    sx = round(pin_x + _STUB_DX[direction], 2)
-    sy = round(pin_y + _STUB_DY[direction], 2)
+    ln = LABEL_STUB_LEN if stub_len is None else stub_len
+    vx, vy = _DIR_VEC[direction]
+    sx = round(pin_x + vx * ln, 2)
+    sy = round(pin_y + vy * ln, 2)
 
     s.wire(pin_x, pin_y, sx, sy, wire_uid)
 
@@ -717,6 +723,126 @@ def _emit_wires_and_labels(
     _pwr_ref_counter = 0
     _hier_names: set[str] = set(intersheet_nets or ())
 
+    # ── Segment-Registry: verhindert Kurzschlüsse zwischen Netzen ──────────
+    # KiCad verbindet Drähte an zusammenfallenden ENDPUNKTEN und an Endpunkt-
+    # auf-Segment-Berührungen. Zwei Netze, deren Routen sich einen Rasterpunkt
+    # als Knick teilen, sind deshalb ein Kurzschluss — der Netzlisten-Roundtrip
+    # deckte genau das flächendeckend auf. Jede emittierte Leitung wird hier
+    # mit Netz-Namen registriert; jeder Kandidat (Route/Stub) wird vor dem
+    # Emittieren gegen FREMDE Segmente geprüft.
+    _segs: list[tuple[float, float, float, float, str]] = []
+    _pt_net: dict[tuple[float, float], str] = {}
+    # Pin-Positionen mit Netz-Zugehörigkeit — VOR jeder Emission befüllt. Ein
+    # Stub/Draht, der auf einem FREMDEN Pin endet (oder über ihn läuft), ist
+    # ein Kurzschluss, den die Segment-Registry allein nicht sieht (der
+    # VCC-Stub von R2:1 endete exakt auf C2:2s GND-Pin — 5.08 mm Raster-Pech).
+    _pin_pts: dict[tuple[float, float], str] = {}
+
+    def _r2(v: float) -> float:
+        return round(v, 2)
+
+    def _on_seg(px: float, py: float, x1, y1, x2, y2) -> bool:
+        """Liegt (px,py) AUF dem axialen Segment (inkl. Endpunkte)?"""
+        if abs(y1 - y2) < 0.01:   # horizontal
+            return (abs(py - y1) < 0.01
+                    and min(x1, x2) - 0.01 <= px <= max(x1, x2) + 0.01)
+        if abs(x1 - x2) < 0.01:   # vertikal
+            return (abs(px - x1) < 0.01
+                    and min(y1, y2) - 0.01 <= py <= max(y1, y2) + 0.01)
+        return False
+
+    def _collinear_overlap(a, b) -> bool:
+        ax1, ay1, ax2, ay2 = a
+        bx1, by1, bx2, by2 = b
+        if abs(ay1 - ay2) < 0.01 and abs(by1 - by2) < 0.01 \
+                and abs(ay1 - by1) < 0.01:
+            return min(max(ax1, ax2), max(bx1, bx2)) \
+                - max(min(ax1, ax2), min(bx1, bx2)) > 0.05
+        if abs(ax1 - ax2) < 0.01 and abs(bx1 - bx2) < 0.01 \
+                and abs(ax1 - bx1) < 0.01:
+            return min(max(ay1, ay2), max(by1, by2)) \
+                - max(min(ay1, ay2), min(by1, by2)) > 0.05
+        return False
+
+    def _seg_conflicts(x1, y1, x2, y2, net: str) -> bool:
+        """Kollidiert das Kandidaten-Segment elektrisch mit einem FREMDEN Netz?
+        (Endpunkt teilt Punkt / Endpunkt auf fremdem Segment / fremder Endpunkt
+        auf Kandidat / kollineare Überlappung.)"""
+        for p in ((_r2(x1), _r2(y1)), (_r2(x2), _r2(y2))):
+            owner = _pt_net.get(p)
+            if owner is not None and owner != net:
+                return True
+            pin_owner = _pin_pts.get(p)
+            if pin_owner is not None and pin_owner != net:
+                return True
+        # fremder PIN mitten auf dem Kandidaten-Segment → Kurzschluss
+        for pp, pnet in _pin_pts.items():
+            if pnet != net and _on_seg(pp[0], pp[1], x1, y1, x2, y2):
+                return True
+        for fx1, fy1, fx2, fy2, fnet in _segs:
+            if fnet == net:
+                continue
+            if _collinear_overlap((x1, y1, x2, y2), (fx1, fy1, fx2, fy2)):
+                return True
+            if _on_seg(x1, y1, fx1, fy1, fx2, fy2) \
+                    or _on_seg(x2, y2, fx1, fy1, fx2, fy2):
+                return True
+            if _on_seg(fx1, fy1, x1, y1, x2, y2) \
+                    or _on_seg(fx2, fy2, x1, y1, x2, y2):
+                return True
+        return False
+
+    def _path_conflicts(path: list[tuple[float, float]], net: str) -> bool:
+        for j in range(len(path) - 1):
+            if _seg_conflicts(path[j][0], path[j][1],
+                              path[j + 1][0], path[j + 1][1], net):
+                return True
+        return False
+
+    def _register_seg(x1, y1, x2, y2, net: str) -> None:
+        _segs.append((x1, y1, x2, y2, net))
+        _pt_net.setdefault((_r2(x1), _r2(y1)), net)
+        _pt_net.setdefault((_r2(x2), _r2(y2)), net)
+
+    def _wire_reg(x1, y1, x2, y2, uid_str: str, net: str) -> None:
+        s.wire(x1, y1, x2, y2, uid_str)
+        _register_seg(x1, y1, x2, y2, net)
+
+    def _stub_dir_free(ax, ay, sx, sy, net: str,
+                       length: float) -> tuple[str, float] | None:
+        """Auswärts-Richtung für einen Label-Stub — ELEKTRISCH sicher zuerst.
+
+        Zweistufig: (1) Richtung ohne Fremd-Netz-Kontakt UND außerhalb aller
+        Körper; (2) zur Not eine Richtung, die nur ästhetisch stört (Körper),
+        aber elektrisch sauber ist. Die Körper-Bboxen enthalten die
+        Pin-Reichweite — eine Stub-Spitze 5 mm vor dem Pin liegt dadurch fast
+        immer „im Körper", weshalb der frühere Ein-Stufen-Check regelmäßig auf
+        die Natural-Richtung MIT Fremd-Kontakt zurückfiel (der CTRL/OUT-
+        Kurzschluss im 555-Kit: OUT-Stub quer durch C2s Pin)."""
+        natural = _free_stub_direction(ax, ay, sx, sy, _bodies)
+        order = [natural] + [d for d in ("right", "left", "up", "down")
+                             if d != natural]
+        clean_only: tuple[str, float] | None = None
+        # feine Längen zuerst mit dabei: ein 1.27-mm-Stub erreicht den
+        # Nachbar-Stub (2.54-Raster) nicht — fast immer konfliktfrei.
+        for ln in (length, 2.54, 1.27, length * 1.5, length * 2.0):
+            for d in order:
+                vx, vy = _DIR_VEC[d]
+                tx, ty = _r2(ax + vx * ln), _r2(ay + vy * ln)
+                if _seg_conflicts(ax, ay, tx, ty, net):
+                    continue
+                if not _point_in_any_body(tx, ty, _bodies):
+                    return (d, ln)
+                if clean_only is None:
+                    clean_only = (d, ln)
+        if clean_only is not None:
+            return clean_only
+        # KEINE elektrisch saubere Richtung: None → der Aufrufer setzt das
+        # Label OHNE Stub direkt an den Pin (immer sicher). Der frühere
+        # Natural-Fallback erzeugte hier Fremd-Netz-Kontakt (USB_DM/USB_DP:
+        # zwei Nachbar-Stubs kollinear übereinander → Kurzschluss).
+        return None
+
     def _place_power_or_label(
         net_name: str, ax: float, ay: float, direction: str,
     ) -> tuple[float, float]:
@@ -730,15 +856,76 @@ def _emit_wires_and_labels(
         wire_count += 1
         if pwr_info:
             lib_id, sym_type = pwr_info
-            return _place_power_symbol(
+            # Konfliktfeste Stub-Länge/Richtung: die konventionelle Richtung
+            # (GND unten, Versorgung oben) zuerst in drei Längen, dann die
+            # Gegenrichtung — zwei Power-Stubs GESTAPELTER Bauteile lagen sonst
+            # kollinear übereinander (der VCC/GND-Kurzschluss C3:1↔R1:2).
+            want = "down" if sym_type == "ground" else "up"
+            opposite = "up" if want == "down" else "down"
+            chosen: tuple[str, float] | None = None
+            for d in (want, opposite):
+                vx, vy = _DIR_VEC[d]
+                for ln in (LABEL_STUB_LEN, LABEL_STUB_LEN / 2,
+                           LABEL_STUB_LEN * 1.5, 0.635):
+                    tx, ty = _r2(ax + vx * ln), _r2(ay + vy * ln)
+                    if not _seg_conflicts(ax, ay, tx, ty, net_name):
+                        chosen = (d, ln)
+                        break
+                if chosen:
+                    break
+            if chosen is None:
+                # 0.635 mm erreicht kein fremdes Element auf dem 1.27er-Raster
+                chosen = (want, 0.635)
+            anchor = _place_power_symbol(
                 s, net_name, ax, ay, l_uid, w_uid, p_uid,
-                lib_id, sym_type, direction=direction,
+                lib_id, sym_type,
+                direction=chosen[0], stub_len=chosen[1],
             )
         else:
-            return _place_label_with_stub(
+            # Global-Label-Zweig (Rails ohne KiCad-Symbol, z. B. VIN): Richtung
+            # und Länge GENAUSO verhandeln wie beim Symbol — der ungeprüfte
+            # Stub endete sonst auf einem Fremd-Pin (VIN-Stub auf U1:5/FB).
+            df = _stub_dir_free(ax, ay, ax - _DIR_VEC[direction][0],
+                                ay - _DIR_VEC[direction][1], net_name,
+                                LABEL_STUB_LEN)
+            if df is None:
+                df = (direction, 0.635)
+            anchor = _place_label_with_stub(
                 s, net_name, ax, ay, l_uid, w_uid,
-                is_global=True, direction=direction,
+                is_global=True, direction=df[0], stub_len=df[1],
             )
+        _register_seg(ax, ay, anchor[0], anchor[1], net_name)
+        return anchor
+
+    def _label_with_stub_reg(net_name: str, ax: float, ay: float,
+                             lbl_uid: str, w_uid: str, *,
+                             is_hierarchical: bool = False,
+                             direction: str = "right",
+                             stub_len: float | None = None) -> tuple[float, float]:
+        anchor = _place_label_with_stub(
+            s, net_name, ax, ay, lbl_uid, w_uid,
+            is_hierarchical=is_hierarchical, direction=direction,
+            stub_len=stub_len,
+        )
+        _register_seg(ax, ay, anchor[0], anchor[1], net_name)
+        return anchor
+
+    def _label_pin_safe(net_name: str, ax: float, ay: float, sx: float,
+                        sy: float, lbl_uid: str, w_uid: str, *,
+                        is_hierarchical: bool = False) -> None:
+        """Label mit Stub in elektrisch freier Richtung; findet sich KEINE,
+        Label ohne Stub direkt am Pin (verbindet am Pin-Ende, kann nie ein
+        fremdes Netz berühren)."""
+        df = _stub_dir_free(ax, ay, sx, sy, net_name, LABEL_STUB_LEN)
+        if df is None:
+            # Ein Label OHNE Draht verbindet im Netzlister nicht — als
+            # allerletzter Ausweg der kürzestmögliche Stub in der natürlichen
+            # Richtung (0.635 mm erreicht kein fremdes 1.27er-Raster-Element).
+            df = (_stub_direction(ax, ay, sx, sy), 0.635)
+        d, ln = df
+        _label_with_stub_reg(net_name, ax, ay, lbl_uid, w_uid,
+                             is_hierarchical=is_hierarchical,
+                             direction=d, stub_len=ln)
 
     pin_to_net: dict[str, dict] = {}
     for net in nets:
@@ -755,7 +942,6 @@ def _emit_wires_and_labels(
     # Build obstacle grids — signal nets use standard clearance,
     # power nets use wider clearance for cleaner separation
     obstacles = _build_obstacle_set(parts, WIRE_CLEARANCE)
-    power_obstacles = _build_obstacle_set(parts, POWER_CLEARANCE)
     # Minimal obstacle set for L-bend fallback (core bounding boxes only, no clearance)
     lbend_obstacles = _build_obstacle_set(parts, WIRE_CLEARANCE / 2)
 
@@ -780,16 +966,25 @@ def _emit_wires_and_labels(
     # ``_stub_done`` dedupliziert pro Pin-Position über alle MST-Kanten/Netze.
     _stub_done: set[tuple[float, float]] = set()
 
-    def _emit_pin_stub(ax: float, ay: float, sx: float, sy: float) -> tuple[float, float]:
+    def _emit_pin_stub(ax: float, ay: float, sx: float, sy: float,
+                       net: str) -> tuple[float, float] | None:
         """Kurzen Pin-Stub emittieren (einmal je Pin) und dessen Spitze liefern.
-        Von der Spitze aus routet A* — nie ein Bus quer durchs eigene Bauteil."""
+        Von der Spitze aus routet A* — nie ein Bus quer durchs eigene Bauteil.
+        Kollidiert der Stub elektrisch mit einem fremden Netz → ``None``
+        (die Kante fällt dann auf ein Label zurück, kein Kurzschluss)."""
         nonlocal wire_count
         tip = _pin_stub_point(ax, ay, sx, sy)
-        if (ax, ay) not in _stub_done:
-            _stub_done.add((ax, ay))
-            w_uid = uid(f"{project_name}_pinstub_{ax}_{ay}_{wire_count}")
-            wire_count += 1
-            s.wire(ax, ay, tip[0], tip[1], w_uid)
+        import os as _os
+        if (ax, ay) in _stub_done:
+            if _os.environ.get("STUBDBG"): print(f"STUBDBG stub-dedupe {net} ({ax},{ay})")
+            return tip
+        if _seg_conflicts(ax, ay, tip[0], tip[1], net):
+            if _os.environ.get("STUBDBG"): print(f"STUBDBG stub-CONFLICT {net} ({ax},{ay})->{tip}")
+            return None
+        _stub_done.add((ax, ay))
+        w_uid = uid(f"{project_name}_pinstub_{ax}_{ay}_{wire_count}")
+        wire_count += 1
+        _wire_reg(ax, ay, tip[0], tip[1], w_uid, net)
         return tip
 
     # Collect pin cells that should not be blocked (start/end of wires)
@@ -823,7 +1018,7 @@ def _emit_wires_and_labels(
 
         real_sym = get_real_symbol(lib_id)
         real_pins = _pins_from_real_symbol(real_sym) if real_sym else {}
-        user_to_real = _map_user_to_real_pins(part, real_pins) if real_pins else {}
+        user_to_real = _map_user_to_real_pins(part, real_pins, real_sym) if real_pins else {}
 
         for pin in part.get("pins", []):
             conn_by_name = f"{ref}:{pin['name']}"
@@ -848,10 +1043,13 @@ def _emit_wires_and_labels(
             net_name = net["name"]
             net_pins.setdefault(net_name, []).append((abs_x, abs_y, ref, real_num, sym_x, sym_y))
             labeled.add((abs_x, abs_y))
+            _pin_pts[(_r2(abs_x), _r2(abs_y))] = net_name
             all_pin_cells.add((round(abs_x / ROUTE_GRID), round(abs_y / ROUTE_GRID)))
 
-    # Route each net
-    for net in nets:
+    # Route each net — Power-Netze ZUERST: ihre Symbole+Stubs sind fixe
+    # Geometrie, die Signal-Routen weichen ihnen dann per Registry aus
+    # (umgekehrt könnte ein GND-Stub blind auf eine Signal-Route fallen).
+    for net in sorted(nets, key=lambda n: 0 if n.get("type") == "power" else 1):
         net_name = net["name"]
         net_type = net.get("type", "signal")
         pins = net_pins.get(net_name, [])
@@ -859,134 +1057,41 @@ def _emit_wires_and_labels(
         if not pins:
             continue
 
-        # Power nets: score-based decision (parts, pins, distance)
+        # Power-Netze: ein Power-Symbol (bzw. Global-Label) an JEDEM Pin —
+        # exakt wie die Profi-Referenzen (GND-Symbol unter jedem GND-Pin,
+        # VCC-Pfeil über jedem Versorgungs-Pin). KiCads Netzliste vereint sie
+        # global über den Symbol-/Label-Namen. Die frühere Misch-Strategie
+        # („ein Label + MST-Drähte") hinterließ bei jedem fehlgeschlagenen
+        # Routing-Ast eine INSEL ohne Namen → GND zerfiel in Teil-Netze
+        # (Netzlisten-Roundtrip deckte es auf). Nebeneffekt: die vielen langen
+        # Power-Drähte quer übers Blatt entfallen komplett.
         if net_type == "power":
-            max_power_dist = 0.0
-            for i, (ax, ay, *_rest) in enumerate(pins):
-                for bx, by, *_rest2 in pins[i + 1:]:
-                    d = math.sqrt((ax - bx) ** 2 + (ay - by) ** 2)
-                    max_power_dist = max(max_power_dist, d)
-
-            wire_power = _should_wire_power_net(parts, pins, max_power_dist)
-
-            if wire_power and len(pins) >= 2:
-                # Simple circuit: wire the power net like a signal net
-                # Place one global label at the first pin with stub
-                ax0, ay0, ref0, pnum0, sx0, sy0 = pins[0]
-                d0 = _dir(ax0, ay0, sx0, sy0)
-                _place_power_or_label(net_name, ax0, ay0, d0)
-
-                # Wire between pins using MST (from pin-stub tips, see signal path)
-                mst_edges = _build_mst_edges(pins)
-                for pi, pj in mst_edges:
-                    pin_i = (pins[pi][0], pins[pi][1])
-                    pin_j = (pins[pj][0], pins[pj][1])
-                    start = _pin_stub_point(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
-                    end = _pin_stub_point(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
-                    path = _astar_route(start, end, power_obstacles, set(), power=True)
-                    if path and len(path) >= 2:
-                        _emit_pin_stub(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
-                        _emit_pin_stub(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
-                        for j in range(len(path) - 1):
-                            w_uid = uid(f"{project_name}_wire_{net_name}_{wire_count}")
-                            wire_count += 1
-                            s.wire(path[j][0], path[j][1], path[j+1][0], path[j+1][1], w_uid)
-                        path_cells = _rasterize_path_cells(path)
-                        power_obstacles |= path_cells
-                        obstacles |= path_cells
-                    else:
-                        # A* failed — try L-bend before falling back to label
-                        l_path = _try_lbend(start, end, lbend_obstacles,
-                                            [power_obstacles, obstacles])
-                        if l_path:
-                            _emit_pin_stub(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
-                            _emit_pin_stub(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
-                            for j in range(len(l_path) - 1):
-                                w_uid = uid(f"{project_name}_wire_{net_name}_{wire_count}")
-                                wire_count += 1
-                                s.wire(l_path[j][0], l_path[j][1], l_path[j+1][0], l_path[j+1][1], w_uid)
-                        else:
-                            # L-bend also blocked — label the far pin with stub
-                            ax, ay, ref, pnum, sx, sy = pins[pj]
-                            d = _dir(ax, ay, sx, sy)
-                            _place_power_or_label(net_name, ax, ay, d)
-            else:
-                # Mixed approach (Elektor style): try wiring what we can,
-                # label the rest. Even complex power nets benefit from
-                # partial wiring where pins are nearby.
-                ax0, ay0, ref0, pnum0, sx0, sy0 = pins[0]
-                d0 = _dir(ax0, ay0, sx0, sy0)
-                _place_power_or_label(net_name, ax0, ay0, d0)
-
-                wired_power = {0}  # first pin has the label
-                if len(pins) >= 2:
-                    mst_edges = _build_mst_edges(pins)
-                    for pi, pj in mst_edges:
-                        pin_i = (pins[pi][0], pins[pi][1])
-                        pin_j = (pins[pj][0], pins[pj][1])
-                        start = _pin_stub_point(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
-                        end = _pin_stub_point(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
-                        path = _astar_route(start, end, power_obstacles, set(), power=True)
-                        if path and len(path) >= 2:
-                            _emit_pin_stub(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
-                            _emit_pin_stub(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
-                            for j in range(len(path) - 1):
-                                w_uid = uid(f"{project_name}_wire_{net_name}_{wire_count}")
-                                wire_count += 1
-                                s.wire(path[j][0], path[j][1], path[j+1][0], path[j+1][1], w_uid)
-                            wired_power.add(pi)
-                            wired_power.add(pj)
-                            path_cells = _rasterize_path_cells(path)
-                            power_obstacles |= path_cells
-                            obstacles |= path_cells
-                        else:
-                            # A* failed — try L-bend
-                            l_path = _try_lbend(start, end, lbend_obstacles,
-                                                [power_obstacles, obstacles])
-                            if l_path:
-                                _emit_pin_stub(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
-                                _emit_pin_stub(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
-                                for j in range(len(l_path) - 1):
-                                    w_uid = uid(f"{project_name}_wire_{net_name}_{wire_count}")
-                                    wire_count += 1
-                                    s.wire(l_path[j][0], l_path[j][1], l_path[j+1][0], l_path[j+1][1], w_uid)
-                                wired_power.add(pi)
-                                wired_power.add(pj)
-
-                # Label only unreached pins
-                for idx, (ax, ay, ref, pnum, sx, sy) in enumerate(pins):
-                    if idx not in wired_power:
-                        d = _dir(ax, ay, sx, sy)
-                        _place_power_or_label(net_name, ax, ay, d)
+            for ax, ay, ref, pnum, sx, sy in pins:
+                d = _dir(ax, ay, sx, sy)
+                _place_power_or_label(net_name, ax, ay, d)
             continue
 
         is_hier = net_name in _hier_names
 
         if len(pins) == 1:
             ax, ay, ref, pnum, sx, sy = pins[0]
-            d = _dir(ax, ay, sx, sy)
             lbl_uid = uid(f"{project_name}_lbl_{net_name}_{ref}_{pnum}_{label_count}")
             w_uid = uid(f"{project_name}_stub_{net_name}_{ref}_{pnum}_{wire_count}")
             label_count += 1
             wire_count += 1
-            _place_label_with_stub(
-                s, net_name, ax, ay, lbl_uid, w_uid,
-                is_hierarchical=is_hier, direction=d,
-            )
+            _label_pin_safe(net_name, ax, ay, sx, sy, lbl_uid, w_uid,
+                            is_hierarchical=is_hier)
             continue
 
         # Feedback paths: always labels with stubs
         if _is_feedback_net(net, nets, parts):
             for ax, ay, ref, pnum, sx, sy in pins:
-                d = _dir(ax, ay, sx, sy)
                 lbl_uid = uid(f"{project_name}_lbl_{net_name}_{ref}_{pnum}_{label_count}")
                 w_uid = uid(f"{project_name}_stub_{net_name}_{ref}_{pnum}_{wire_count}")
                 label_count += 1
                 wire_count += 1
-                _place_label_with_stub(
-                    s, net_name, ax, ay, lbl_uid, w_uid,
-                    is_hierarchical=is_hier, direction=d,
-                )
+                _label_pin_safe(net_name, ax, ay, sx, sy, lbl_uid, w_uid,
+                                is_hierarchical=is_hier)
             continue
 
         # Check max distance for wiring decision
@@ -999,144 +1104,127 @@ def _emit_wires_and_labels(
         # Template-based wiring decision (Elektor rules)
         use_wires = _should_wire_net(net, parts, max_dist, len(pins))
 
-        if use_wires:
-            # Build MST edges (greedy nearest-neighbor) for shorter total wire length
+        # Verdrahtung (beide Modi vereinheitlicht): MST-Kanten von Stub-Spitze
+        # zu Stub-Spitze. Jede Kandidaten-Route wird gegen die Registry geprüft
+        # — kollidiert sie elektrisch mit einem FREMDEN Netz, wird sie
+        # verworfen (kein Kurzschluss; die Selbstheilung unten übernimmt).
+        # Im Label-Modus (use_wires=False) werden nur kurze Kanten verdrahtet.
+        SHORT_EDGE_THRESHOLD = WIRE_MAX_LENGTH / 2
+        edges_ok: list[tuple[int, int]] = []
+        if len(pins) >= 2:
             mst_edges = _build_mst_edges(pins)
-
-            # A* route each MST edge; track which pins got wired.
-            # Routes run from PIN-STUB tips (a short axial lead out of each
-            # component), never pin→pin: so the router starts OUTSIDE the body
-            # and goes AROUND it — no bus gets fräst through the own IC. Because
-            # the stub already escapes the body, no corridor is carved through
-            # it (that carving was exactly what let buses cross the chip).
-            _wire_failed = False
-            wired_pin_indices = set()
             for pi, pj in mst_edges:
-                si = (pins[pi][0], pins[pi][1])
-                sj = (pins[pj][0], pins[pj][1])
-                start = _pin_stub_point(si[0], si[1], pins[pi][4], pins[pi][5])
-                end = _pin_stub_point(sj[0], sj[1], pins[pj][4], pins[pj][5])
-
-                path = _astar_route(start, end, obstacles, set())
-
-                if path and len(path) >= 2:
-                    _emit_pin_stub(si[0], si[1], pins[pi][4], pins[pi][5])
-                    _emit_pin_stub(sj[0], sj[1], pins[pj][4], pins[pj][5])
-                    for j in range(len(path) - 1):
-                        w_uid = uid(f"{project_name}_wire_{net_name}_{wire_count}")
-                        wire_count += 1
-                        s.wire(path[j][0], path[j][1], path[j + 1][0], path[j + 1][1], w_uid)
-                    wired_pin_indices.add(pi)
-                    wired_pin_indices.add(pj)
-                    # Block routed wire waypoints (full rasterization
-                    # blocks too many cells in dense areas — see benchmark)
-                    for wp in path:
-                        gc = (round(wp[0] / ROUTE_GRID), round(wp[1] / ROUTE_GRID))
-                        obstacles.add(gc)
-                else:
-                    # A* failed — try L-bend fallback (also from stub tips)
-                    l_path = _try_lbend(start, end, lbend_obstacles, [obstacles])
-                    if l_path:
-                        _emit_pin_stub(si[0], si[1], pins[pi][4], pins[pi][5])
-                        _emit_pin_stub(sj[0], sj[1], pins[pj][4], pins[pj][5])
-                        for j in range(len(l_path) - 1):
-                            w_uid = uid(f"{project_name}_wire_{net_name}_{wire_count}")
-                            wire_count += 1
-                            s.wire(l_path[j][0], l_path[j][1], l_path[j+1][0], l_path[j+1][1], w_uid)
-                        wired_pin_indices.add(pi)
-                        wired_pin_indices.add(pj)
-                    else:
-                        _wire_failed = True
-
-            # Only keep labels when the net could not be fully wired.
-            if wired_pin_indices and len(wired_pin_indices) < len(pins):
-                first_wired = min(wired_pin_indices)
-                ax0, ay0, ref0, pnum0, sx0, sy0 = pins[first_wired]
-                lbl_uid = uid(f"{project_name}_lbl_{net_name}_{ref0}_{pnum0}_{label_count}")
-                label_count += 1
-                if is_hier:
-                    s.hierarchical_label(net_name, ax0, ay0, lbl_uid)
-                else:
-                    s.net_label(net_name, ax0, ay0, lbl_uid)
-
-            # Label any pins that couldn't be reached by wire (with stubs)
-            for idx, (ax, ay, ref, pnum, sx, sy) in enumerate(pins):
-                if idx not in wired_pin_indices:
-                    stub_dir = _dir(ax, ay, sx, sy)
-                    lbl_uid = uid(f"{project_name}_lbl_{net_name}_{ref}_{pnum}_{label_count}")
-                    w_uid = uid(f"{project_name}_stub_{net_name}_{ref}_{pnum}_{wire_count}")
-                    label_count += 1
-                    wire_count += 1
-                    _place_label_with_stub(
-                        s, net_name, ax, ay, lbl_uid, w_uid,
-                        is_hierarchical=is_hier, direction=stub_dir,
-                    )
-        else:
-            # Per-edge decision: try wiring short MST edges even when
-            # the net as a whole was classified as "label" (e.g. long net
-            # with some nearby pins).  Threshold: half of WIRE_MAX_LENGTH.
-            SHORT_EDGE_THRESHOLD = WIRE_MAX_LENGTH / 2
-            wired_label_indices: set[int] = set()
-            if len(pins) >= 2:
-                mst_edges = _build_mst_edges(pins)
-                for pi, pj in mst_edges:
-                    pin_i = (pins[pi][0], pins[pi][1])
-                    pin_j = (pins[pj][0], pins[pj][1])
-                    edge_dist = math.sqrt((pin_i[0] - pin_j[0]) ** 2 + (pin_i[1] - pin_j[1]) ** 2)
+                pin_i = (pins[pi][0], pins[pi][1])
+                pin_j = (pins[pj][0], pins[pj][1])
+                if not use_wires:
+                    edge_dist = math.hypot(pin_i[0] - pin_j[0], pin_i[1] - pin_j[1])
                     if edge_dist > SHORT_EDGE_THRESHOLD:
-                        continue  # too long — label these pins
-                    start = _pin_stub_point(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
-                    end = _pin_stub_point(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
-                    path = _astar_route(start, end, obstacles, set())
-                    if path and len(path) >= 2:
-                        _emit_pin_stub(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
-                        _emit_pin_stub(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
-                        for j in range(len(path) - 1):
-                            w_uid = uid(f"{project_name}_wire_{net_name}_{wire_count}")
-                            wire_count += 1
-                            s.wire(path[j][0], path[j][1], path[j + 1][0], path[j + 1][1], w_uid)
-                        wired_label_indices.add(pi)
-                        wired_label_indices.add(pj)
-                        for wp in path:
-                            gc = (round(wp[0] / ROUTE_GRID), round(wp[1] / ROUTE_GRID))
-                            obstacles.add(gc)
-                    else:
-                        l_path = _try_lbend(start, end, lbend_obstacles, [obstacles])
-                        if l_path:
-                            _emit_pin_stub(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
-                            _emit_pin_stub(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
-                            for j in range(len(l_path) - 1):
-                                w_uid = uid(f"{project_name}_wire_{net_name}_{wire_count}")
-                                wire_count += 1
-                                s.wire(l_path[j][0], l_path[j][1], l_path[j+1][0], l_path[j+1][1], w_uid)
-                            wired_label_indices.add(pi)
-                            wired_label_indices.add(pj)
-
-            # Only keep labels when some pins still fall back to labels.
-            if wired_label_indices and len(wired_label_indices) < len(pins):
-                first_w = min(wired_label_indices)
-                ax0, ay0, ref0, pnum0, sx0, sy0 = pins[first_w]
-                lbl_uid = uid(f"{project_name}_lbl_{net_name}_{ref0}_{pnum0}_{label_count}")
-                label_count += 1
-                if is_hier:
-                    s.hierarchical_label(net_name, ax0, ay0, lbl_uid)
-                else:
-                    s.net_label(net_name, ax0, ay0, lbl_uid)
-
-            # Label pins that couldn't be wired
-            for idx, (ax, ay, ref, pnum, sx, sy) in enumerate(pins):
-                if idx not in wired_label_indices:
-                    stub_dir = _dir(ax, ay, sx, sy)
-                    lbl_uid = uid(f"{project_name}_lbl_{net_name}_{ref}_{pnum}_{label_count}")
-                    w_uid = uid(f"{project_name}_stub_{net_name}_{ref}_{pnum}_{wire_count}")
-                    label_count += 1
+                        continue  # zu lang — diese Pins bekommen Labels
+                start = _pin_stub_point(pin_i[0], pin_i[1], pins[pi][4], pins[pi][5])
+                end = _pin_stub_point(pin_j[0], pin_j[1], pins[pj][4], pins[pj][5])
+                path = _astar_route(start, end, obstacles, set())
+                if not (path and len(path) >= 2) \
+                        or _path_conflicts(path, net_name):
+                    path = _try_lbend(start, end, lbend_obstacles, [obstacles])
+                    if path and _path_conflicts(path, net_name):
+                        path = None
+                if not path or len(path) < 2:
+                    continue
+                tip_i = _emit_pin_stub(pin_i[0], pin_i[1],
+                                       pins[pi][4], pins[pi][5], net_name)
+                tip_j = _emit_pin_stub(pin_j[0], pin_j[1],
+                                       pins[pj][4], pins[pj][5], net_name)
+                if tip_i is None or tip_j is None:
+                    import os as _os
+                    if _os.environ.get("STUBDBG"): print(f"STUBDBG edge-drop {net_name} {pin_i} {pin_j} tips={tip_i},{tip_j}")
+                    continue  # Stub kollidiert mit Fremd-Netz → Label-Heilung
+                import os as _os
+                if _os.environ.get("STUBDBG"): print(f"STUBDBG edge-OK {net_name} {pin_i}->{pin_j} start={start} end={end}")
+                for j in range(len(path) - 1):
+                    w_uid = uid(f"{project_name}_wire_{net_name}_{wire_count}")
                     wire_count += 1
-                    _place_label_with_stub(
-                        s, net_name, ax, ay, lbl_uid, w_uid,
-                        is_hierarchical=is_hier, direction=stub_dir,
-                    )
+                    _wire_reg(path[j][0], path[j][1],
+                              path[j + 1][0], path[j + 1][1], w_uid, net_name)
+                edges_ok.append((pi, pj))
+                # Block routed wire waypoints (full rasterization
+                # blocks too many cells in dense areas — see benchmark)
+                for wp in path:
+                    obstacles.add((round(wp[0] / ROUTE_GRID),
+                                   round(wp[1] / ROUTE_GRID)))
 
-    logger.info("Emitted %d wires and %d labels", wire_count, label_count)
+        # Selbstheilung: das Soll-Netz muss EIN zusammenhängendes Gebilde
+        # ergeben. Union-Find über die erfolgreich verdrahteten Kanten; zerfällt
+        # das Netz in mehrere Komponenten, bekommt JEDE ein gleichnamiges Label
+        # (KiCad vereint gleichnamige lokale Labels blattweit) — verdrahtete
+        # Komponenten direkt am Pin (dort endet der Stub), einzelne unverdrahtete
+        # Pins per Label+Stub. Vorher wurde nur EIN Label gesetzt und Rest-Inseln
+        # blieben namenlos → „Netz zerfällt in N Teile" im Netzlisten-Roundtrip.
+        parent = list(range(len(pins)))
+
+        def _find(a: int) -> int:
+            while parent[a] != a:
+                parent[a] = parent[parent[a]]
+                a = parent[a]
+            return a
+
+        for a, b in edges_ok:
+            parent[_find(a)] = _find(b)
+        comps: dict[int, list[int]] = {}
+        for i in range(len(pins)):
+            comps.setdefault(_find(i), []).append(i)
+
+        if len(comps) > 1:
+            wired_set = {i for e in edges_ok for i in e}
+            for comp in comps.values():
+                idx = comp[0]
+                ax, ay, ref, pnum, sx, sy = pins[idx]
+                lbl_uid = uid(f"{project_name}_lbl_{net_name}_{ref}_{pnum}_{label_count}")
+                label_count += 1
+                if idx in wired_set:
+                    # Label direkt am Pin — dort beginnt der Stub, der Anker
+                    # liegt also auf einem Draht-Endpunkt (verbunden).
+                    if is_hier:
+                        s.hierarchical_label(net_name, ax, ay, lbl_uid)
+                    else:
+                        s.net_label(net_name, ax, ay, lbl_uid)
+                else:
+                    w_uid = uid(f"{project_name}_stub_{net_name}_{ref}_{pnum}_{wire_count}")
+                    wire_count += 1
+                    _label_pin_safe(net_name, ax, ay, sx, sy, lbl_uid, w_uid,
+                                    is_hierarchical=is_hier)
+
+    # Junction-Punkte: an jedem Punkt, an dem ≥3 Draht-Enden zusammentreffen,
+    # und an jedem T-Abzweig (Draht-Ende auf dem INNEREN eines anderen Drahts)
+    # — Nutzer-Regel „wenn aus einer geraden Leitung eine Leitung abzweigt,
+    # muss ein Punkt das kennzeichnen"; für KiCads Konnektivität am T Pflicht.
+    # NETZ-BEWUSST: ein Punkt bekommt nur dann einen Junction-Punkt, wenn alle
+    # dort beteiligten Segmente zum SELBEN Netz gehören — ein Punkt zwischen
+    # zwei Netzen wäre ein Kurzschluss, den ein Junction erst „festnageln"
+    # würde (Defense-in-Depth zur Registry).
+    end_count: dict[tuple[float, float], int] = {}
+    pt_nets: dict[tuple[float, float], set[str]] = {}
+    for x1, y1, x2, y2, n1 in _segs:
+        for p in ((_r2(x1), _r2(y1)), (_r2(x2), _r2(y2))):
+            end_count[p] = end_count.get(p, 0) + 1
+            pt_nets.setdefault(p, set()).add(n1)
+    junctions: set[tuple[float, float]] = {
+        p for p, c in end_count.items()
+        if c >= 3 and len(pt_nets.get(p, set())) == 1}
+    for p in end_count:
+        if p in junctions:
+            continue
+        for fx1, fy1, fx2, fy2, fnet in _segs:
+            if p in ((_r2(fx1), _r2(fy1)), (_r2(fx2), _r2(fy2))):
+                continue
+            if _on_seg(p[0], p[1], fx1, fy1, fx2, fy2) \
+                    and pt_nets.get(p) == {fnet}:
+                junctions.add(p)
+                break
+    for k, (jx, jy) in enumerate(sorted(junctions)):
+        s.junction(jx, jy, uid(f"{project_name}_junc_{k}"))
+
+    logger.info("Emitted %d wires, %d labels, %d junctions",
+                wire_count, label_count, len(junctions))
     return labeled
 
 
@@ -1164,7 +1252,20 @@ def _extract_pin_positions(lib_id: str, part: dict) -> dict[str, tuple[float, fl
     """
     raw = get_real_symbol(lib_id)
     if not raw:
-        return _pins_from_placeholder(part)
+        # Platzhalter-Symbole durchlaufen DENSELBEN Transform wie echte
+        # (Mirror vor Rotation) — vorher wurden ihre rohen Lib-Koordinaten
+        # unrotiert zurückgegeben (gedrehter Platzhalter = alle Pins falsch).
+        base = _pins_from_placeholder(part)
+        rotation = int(part.get("_rotation", 0))
+        mirror = part.get("_mirror") or None
+        out: dict[str, tuple[float, float]] = {}
+        for num, (lx, ly) in base.items():
+            if mirror == "y":
+                lx = -lx
+            elif mirror == "x":
+                ly = -ly
+            out[num] = _rotate_point(lx, ly, rotation)
+        return out
 
     # _pins_from_real_symbol already applies the lib_symbols Y-flip
     # (the lib frame is Y-up, schematic frame is Y-down). So ``(x, y)``
@@ -1177,24 +1278,17 @@ def _extract_pin_positions(lib_id: str, part: dict) -> dict[str, tuple[float, fl
 
     result: dict[str, tuple[float, float]] = {}
 
+    # Eine Quelle für user→real: dieselbe Zuordnung, die Emission
+    # (pin_instance) und Netzlisten-Vergleich (build_pin_aliases) nutzen —
+    # Namens-Match vor Nummern-Match, gestapelte Namen konfliktfrei verteilt.
+    u2r = _map_user_to_real_pins(part, real_pins, raw)
+
     for pin in user_pins:
         user_num = str(pin["num"])
-        user_name = pin.get("name", "")
-
-        # Strategy 1: direct number match
-        pos = real_pins.get(user_num)
-
-        # Strategy 2: user pin name matches a real pin number
-        if pos is None:
-            pos = real_pins.get(user_name)
-
-        # Strategy 3: case-insensitive name match
-        if pos is None:
-            name_upper = user_name.upper()
-            for rp_num, rp_pos in real_pins.items():
-                if rp_num.upper() == name_upper:
-                    pos = rp_pos
-                    break
+        real_num = u2r.get(user_num)
+        # ungemappte Pins bleiben ehrlich OHNE Position (→ „offen" im
+        # Roundtrip) statt auf eine kollidierende Nummer zurückzufallen
+        pos = real_pins.get(real_num) if real_num is not None else None
 
         if pos is not None:
             lx, ly = pos
@@ -1211,6 +1305,48 @@ def _extract_pin_positions(lib_id: str, part: dict) -> dict[str, tuple[float, fl
         return _pins_from_placeholder(part)
 
     return result
+
+
+@lru_cache(maxsize=256)
+def _pin_names_from_real_symbol(raw_sexpr: str) -> dict[str, tuple[str, ...]]:
+    """``{PIN-NAME (upper): (Pin-Nummern…)}`` eines Lib-Symbols.
+
+    Mehrfach vergebene Namen bleiben als GRUPPE erhalten (gestapelte GND-Pins:
+    DRV8871 hat GND auf 1/7/9). Sie ganz zu verwerfen ließ Kit-Pins mit diesem
+    Namen auf den Nummern-Match zurückfallen — der bei abweichender Kit-
+    Nummerierung den FALSCHEN Funktions-Pin traf (Kit-GND(8) landete auf dem
+    realen OUT2(8) → GND/OUT2-Kurzschluss im Netzlisten-Roundtrip)."""
+    tree = parse_sexpr(raw_sexpr)
+    seen: dict[str, list[str]] = {}
+
+    def _aliases(raw_name: str) -> list[str]:
+        # KiCad-Dekoration entfernen (Aktiv-Low ``~{RST}`` → RST) und
+        # Mehrfach-Funktionen (``TXD0/MODE0``) in Einzel-Aliase zerlegen —
+        # Kits schreiben den nackten Funktionsnamen.
+        clean = raw_name.upper().replace("~{", "").replace("}", "").replace("~", "")
+        parts_ = [p.strip() for p in clean.split("/") if p.strip()]
+        out = [clean] if clean else []
+        out += [p for p in parts_ if p != clean]
+        return out
+
+    def _walk(node: list) -> None:
+        if not isinstance(node, list) or not node:
+            return
+        if node[0] == "pin":
+            nm = find_node(node, "name")
+            num = find_node(node, "number")
+            if nm and num and len(nm) >= 2 and len(num) >= 2:
+                for key in _aliases(str(nm[1])):
+                    if key != "~":
+                        lst = seen.setdefault(key, [])
+                        if str(num[1]) not in lst:
+                            lst.append(str(num[1]))
+        for child in node:
+            if isinstance(child, list):
+                _walk(child)
+
+    _walk(tree)
+    return {k: tuple(v) for k, v in seen.items()}
 
 
 @lru_cache(maxsize=256)
@@ -1244,37 +1380,100 @@ def _pins_from_real_symbol(raw_sexpr: str) -> dict[str, tuple[float, float]]:
     return pins
 
 
-def _map_user_to_real_pins(part: dict, real_pins: dict[str, tuple[float, float]]) -> dict[str, str]:
+def _map_user_to_real_pins(part: dict, real_pins: dict[str, tuple[float, float]],
+                           raw_sexpr: str | None = None) -> dict[str, str]:
     """Map user pin numbers to real KiCad pin numbers.
 
-    Returns: {user_pin_num: real_pin_num}
+    Returns: {user_pin_num: real_pin_num}. Namens-Match ZUERST — der Pin-NAME
+    ist die Design-Absicht des Kits, die Nummer ist paket-abhängig (motor_
+    driver: Kit-Pin 7 „IN1" ≠ realer Pin 7 = GND). Bei gestapelten Namen
+    (GND auf 1/7/9) bevorzugt die eigene Nummer, sonst die erste unbelegte.
+    Danach Nummern-Match, Name-als-Nummer, Groß/Klein-Toleranz.
     """
+    name_groups: dict[str, tuple[str, ...]] = {}
+    if raw_sexpr:
+        name_groups = _pin_names_from_real_symbol(raw_sexpr)
     mapping: dict[str, str] = {}
+    used: set[str] = set()
+
+    _NAME_SYNONYMS = {
+        # Kits schreiben Datenblatt-Worte, Symbole Kurzzeichen (TNY268:
+        # Kit „DRAIN/SOURCE" vs. Symbol „D"/„S")
+        "DRAIN": "D", "SOURCE": "S", "GATE": "G",
+        "COLLECTOR": "C", "EMITTER": "E", "BASE": "B",
+        "ANODE": "A", "CATHODE": "K",
+    }
+
+    def _name_keys(user_name: str) -> list[str]:
+        """Suchschlüssel fürs Namens-Matching: exakt, dann Aktiv-Low-Präfix
+        toleriert (Kit „NRST" ↔ Symbol „~{RST}" → Alias RST), dann
+        Datenblatt-Synonym (DRAIN → D)."""
+        u = user_name.upper()
+        keys = [u]
+        if len(u) > 2 and u[0] in ("N", "/", "#"):
+            keys.append(u.lstrip("/#") if u[0] in ("/", "#") else u[1:])
+        syn = _NAME_SYNONYMS.get(u)
+        if syn:
+            keys.append(syn)
+        return keys
+
+    # Pass 1: Namens-Matches (binden zuerst, damit Nummern-Kollisionen sie
+    # nicht wegschnappen)
     for pin in part.get("pins", []):
         user_num = str(pin["num"])
-        user_name = pin.get("name", "")
+        user_name = str(pin.get("name", "") or "")
+        cands: tuple[str, ...] = ()
+        for key in (_name_keys(user_name) if user_name else []):
+            cands = name_groups.get(key, ())
+            if cands:
+                break
+        if cands:
+            if user_num in cands and user_num not in used:
+                pick = user_num
+            else:
+                pick = next((c for c in cands if c not in used), cands[0])
+            mapping[user_num] = pick
+            used.add(pick)
 
-        if user_num in real_pins:
+    # Pass 2: Rest über Nummer / Name-als-Nummer — nur auf UNBELEGTE reale
+    # Pins. Ist die eigene Nummer schon von einem Namens-Match beansprucht
+    # (Kit-Pin 17 „NRST" vs. reales TXD0=17), bleibt der Pin lieber
+    # ungemappt (→ ehrlich „offen" im Roundtrip) als falsch verbunden.
+    for pin in part.get("pins", []):
+        user_num = str(pin["num"])
+        if user_num in mapping:
+            continue
+        user_name = str(pin.get("name", "") or "")
+        if user_num in real_pins and user_num not in used:
             mapping[user_num] = user_num
-        elif user_name in real_pins:
+            used.add(user_num)
+        elif user_name in real_pins and user_name not in used:
             mapping[user_num] = user_name
+            used.add(user_name)
         else:
             name_upper = user_name.upper()
             for rp_num in real_pins:
-                if rp_num.upper() == name_upper:
+                if rp_num.upper() == name_upper and rp_num not in used:
                     mapping[user_num] = rp_num
+                    used.add(rp_num)
                     break
-            else:
-                mapping[user_num] = user_num  # fallback
     return mapping
 
 
 def _pins_from_placeholder(part: dict) -> dict[str, tuple[float, float]]:
+    """Pin-Positionen der Platzhalter-Box — im BLATT-Rahmen (Y-down).
+
+    Muss exakt zu ``builder._emit_placeholder_symbol`` passen, das die Pins in
+    LIB-Koordinaten (Y-up) bei ``y_lib = (n-1)·FONT − i·SPACING`` zeichnet.
+    Der Y-Flip hier (wie in ``_pins_from_real_symbol``) fehlte früher — alle
+    Drähte/Stubs eines Platzhalter-ICs dockten an den vertikal GESPIEGELTEN,
+    also falschen Pins an (Pin 1 am Platz von Pin n): die Kurzschluss-Cluster
+    der Netzlisten-Roundtrips bei T1/MP1584/MCU_MAC."""
     pins_list = part.get("pins", [])
     n = len(pins_list)
     result: dict[str, tuple[float, float]] = {}
     for i, pin in enumerate(pins_list):
-        y = round((n - 1) * FONT_SIZE - i * PIN_SPACING, 4)
+        y = round(i * PIN_SPACING - (n - 1) * FONT_SIZE, 4)
         x = round(-(SYM_HALF_WIDTH + PIN_LENGTH), 4)
         result[str(pin["num"])] = (x, y)
     return result

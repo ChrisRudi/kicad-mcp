@@ -73,6 +73,22 @@ def _declutter_labels(lines: list[str], parts: list[dict]) -> list[str]:
         bodies.append((round(p["_place_x"], 2), round(p["_place_y"], 2),
                        w / 2.0, h / 2.0))
 
+    # Pin-Welt-Positionen: ein Label, dessen Anker AUF einem Pin sitzt (das
+    # Heilungs-Label „direkt am Pin"), darf NIE bewegt werden — der „Stub" an
+    # seinem Anker ist der PIN-STUB; ihn umzulegen trennt den Pin von seiner
+    # Route (die R1:2-„zerfällt in 2 Teile"-Insel im Netzlisten-Roundtrip).
+    pin_pts: set[tuple[float, float]] = set()
+    for p in parts:
+        if "_place_x" not in p:
+            continue
+        try:
+            pos = _extract_pin_positions(resolve_lib_id(p), p)
+        except Exception:
+            continue
+        for _num, (plx, ply) in pos.items():
+            pin_pts.add((round(p["_place_x"] + plx, 2),
+                         round(p["_place_y"] + ply, 2)))
+
     # Draht-Segmente + Label-Zeilen einsammeln
     wires = []   # (idx, x1, y1, x2, y2, indent, uuid)
     labels = []  # (idx, kind, name, x, y, angle, rest, indent)
@@ -118,6 +134,42 @@ def _declutter_labels(lines: list[str], parts: list[dict]) -> list[str]:
                 return True
         return False
 
+    # Endpunkt-Grad: an wie vielen Draht-Enden hängt ein Punkt? Ein Label darf
+    # NUR bewegt werden, wenn sein Anker eine reine Stichleitung abschließt
+    # (Grad 1). Bei Grad ≥2 führt am Anker eine Route weiter — den Stub
+    # umzulegen risse sie ab (die „zerfällt in 2 Teile"-Splits des
+    # Netzlisten-Roundtrips kamen genau daher).
+    _deg: dict[tuple[float, float], int] = {}
+    for wi in wires:
+        for p in ((round(wi[1], 2), round(wi[2], 2)),
+                  (round(wi[3], 2), round(wi[4], 2))):
+            _deg[p] = _deg.get(p, 0) + 1
+
+    def _seg_touches_wires(x1, y1, x2, y2, skip_idx) -> bool:
+        """Berührt das neue Stub-Segment ein anderes Draht-Segment ELEKTRISCH
+        (Endpunkt-auf-Segment / gemeinsamer Endpunkt am neuen Anker /
+        kollineare Überlappung)? Der Pin-Endpunkt darf natürlich anliegen."""
+        def on(px, py, a1, b1, a2, b2):
+            if abs(b1 - b2) < 0.01:
+                return abs(py - b1) < 0.01 and min(a1, a2) - 0.01 <= px <= max(a1, a2) + 0.01
+            if abs(a1 - a2) < 0.01:
+                return abs(px - a1) < 0.01 and min(b1, b2) - 0.01 <= py <= max(b1, b2) + 0.01
+            return False
+        for wi in wires:
+            if wi[0] == skip_idx:
+                continue
+            wx1, wy1, wx2, wy2 = wi[1], wi[2], wi[3], wi[4]
+            # neuer Anker (x2,y2) auf/an fremdem Draht?
+            if on(x2, y2, wx1, wy1, wx2, wy2):
+                return True
+            # fremdes Draht-Ende mitten auf dem neuen Stub?
+            for ex, ey in ((wx1, wy1), (wx2, wy2)):
+                if (abs(ex - x1) < 0.01 and abs(ey - y1) < 0.01):
+                    continue  # Pin-Ende — dort dürfen andere anliegen
+                if on(ex, ey, x1, y1, x2, y2):
+                    return True
+        return False
+
     out = list(lines)
     for (idx, kind, name, lx, ly, angle, rest, lind) in labels:
         box = _decl_label_box(lx, ly, angle, name)
@@ -129,6 +181,10 @@ def _declutter_labels(lines: list[str], parts: list[dict]) -> list[str]:
                     or _box_hits_label(box, idx))
         if not conflict or not stub:
             continue
+        if _deg.get((round(lx, 2), round(ly, 2)), 0) != 1:
+            continue  # am Anker führt eine Route weiter → nicht bewegen
+        if (round(lx, 2), round(ly, 2)) in pin_pts:
+            continue  # Label sitzt AM PIN — sein „Stub" ist der Pin-Stub
         pin = (stub[3], stub[4]) if (abs(stub[1]-lx) < 0.05 and abs(stub[2]-ly) < 0.05) \
             else (stub[1], stub[2])
         # freie Richtung suchen (die aktuelle zuerst NICHT — die ist ja kollidiert)
@@ -139,6 +195,8 @@ def _declutter_labels(lines: list[str], parts: list[dict]) -> list[str]:
             if (_box_hits_body(nbox) or _box_hits_wire(nbox, stub[0])
                     or _box_hits_label(nbox, idx)):
                 continue
+            if _seg_touches_wires(pin[0], pin[1], nlx, nly, stub[0]):
+                continue  # elektrischer Kontakt mit fremdem Draht → nächste
             # Label-Zeile + Stub umschreiben
             out[idx] = f'{lind}({kind} "{name}" (at {_fmt(nlx)} {_fmt(nly)} {nang}){rest})'
             out[stub[0]] = (f'{stub[5]}(wire (pts (xy {_fmt(pin[0])} {_fmt(pin[1])}) '
@@ -179,9 +237,18 @@ def _merge_overlapping_wires(lines: list[str]) -> list[str]:
         return lines
 
     def _merge(intervals):
+        # NUR Segmente vereinigen, die sich überlappen UND einen Endpunkt
+        # teilen: ein geteilter Endpunkt heißt in KiCad „gleicher Knoten" =
+        # garantiert gleiches Netz. Überlappung OHNE geteilten Endpunkt kann
+        # zwei VERSCHIEDENE Netze betreffen (zwei Nachbar-Stubs übereinander)
+        # — die zu vereinigen wäre ein handfester Kurzschluss.
         out = []
         for lo, hi, uid_ in sorted(intervals):
-            if out and lo < out[-1][1] - 0.05:   # ECHTE Überlappung
+            if out and lo < out[-1][1] - 0.05 \
+                    and (abs(lo - out[-1][0]) < 0.05
+                         or abs(hi - out[-1][1]) < 0.05
+                         or abs(lo - out[-1][1]) < 0.05
+                         or abs(hi - out[-1][0]) < 0.05):
                 out[-1] = (out[-1][0], max(out[-1][1], hi), out[-1][2])
             else:
                 out.append((lo, hi, uid_))
@@ -228,6 +295,54 @@ from .route import (  # noqa: E402
     _extract_pin_positions,
     _pins_from_real_symbol, _map_user_to_real_pins,
 )
+
+
+def _resolve_pin_collisions(parts: list[dict], min_dist: float = 1.0) -> None:
+    """Verschiebe Bauteile, deren PINS mit Pins ANDERER Bauteile zusammenfallen.
+
+    Pin-auf-Pin (< ``min_dist`` mm) ist in KiCad eine harte elektrische
+    Verbindung — zwei fremde Netze wären kurzgeschlossen, bevor ein Draht
+    existiert. Das jeweils spätere Bauteil wandert in 2.54er-Schritten
+    (rechts, unten, links, oben, dann weiter außen), bis seine Pins frei sind.
+    Deterministisch; bricht nach 24 Versuchen ab (dann bleibt der Befund dem
+    Netzlisten-Roundtrip überlassen)."""
+    from .route import _extract_pin_positions
+
+    def _world_pins(part: dict) -> list[tuple[float, float]]:
+        pos = _extract_pin_positions(resolve_lib_id(part), part)
+        return [(round(part["_place_x"] + lx, 2), round(part["_place_y"] + ly, 2))
+                for lx, ly in pos.values()]
+
+    placed: list[dict] = [p for p in parts if "_place_x" in p]
+    taken: set[tuple[float, float]] = set()
+
+    def _near_taken(pts: list[tuple[float, float]]) -> bool:
+        for x, y in pts:
+            for tx, ty in taken:
+                if abs(x - tx) < min_dist and abs(y - ty) < min_dist:
+                    return True
+        return False
+
+    offsets = [(2.54, 0), (0, 2.54), (-2.54, 0), (0, -2.54),
+               (5.08, 0), (0, 5.08), (-5.08, 0), (0, -5.08),
+               (5.08, 2.54), (2.54, 5.08), (-5.08, -2.54), (-2.54, -5.08),
+               (7.62, 0), (0, 7.62), (-7.62, 0), (0, -7.62),
+               (7.62, 2.54), (2.54, 7.62), (10.16, 0), (0, 10.16),
+               (-10.16, 0), (0, -10.16), (10.16, 5.08), (5.08, 10.16)]
+    for part in placed:
+        pts = _world_pins(part)
+        if _near_taken(pts):
+            ox0, oy0 = part["_place_x"], part["_place_y"]
+            for dx, dy in offsets:
+                part["_place_x"] = round(ox0 + dx, 2)
+                part["_place_y"] = round(oy0 + dy, 2)
+                pts = _world_pins(part)
+                if not _near_taken(pts):
+                    break
+            else:
+                part["_place_x"], part["_place_y"] = ox0, oy0
+                pts = _world_pins(part)
+        taken.update(pts)
 
 
 def build_schematic(
@@ -284,6 +399,13 @@ def build_schematic(
     # Zusatz-Units. Vor jedem Emit zurücksetzen.
     for part in parts:
         part.pop("_extra_units", None)
+
+    # Pin-Kollisions-Auflösung: liegen PINS zweier verschiedener Bauteile auf
+    # demselben Punkt (Placement-Pech im 2.54er-Raster: R2:1 exakt auf U1:7 des
+    # MP1584-Platzhalters), sind die Netze in KiCad hart verbunden — kein
+    # Routing kann das reparieren. Das später platzierte Bauteil wird
+    # deterministisch in 2.54er-Schritten verschoben, bis alle Pins frei sind.
+    _resolve_pin_collisions(parts)
 
     s = SExpr()
 
@@ -575,7 +697,7 @@ def _emit_symbol_instances(s: SExpr, parts: list[dict], project_name: str, simul
         if real_sym:
             real_pins = _pins_from_real_symbol(real_sym)
             emitted_pins = set()
-            user_to_real = _map_user_to_real_pins(part, real_pins)
+            user_to_real = _map_user_to_real_pins(part, real_pins, real_sym)
             for pin in part.get("pins", []):
                 real_num = user_to_real.get(str(pin["num"]), str(pin["num"]))
                 pin_uid = uid(f"{project_name}_{ref}_pin{real_num}")
@@ -713,7 +835,7 @@ def _emit_pwr_flags(s: SExpr, parts: list[dict], nets: list[dict], project_name:
 
         real_sym = get_real_symbol(lib_id)
         real_pins_map = _pins_from_real_symbol(real_sym) if real_sym else {}
-        u2r = _map_user_to_real_pins(part, real_pins_map) if real_pins_map else {}
+        u2r = _map_user_to_real_pins(part, real_pins_map, real_sym) if real_pins_map else {}
 
         for pin in part.get("pins", []):
             conn_key = f"{ref}:{pin['name']}"
@@ -872,7 +994,7 @@ def _emit_no_connects(
         # Map user pin nums to real pin nums
         real_sym = get_real_symbol(lib_id)
         real_pins = _pins_from_real_symbol(real_sym) if real_sym else {}
-        user_to_real = _map_user_to_real_pins(part, real_pins)
+        user_to_real = _map_user_to_real_pins(part, real_pins, real_sym)
 
         # Get set of real pin nums that are connected
         connected_real_nums = set()

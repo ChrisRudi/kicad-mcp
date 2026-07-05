@@ -23,11 +23,22 @@ def _wire(x1, y1, x2, y2, u):
     return f'  (wire (pts (xy {x1} {y1}) (xy {x2} {y2})) (uuid "{u}"))'
 
 
-def test_overlapping_horizontal_wires_merge():
-    lines = [_wire(10, 50, 30, 50, "a"), _wire(20, 50, 40, 50, "b")]
+def test_overlapping_wires_with_shared_endpoint_merge():
+    # Überlappung MIT geteiltem Endpunkt (x=10): gleicher Knoten = garantiert
+    # gleiches Netz → Vereinigung ist sicher.
+    lines = [_wire(10, 50, 30, 50, "a"), _wire(10, 50, 40, 50, "b")]
     out = [ln for ln in _merge_overlapping_wires(lines) if "(wire" in ln]
     assert len(out) == 1                       # zwei → eine Vereinigung
     assert "(xy 10 50)" in out[0] and "(xy 40 50)" in out[0]
+
+
+def test_overlapping_wires_without_shared_endpoint_stay():
+    # Überlappung OHNE geteilten Endpunkt kann zwei VERSCHIEDENE Netze
+    # betreffen (zwei Nachbar-Stubs übereinander) — vereinigen wäre ein
+    # Kurzschluss (Netzlisten-Roundtrip-Befund USB_DM/USB_DP) → bleibt zwei.
+    lines = [_wire(10, 50, 30, 50, "a"), _wire(20, 50, 40, 50, "b")]
+    out = [ln for ln in _merge_overlapping_wires(lines) if "(wire" in ln]
+    assert len(out) == 2
 
 
 def test_contiguous_wires_are_not_merged():

@@ -198,6 +198,13 @@ def resolve_lib_id(part: dict) -> str:
     name = part.get("name", "")
     value = part.get("value", "")
 
+    # Pin-Zahl-abhängige Sonderfälle VOR der Namens-Tabelle: ein „Crystal" mit
+    # 4 deklarierten Pins ist ein Gehäuse-Quarz mit GND-Pad (Pins 2/4 = GND) —
+    # ``Device:Crystal`` hat nur 2 Pins, die GND-Pins blieben unverbunden
+    # (Netzlisten-Roundtrip: „Y1:3/Y1:4 nicht angeschlossen").
+    if name in ("Crystal", "XTAL", "Quarz") and len(part.get("pins", [])) >= 4:
+        return "Device:Crystal_GND24"
+
     # 1. Manual table — exact match (fast path for common components)
     if name in _BY_NAME:
         return _BY_NAME[name]

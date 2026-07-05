@@ -1,7 +1,34 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.18.0**
+Aktuelle Version: **0.19.0**
+
+---
+
+## ⚡ Neu in 0.19.0 — Netzlisten-Roundtrip: gezeichnet = gewollt (10/10)
+
+- **Der neue harte Beweis** (Nutzer-Vorschlag): Aus dem GEZEICHNETEN Schaltplan
+  wird mit KiCads eigener Engine eine Netzliste extrahiert und pin-genau mit
+  der Soll-Netzliste verglichen. Vorher waren ALLE 10 Beispiel-Schaltungen
+  elektrisch falsch (Kurzschlüsse, zerfallene Netze, offene Pins) — obwohl sie
+  hübsch aussahen. Jetzt: **10/10 identisch**, auch nach dem Optimierer.
+- **Junction-Punkte:** Jeder T-Abzweig trägt jetzt den Verbindungspunkt
+  (Nutzer-Regel: „wenn aus einer geraden Leitung eine Leitung abzweigt, muss
+  ein Punkt das kennzeichnen").
+- **Power-Symbole an jedem Versorgungs-Pin** statt langer Power-Drähte quer
+  übers Blatt — wie in Profi-Schaltplänen; GND/VCC vereint KiCad global.
+- **Kurzschluss-Prävention beim Zeichnen:** Jede Leitung/jeder Stub wird vor
+  dem Zeichnen gegen alle fremden Netze UND alle Pins geprüft; bei Konflikt
+  weicht er aus (andere Richtung/Länge) oder das Netz wird per gleichnamigem
+  Label verbunden. Bauteile, deren Pins aufeinander gerieten, werden
+  automatisch verschoben.
+- **Pin-Namen schlagen Pin-Nummern:** Kits adressieren Pins nach Bedeutung
+  („IN1", „DRAIN", „NRST") — die Zuordnung zum Bibliotheks-Symbol geht jetzt
+  über den Namen (inkl. ~{RST}-Dekoration, TXD0/MODE0-Doppelnamen, gestapelte
+  GND-Pins, DRAIN→D-Synonyme). Falsche Kit-Nummern können keine fremden
+  Funktions-Pins mehr treffen.
+- Dauerhafter Wächter: ``tests/test_netlist_roundtrip.py`` prüft alle 10 Kits
+  bei jedem Testlauf (übersprungen ohne kicad-cli).
 
 ---
 

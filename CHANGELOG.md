@@ -8,6 +8,53 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added/Fixed (Netzlisten-Roundtrip: gezeichnet = gewollt, 10/10 — 0.19.0)
+- **Nutzer-Vorschlag als hartes Gate:** „Nimm die Original-Schaltung, mach eine
+  Netzliste; nimm deine gezeichnete Schaltung, erstelle daraus eine Netzliste;
+  wenn beide matchen, melde Erfolg." → Neues Modul
+  **`generators/schematic/netlist_check.py`**: Ist-Netzliste via ``kicad-cli
+  sch export netlist`` (KiCads eigene Konnektivitäts-Engine) aus der fertigen
+  ``.kicad_sch``, pin-genauer Gruppen-Vergleich (namensunabhängig) mit
+  ``merged``/``split``/``missing``-Befunden + ``build_pin_aliases``.
+  **Erstbefund: ALLE 10 Kits elektrisch falsch** (kit_seeding: EIN Netz mit
+  allen 24 Pins) — bei badness 0 und grünem ERC. Jetzt **10/10 MATCH**, auch
+  mit Optimizer. Dauerhafter Wächter ``tests/test_netlist_roundtrip.py``.
+- **Kurzschluss-Prävention (route.py, Segment-Registry):** jede Route/jeder
+  Stub wird VOR der Emission gegen alle fremden Segmente (Endpunkt-teilt-Punkt,
+  Endpunkt-auf-Segment, kollineare Überlappung) UND alle Pin-Positionen
+  geprüft; Ausweichen über Richtung/Länge (5.08/2.54/1.27/7.62/10.16 …), sonst
+  Label-Heilung. Läufe des A* starten netz-geordnet (Power zuerst).
+- **Selbstheilung per Union-Find:** zerfällt ein Netz in Komponenten (Kante
+  nicht routbar), bekommt JEDE Komponente ein gleichnamiges Label (verdrahtete
+  am Pin, einzelne mit Stub) — vorher blieben Rest-Inseln namenlos.
+- **Power-Symbole an JEDEM Power-Pin** statt MST-verdrahteter Power-Netze
+  (wie die Profi-Referenzen; KiCad vereint global über den Symbol-Namen).
+  Stub-Länge/Richtung konfliktverhandelt; Rails ohne Symbol (VIN) über
+  Global-Labels mit derselben Verhandlung.
+- **Junction-Punkte (`SExpr.junction`, netz-bewusst):** an jedem Punkt mit ≥3
+  Draht-Enden und jedem T-Abzweig (Endpunkt auf Segment-Innerem) desselben
+  Netzes — Nutzer-Regel „Abzweig braucht einen Punkt".
+- **Pin-Name schlägt Pin-Nummer (`_map_user_to_real_pins`, eine Quelle für
+  Geometrie, Emission und Vergleich):** Kits adressieren semantisch; reale
+  Symbole nummerieren anders (DRV8871: Kit-GND(8) = reales OUT2(8)!).
+  Namens-Match zuerst, mit ~{}-Dekoration, Slash-Aliassen (TXD0/MODE0),
+  Aktiv-Low-Toleranz (NRST↔RST), Synonymen (DRAIN→D), gestapelten Namens-
+  Gruppen (GND auf 1/7/9) und Belegungs-Tracking; nicht Zuordenbares bleibt
+  ehrlich offen statt falsch verbunden.
+- **Platzhalter-Pins korrekt:** Y-Flip (Lib ist Y-up) + Mirror/Rotation im
+  Placeholder-Pfad — vorher dockten alle Drähte eines gedrehten/jeden
+  Platzhalter-ICs an gespiegelten Pins an.
+- **Pin-Kollisions-Auflösung (`_resolve_pin_collisions`):** Bauteile, deren
+  Pins durch Placement-Pech exakt auf fremden Pins landen (R2:1 auf U1:7),
+  werden deterministisch in 2.54er-Schritten verschoben.
+- **Declutter elektrisch sicher:** bewegt nur noch reine Stichleitungen
+  (Anker-Grad 1, nicht auf Pin-Position), prüft die neue Lage elektrisch.
+- **Merge-Guard:** kollineare Segmente werden nur noch mit GETEILTEM Endpunkt
+  vereinigt (gleicher Knoten = gleiches Netz) — das blinde Vereinigen hatte
+  zwei übereinanderliegende Fremd-Stubs kurzgeschlossen.
+- **4-Pin-Quarz** („Crystal" mit 4 Pins) → ``Device:Crystal_GND24`` (GND-Pins
+  2/4 waren vorher offen).
+
 ### Fixed (Finalisierung: 10/10 Kits badness 0 — 0.18.0)
 - **Gegenrotierte Referenz/Wert-Texte (`builder._emit_symbol_instances`):**
   KiCad rendert Property-Text RELATIV zur Symbol-Rotation — bei rot=90/270

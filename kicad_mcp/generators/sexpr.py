@@ -133,6 +133,16 @@ class SExpr:
         )
         return self
 
+    def junction(self, x: float, y: float, uuid_str: str) -> "SExpr":
+        """Emit a junction dot — Pflicht an jedem T-Abzweig (Nutzer-Regel:
+        „wenn aus einer geraden Leitung eine Leitung abzweigt, muss ein Punkt
+        das kennzeichnen"; KiCad-Konvention ebenso)."""
+        self._lines.append(
+            f'{self._prefix()}(junction (at {x} {y}) (diameter 0)'
+            f' (color 0 0 0 0) (uuid "{uuid_str}"))'
+        )
+        return self
+
     def no_connect(self, x: float, y: float, uuid_str: str) -> "SExpr":
         """Emit a no-connect flag (X marker) at a pin endpoint."""
         self._lines.append(
