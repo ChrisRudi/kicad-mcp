@@ -8,6 +8,19 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (Layout-Regel-Set kuratiert — Nutzer-Vorgabe)
+- **Regel 1 „tight_cluster" gelöscht**, dafür neu **`pin_swap_passives`**: bei
+  Kondensatoren, Spulen und Widerständen (unpolare 2-Pin-Bauteile) dürfen Pin 1
+  und Pin 2 vertauscht werden, um kürzere/kreuzungsärmere Leitungen zu bekommen
+  (realisiert über die 180°-Drehung in `defrag._best_rotation`; polarisierte
+  Teile — Elkos, Dioden/LEDs — ausgenommen).
+- **Regel 10 `astar_route` ersetzt durch `no_wire_through_parts`**: „Drähte gehen
+  niemals durch Bauteile" — der A*-Router führt jeden Draht um die Rahmen herum;
+  ohne freien Weg wird ein Label gesetzt statt eines Durchstich-Drahts.
+- `tests/test_layout_rules.py` mitgezogen (Kern-Regel-Liste, Negativ-Check für
+  die entfernten Keys). Reine Regel-Set-Pflege (Text/Registry), keine
+  Enforcement-Änderung → kein Version-Bump.
+
 ### Added (Layout-Regel-Set + Leitung folgt Pin-Austrittsrichtung, Plugin 0.12.4)
 - **Nutzer-Vorgabe:** „Liste alle Regeln — diese müssen als eigenes wartbares
   Set in die Generatoren" + „die 5 mm schließen sich an die Richtung an, in der

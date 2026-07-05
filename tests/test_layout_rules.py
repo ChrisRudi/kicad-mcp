@@ -31,8 +31,10 @@ def test_core_rules_present():
     keys = {r.key for r in lr.all_rules()}
     for expected in ("no_overlap", "min_wire", "wire_along_pin_exit",
                      "gnd_down_vcc_up", "connectors_outermost", "no_labels",
-                     "tight_cluster"):
+                     "pin_swap_passives", "no_wire_through_parts"):
         assert expected in keys, f"Kern-Regel fehlt: {expected}"
+    # Regel 1 (tight_cluster) und astar_route wurden bewusst entfernt/ersetzt.
+    assert "tight_cluster" not in keys and "astar_route" not in keys
 
 
 def test_get_and_status_helpers():
