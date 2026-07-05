@@ -1,7 +1,17 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.15.1**
+Aktuelle Version: **0.15.2**
+
+---
+
+## 〰️ Neu in 0.15.2 — keine Leitungen übereinander (Kreuzungen sind ok)
+
+- Neue Prüfung: zwei Leitungen dürfen nicht **übereinander** liegen (auf
+  derselben Linie). Der Aufräum-Lauf zieht das jetzt auseinander.
+- **Kreuzungen** (zwei Leitungen überkreuzen sich in einem Punkt) sind dagegen
+  **ausdrücklich erlaubt** — die zählen nicht mehr als Fehler. So blockiert eine
+  normale, unvermeidbare Kreuzung nicht mehr die Bestnote.
 
 ---
 

@@ -8,6 +8,23 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added/Changed (Regel „keine Leitungen übereinander"; Kreuzungen sind OK — 0.15.2)
+- **Nutzer-Vorgabe:** „keine Leitungen übereinander" UND „Kreuzungen sind ok".
+- **`layout_measure.wire_overlaps` (neu):** zählt Paare von Draht-Segmenten, die
+  ÜBEREINANDER liegen — kollinear (beide waagrecht auf gleichem y bzw. beide
+  senkrecht auf gleichem x) mit gemeinsamer STRECKE (nicht nur ein Punkt →
+  fortlaufende Leitung zählt nicht; ein X → Kreuzung zählt nicht). Gewicht 18.
+  Referenzen kalibrieren auf 0; die Kits hatten real welche (buck 24,
+  production 14). Der Optimierer treibt sie stark runter (production 14→0,
+  buck 24→3); den harten Rest an dichten Stellen räumt Phase B (mehr Abstand →
+  der Router bekommt getrennte Spuren).
+- **Kreuzungen (X) nicht mehr bestraft:** ``wire_crossings``-Gewicht 8 → **0**.
+  Kreuzungen sind laut Nutzer OK; sie werden weiter GEMESSEN und berichtet, aber
+  zählen nicht mehr gegen die badness. Damit blockiert eine unvermeidliche
+  Kreuzung nicht mehr den „sauber"-Status.
+- Tests: kollinear-überlappende Leitungen werden erkannt; fortlaufende (nur
+  Endpunkt geteilt) und Kreuzungen NICHT; Referenzen bleiben ``wire_overlaps=0``.
+
 ### Changed (Struktur-Angleichung Phase A.2: Referenz/Wert bei ICs über/unter den Körper — 0.15.1)
 - **Referenz/Wert-Platzierung (`builder._emit_symbol_instances`):** bei
   mehrpinnigen ICs (> 4 Pins, Pins links/rechts) kommen ``U1`` / ``74HC595`` jetzt

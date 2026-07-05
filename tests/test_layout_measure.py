@@ -27,6 +27,7 @@ def test_professional_reference_scores_zero(ref):
     assert d["label_wrong_dir"] == 0, m.details
     assert d["annot_overlaps"] == 0, m.details
     assert d["wire_through_body"] == 0, m.details
+    assert d["wire_overlaps"] == 0, m.details
     assert d["wire_crossings"] == 0
     assert d["diag_wires"] == 0
     assert m.badness() == 0.0
@@ -91,6 +92,35 @@ def test_hidden_annotation_does_not_count():
            ' (in_bom yes) (on_board yes)\n'
            '  (property "Reference" "R2" (at 120 99 0) (hide yes)))\n)')
     assert lm.measure_text(sch).annot_overlaps == 0
+
+
+def test_collinear_overlapping_wires_are_detected():
+    # zwei waagrechte Leitungen auf gleichem y, deren x-Bereiche sich überlappen
+    # → 1 „Leitung übereinander" (nicht Kreuzung, nicht Endpunkt).
+    sch = ('(kicad_sch\n'
+           '(wire (pts (xy 10 50) (xy 30 50)))\n'
+           '(wire (pts (xy 20 50) (xy 40 50)))\n)')
+    m = lm.measure_text(sch)
+    assert m.wire_overlaps >= 1
+    assert m.wire_crossings == 0
+
+
+def test_contiguous_collinear_wires_are_not_overlap():
+    # zwei Segmente einer geraden Leitung, die nur EINEN Endpunkt teilen → kein
+    # Übereinanderliegen (das ist eine fortlaufende Leitung).
+    sch = ('(kicad_sch\n'
+           '(wire (pts (xy 10 50) (xy 20 50)))\n'
+           '(wire (pts (xy 20 50) (xy 30 50)))\n)')
+    assert lm.measure_text(sch).wire_overlaps == 0
+
+
+def test_crossing_is_not_counted_as_overlap():
+    sch = ('(kicad_sch\n'
+           '(wire (pts (xy 20 10) (xy 20 40)))\n'
+           '(wire (pts (xy 10 25) (xy 30 25)))\n)')
+    m = lm.measure_text(sch)
+    assert m.wire_overlaps == 0
+    assert m.wire_crossings == 1
 
 
 def test_wire_through_body_is_detected():

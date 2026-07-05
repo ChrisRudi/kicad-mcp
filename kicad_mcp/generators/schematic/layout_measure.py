@@ -133,6 +133,7 @@ class Metrics:
     label_wrong_dir: int = 0
     annot_overlaps: int = 0
     wire_through_body: int = 0
+    wire_overlaps: int = 0
     wire_crossings: int = 0
     diag_wires: int = 0
     offgrid: int = 0
@@ -145,8 +146,8 @@ class Metrics:
     def as_dict(self) -> dict:
         return {k: getattr(self, k) for k in (
             "comp_overlaps", "label_overlaps", "label_wrong_dir",
-            "annot_overlaps", "wire_through_body", "wire_crossings",
-            "diag_wires", "offgrid",
+            "annot_overlaps", "wire_through_body", "wire_overlaps",
+            "wire_crossings", "diag_wires", "offgrid",
             "wirelength_mm", "n_symbols", "n_labels", "n_wires")}
 
     def badness(self, weights: dict | None = None) -> float:
@@ -158,6 +159,7 @@ class Metrics:
                 + w["label_wrong_dir"] * self.label_wrong_dir
                 + w["annot_overlaps"] * self.annot_overlaps
                 + w["wire_through_body"] * self.wire_through_body
+                + w["wire_overlaps"] * self.wire_overlaps
                 + w["wire_crossings"] * self.wire_crossings
                 + w["diag_wires"] * self.diag_wires
                 + w["offgrid"] * self.offgrid)
@@ -169,7 +171,9 @@ _DEFAULT_WEIGHTS = {
     "label_wrong_dir": 20.0,
     "annot_overlaps": 25.0,   # Referenz/Wert-Text zweier Bauteile übereinander
     "wire_through_body": 30.0,  # Leitung quer durch ein fremdes Bauteil
-    "wire_crossings": 8.0,
+    "wire_overlaps": 18.0,    # zwei Leitungen liegen ÜBEREINANDER (kollinear)
+    "wire_crossings": 0.0,    # Kreuzungen (X) sind OK (Nutzer-Vorgabe) — weiter
+    #                           gemessen/berichtet, aber NICHT bestraft.
     "diag_wires": 15.0,
     "offgrid": 5.0,
 }
@@ -335,6 +339,26 @@ def _seg_through_rect(x1, y1, x2, y2, cx, cy, hw, hh) -> bool:
     return t0 < t1 - 1e-6
 
 
+def _seg_overlap(a: _Wire, b: _Wire) -> bool:
+    """Liegen zwei Segmente ÜBEREINANDER — kollinear (beide waagrecht auf gleichem
+    y bzw. beide senkrecht auf gleichem x) und mit gemeinsamer STRECKE (nicht nur
+    einem Punkt)? Das ist „zwei Leitungen übereinander", anders als eine Kreuzung
+    (X) oder ein geteilter Endpunkt (fortlaufende gerade Leitung)."""
+    a_h = abs(a.y1 - a.y2) < 0.01
+    b_h = abs(b.y1 - b.y2) < 0.01
+    a_v = abs(a.x1 - a.x2) < 0.01
+    b_v = abs(b.x1 - b.x2) < 0.01
+    if a_h and b_h and abs(a.y1 - b.y1) < 0.01:
+        lo1, hi1 = sorted((a.x1, a.x2))
+        lo2, hi2 = sorted((b.x1, b.x2))
+        return min(hi1, hi2) - max(lo1, lo2) > 0.05
+    if a_v and b_v and abs(a.x1 - b.x1) < 0.01:
+        lo1, hi1 = sorted((a.y1, a.y2))
+        lo2, hi2 = sorted((b.y1, b.y2))
+        return min(hi1, hi2) - max(lo1, lo2) > 0.05
+    return False
+
+
 def measure_text(text: str) -> Metrics:
     """Ein ``.kicad_sch`` (als String) parsen und objektiv vermessen."""
     syms, labels, wires = _parse(text)
@@ -396,6 +420,8 @@ def measure_text(text: str) -> Metrics:
         for j in range(i + 1, len(wires)):
             if _seg_cross(wires[i], wires[j]):
                 m.wire_crossings += 1
+            elif _seg_overlap(wires[i], wires[j]):
+                m.wire_overlaps += 1
 
     # Leitung quer durch ein FREMDES Bauteil (Regel: Drähte gehen nie durch
     # Bauteile). Das eigene Anschluss-Bauteil ausschließen: endet ein Draht in
