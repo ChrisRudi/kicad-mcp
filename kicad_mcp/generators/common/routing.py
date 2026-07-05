@@ -5,8 +5,7 @@ Shared routing helpers: L-Bend, rasterization, obstacle checks.
 Extracted from schematic_builder.py and pcb_router.py.
 
 Callers:
-  - schematic_builder.py   (ROUTE_GRID, _rasterize_path_cells, _l_path_cells,
-                             _l_path_clear, _try_lbend — A*-Router + L-Bend Fallback)
+  - schematic/route.py     (ROUTE_GRID, _l_path_clear, _try_lbend — A*-Router + L-Bend Fallback)
   - auto_place.py          (via schematic_builder lazy import: _build_mst_edges nutzt
                              ROUTE_GRID indirekt)
   - pcb_router.py          (_segment_hits_obstacle, _segments_cross — L-Shape Routing)
@@ -16,25 +15,6 @@ from .constants import HALF_GRID
 
 # Default routing grid (same as HALF_GRID / 50mil KiCad grid)
 ROUTE_GRID = HALF_GRID
-
-
-def _rasterize_path_cells(
-    path: list[tuple[float, float]], grid: float = ROUTE_GRID,
-) -> set[tuple[int, int]]:
-    """Rasterize all cells along Manhattan wire segments (not just waypoints).
-
-    For each consecutive pair of waypoints, fills all grid cells between them.
-    """
-    cells: set[tuple[int, int]] = set()
-    for i in range(len(path) - 1):
-        ax = round(path[i][0] / grid)
-        ay = round(path[i][1] / grid)
-        bx = round(path[i + 1][0] / grid)
-        by = round(path[i + 1][1] / grid)
-        for x in range(min(ax, bx), max(ax, bx) + 1):
-            for y in range(min(ay, by), max(ay, by) + 1):
-                cells.add((x, y))
-    return cells
 
 
 def _l_path_cells(

@@ -185,6 +185,25 @@ def _pin_count_sane(part: dict, lib_id: str) -> bool:
 
 
 def resolve_lib_id(part: dict) -> str:
+    """Memoisierter Einstieg — das Profil zeigte 528 resolve-Aufrufe je
+    Schaltplan-Emission (davon 108 Fuzzy-Index-Suchen) = 44 % der Laufzeit;
+    der Optimizer emittiert hunderte Male. Der Schlüssel deckt alles ab, was
+    das Ergebnis beeinflusst (Name, Wert, lib_id, Ref-Präfix, Pin-Zahl)."""
+    ref = part.get("ref", "")
+    prefix = "".join(c for c in ref if c.isalpha())
+    key = (part.get("name", ""), part.get("value", ""),
+           part.get("lib_id", ""), prefix, len(part.get("pins", [])))
+    hit = _RESOLVE_CACHE.get(key)
+    if hit is None:
+        hit = _resolve_lib_id_uncached(part)
+        _RESOLVE_CACHE[key] = hit
+    return hit
+
+
+_RESOLVE_CACHE: dict[tuple, str] = {}
+
+
+def _resolve_lib_id_uncached(part: dict) -> str:
     """Resolve the KiCad library symbol ID for a component.
 
     Uses a three-tier strategy:

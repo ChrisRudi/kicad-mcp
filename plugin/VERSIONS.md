@@ -1,7 +1,20 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.20.0**
+Aktuelle Version: **0.20.1**
+
+---
+
+## 🚀 Neu in 0.20.1 — Code-Diät & Tempo (erste Runde)
+
+- **36 % schnellere Schaltplan-Erzeugung** (106 → 68 ms je Emission): die
+  Symbol-Auflösung wird jetzt gemerkt statt 528× pro Blatt neu gesucht.
+  Ausgabe bleibt byte-identisch.
+- **143 Zeilen toter Code entfernt** (vom Netzlisten-Umbau verwaiste
+  Router-Altpfade).
+- **Optimierungsplan** für weitere Tempo-/Kürzungs-Schritte in
+  ``docs/optimierungsplan_schematic.md`` (mit Profil-Messwerten und der
+  eisernen Regel: Roundtrip 10/10 + Determinismus nach jedem Schritt).
 
 ---
 

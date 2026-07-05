@@ -8,6 +8,19 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (Code-Diät & Tempo, Runde 1 — 0.20.1)
+- **`resolve_lib_id` memoisiert** (`symbol_lib._RESOLVE_CACHE`, Schlüssel =
+  Name/Wert/lib_id/Ref-Präfix/Pin-Zahl): Profil zeigte 528 Aufrufe je Emission
+  (108 Fuzzy-Index-Suchen) = 44 % der Laufzeit. Emission 106 → 68 ms;
+  Ausgabe byte-identisch (10-Kit-Hash-Vergleich).
+- **Toter Code entfernt (−143 Zeilen):** `_carve_pin_corridors`,
+  `_cells_owned_by`, `_should_wire_power_net` (route.py) und
+  `_rasterize_path_cells` (common/routing.py) — seit dem Netzlisten-Umbau
+  (Power-Symbole je Pin, Registry-Routing) unbenutzt.
+- **`docs/optimierungsplan_schematic.md`:** priorisierter Plan (Tempo /
+  Kürzung / Suche) mit Messrezept; eiserne Regel: Roundtrip 10/10 +
+  Byte-Determinismus nach jedem Schritt.
+
 ### Added/Fixed (Kosmetik-Runde: Luft, Pin-Zonen, Determinismus — 0.20.0)
 - **Mehr Luft (Nutzer: „einfach mehr Luft lassen"):** `SCHEMATIC_LAYOUT_FACTOR`
   1.4→1.7; neue Metrik ``crowding`` (Körper-Spalt < 2.54 mm, Gewicht 10, an den

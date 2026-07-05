@@ -8,7 +8,7 @@ copied verbatim (no behaviour changes).
 Callers:
   - schematic_builder.py   (all functions re-exported for backward compat)
   - schematic/rotate.py    (_optimal_rotation uses _extract_pin_positions)
-  - tests                  (_should_wire_net, _should_wire_power_net, _is_feedback_net, _astar_route, _build_obstacle_set, etc.)
+  - tests                  (_should_wire_net, _is_feedback_net, _astar_route, _build_obstacle_set, etc.)
 """
 
 
@@ -125,39 +125,6 @@ def _should_wire_net(
     return pin_count <= WIRE_MAX_PINS and max_dist <= WIRE_MAX_LENGTH
 
 
-def _should_wire_power_net(
-    parts: list[dict], pins: list[tuple], max_dist: float,
-) -> bool:
-    """Score-based decision whether a power net should use wires or labels.
-
-    Elektor mixed approach: power nets use wires where practical, with a
-    single global label for the net name. Only fall back to all-labels
-    when the net is very large or spread across the entire sheet.
-
-    Factors (Elektor-derived):
-    - Fewer parts → prefer wires (simple circuits wire everything)
-    - Fewer pins in net → prefer wires (short nets are easy to wire)
-    - Shorter distance → prefer wires
-    """
-    part_count = len(parts)
-    pin_count = len(pins)
-
-    # Part count factor: 1.0 at <=10 parts, 0.0 at >=40 parts, linear between
-    part_score = max(0.0, min(1.0, (40 - part_count) / 30))
-
-    # Pin count factor: 1.0 at 2 pins, 0.0 at >=12 pins
-    pin_score = max(0.0, min(1.0, (12 - pin_count) / 10))
-
-    # Distance factor: 1.0 at <=30mm, 0.0 at >=90mm
-    dist_score = max(0.0, min(1.0, (90 - max_dist) / 60))
-
-    # Weighted combination: distance and pins matter more than total parts
-    # (Elektor schematics wire power even in complex circuits when pins are close)
-    wire_score = 0.3 * part_score + 0.35 * dist_score + 0.35 * pin_score
-
-    return wire_score > 0.45
-
-
 # ── A* Wire routing ──────────────────────────────────────────────────────────
 
 BEND_COST = 3.0  # extra cost for changing direction (fewer bends = cleaner)
@@ -194,96 +161,6 @@ def _build_obstacle_set(
             for gy in range(y1, y2 + 1):
                 blocked.add((gx, gy))
     return blocked
-
-
-def _cells_owned_by(part: dict, clearance: float = WIRE_CLEARANCE) -> set[tuple[int, int]]:
-    """Return the set of grid cells belonging to a single component's bounding box."""
-    cells: set[tuple[int, int]] = set()
-    cx, cy = part["_place_x"], part["_place_y"]
-    w, h = _get_symbol_bbox(part)
-    if int(part.get("_rotation", 0)) in (90, 270):
-        w, h = h, w
-    x1 = int((cx - w / 2 - clearance) / ROUTE_GRID) - 1
-    x2 = int((cx + w / 2 + clearance) / ROUTE_GRID) + 1
-    y1 = int((cy - h / 2 - clearance) / ROUTE_GRID) - 1
-    y2 = int((cy + h / 2 + clearance) / ROUTE_GRID) + 1
-    for gx in range(x1, x2 + 1):
-        for gy in range(y1, y2 + 1):
-            cells.add((gx, gy))
-    return cells
-
-
-def _carve_pin_corridors(
-    obstacles: set[tuple[int, int]],
-    parts: list[dict],
-    pin_refs: list[str],
-) -> set[tuple[int, int]]:
-    """Return a COPY of the obstacle set with corridors carved for specific pins.
-
-    Only carves corridors for pins in pin_refs (e.g., ["U1:7", "R1:2"]).
-    This prevents accidentally opening corridors through other components.
-    """
-    result = set(obstacles)  # shallow copy — ints are immutable
-    part_map = {p["ref"]: p for p in parts if "_place_x" in p}
-
-    for pin_ref in pin_refs:
-        if ":" not in pin_ref:
-            continue
-        ref, pin_id = pin_ref.split(":", 1)
-        part = part_map.get(ref)
-        if not part:
-            continue
-
-        sx, sy = part["_place_x"], part["_place_y"]
-        w, h = _get_symbol_bbox(part)
-        cx_g = round(sx / ROUTE_GRID)
-        cy_g = round(sy / ROUTE_GRID)
-
-        lib_id = resolve_lib_id(part)
-        pin_pos = _extract_pin_positions(lib_id, part)
-
-        # Find the pin position — match by pin number or name
-        local = pin_pos.get(pin_id)
-        if local is None:
-            # Try matching user pin name → number
-            for p in part.get("pins", []):
-                if p.get("name") == pin_id or p.get("num") == pin_id:
-                    local = pin_pos.get(str(p["num"]))
-                    break
-        if local is None:
-            continue
-
-        px = round((sx + local[0]) / ROUTE_GRID)
-        py = round((sy + local[1]) / ROUTE_GRID)
-
-        # Bounding box of THIS component
-        clearance = WIRE_CLEARANCE
-        bx1 = int((sx - w / 2 - clearance) / ROUTE_GRID) - 1
-        bx2 = int((sx + w / 2 + clearance) / ROUTE_GRID) + 1
-        by1 = int((sy - h / 2 - clearance) / ROUTE_GRID) - 1
-        by2 = int((sy + h / 2 + clearance) / ROUTE_GRID) + 1
-
-        dx = 1 if px >= cx_g else -1
-        dy = 1 if py >= cy_g else -1
-
-        # Only remove cells that belong to THIS component's bounding box
-        own_cells = _cells_owned_by(part)
-
-        # Horizontal corridor (1 cell wide)
-        gx = px
-        while bx1 <= gx <= bx2:
-            if (gx, py) in own_cells:
-                result.discard((gx, py))
-            gx += dx
-
-        # Vertical corridor (1 cell wide)
-        gy = py
-        while by1 <= gy <= by2:
-            if (px, gy) in own_cells:
-                result.discard((px, gy))
-            gy += dy
-
-    return result
 
 
 def _astar_route(

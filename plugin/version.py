@@ -10,7 +10,7 @@ metadata.
 
 from __future__ import annotations
 
-__version__ = "0.20.0"
+__version__ = "0.20.1"
 
 # Number of MCP tools shipped by this version. Coupled to the registry via
 # ``tests/test_version_release.py``: adding/removing a tool bumps
