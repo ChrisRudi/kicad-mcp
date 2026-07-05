@@ -17,6 +17,7 @@ Metriken (alles „weniger = besser", 0 = ideal):
     label_overlaps     Labels, die auf einem Bauteilkörper liegen
     label_wrong_dir    Netz-Labels, die NICHT vom Bauteil weg zeigen
     annot_overlaps     Paare, deren Referenz/Wert-Text (R1/1k) übereinanderliegt
+    wire_through_body  Draht-Segmente, die quer durch ein fremdes Bauteil laufen
     wire_crossings     sich kreuzende Draht-Segmente (ohne Junction)
     diag_wires         nicht-orthogonale (diagonale) Draht-Segmente
     offgrid            Elemente nicht auf dem 1.27-mm-Raster
@@ -131,6 +132,7 @@ class Metrics:
     label_overlaps: int = 0
     label_wrong_dir: int = 0
     annot_overlaps: int = 0
+    wire_through_body: int = 0
     wire_crossings: int = 0
     diag_wires: int = 0
     offgrid: int = 0
@@ -143,7 +145,8 @@ class Metrics:
     def as_dict(self) -> dict:
         return {k: getattr(self, k) for k in (
             "comp_overlaps", "label_overlaps", "label_wrong_dir",
-            "annot_overlaps", "wire_crossings", "diag_wires", "offgrid",
+            "annot_overlaps", "wire_through_body", "wire_crossings",
+            "diag_wires", "offgrid",
             "wirelength_mm", "n_symbols", "n_labels", "n_wires")}
 
     def badness(self, weights: dict | None = None) -> float:
@@ -154,6 +157,7 @@ class Metrics:
                 + w["label_overlaps"] * self.label_overlaps
                 + w["label_wrong_dir"] * self.label_wrong_dir
                 + w["annot_overlaps"] * self.annot_overlaps
+                + w["wire_through_body"] * self.wire_through_body
                 + w["wire_crossings"] * self.wire_crossings
                 + w["diag_wires"] * self.diag_wires
                 + w["offgrid"] * self.offgrid)
@@ -164,6 +168,7 @@ _DEFAULT_WEIGHTS = {
     "label_overlaps": 100.0,  # dito für Labels
     "label_wrong_dir": 20.0,
     "annot_overlaps": 25.0,   # Referenz/Wert-Text zweier Bauteile übereinander
+    "wire_through_body": 30.0,  # Leitung quer durch ein fremdes Bauteil
     "wire_crossings": 8.0,
     "diag_wires": 15.0,
     "offgrid": 5.0,
@@ -300,6 +305,36 @@ def _seg_cross(a: _Wire, b: _Wire) -> bool:
     return ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0))
 
 
+_PIN_REACH = 2.54  # Pins ragen ~2.54 mm aus dem Körper — ein Draht ans eigene
+#                    Bauteil endet in diesem Ring, quert es aber nicht.
+
+
+def _dist_point_rect(px, py, cx, cy, hw, hh) -> float:
+    """Kürzester Abstand von (px,py) zum Rechteck-Rand (0 wenn innen)."""
+    return math.hypot(max(0.0, abs(px - cx) - hw), max(0.0, abs(py - cy) - hh))
+
+
+def _seg_through_rect(x1, y1, x2, y2, cx, cy, hw, hh) -> bool:
+    """Quert das Segment (x1,y1)-(x2,y2) das INNERE des Rechtecks (Mitte cx,cy,
+    Halb-Maße hw,hh)? Liang-Barsky; ein bloßes Entlangstreifen an der Kante
+    (t0>=t1) zählt nicht."""
+    xmin, xmax, ymin, ymax = cx - hw, cx + hw, cy - hh, cy + hh
+    dx, dy = x2 - x1, y2 - y1
+    t0, t1 = 0.0, 1.0
+    for p, q in ((-dx, x1 - xmin), (dx, xmax - x1),
+                 (-dy, y1 - ymin), (dy, ymax - y1)):
+        if abs(p) < 1e-9:
+            if q < 0:
+                return False           # parallel und außerhalb
+        else:
+            r = q / p
+            if p < 0:
+                t0 = max(t0, r)
+            else:
+                t1 = min(t1, r)
+    return t0 < t1 - 1e-6
+
+
 def measure_text(text: str) -> Metrics:
     """Ein ``.kicad_sch`` (als String) parsen und objektiv vermessen."""
     syms, labels, wires = _parse(text)
@@ -361,6 +396,24 @@ def measure_text(text: str) -> Metrics:
         for j in range(i + 1, len(wires)):
             if _seg_cross(wires[i], wires[j]):
                 m.wire_crossings += 1
+
+    # Leitung quer durch ein FREMDES Bauteil (Regel: Drähte gehen nie durch
+    # Bauteile). Das eigene Anschluss-Bauteil ausschließen: endet ein Draht in
+    # dessen Pin-Ring (Körper + Pin-Länge), verbindet er nur dort, quert nicht.
+    for w in wires:
+        for s in bodies:
+            hw, hh = s.half()
+            # „gehört zu diesem Bauteil" = ein Endpunkt liegt im Pin-Ring am
+            # RAND (Abstand zur Kante ≤ Pin-Länge) — NICHT zentrums-basiert,
+            # sonst bekäme ein großes Symbol eine riesige Ausnahme-Zone.
+            d1 = _dist_point_rect(w.x1, w.y1, s.x, s.y, hw, hh)
+            d2 = _dist_point_rect(w.x2, w.y2, s.x, s.y, hw, hh)
+            if d1 <= _PIN_REACH + 0.3 or d2 <= _PIN_REACH + 0.3:
+                continue  # Draht endet an einem Pin dieses Bauteils
+            if _seg_through_rect(w.x1, w.y1, w.x2, w.y2,
+                                 s.x, s.y, hw - 0.2, hh - 0.2):
+                m.wire_through_body += 1
+                m.details.append(f"Draht quert {s.lib_id}")
 
     # Off-grid (Bauteile + Labels)
     for s in syms:

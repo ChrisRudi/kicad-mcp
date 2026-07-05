@@ -8,6 +8,23 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Regel „keine Leitung durch ein Bauteil" als harte Wächter-Metrik — 0.14.3)
+- **Nutzer-Vorgabe:** „Es dürfen auch keine Leitungen durch Bauteile gehen."
+- **`layout_measure.wire_through_body` (neu):** zählt Draht-Segmente, die das
+  Innere eines FREMDEN Bauteil-Rahmens queren (Liang-Barsky Segment-vs-Rechteck).
+  Das verbundene Bauteil wird sauber ausgeschlossen — über den Abstand zum
+  Körper-RAND (≤ Pin-Länge), NICHT zentrums-basiert, damit ein Riesensymbol wie
+  der STM32 keine überdimensionale Ausnahme-Zone bekommt. Gewicht 30 in
+  ``badness``.
+- **Messung ehrlich:** alle 9 Kits UND beide Profi-Referenzen haben schon 0
+  Durchquerungen — der A*-Router legt die Leitungen bereits um die Bauteil-Boxen.
+  Die Metrik ist damit ein **Wächter**: sie hält den Optimierer (der Bauteile
+  verschiebt und neu routet) davon ab, je eine Durchquerung einzuführen, und
+  schützt gegen Regressionen. (Ein früher Wegwerf-Prüfer meldete fälschlich
+  Treffer — sein Ausschluss war zentrums-basiert und fehlerhaft.)
+- Tests: gecrafteter Quer-durch-IC-Draht wird erkannt; ein Pin-Stub am Rand
+  nicht; Referenzen bleiben ``wire_through_body=0``.
+
 ### Added (Regel 6 vollständig: auch Referenz/Wert-Text darf nicht überlappen — 0.14.2)
 - **Nutzer-Fund am gerenderten Bild:** bei den Widerständen war Regel 6 NICHT
   eingehalten — die Bauteil-Körper überlappten zwar nicht (badness 0), aber die

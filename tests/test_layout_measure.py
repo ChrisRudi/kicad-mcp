@@ -26,6 +26,7 @@ def test_professional_reference_scores_zero(ref):
     assert d["label_overlaps"] == 0, m.details
     assert d["label_wrong_dir"] == 0, m.details
     assert d["annot_overlaps"] == 0, m.details
+    assert d["wire_through_body"] == 0, m.details
     assert d["wire_crossings"] == 0
     assert d["diag_wires"] == 0
     assert m.badness() == 0.0
@@ -90,6 +91,25 @@ def test_hidden_annotation_does_not_count():
            ' (in_bom yes) (on_board yes)\n'
            '  (property "Reference" "R2" (at 120 99 0) (hide yes)))\n)')
     assert lm.measure_text(sch).annot_overlaps == 0
+
+
+def test_wire_through_body_is_detected():
+    # Waagrechter Draht quer durch einen IC, Endpunkte weit außerhalb → 1 Querung
+    # (Regel: Drähte gehen nie durch Bauteile).
+    sch = ('(kicad_sch\n'
+           '(symbol (lib_id "74xx:74HC595") (at 100 100 0) (unit 1)'
+           ' (in_bom yes) (on_board yes))\n'
+           '(wire (pts (xy 60 100) (xy 140 100)))\n)')
+    assert lm.measure_text(sch).wire_through_body >= 1
+
+
+def test_pin_stub_wire_is_not_through_body():
+    # Kurzer Stub, der AM Pin (nahe Rand) endet, quert den Körper nicht.
+    sch = ('(kicad_sch\n'
+           '(symbol (lib_id "Device:R") (at 100 100 90) (unit 1)'
+           ' (in_bom yes) (on_board yes))\n'
+           '(wire (pts (xy 100 95) (xy 100 90)))\n)')
+    assert lm.measure_text(sch).wire_through_body == 0
 
 
 def test_two_large_ics_side_by_side_overlap_is_detected():

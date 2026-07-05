@@ -1,7 +1,18 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.14.2**
+Aktuelle Version: **0.14.3**
+
+---
+
+## 🚧 Neu in 0.14.3 — keine Leitung läuft durch ein Bauteil
+
+- Neue Prüfung: eine Leitung darf nie quer durch ein anderes Bauteil verlaufen.
+- Gute Nachricht beim Nachmessen: das passiert schon jetzt nirgends — der
+  Router legt die Leitungen bereits um die Bauteile herum. Die Prüfung ist
+  daher ein **Wächter**: sie sorgt dafür, dass der Aufräum-Lauf (der Bauteile
+  verschiebt) das auch nie kaputt macht, und schlägt bei künftigen Regressionen
+  Alarm.
 
 ---
 
