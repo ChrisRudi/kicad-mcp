@@ -53,14 +53,18 @@ class LayoutRule:
 # Abstände/Konventionen → Feinschliff.
 RULES: tuple[LayoutRule, ...] = (
     LayoutRule(
-        key="tight_cluster",
-        title="Eng ums IC clustern, gedreht für kürzeste Drähte",
-        rule="Bauteile werden dicht um ihr IC gruppiert und so gedreht, dass "
-             "die Verbindungen möglichst kurz und kreuzungsarm werden.",
-        rationale="Kompakte, wie von Hand gezeichnete Blöcke statt "
-                  "hingewürfelter Streuung.",
-        enforced_in=("schematic.defrag_place.incremental_place_and_score",
-                     "schematic.constraint_solver.solve_placement (allow_greedy=False)"),
+        key="pin_swap_passives",
+        title="Pin-Tausch bei C/L/R (Pin 1 ↔ 2 vertauschbar)",
+        rule="Bei Kondensatoren, Spulen und Widerständen (symmetrische "
+             "2-Pin-Bauteile ohne Polarität) dürfen Pin 1 und Pin 2 vertauscht "
+             "werden, um kürzere, kreuzungsärmere Leitungen zu erhalten.",
+        rationale="Ein unpolarer R/C/L ist an beiden Enden gleich — welches "
+                  "Ende an welches Netz geht, ist frei und darf zur "
+                  "Draht-Verkürzung genutzt werden.",
+        enforced_in=("schematic.defrag_place._best_rotation (die 180°-Drehung "
+                     "eines 2-Pin-Symbols vertauscht die Pin-Seiten)",),
+        exemptions=("polarisierte Bauteile: Elkos (CP), Dioden/LEDs, "
+                    "getaktete/gerichtete Teile — Pin-Zuordnung ist fix",),
     ),
     LayoutRule(
         key="smart_rotation",
@@ -146,12 +150,15 @@ RULES: tuple[LayoutRule, ...] = (
         enforced_in=("schematic.builder._emit_symbol_instances (Rule R12)",),
     ),
     LayoutRule(
-        key="astar_route",
-        title="Drähte um Bauteile herum, nie hindurch",
-        rule="Leitungen werden per A* um Bauteil-Rahmen geführt und nie durch "
-             "einen Körper gezeichnet.",
-        rationale="Drähte durch Symbole sind mehrdeutig und unlesbar.",
-        enforced_in=("schematic.route._emit_wires_and_labels (A*)",),
+        key="no_wire_through_parts",
+        title="Drähte gehen niemals durch Bauteile",
+        rule="Keine Leitung verläuft durch einen Bauteilkörper — der A*-Router "
+             "führt jeden Draht um die Bauteil-Rahmen herum; findet er keinen "
+             "freien Weg, wird statt eines Durchstich-Drahts ein Label gesetzt.",
+        rationale="Ein Draht quer durch ein Symbol ist mehrdeutig (sieht aus "
+                  "wie eine Verbindung, die keine ist) und schlicht unlesbar.",
+        enforced_in=("schematic.route._emit_wires_and_labels (A* + "
+                     "Label-Fallback)",),
     ),
     LayoutRule(
         key="grid_snap",
