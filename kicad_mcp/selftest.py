@@ -57,7 +57,9 @@ def peak_ram_mb() -> Optional[float]:
                             ("PeakPagefileUsage", ctypes.c_size_t)]
 
             pmc = _PMC()
-            pmc.cb = ctypes.sizeof(_PMC)
+            # ctypes-Struktur: ``cb`` kommt aus ``_fields_``, ein __init__
+            # gibt es nicht — pylint-4-Fehlalarm (W0201).
+            pmc.cb = ctypes.sizeof(_PMC)  # pylint: disable=attribute-defined-outside-init
             ok = ctypes.windll.psapi.GetProcessMemoryInfo(
                 ctypes.windll.kernel32.GetCurrentProcess(),
                 ctypes.byref(pmc), pmc.cb)
