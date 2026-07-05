@@ -217,8 +217,15 @@ def _enforce_min_wire(parts: list[dict], nets: list[dict],
     entsteht. Gibt True zurück, solange etwas verschoben wurde — der Aufrufer
     wiederholt und garantiert dazwischen Überlappungsfreiheit."""
     import math
-    from .route import _extract_pin_positions
+    from .route import _extract_pin_positions, _stub_direction
     from ..symbol_lib import resolve_lib_id
+
+    # Bewegungsvektor je Pin-Austrittsrichtung: wir schieben das Blatt ENTGEGEN
+    # der Richtung, in der sein Pin aus dem Körper austritt — so verläuft die
+    # entstehende Leitung geradlinig entlang der Pin-Achse (Nutzer-Regel:
+    # „die 5 mm schließen sich an die Austrittsrichtung der Anschlüsse an").
+    _RETREAT = {"right": (-1.0, 0.0), "left": (1.0, 0.0),
+                "up": (0.0, 1.0), "down": (0.0, -1.0)}
 
     placed = {p["ref"]: p for p in parts if "_place_x" in p}
     conn_count: dict[str, int] = defaultdict(int)
@@ -263,16 +270,31 @@ def _enforce_min_wire(parts: list[dict], nets: list[dict],
                     continue
                 # das Blatt (weniger Verbindungen) weichen lassen
                 leaf = rb if conn_count[rb] <= conn_count[ra] else ra
-                if dist < 0.01:
-                    ux, uy = 1.0, 0.0
-                else:
-                    ux, uy = dx / dist, dy / dist
-                need = min_wire - dist
-                sgn = 1.0 if leaf == rb else -1.0
+                leaf_pin = (rb, pb) if leaf == rb else (ra, pa)
                 lp = placed[leaf]
-                lp["_place_x"] = _snap(lp["_place_x"] + sgn * ux * need)
-                lp["_place_y"] = _snap(lp["_place_y"] + sgn * uy * need)
+                need = min_wire - dist
+                # Primär: entlang der Pin-Austrittsrichtung des Blatts schieben,
+                # damit die Leitung geradlinig aus dem Pin läuft.
+                pw = _xy(*leaf_pin)
+                mx, my = _RETREAT.get(
+                    _stub_direction(pw[0], pw[1],
+                                    lp["_place_x"], lp["_place_y"]), (0.0, 0.0))
+                lp["_place_x"] = _snap(lp["_place_x"] + mx * need)
+                lp["_place_y"] = _snap(lp["_place_y"] + my * need)
                 wpos[leaf] = _world(leaf)
+                # Fallback-Garantie: liegt der Pin danach immer noch zu nah
+                # (Partner nicht auf der Achse), zusätzlich direkt auseinander.
+                nb = _xy(*leaf_pin)
+                ndist = math.hypot(nb[0] - a[0], nb[1] - a[1]) if leaf == rb \
+                    else math.hypot(nb[0] - b[0], nb[1] - b[1])
+                if ndist < min_wire - 0.01:
+                    ox, oy = (a if leaf == rb else b)
+                    vx, vy = nb[0] - ox, nb[1] - oy
+                    vd = math.hypot(vx, vy) or 1.0
+                    extra = min_wire - ndist
+                    lp["_place_x"] = _snap(lp["_place_x"] + vx / vd * extra)
+                    lp["_place_y"] = _snap(lp["_place_y"] + vy / vd * extra)
+                    wpos[leaf] = _world(leaf)
                 moved = True
     return moved
 

@@ -8,6 +8,27 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Layout-Regel-Set + Leitung folgt Pin-Austrittsrichtung, Plugin 0.12.4)
+- **Nutzer-Vorgabe:** „Liste alle Regeln — diese müssen als eigenes wartbares
+  Set in die Generatoren" + „die 5 mm schließen sich an die Richtung an, in der
+  die Anschlüsse aus dem Bauteilkörper kommen".
+- **`generators/schematic/layout_rules.py`** (neu, pure/stdlib): das zentrale,
+  wartbare Regel-Set als Single Source — 11 `LayoutRule`-Einträge (Aussage +
+  Begründung + `enforced_in`-Verweis + Ausnahmen + Status): tight_cluster,
+  smart_rotation, no_labels, connectors_outermost, gnd_down_vcc_up, no_overlap,
+  min_wire, wire_along_pin_exit, ref_value_right, astar_route, grid_snap. Löst
+  die verstreuten Regel-Kommentare (route „Rules applied", builder „Rule R12")
+  in ein review-bares Set ab (Durchsetzung bleibt vorerst in den genannten
+  Funktionen; späterer Refactor kann gegen die Keys zentralisieren).
+- **`place._enforce_min_wire`:** schiebt das Blatt jetzt ENTGEGEN seiner
+  Pin-Austrittsrichtung (`_RETREAT` via `route._stub_direction`), damit die
+  5-mm-Leitung geradlinig aus dem Pin läuft; Fallback trennt zusätzlich direkt,
+  falls der Partner nicht auf der Achse liegt (Garantie ≥5 mm hat Vorrang).
+- **`tests/test_layout_rules.py`** (neu, 16 Tests): Set wohlgeformt, Kern-Regeln
+  vorhanden, `enforced_in`-Funktionen existieren wirklich. Weiter alle 10
+  Demo-Schaltpläne 0 Überlappungen UND 0 Verbindungen <5 mm. pylint 10/10.
+  Version 0.12.3 → 0.12.4.
+
 ### Added (Schaltplan: Mindest-Leitungslänge — nie Pin-an-Pin, Plugin 0.12.3)
 - **Nutzer-Anforderung:** „Für alle Bauteile gilt min 5 mm Leitung, niemals
   direkt verbinden."

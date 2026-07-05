@@ -1,7 +1,19 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.12.3**
+Aktuelle Version: **0.12.4**
+
+---
+
+## 📏 Neu in 0.12.4 — Leitungen folgen dem Pin + alle Layout-Regeln an einem Ort
+
+- **Die Mindest-Leitung folgt der Pin-Richtung:** die 5-mm-Leitung verläuft
+  jetzt entlang der Richtung, in der der Anschluss aus dem Bauteilkörper
+  austritt — geradlinig aus dem Pin statt schräg wegzuknicken.
+- **Alle Schaltplan-Layout-Regeln als wartbares Set:** die Konventionen
+  (keine Labels, GND unten/VCC oben, Stecker außen, keine Überlappung,
+  ≥5 mm Leitung, Leitung folgt Pin …) stehen jetzt zentral und dokumentiert an
+  einer Stelle statt verstreut im Code — leichter zu pflegen und zu erweitern.
 
 ---
 
