@@ -1,7 +1,21 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.12.2**
+Aktuelle Version: **0.12.3**
+
+---
+
+## 🔌 Neu in 0.12.3 — jede Verbindung hat eine sichtbare Leitung (≥ 5 mm)
+
+- **Nie mehr Pin direkt an Pin.** Verbundene Bauteile werden so platziert, dass
+  zwischen ihren Pins immer mindestens ~5 mm Leitung sichtbar ist — kein
+  Aneinanderkleben ohne erkennbaren Draht.
+- Gilt für direkt verdrahtete Signal-Pins verschiedener Bauteile; Power-Pins
+  (die über GND-/VCC-Symbole gehen) und zwei Pins desselben ICs sind
+  ausgenommen (die kann man nicht auseinanderziehen).
+- Läuft Hand in Hand mit der Überlappungs-Garantie: geprüft, dass alle 10
+  Demo-Schaltpläne zugleich **null** Überlappungen und **null** zu-kurze
+  Leitungen haben.
 
 ---
 

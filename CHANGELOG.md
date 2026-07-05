@@ -8,6 +8,21 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Schaltplan: Mindest-Leitungslänge — nie Pin-an-Pin, Plugin 0.12.3)
+- **Nutzer-Anforderung:** „Für alle Bauteile gilt min 5 mm Leitung, niemals
+  direkt verbinden."
+- **`place._enforce_min_wire()`** (neu): schiebt direkt verdrahtete Signal-Pins
+  VERSCHIEDENER Bauteile auf ≥ `MIN_WIRE_MM` (5.08 mm = 2 Grid) auseinander —
+  das „Blatt" (weniger Verbindungen) weicht entlang der Pin-zu-Pin-Achse. Nur
+  Signal-Netze (Power-Pins gehen über GND/VCC-Symbole, kein direkter Draht),
+  nur verschiedene Bauteile (zwei Pins desselben ICs sind durch die
+  Symbol-Geometrie fixiert). In `place.py` nach der Überlappungs-Garantie in
+  ein paar Runden mit `force_no_overlap` verzahnt, bis BEIDES zugleich hält.
+- **Verifiziert:** alle 10 Demo-Schaltpläne gleichzeitig 0 Überlappungen UND
+  0 Signal-Verbindungen < 5 mm (vorher 3 zu kurze). Wirkt auf ALLE erzeugten
+  Schaltpläne. Selftest 10/10, 18 Generator-Tests grün, pylint 10/10.
+  Version 0.12.2 → 0.12.3.
+
 ### Fixed (Schaltplan: Bauteile überlappen nie mehr — Plugin 0.12.2)
 - **Nutzer-Anforderung:** „Bauteile dürfen niemals übereinander liegen."
 - **Root-Cause 1 — Rotation:** `_resolve_overlaps` (common/geometry.py) nahm für

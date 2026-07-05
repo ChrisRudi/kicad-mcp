@@ -183,6 +183,15 @@ def place_schematic(parts: list[dict], nets: list[dict]) -> list[dict]:
     from ..common.geometry import force_no_overlap
     force_no_overlap(parts)
 
+    # 11c. Mindest-Draht: direkt verdrahtete Signal-Pins verschiedener Bauteile
+    # müssen ≥ MIN_WIRE_MM auseinander liegen (nie Pin-an-Pin ohne sichtbare
+    # Leitung). Danach die Überlappungs-Garantie erneut — ein paar Runden, bis
+    # beides zugleich hält.
+    for _ in range(6):
+        if not _enforce_min_wire(parts, nets):
+            break
+        force_no_overlap(parts)
+
     # 12. Final grid snap
     for part in parts:
         if "_place_x" in part:
@@ -190,6 +199,82 @@ def place_schematic(parts: list[dict], nets: list[dict]) -> list[dict]:
             part["_place_y"] = _snap(part["_place_y"])
 
     return parts
+
+
+#: Minimale sichtbare Leitungslänge zwischen zwei verbundenen Bauteil-Pins (mm).
+#: 2 Grid — nie Pin direkt an Pin ohne Draht.
+MIN_WIRE_MM = 5.08
+
+
+def _enforce_min_wire(parts: list[dict], nets: list[dict],
+                      min_wire: float = MIN_WIRE_MM) -> bool:
+    """Schiebe verbundene Signal-Pins auf ≥ ``min_wire`` auseinander (ein Pass).
+
+    Nur SIGNAL-Netze (Power-Pins verbinden über Symbole, nicht Pin-an-Pin) und
+    nur Paare auf VERSCHIEDENEN Bauteilen (zwei Pins desselben ICs sind durch
+    die Symbol-Geometrie fixiert). Verschoben wird das „Blatt" (weniger
+    Verbindungen) entlang der Pin-zu-Pin-Achse, sodass eine sichtbare Leitung
+    entsteht. Gibt True zurück, solange etwas verschoben wurde — der Aufrufer
+    wiederholt und garantiert dazwischen Überlappungsfreiheit."""
+    import math
+    from .route import _extract_pin_positions
+    from ..symbol_lib import resolve_lib_id
+
+    placed = {p["ref"]: p for p in parts if "_place_x" in p}
+    conn_count: dict[str, int] = defaultdict(int)
+    for net in nets:
+        for c in net.get("connections", []):
+            conn_count[c.split(":", 1)[0]] += 1
+
+    def _world(ref: str) -> dict:
+        p = placed.get(ref)
+        if not p:
+            return {}
+        loc = _extract_pin_positions(resolve_lib_id(p), p)
+        return {k: (p["_place_x"] + v[0], p["_place_y"] + v[1])
+                for k, v in loc.items()}
+
+    wpos = {r: _world(r) for r in placed}
+
+    def _xy(ref: str, pn: str):
+        d = wpos.get(ref)
+        return (d.get(pn) or d.get(str(pn))) if d else None
+
+    moved = False
+    for net in nets:
+        if net.get("type") == "power":
+            continue
+        conns = net.get("connections", [])
+        for i in range(len(conns)):
+            ra, _, pa = conns[i].partition(":")
+            a = _xy(ra, pa)
+            if not a:
+                continue
+            for j in range(i + 1, len(conns)):
+                rb, _, pb = conns[j].partition(":")
+                if ra == rb:
+                    continue  # gleiches Bauteil — nicht trennbar
+                b = _xy(rb, pb)
+                if not b:
+                    continue
+                dx, dy = b[0] - a[0], b[1] - a[1]
+                dist = math.hypot(dx, dy)
+                if dist >= min_wire - 0.01:
+                    continue
+                # das Blatt (weniger Verbindungen) weichen lassen
+                leaf = rb if conn_count[rb] <= conn_count[ra] else ra
+                if dist < 0.01:
+                    ux, uy = 1.0, 0.0
+                else:
+                    ux, uy = dx / dist, dy / dist
+                need = min_wire - dist
+                sgn = 1.0 if leaf == rb else -1.0
+                lp = placed[leaf]
+                lp["_place_x"] = _snap(lp["_place_x"] + sgn * ux * need)
+                lp["_place_y"] = _snap(lp["_place_y"] + sgn * uy * need)
+                wpos[leaf] = _world(leaf)
+                moved = True
+    return moved
 
 
 # ── Template-based placement ────────────────────────────────────────────────
