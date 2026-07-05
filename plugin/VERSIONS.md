@@ -1,7 +1,19 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.22.0**
+Aktuelle Version: **0.23.0**
+
+---
+
+## 🧹 Neu in 0.23.0 — Doppelungen raus, Runde 2 (−650 Zeilen)
+
+- **Eine Bus-Erkennung statt zwei:** Welche Netze zusammen einen Bus bilden
+  (I²C, SPI, UART …), entscheidet jetzt überall dieselbe Logik — das
+  Bus-Radar und die bus-bewusste Bauteil-Platzierung können nicht mehr
+  unterschiedlicher Meinung sein. Schaltplan-Ausgabe nachweislich unverändert
+  (byte-gleich auf allen 10 Demo-Schaltungen).
+- **Alte PDF-Extraktions-Skripte entfernt** (einmalige Werkzeuge, mit denen
+  die Schaltungs-Templates gewonnen wurden — die Templates selbst bleiben).
 
 ---
 

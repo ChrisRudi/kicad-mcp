@@ -8,6 +8,22 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (Doppelungen raus, Runde 2 — 0.23.0)
+- **Trainings-Pipeline entfernt (−626 Zeilen):** die drei PDF-Extraktions-
+  Skripte in `kicad_mcp/training/` (`extract_pages`, `detect_content`,
+  `crop_regions`) waren einmalige Werkzeuge zur Template-Gewinnung — vom
+  Produkt ungenutzt (es braucht nur `training/templates/schematic/*.json`).
+  Bei Bedarf: Git-Historie.
+- **EINE Bus-Inferenz statt zwei:** `common/bus_detect.py` pflegte eine
+  eigene Protokoll-Tabelle parallel zu `utils/bus_infer` (Bus-Radar).
+  `find_bus_groups` (Ref-Paar-/Pin-Paar-Gruppierung für die bus-bewusste
+  Platzierung in `defrag_place`) bezieht die Netz→Bus-Zuordnung jetzt aus
+  `bus_infer.group_buses` — ein neues Protokoll wird nur noch an einer
+  Stelle eingetragen. Emission byte-identisch über alle 10 Kits
+  (Hash-Vergleich), Roundtrip 10/10. (Dritte Vokabel-Insel in
+  `review_tools._BUS_PATTERNS` bleibt bewusst: Review-Tagging inkl.
+  RESET/BOOT, andere Semantik.)
+
 ### Changed (Ein Qualitäts-Richter statt zwei — 0.22.0)
 - **`schematic_scorer.py` entfernt (−953 Zeilen):** der Vor-Emissions-Scorer
   (0–100-Score auf `parts/nets`) war seit der geeichten Metrik ein zweites,
