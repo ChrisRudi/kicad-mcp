@@ -8,6 +8,25 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added/Changed (vollständige gegenseitige Überdeckung + 5-mm-Label-Leitung — 0.16.0)
+- **Nutzer-Vorgaben:** „Label und wire und Bauteile dürfen sich alle gegenseitig
+  nicht überdecken"; „beim motor_driver liegen Labels auf den Kondensatoren";
+  „auch Labels benötigen 5 mm Leitung gleich wie alle Bauteile".
+- **`label_overlaps` box-basiert:** prüft jetzt die TEXT-BOX des Labels gegen den
+  Bauteil-Rahmen (nicht nur den Ankerpunkt) — fängt den Fall „Label-Text ragt
+  über einen Nachbar-Kondensator" (motor_driver), den die Anker-Prüfung übersah.
+- **Neu `label_label_overlaps` + `label_wire_overlaps`:** zwei Netz-Labels
+  übereinander bzw. ein Label über einem FREMDEN Draht (der eigene Stub zählt
+  nicht). Damit sind ALLE Paarungen gemessen: Bauteil↔Bauteil, Label↔Bauteil,
+  Label↔Label, Label↔Draht, Referenz/Wert↔Referenz/Wert, Draht↔Bauteil,
+  Draht↔Draht. Zeichenbreite 0.6 mm → Profi-Referenzen bleiben 0 (geeicht).
+- **`LABEL_STUB_LEN` 2.54 → 5.08:** Labels bekommen wie alle Bauteile eine
+  sichtbare 5-mm-Leitung; das schiebt sie zugleich weiter von Bauteilen und
+  Nachbar-Drähten weg.
+- **Wirkung:** motor_driver ist jetzt sauber (das Label sitzt 5 mm frei neben den
+  Cs); 7/10 Kits badness 0. ac_dc/usb behalten am 30-s-Budget 1–2 Label-über-
+  Draht-Reste, ethernet bleibt der Symbol-Sonderfall.
+
 ### Fixed (Draht-Merge: „keine Leitungen übereinander" jetzt hart bei 0 — 0.15.3)
 - **`builder._merge_overlapping_wires` (neu):** ein Nach-Emit-Schritt führt
   kollinear ÜBEREINANDER liegende Draht-Segmente (Router-Artefakt desselben

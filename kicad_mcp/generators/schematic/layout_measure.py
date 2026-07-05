@@ -131,6 +131,8 @@ class Metrics:
     comp_overlaps: int = 0
     label_overlaps: int = 0
     label_wrong_dir: int = 0
+    label_label_overlaps: int = 0
+    label_wire_overlaps: int = 0
     annot_overlaps: int = 0
     wire_through_body: int = 0
     wire_overlaps: int = 0
@@ -146,6 +148,7 @@ class Metrics:
     def as_dict(self) -> dict:
         return {k: getattr(self, k) for k in (
             "comp_overlaps", "label_overlaps", "label_wrong_dir",
+            "label_label_overlaps", "label_wire_overlaps",
             "annot_overlaps", "wire_through_body", "wire_overlaps",
             "wire_crossings", "diag_wires", "offgrid",
             "wirelength_mm", "n_symbols", "n_labels", "n_wires")}
@@ -157,6 +160,8 @@ class Metrics:
         return (w["comp_overlaps"] * self.comp_overlaps
                 + w["label_overlaps"] * self.label_overlaps
                 + w["label_wrong_dir"] * self.label_wrong_dir
+                + w["label_label_overlaps"] * self.label_label_overlaps
+                + w["label_wire_overlaps"] * self.label_wire_overlaps
                 + w["annot_overlaps"] * self.annot_overlaps
                 + w["wire_through_body"] * self.wire_through_body
                 + w["wire_overlaps"] * self.wire_overlaps
@@ -169,6 +174,8 @@ _DEFAULT_WEIGHTS = {
     "comp_overlaps": 100.0,   # größter Hebel: nichts übereinander
     "label_overlaps": 100.0,  # dito für Labels
     "label_wrong_dir": 20.0,
+    "label_label_overlaps": 25.0,  # zwei Netz-Labels überdecken sich
+    "label_wire_overlaps": 22.0,   # Netz-Label liegt über einem (fremden) Draht
     "annot_overlaps": 25.0,   # Referenz/Wert-Text zweier Bauteile übereinander
     "wire_through_body": 30.0,  # Leitung quer durch ein fremdes Bauteil
     "wire_overlaps": 18.0,    # zwei Leitungen liegen ÜBEREINANDER (kollinear)
@@ -359,6 +366,25 @@ def _seg_overlap(a: _Wire, b: _Wire) -> bool:
     return False
 
 
+_LABEL_CHAR_W = 0.6   # wie bei den Annotations-Boxen — Referenzen bleiben 0
+_LABEL_LINE_H = 1.4
+
+
+def _label_box(lb: _Label) -> tuple[float, float, float, float]:
+    """Achsen-parallele Text-Box eines Netz-Labels — der Text ragt vom Anker in
+    Winkel-Richtung (0=rechts, 90=oben, 180=links, 270=unten)."""
+    w = max(len(lb.text), 1) * _LABEL_CHAR_W
+    h = _LABEL_LINE_H
+    x, y, a = lb.x, lb.y, lb.angle
+    if a == 180:
+        return (x - w, y - h / 2, x, y + h / 2)
+    if a == 90:
+        return (x - h / 2, y - w, x + h / 2, y)
+    if a == 270:
+        return (x - h / 2, y, x + h / 2, y + w)
+    return (x, y - h / 2, x + w, y + h / 2)   # 0 = rechts (Default)
+
+
 def measure_text(text: str) -> Metrics:
     """Ein ``.kicad_sch`` (als String) parsen und objektiv vermessen."""
     syms, labels, wires = _parse(text)
@@ -382,11 +408,18 @@ def measure_text(text: str) -> Metrics:
         ends.setdefault((round(w.x2, 2), round(w.y2, 2)), []).append(w)
 
     # Label auf Bauteilkörper?  +  Label zeigt vom Draht weg (nach außen)?
+    # Geprüft wird die TEXT-BOX des Labels gegen den Bauteil-Rahmen (nicht nur der
+    # Anker) — sonst ragt der Text über einen Nachbarn (z. B. ein C), obwohl der
+    # Ankerpunkt daneben liegt (der motor_driver-Fall).
     _DIR = {0: (1, 0), 90: (0, 1), 180: (-1, 0), 270: (0, -1)}
     for lb in labels:
+        lx0, ly0, lx1, ly1 = _label_box(lb)
+        lcx, lcy = (lx0 + lx1) / 2, (ly0 + ly1) / 2
+        lhw, lhh = (lx1 - lx0) / 2, (ly1 - ly0) / 2
         for s in bodies:
             hw, hh = s.half()
-            if abs(lb.x - s.x) < hw and abs(lb.y - s.y) < hh:
+            if (abs(lcx - s.x) < hw + lhw - 0.2
+                    and abs(lcy - s.y) < hh + lhh - 0.2):
                 m.label_overlaps += 1
                 m.details.append(f"Label '{lb.text}' auf {s.lib_id}")
                 break
@@ -440,6 +473,33 @@ def measure_text(text: str) -> Metrics:
                                  s.x, s.y, hw - 0.2, hh - 0.2):
                 m.wire_through_body += 1
                 m.details.append(f"Draht quert {s.lib_id}")
+
+    # Label ↔ Label und Label ↔ Draht — „Label, Draht und Bauteile dürfen sich
+    # gegenseitig nicht überdecken". (Label↔Bauteil steckt in label_overlaps,
+    # Draht↔Bauteil in wire_through_body, Draht↔Draht in wire_overlaps.)
+    lboxes = [_label_box(lb) for lb in labels]
+    for i in range(len(lboxes)):
+        ax0, ay0, ax1, ay1 = lboxes[i]
+        for j in range(i + 1, len(lboxes)):
+            bx0, by0, bx1, by1 = lboxes[j]
+            if (ax0 < bx1 - 0.2 and bx0 < ax1 - 0.2
+                    and ay0 < by1 - 0.2 and by0 < ay1 - 0.2):
+                m.label_label_overlaps += 1
+                m.details.append(
+                    f"Labels '{labels[i].text}'/'{labels[j].text}' überdecken sich")
+    for lb, box in zip(labels, lboxes):
+        cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
+        hw, hh = (box[2] - box[0]) / 2 - 0.1, (box[3] - box[1]) / 2 - 0.1
+        akey = (round(lb.x, 2), round(lb.y, 2))
+        for w in wires:
+            # den EIGENEN Stub ausschließen (Draht endet am Label-Anker)
+            if akey in ((round(w.x1, 2), round(w.y1, 2)),
+                        (round(w.x2, 2), round(w.y2, 2))):
+                continue
+            if _seg_through_rect(w.x1, w.y1, w.x2, w.y2, cx, cy, hw, hh):
+                m.label_wire_overlaps += 1
+                m.details.append(f"Label '{lb.text}' liegt über einem Draht")
+                break
 
     # Off-grid (Bauteile + Labels)
     for s in syms:

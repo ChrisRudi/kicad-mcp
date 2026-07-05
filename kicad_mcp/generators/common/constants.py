@@ -103,7 +103,11 @@ WIRE_MAX_PINS = max(20, int(round(20 * SCHEMATIC_LAYOUT_FACTOR)))
 WIRE_MAX_LENGTH = 200.0 * SCHEMATIC_LAYOUT_FACTOR
 WIRE_CLEARANCE = 2.0
 POWER_CLEARANCE = 3.0
-LABEL_STUB_LEN = 2.54
+# Labels bekommen — wie alle Bauteile — eine sichtbare 5-mm-Leitung (2 Grid),
+# nicht nur einen 2.54-mm-Stummel (Nutzer-Regel „auch Labels benötigen 5 mm
+# Leitung"). Der längere Stub schiebt das Label auch weiter von Bauteilen und
+# Nachbar-Drähten weg.
+LABEL_STUB_LEN = 5.08
 
 # ---------------------------------------------------------------------------
 # PCB routing

@@ -1,7 +1,21 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.15.3**
+Aktuelle Version: **0.16.0**
+
+---
+
+## 🧹 Neu in 0.16.0 — nichts überdeckt mehr etwas; Labels mit 5-mm-Leitung
+
+- Der Sauberkeits-Check deckt jetzt **alle** Kombinationen ab: Bauteile,
+  Beschriftungen und Leitungen dürfen sich **gegenseitig nicht überdecken** —
+  inkl. Beschriftung-auf-Beschriftung und Beschriftung-auf-Leitung, die vorher
+  durchrutschten.
+- Die Prüfung „Label auf Bauteil" schaut jetzt auf den ganzen **Text** (nicht nur
+  den Anker) — damit ist der Fall „Label liegt auf einem Kondensator"
+  (Motortreiber) erkannt und behoben.
+- **Beschriftungen bekommen jetzt 5 mm Leitung**, genau wie jedes Bauteil — sie
+  hängen nicht mehr direkt am Pin, sondern stehen frei daneben.
 
 ---
 

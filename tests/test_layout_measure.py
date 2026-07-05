@@ -25,6 +25,8 @@ def test_professional_reference_scores_zero(ref):
     assert d["comp_overlaps"] == 0, m.details
     assert d["label_overlaps"] == 0, m.details
     assert d["label_wrong_dir"] == 0, m.details
+    assert d["label_label_overlaps"] == 0, m.details
+    assert d["label_wire_overlaps"] == 0, m.details
     assert d["annot_overlaps"] == 0, m.details
     assert d["wire_through_body"] == 0, m.details
     assert d["wire_overlaps"] == 0, m.details
@@ -92,6 +94,45 @@ def test_hidden_annotation_does_not_count():
            ' (in_bom yes) (on_board yes)\n'
            '  (property "Reference" "R2" (at 120 99 0) (hide yes)))\n)')
     assert lm.measure_text(sch).annot_overlaps == 0
+
+
+def test_label_over_component_body_is_detected():
+    # Label-TEXT-Box liegt über einem Kondensator-Körper (der Anker daneben) →
+    # muss als label_overlaps zählen (der motor_driver-Fall).
+    sch = ('(kicad_sch\n'
+           '(symbol (lib_id "Device:C") (at 100 100 0) (unit 1)'
+           ' (in_bom yes) (on_board yes))\n'
+           '(label "NET1" (at 99 100 0))\n)')   # Text läuft nach rechts ÜBER das C
+    assert lm.measure_text(sch).label_overlaps >= 1
+
+
+def test_two_labels_overlapping_are_detected():
+    sch = ('(kicad_sch\n'
+           '(label "SIGNAL" (at 100 100 0))\n'
+           '(label "SIGNAL" (at 101 100 0))\n)')
+    assert lm.measure_text(sch).label_label_overlaps >= 1
+
+
+def test_label_over_wire_is_detected():
+    # Label-Box liegt über einem FREMDEN Draht (nicht dem eigenen Stub).
+    sch = ('(kicad_sch\n'
+           '(label "NET" (at 100 100 0))\n'
+           '(wire (pts (xy 101 95) (xy 101 105)))\n)')
+    assert lm.measure_text(sch).label_wire_overlaps >= 1
+
+
+def test_label_own_stub_is_not_counted_as_wire_overlap():
+    # der eigene Stub (endet am Label-Anker) zählt NICHT als Label-über-Draht.
+    sch = ('(kicad_sch\n'
+           '(label "NET" (at 100 100 0))\n'
+           '(wire (pts (xy 100 100) (xy 105 100)))\n)')
+    assert lm.measure_text(sch).label_wire_overlaps == 0
+
+
+def test_labels_get_five_mm_lead():
+    # „auch Labels benötigen 5 mm Leitung" — der Label-Stub ist 2 Grid lang.
+    from kicad_mcp.generators.common.constants import LABEL_STUB_LEN
+    assert LABEL_STUB_LEN >= 5.0
 
 
 def test_collinear_overlapping_wires_are_detected():
