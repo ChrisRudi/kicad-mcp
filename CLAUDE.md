@@ -104,6 +104,16 @@ aller Tranchen.
    (Pfade als WSL-Pfade übergeben). Tool-Count in `test_tool_audit.py` mitbumpen,
    CHANGELOG-Eintrag, pylint 0/0.
 
+## Schaltplan-Generator — Regelwerk
+
+**Pflichtlektüre vor Arbeit am Schaltplan-Generator:**
+`docs/schaltplan_regeln.md` (2 Seiten) — die destillierten Regeln, wie ein
+professioneller Schaltplan entsteht: die zwei Gates (Netzlisten-Roundtrip
+10/10 via kicad-cli + badness-Metrik an Profi-Referenzen geeicht),
+Pin-Name-vor-Nummer, Luft-Regeln, Konflikt-Registry, Power-Symbol-je-Pin,
+Junction-Pflicht, Determinismus. Perf-/Kürzungs-Arbeiten:
+`docs/optimierungsplan_schematic.md`.
+
 ## Was wir bauen — Super-Feature-Ethos
 
 Roadmap + volle Beschreibungen in `docs/superfeatures.md`; Single Source der
