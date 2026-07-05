@@ -53,6 +53,28 @@ def test_drawn_schematic_matches_spec_netlist(kit_path, tmp_path):
         + "\n".join(res["merged"] + res["split"] + res["missing"]))
 
 
+def test_roundtrip_survives_layout_optimizer(tmp_path):
+    # Der Optimizer verschiebt/dreht Bauteile und re-emittiert — die
+    # elektrische Identität muss das überleben (Smoke an einem kleinen Kit;
+    # der volle 10-Kit-Optimizer-Lauf ist zu langsam für jede Suite).
+    kit = os.path.join(os.path.dirname(__file__), "..", "kicad_mcp",
+                       "resources", "data", "demo_kits", "kit_seeding.json")
+    spec = json.load(open(kit, encoding="utf-8"))
+    parts = json.loads(json.dumps(spec["parts"]))
+    nets = json.loads(json.dumps(spec["nets"]))
+    text = build_schematic(parts, nets, project_name="seedopt",
+                           optimize=True, optimize_evals=300)
+    sch = tmp_path / "seedopt.kicad_sch"
+    sch.write_text(text, encoding="utf-8")
+    actual = nc.extract_netlist(str(sch))
+    assert actual is not None
+    res = nc.compare_netlists(nets, actual,
+                              pin_aliases=nc.build_pin_aliases(parts))
+    assert res["match"], (
+        "Optimizer hat die elektrische Identität zerstört:\n"
+        + "\n".join(res["merged"] + res["split"] + res["missing"]))
+
+
 def test_junctions_present_at_t_joins():
     # Nutzer-Regel: „wenn aus einer geraden Leitung eine Leitung abzweigt,
     # muss ein Punkt das kennzeichnen" — T-Abzweige tragen Junction-Punkte.
