@@ -1,7 +1,17 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.16.0**
+Aktuelle Version: **0.16.1**
+
+---
+
+## 🔄 Neu in 0.16.1 — Beschriftungen weichen Leitungen aus
+
+- Liegt eine Beschriftung über einer fremden Leitung (oder einem Bauteil), wird
+  sie jetzt automatisch auf die andere Seite gedreht/gespiegelt, wo Platz ist —
+  die zugehörige kurze Leitung folgt mit. Die Verbindung bleibt exakt gleich.
+- Ergebnis: Beschriftungen überdecken keine Leitungen mehr, wo es Platz gibt
+  (z. B. USB-Hub jetzt sauber, AC/DC-Versorgung komplett Bestnote).
 
 ---
 

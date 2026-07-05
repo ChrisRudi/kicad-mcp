@@ -30,6 +30,122 @@ _WIRE_LINE_RE = _re.compile(
     r'^(\s*)\(wire \(pts \(xy (-?[\d.]+) (-?[\d.]+)\) '
     r'\(xy (-?[\d.]+) (-?[\d.]+)\)\) \(uuid "([^"]+)"\)\)\s*$')
 
+# Eine emittierte Label-Zeile (label/global_label/hierarchical_label, einzeilig).
+_LABEL_LINE_RE = _re.compile(
+    r'^(\s*)\((label|global_label|hierarchical_label) "([^"]*)" '
+    r'\(at (-?[\d.]+) (-?[\d.]+) (\d+)\)(.*)\)\s*$')
+
+# Auswärts-Richtung → (Winkel, Einheitsvektor). KiCad: 0=Text rechts, 180=links,
+# 90=oben (−y), 270=unten (+y).
+_DECL_DIRS = {"right": (0, (1.0, 0.0)), "left": (180, (-1.0, 0.0)),
+              "up": (90, (0.0, -1.0)), "down": (270, (0.0, 1.0))}
+_DECL_CW, _DECL_LH = 0.6, 1.4   # wie in layout_measure (Referenzen bleiben 0)
+
+
+def _decl_label_box(lx, ly, angle, text):
+    w = max(len(text), 1) * _DECL_CW
+    h = _DECL_LH
+    if angle == 180:
+        return (lx - w, ly - h / 2, lx, ly + h / 2)
+    if angle == 90:
+        return (lx - h / 2, ly - w, lx + h / 2, ly)
+    if angle == 270:
+        return (lx - h / 2, ly, lx + h / 2, ly + w)
+    return (lx, ly - h / 2, lx + w, ly + h / 2)
+
+
+def _declutter_labels(lines: list[str], parts: list[dict]) -> list[str]:
+    """Dreht/spiegelt Netz-Labels, deren Text-Box einen FREMDEN Draht, einen
+    Bauteilkörper oder ein anderes Label trifft, auf eine freie Auswärts-
+    Richtung (Nutzer: „drehen oder spiegeln … auch gegen Drähte"). Der
+    Label-Anker wird um seinen PIN (fernes Stub-Ende) neu gesetzt, der Stub
+    entsprechend umgelegt. Findet sich keine freie Richtung, bleibt es."""
+    from ..common.constants import LABEL_STUB_LEN
+
+    # Bauteil-Rahmen aus den Parts (rotations-bewusst)
+    bodies = []
+    for p in parts:
+        if "_place_x" not in p:
+            continue
+        w, h = _get_symbol_bbox(p)
+        if int(p.get("_rotation", 0)) in (90, 270):
+            w, h = h, w
+        bodies.append((round(p["_place_x"], 2), round(p["_place_y"], 2),
+                       w / 2.0, h / 2.0))
+
+    # Draht-Segmente + Label-Zeilen einsammeln
+    wires = []   # (idx, x1, y1, x2, y2, indent, uuid)
+    labels = []  # (idx, kind, name, x, y, angle, rest, indent)
+    for i, ln in enumerate(lines):
+        mw = _WIRE_LINE_RE.match(ln)
+        if mw:
+            wires.append((i, float(mw.group(2)), float(mw.group(3)),
+                          float(mw.group(4)), float(mw.group(5)),
+                          mw.group(1), mw.group(6)))
+            continue
+        ml = _LABEL_LINE_RE.match(ln)
+        if ml:
+            labels.append((i, ml.group(2), ml.group(3), float(ml.group(4)),
+                           float(ml.group(5)), int(ml.group(6)), ml.group(7),
+                           ml.group(1)))
+
+    def _box_hits_body(box):
+        cx, cy = (box[0]+box[2])/2, (box[1]+box[3])/2
+        hw, hh = (box[2]-box[0])/2 - 0.2, (box[3]-box[1])/2 - 0.2
+        for bx, by, bhw, bhh in bodies:
+            if abs(cx-bx) < bhw+hw and abs(cy-by) < bhh+hh:
+                return True
+        return False
+
+    def _box_hits_wire(box, skip_idx):
+        cx, cy = (box[0]+box[2])/2, (box[1]+box[3])/2
+        hw, hh = (box[2]-box[0])/2 - 0.1, (box[3]-box[1])/2 - 0.1
+        from . import layout_measure as _lm
+        for wi in wires:
+            if wi[0] == skip_idx:
+                continue
+            if _lm._seg_through_rect(wi[1], wi[2], wi[3], wi[4], cx, cy, hw, hh):
+                return True
+        return False
+
+    def _box_hits_label(box, self_i):
+        for lb in labels:
+            if lb[0] == self_i:
+                continue
+            b2 = _decl_label_box(lb[3], lb[4], lb[5], lb[2])
+            if (box[0] < b2[2]-0.2 and b2[0] < box[2]-0.2
+                    and box[1] < b2[3]-0.2 and b2[1] < box[3]-0.2):
+                return True
+        return False
+
+    out = list(lines)
+    for (idx, kind, name, lx, ly, angle, rest, lind) in labels:
+        box = _decl_label_box(lx, ly, angle, name)
+        # Stub = Draht, der am Label-Anker endet; fernes Ende = Pin
+        stub = next((wi for wi in wires
+                     if (abs(wi[1]-lx) < 0.05 and abs(wi[2]-ly) < 0.05)
+                     or (abs(wi[3]-lx) < 0.05 and abs(wi[4]-ly) < 0.05)), None)
+        conflict = (_box_hits_body(box) or _box_hits_wire(box, stub[0] if stub else -1)
+                    or _box_hits_label(box, idx))
+        if not conflict or not stub:
+            continue
+        pin = (stub[3], stub[4]) if (abs(stub[1]-lx) < 0.05 and abs(stub[2]-ly) < 0.05) \
+            else (stub[1], stub[2])
+        # freie Richtung suchen (die aktuelle zuerst NICHT — die ist ja kollidiert)
+        for _d, (nang, vec) in _DECL_DIRS.items():
+            nlx = round(pin[0] + vec[0]*LABEL_STUB_LEN, 2)
+            nly = round(pin[1] + vec[1]*LABEL_STUB_LEN, 2)
+            nbox = _decl_label_box(nlx, nly, nang, name)
+            if (_box_hits_body(nbox) or _box_hits_wire(nbox, stub[0])
+                    or _box_hits_label(nbox, idx)):
+                continue
+            # Label-Zeile + Stub umschreiben
+            out[idx] = f'{lind}({kind} "{name}" (at {_fmt(nlx)} {_fmt(nly)} {nang}){rest})'
+            out[stub[0]] = (f'{stub[5]}(wire (pts (xy {_fmt(pin[0])} {_fmt(pin[1])}) '
+                            f'(xy {_fmt(nlx)} {_fmt(nly)})) (uuid "{stub[6]}"))')
+            break
+    return out
+
 
 def _merge_overlapping_wires(lines: list[str]) -> list[str]:
     """Führe kollinear ÜBEREINANDER liegende Draht-Segmente zusammen.
@@ -216,8 +332,10 @@ def build_schematic(
 
     s.close()  # kicad_sch
 
-    # „keine Leitungen übereinander": kollinear überlappende Draht-Segmente
-    # (Router-Artefakt) zu ihrer Vereinigung zusammenführen.
+    # Kollidierende Netz-Labels (Text-Box über Draht/Körper/Label) auf eine freie
+    # Auswärts-Richtung drehen/spiegeln — dann die kollinear überlappenden
+    # Draht-Segmente (auch die umgelegten Stubs) zu ihrer Vereinigung mergen.
+    s._lines = _declutter_labels(s._lines, parts)
     s._lines = _merge_overlapping_wires(s._lines)
 
     # Clean up placement metadata — unless the caller wants to re-emit (optimizer)

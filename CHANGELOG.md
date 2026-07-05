@@ -8,6 +8,20 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (draht-bewusste Label-Umdrehung — Labels überdecken keine Drähte mehr — 0.16.1)
+- **Nutzer:** „die Beschriftungen sind das Letzte, was sich gegenseitig überdeckt"
+  → **`builder._declutter_labels` (neu):** ein Nach-Emit-Schritt dreht/spiegelt
+  jedes Netz-Label, dessen Text-Box einen FREMDEN Draht, einen Bauteilkörper oder
+  ein anderes Label trifft, auf eine freie Auswärts-Richtung — und legt seinen
+  Stub um seinen Pin herum entsprechend um. Verbindung bleibt intakt (Pin↔Label),
+  **ERC-Gate grün**. Findet sich keine freie Richtung, bleibt es.
+- **Wirkung:** usb_sensor_hub ``label_wire_overlaps`` 2→**0**, ac_dc_supply
+  vollständig **badness 0**. Damit überdecken Labels keine Drähte mehr, wo Platz
+  ist. usb behält noch 2 Referenz/Wert-Text-Überlappungen (kein Label-Problem),
+  ethernet die Label-auf-Körper vom Riesen-Symbol.
+- Tests: kollidierendes Label wird gedreht + Stub folgt (Verbindung intakt);
+  freies Label bleibt unangetastet.
+
 ### Added/Changed (vollständige gegenseitige Überdeckung + 5-mm-Label-Leitung — 0.16.0)
 - **Nutzer-Vorgaben:** „Label und wire und Bauteile dürfen sich alle gegenseitig
   nicht überdecken"; „beim motor_driver liegen Labels auf den Kondensatoren";
