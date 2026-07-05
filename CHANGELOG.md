@@ -8,6 +8,27 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Finalisierung: 10/10 Kits badness 0 — 0.18.0)
+- **Gegenrotierte Referenz/Wert-Texte (`builder._emit_symbol_instances`):**
+  KiCad rendert Property-Text RELATIV zur Symbol-Rotation — bei rot=90/270
+  wurde `angle=0` vertikal gezeichnet und Referenz+Wert (gleiches x) lagen als
+  Buchstabensalat übereinander („10uC1", „22uG2" an JEDEM liegenden C/R/D, in
+  praktisch jedem Kit sichtbar). Fix: Property-Winkel 270 (rot=90) bzw. 90
+  (rot=270) → effektiv horizontal, Referenz oben, Wert darunter — wie KiCads
+  eigene Feld-Autoplatzierung. Empirisch am Render verifiziert (Probe-Patch,
+  dann alle 10 Kits).
+- **Pin-Zahl-Sanity-Check im Symbol-Match (`symbol_lib._pin_count_sane`):**
+  der Fuzzy-Namens-Match traf für „STM32F407" (11 deklarierte Pins) das
+  erstbeste `STM32F407IEHx` (UFBGA-176, ~220-mm-Symbol) — Pin-Nummern passten
+  nicht aufs BGA-Raster, das Riesen-Symbol verschluckte das ganze Blatt
+  (ethernet_device badness 1296). Regel: Symbol darf höchstens
+  ``max(5·n, n+24)`` Pins haben, sonst Platzhalter-Box in Kit-Größe. Faktor 5
+  an den Kits geeicht: usb_sensor_hub (10 Pins) behält sein echtes 48-Pin-
+  STM32F103, ethernet bekommt die kompakte Box.
+- **Wirkung: alle 10 Demo-Kits badness 0** (ethernet 1296→0; erstmals 10/10).
+- Tests: gegenrotierter Property-Winkel bei rot=90; Sanity-Check lehnt
+  176-Pin-Symbol für 11-Pin-Teil ab / erlaubt es für 60-Pin-Teil.
+
 ### Added/Fixed (Pin-Stubs an den ICs + keine Busse mehr quer durch die Bauteile — 0.17.0)
 - **Nutzer:** „noch immer viele vor allem Lokale Busse über die Bauteile
   drübergezeichnet und keine Stubs an den ICs???" → zwei Wurzelursachen behoben,

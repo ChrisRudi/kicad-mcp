@@ -555,8 +555,15 @@ def _emit_symbol_instances(s: SExpr, parts: list[dict], project_name: str, simul
             ref_y = round(y - FONT_SIZE, 2)
             val_y = round(y + FONT_SIZE, 2)
             hidden_x, hidden_y = label_x, round(y + FONT_SIZE * 3, 2)
-        s.kicad_property("Reference", ref, ref_x, ref_y, angle=0)
-        s.kicad_property("Value", part.get("value", part["name"]), val_x, val_y, angle=0)
+        # KiCad rendert Property-Text RELATIV zur Symbol-Rotation: bei einem um
+        # 90/270° gedrehten Bauteil würde angle=0 vertikal gezeichnet — Referenz
+        # und Wert (gleiches x!) lägen als Buchstabensalat übereinander
+        # („10uC1", „22uG2", der Text-Stau an JEDEM liegenden C/R/D). Die
+        # Gegenrotation macht die effektive Darstellung wieder horizontal:
+        # Referenz oben, Wert darunter — wie KiCads eigene Feld-Autoplatzierung.
+        prop_angle = {90: 270, 270: 90}.get(rot, 0)
+        s.kicad_property("Reference", ref, ref_x, ref_y, angle=prop_angle)
+        s.kicad_property("Value", part.get("value", part["name"]), val_x, val_y, angle=prop_angle)
         s.kicad_property("Footprint", part.get("footprint", ""), hidden_x, hidden_y, hide=True)
 
         if simulation:

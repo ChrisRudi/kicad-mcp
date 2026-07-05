@@ -1,7 +1,25 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.17.0**
+Aktuelle Version: **0.18.0**
+
+---
+
+## 🏆 Neu in 0.18.0 — alle 10 Beispiel-Schaltungen mit Bestnote
+
+- **Lesbare Beschriftungen an gedrehten Bauteilen:** KiCad zeichnet den
+  Referenz-/Wert-Text relativ zur Bauteil-Drehung — bei liegenden
+  Kondensatoren/Widerständen stand „C1" mitten in „10u" als vertikaler
+  Buchstabensalat. Jetzt wird der Text gegenrotiert: Referenz oben, Wert
+  darunter, waagrecht lesbar — an jedem gedrehten Bauteil, in jeder Schaltung.
+- **Kein Riesen-Symbol mehr bei kleinen Bauteil-Beschreibungen:** Die
+  Symbol-Suche prüft jetzt, ob die Pin-Zahl des gefundenen Bibliotheks-Symbols
+  zur Beschreibung passt. Ein Teil mit 11 beschriebenen Pins bekommt nicht mehr
+  das erstbeste 176-Pin-BGA-Monster (der Ethernet-Fall), sondern eine kompakte
+  Box in der richtigen Größe. Teile mit passender Pin-Zahl (z. B. der STM32 im
+  USB-Hub) behalten ihr echtes Symbol.
+- **Ergebnis: 10 von 10 Demo-Schaltungen erreichen badness 0** — zum ersten
+  Mal, inklusive Ethernet (vorher 1296).
 
 ---
 

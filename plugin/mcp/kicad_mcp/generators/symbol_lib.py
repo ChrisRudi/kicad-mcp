@@ -149,6 +149,41 @@ _BY_PREFIX: dict[str, str] = {
 }
 
 
+def _symbol_pin_count(lib_id: str) -> int:
+    """Pin-Zahl eines Lib-Symbols (0 wenn nicht lesbar) — für den Sanity-Check."""
+    try:
+        import re as _re
+        from .symbol_cache import get_real_symbol
+        raw = get_real_symbol(lib_id)
+        if raw:
+            return len(_re.findall(r"\(pin\s", raw))
+    except Exception:
+        pass
+    return 0
+
+
+def _pin_count_sane(part: dict, lib_id: str) -> bool:
+    """Passt das gefundene Symbol GRÖSSENMÄSSIG zum deklarierten Bauteil?
+
+    Der Namens-Match ist fuzzy — „STM32F407" traf das erstbeste
+    ``STM32F407IEHx`` (UFBGA-176, ~220-mm-Symbol), obwohl das Kit nur 11 Pins
+    deklariert: die Pin-Nummern passen nicht auf das BGA-Raster, Wires landen
+    im Nirgendwo und das Riesen-Symbol verschluckt das ganze Blatt (der
+    ethernet_device-Fall). Regel: deklariert ein Teil n≥2 Pins, darf das
+    gematchte Symbol höchstens ``max(5·n, n+24)`` Pins haben — sonst lieber
+    die Platzhalter-Box in Kit-Größe (rendert kompakt und verdrahtet korrekt,
+    siehe MP1584 im Buck-Kit). Faktor 5 geeicht an den Kits: usb_sensor_hub
+    (10 Pins) behält sein echtes STM32F103C8 (48 Pins, Mapping stimmt),
+    ethernet_device (11 Pins) bekommt NICHT das 176-Pin-BGA."""
+    declared = len(part.get("pins", []))
+    if declared < 2:
+        return True
+    sym_pins = _symbol_pin_count(lib_id)
+    if sym_pins <= 0:
+        return True
+    return sym_pins <= max(5 * declared, declared + 24)
+
+
 def resolve_lib_id(part: dict) -> str:
     """Resolve the KiCad library symbol ID for a component.
 
@@ -176,7 +211,7 @@ def resolve_lib_id(part: dict) -> str:
             if not search_term:
                 continue
             found = find_symbol(search_term)
-            if found:
+            if found and _pin_count_sane(part, found):
                 return found
 
         # Try explicit lib_id (may have wrong suffix like "Timer:NE555")

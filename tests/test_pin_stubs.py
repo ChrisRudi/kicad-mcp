@@ -61,3 +61,37 @@ def test_wired_ic_pins_get_a_stub():
              if (abs(w.x1 - w.x2) < 0.01 or abs(w.y1 - w.y2) < 0.01)
              and abs(math.hypot(w.x2 - w.x1, w.y2 - w.y1) - PIN_STUB_LEN) < 0.05]
     assert stubs, "kein Pin-Stub der Länge PIN_STUB_LEN gefunden"
+
+
+def test_rotated_part_annotations_are_counter_rotated():
+    # KiCad rendert Property-Text relativ zur Symbol-Rotation: bei rot=90/270
+    # muss der Property-Winkel gegenrotieren (270/90), sonst stehen Referenz
+    # und Wert als vertikaler Buchstabensalat übereinander („10uC1").
+    from kicad_mcp.generators.schematic.builder import build_schematic
+    import re
+
+    parts = [
+        {"ref": "C9", "name": "C", "lib_id": "Device:C", "value": "4u7",
+         "pins": [{"num": "1", "name": "1"}, {"num": "2", "name": "2"}],
+         "_rotation": 90},
+    ]
+    text = build_schematic(parts, [], project_name="rottest",
+                           keep_placement=True, place=False)
+    blk = text[text.find('"C9"') - 400: text.find('"C9"') + 600]
+    m = re.search(r'\(property "Value" "4u7" \(at [-\d.]+ [-\d.]+ (\d+)\)', text)
+    assert m, blk
+    assert m.group(1) == "270", f"Value-Winkel {m.group(1)} statt 270 (rot=90)"
+
+
+def test_fuzzy_symbol_match_rejects_oversized_symbol():
+    # „STM32F407" mit 11 deklarierten Pins darf NICHT aufs 176-Pin-BGA-Symbol
+    # gematcht werden (der ethernet_device-Fall) → Platzhalter-Box. Ein Teil
+    # mit vielen deklarierten Pins darf das große Symbol weiterhin bekommen.
+    from kicad_mcp.generators.symbol_lib import _pin_count_sane
+    few = {"pins": [{"num": str(i)} for i in range(11)]}
+    many = {"pins": [{"num": str(i)} for i in range(60)]}
+    big = "MCU_ST_STM32F4:STM32F407IEHx"
+    assert not _pin_count_sane(few, big)
+    assert _pin_count_sane(many, big)
+    # kleine Symbole immer ok
+    assert _pin_count_sane(few, "Device:R")
