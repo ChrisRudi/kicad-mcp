@@ -8,6 +8,13 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Docs
+- `docs/kicad11_vorbereitung.md`: Vorbereitungsdokument KiCad 11 — vorab
+  ausgearbeitete Features (headless IPC = SWIG-Ablösung, API-Plot = Render
+  des lebenden Boards, Schematic-API-Schiene), Versions-Koexistenz-Strategie
+  (Capability-Gate statt Versionsnummern), Nightly-CI-Frühwarnjob und
+  Trigger-Tabelle mit Rückbau-Liste.
+
 ### Added (Eichrunde Annot-Boxen: rotations-bewusst + Fremdkörper — 0.25.6)
 - **Neue Metrik-Dimension `annot_body_overlaps` (Gewicht 25):** Referenz/
   Wert-Text eines Bauteils liegt auf einem FREMDEN Körper — der buck-Salat
