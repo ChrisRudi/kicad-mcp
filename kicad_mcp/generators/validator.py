@@ -7,6 +7,31 @@ Validates parts, nets, and board configuration before generation.
 
 
 
+def normalize_parts(parts: list) -> None:
+    """Fehlende, ABLEITBARE Felder ergänzen statt ablehnen (LLM-freundlich).
+
+    Ein Sprachmodell liefert Specs naturgemäß minimal (ref + value + Pins mit
+    Nummern). Alles Weitere ist herleitbar und wird hier in-place ergänzt:
+    ``name`` ← value/ref, ``footprint`` ← "" (``resolve_footprint`` wählt den
+    Default nach Ref-Präfix), Pin-``name`` ← num, Pin-``type`` ← "passive".
+    Der Validator meldet danach nur noch echte Fehler (fehlende Refs/Pins,
+    Duplikate, unbekannte Pin-Typen, kaputte Netz-Verweise)."""
+    for part in parts:
+        if not isinstance(part, dict):
+            continue
+        if not part.get("name"):
+            part["name"] = part.get("value") or part.get("ref", "")
+        if not part.get("value"):
+            part["value"] = part.get("name", "")
+        part.setdefault("footprint", "")
+        for pin in part.get("pins", []) or []:
+            if not isinstance(pin, dict):
+                continue
+            if pin.get("num") is not None and not pin.get("name"):
+                pin["name"] = str(pin["num"])
+            pin.setdefault("type", "passive")
+
+
 class ValidationError(Exception):
     """Raised when input validation fails."""
 
@@ -18,11 +43,12 @@ class ValidationError(Exception):
 def validate_parts(parts: list[dict]) -> list[str]:
     """Validate the parts (components) list.
 
-    Checks:
-    - Each part has required fields (ref, name, footprint, pins)
+    Checks (nach ``normalize_parts`` — name/footprint/Pin-Details sind da
+    schon ergänzt):
+    - Each part has required fields (ref, pins)
     - No duplicate ref designators
-    - Each pin has num, name, type
-    - Pin types are valid KiCad types
+    - Each pin has num
+    - Pin types (wenn angegeben) are valid KiCad types
 
     Returns:
         List of error messages (empty if valid)
@@ -43,7 +69,7 @@ def validate_parts(parts: list[dict]) -> list[str]:
     for i, part in enumerate(parts):
         prefix = f"parts[{i}]"
 
-        for field in ("ref", "name", "footprint", "pins"):
+        for field in ("ref", "pins"):
             if field not in part:
                 errors.append(f"{prefix}: missing required field '{field}'")
 
@@ -60,9 +86,8 @@ def validate_parts(parts: list[dict]) -> list[str]:
         seen_pin_nums = set()
         for j, pin in enumerate(pins):
             pin_prefix = f"{prefix}.pins[{j}]"
-            for field in ("num", "name", "type"):
-                if field not in pin:
-                    errors.append(f"{pin_prefix}: missing '{field}'")
+            if "num" not in pin:
+                errors.append(f"{pin_prefix}: missing 'num'")
 
             num = pin.get("num")
             if num is not None and num in seen_pin_nums:
@@ -189,8 +214,13 @@ def validate_board(board: dict) -> list[str]:
 
 
 def validate_all(parts: list[dict], nets: list[dict], board: dict | None = None) -> list[str]:
-    """Run all validations and return combined errors."""
+    """Run all validations and return combined errors.
+
+    Normalisiert die Parts ZUERST (siehe ``normalize_parts``) — ein Minimal-
+    Spec (ref + value + pins:[{num}]) ist damit gültig; Fehler gibt es nur
+    noch für echt Unbrauchbares."""
     errors = []
+    normalize_parts(parts)
     errors.extend(validate_parts(parts))
     if not errors:  # Only validate nets if parts are valid
         errors.extend(validate_nets(nets, parts))

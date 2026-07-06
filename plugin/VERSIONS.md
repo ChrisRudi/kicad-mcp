@@ -1,7 +1,19 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.24.0**
+Aktuelle Version: **0.24.1**
+
+---
+
+## 🩹 Neu in 0.24.1 — „Zeichne mir…" funktioniert jetzt auch mit knappen Angaben
+
+- **Feld-Bug behoben:** „Zeichne einen astabilen Multivibrator" schlug fehl,
+  weil der Schaltungs-Generator übertrieben vollständige Bauteil-Angaben
+  verlangte (Footprint, Pin-Namen, Pin-Typen). Jetzt reicht das, was man
+  natürlich sagt — Referenz, Wert, Pin-Nummern; den Rest ergänzt der Server
+  sinnvoll (Footprint-Default nach Bauteilklasse).
+- Fehlermeldungen nennen jetzt das erwartete Minimalformat, statt den
+  Assistenten in Wiederholungsversuche zu treiben.
 
 ---
 

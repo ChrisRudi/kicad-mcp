@@ -8,6 +8,19 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Feld-Bug: Generator lehnte LLM-Specs ab — 0.24.1)
+- **„zeichne einen astabilen Multivibrator" scheiterte im Feld:** der
+  Validator erzwang `name`, `footprint` und je Pin `name`+`type` — ein
+  Sprachmodell liefert Specs aber minimal (ref + value + Pin-Nummern) und
+  lief in eine Fehlerwand (5 Retries, dann PowerShell-Flucht des Agenten).
+  Neu: `validator.normalize_parts` ergänzt Ableitbares (name←value,
+  footprint←Default nach Ref-Präfix via `resolve_footprint`, Pin-name←num,
+  Pin-type←passive); abgelehnt wird nur echt Unbrauchbares. Fehler-Results
+  tragen jetzt einen `hint` mit dem Minimal-Spec-Format, die Tool-Docstrings
+  beschreiben es. E2E verifiziert: Multivibrator-Minimal-Spec →
+  `generate_project` → Netzlisten-Roundtrip MATCH; Demo-Kit-Emission
+  byte-identisch. Neuer Wächter `tests/test_generation_minimal_spec.py`.
+
 ### Changed (Codequalität: Duplikat-Gate, geteilte Helfer, except-Audit — 0.24.0)
 - **Duplikat-Abbau auf 0 + CI-Gate:** pylints `duplicate-code` (Schwelle 10
   Zeilen) läuft jetzt als eigener CI-Schritt und der Bestand ist abgeräumt:

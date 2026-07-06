@@ -115,7 +115,10 @@ def register_generation_tools(mcp: FastMCP) -> None:
 
         Args:
             output_dir: Directory to write output files
-            parts: JSON string - list of components with ref, name, footprint, value, pins
+            parts: JSON string - list of components. MINIMAL genügt
+                {ref, value, pins:[{num}]} — name, footprint (Default
+                nach Ref-Präfix), Pin-Namen/-Typen werden ergänzt.
+                Voll: ref, name, footprint, value, pins[{num,name,type}]
             nets: JSON string - list of nets with name, type, connections
             board: JSON string - board config with shape, width, depth, layers, thickness
             project_name: Project name (used for filenames)
@@ -135,7 +138,8 @@ def register_generation_tools(mcp: FastMCP) -> None:
         # Validate
         errors = validate_all(parts_data, nets_data, board_data)
         if errors:
-            return {"success": False, "errors": errors}
+            return {"success": False, "errors": errors,
+                    "hint": ("Minimal-Spec je Teil: {ref, value, pins:[{num}]} — name, footprint (Default nach Ref-Präfix: R→0805, U→DIP, J→PinHeader …), Pin-Namen und Pin-Typen werden automatisch ergänzt.")}
 
         if ctx:
             ctx.info(f"Generating KiCad project '{project_name}'")
@@ -299,7 +303,8 @@ def register_generation_tools(mcp: FastMCP) -> None:
 
         errors = validate_all(parts_data, nets_data)
         if errors:
-            return {"success": False, "errors": errors}
+            return {"success": False, "errors": errors,
+                    "hint": ("Minimal-Spec je Teil: {ref, value, pins:[{num}]} — name, footprint (Default nach Ref-Präfix: R→0805, U→DIP, J→PinHeader …), Pin-Namen und Pin-Typen werden automatisch ergänzt.")}
 
         if ctx:
             ctx.info(f"Generating schematic with {len(parts_data)} components")
@@ -464,7 +469,8 @@ def register_generation_tools(mcp: FastMCP) -> None:
 
         errors = validate_all(parts_data, nets_data, board_data)
         if errors:
-            return {"success": False, "errors": errors}
+            return {"success": False, "errors": errors,
+                    "hint": ("Minimal-Spec je Teil: {ref, value, pins:[{num}]} — name, footprint (Default nach Ref-Präfix: R→0805, U→DIP, J→PinHeader …), Pin-Namen und Pin-Typen werden automatisch ergänzt.")}
 
         if ctx:
             ctx.info(f"Generating PCB with {len(parts_data)} footprints")
@@ -573,7 +579,8 @@ def register_generation_tools(mcp: FastMCP) -> None:
 
         errors = validate_all(parts_data, nets_data)
         if errors:
-            return {"success": False, "errors": errors}
+            return {"success": False, "errors": errors,
+                    "hint": ("Minimal-Spec je Teil: {ref, value, pins:[{num}]} — name, footprint (Default nach Ref-Präfix: R→0805, U→DIP, J→PinHeader …), Pin-Namen und Pin-Typen werden automatisch ergänzt.")}
 
         if ctx:
             ctx.info(f"Benchmarking schematic with {len(parts_data)} components")
@@ -663,7 +670,8 @@ def register_generation_tools(mcp: FastMCP) -> None:
 
         errors = validate_all(parts_data, nets_data, board_data)
         if errors:
-            return {"success": False, "errors": errors}
+            return {"success": False, "errors": errors,
+                    "hint": ("Minimal-Spec je Teil: {ref, value, pins:[{num}]} — name, footprint (Default nach Ref-Präfix: R→0805, U→DIP, J→PinHeader …), Pin-Namen und Pin-Typen werden automatisch ergänzt.")}
 
         output_dir = to_local_path(output_dir)
         os.makedirs(output_dir, exist_ok=True)
