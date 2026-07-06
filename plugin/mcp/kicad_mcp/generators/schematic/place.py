@@ -174,6 +174,14 @@ def place_schematic(parts: list[dict], nets: list[dict]) -> list[dict]:
     # Ensure all parts have placement coordinates
     placed_refs |= {p["ref"] for p in parts if "_place_x" in p}
 
+    # Signal-Nachbarschaft annotieren: UNVERBUNDENE Bauteile bekommen beim
+    # Entzerren einen Pin-Rasterpunkt Extra-Luft (Nutzer-Regel: „Nähe ohne
+    # elektrischen Grund ist Gedränge") — siehe geometry._pair_margin.
+    from ..common.repetition import _signal_adjacency
+    adj = _signal_adjacency(parts, nets)
+    for part in parts:
+        part["_sig_neighbors"] = tuple(sorted(adj.get(part.get("ref", ""), ())))
+
     # Wiederholte Teilschaltungen uniform stellen (Nutzer-Regel: „Wiederholung
     # sollte zu gleichartigen Schaltungsteilen führen" — Multivibrator-Hälften,
     # LED-Ketten-Glieder), BEVOR die Post-Regeln aufräumen.

@@ -50,8 +50,9 @@ def _resolve_overlaps(parts: list[dict]) -> bool:
             bhw, bhh = _half_extents(b)
             ax, ay = a["_place_x"], a["_place_y"]
             bx, by = b["_place_x"], b["_place_y"]
-            need_x = ahw + bhw + _OVERLAP_MARGIN
-            need_y = ahh + bhh + _OVERLAP_MARGIN
+            m = _pair_margin(a, b)
+            need_x = ahw + bhw + m
+            need_y = ahh + bhh + m
             dx, dy = abs(ax - bx), abs(ay - by)
             if dx >= need_x or dy >= need_y:
                 continue  # schon getrennt (mind. eine Achse frei)
@@ -62,6 +63,22 @@ def _resolve_overlaps(parts: list[dict]) -> bool:
                 b["_place_x"] += pen_x if bx >= ax else -pen_x
             moved = True
     return moved
+
+
+def _pair_margin(a: dict, b: dict, base: float = _OVERLAP_MARGIN) -> float:
+    """Der geforderte Spalt zwischen ZWEI konkreten Bauteilen.
+
+    Basis + IC-Hof + Unverbunden-Luft: Bauteile OHNE gemeinsames Signal-Netz
+    brauchen mindestens einen Pin-Rasterpunkt (2.54 mm) zusätzliche Luft —
+    „Nähe ohne elektrischen Grund ist Gedränge" (Nutzer-Regel; kost wenig,
+    bringt viel). ``place.py`` annotiert dafür ``_sig_neighbors``; Teile
+    ohne Annotation (PCB-Pfad, alte Aufrufer) verhalten sich wie bisher."""
+    m = base + max(_ic_air(a), _ic_air(b))
+    na = a.get("_sig_neighbors")
+    nb = b.get("_sig_neighbors")
+    if na is not None and nb is not None             and b.get("ref") not in na and a.get("ref") not in nb:
+        m += 2.54
+    return m
 
 
 def _ic_air(part: dict) -> float:
@@ -76,7 +93,7 @@ def _boxes_overlap(a: dict, b: dict, margin: float = _OVERLAP_MARGIN) -> bool:
     """Überlappen die Rahmen von ``a`` und ``b`` (rotations-bewusst, mit Spalt)?"""
     ahw, ahh = _half_extents(a)
     bhw, bhh = _half_extents(b)
-    margin = margin + max(_ic_air(a), _ic_air(b))
+    margin = _pair_margin(a, b, margin)
     return (abs(a["_place_x"] - b["_place_x"]) < ahw + bhw + margin
             and abs(a["_place_y"] - b["_place_y"]) < ahh + bhh + margin)
 

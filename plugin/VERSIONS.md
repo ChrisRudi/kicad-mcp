@@ -1,7 +1,16 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.25.2**
+Aktuelle Version: **0.25.3**
+
+---
+
+## 📏 Neu in 0.25.3 — Fremde Bauteile rücken auseinander
+
+- Bauteile, die elektrisch nichts miteinander zu tun haben, halten jetzt
+  garantiert einen Rasterpunkt (2,54 mm) mehr Abstand als verbundene —
+  „Nähe ohne Grund" verschwindet aus den Layouts. Verbundene Bauteile
+  dürfen weiterhin dicht beieinander stehen, die gehören ja zusammen.
 
 ---
 

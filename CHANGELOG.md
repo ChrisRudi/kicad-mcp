@@ -8,6 +8,18 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Unverbunden = mehr Luft — 0.25.3)
+- **Nutzer-Regel („kost wenig, bringt viel"):** Bauteile OHNE gemeinsames
+  Signal-Netz halten beim Entzerren mindestens einen Pin-Rasterpunkt
+  (2.54 mm) ZUSÄTZLICHEN Abstand — Nähe ohne elektrischen Grund ist
+  Gedränge; verbundene dürfen näher. Neue eine Quelle
+  `geometry._pair_margin` (Basis + IC-Hof + Unverbunden-Luft) für
+  `force_no_overlap` UND `_resolve_overlaps`; `place.py` annotiert
+  `_sig_neighbors` aus der Signal-Netz-Nachbarschaft. PCB-Pfad/Aufrufer
+  ohne Annotation unverändert. Zähler-Testfall: Roundtrip MATCH, badness
+  60 stabil, Kreuzungen 18 → 8. Regelwerk §2 ergänzt; Wächter in
+  `test_repetition.py`.
+
 ### Changed (Mehr Luft um pin-reiche ICs — 0.25.2)
 - **Nutzer-Befund am 99-Hz-Zähler („U2 bekommt seine Netze überlappend
   ohne Grund — machs luftiger"):** Passive klebten an der IC-Kante, ihre

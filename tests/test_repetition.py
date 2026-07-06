@@ -138,3 +138,32 @@ def test_layout_is_centered_on_sheet():
         cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
         assert abs(cx - SHEET_W / 2) <= 1.27, f"{kit}: X-Mitte {cx}"
         assert abs(cy - SHEET_H / 2) <= 1.27, f"{kit}: Y-Mitte {cy}"
+
+
+# ── Unverbunden-Luft (0.25.3) ────────────────────────────────────────────────
+
+def test_unconnected_parts_get_extra_gap():
+    """Nutzer-Regel: Bauteile OHNE gemeinsames Signal-Netz brauchen mindestens
+    einen Pin-Rasterpunkt (2.54 mm) zusätzliche Luft — Nähe ohne elektrischen
+    Grund ist Gedränge. Verbundene dürfen näher (sie haben einen Grund)."""
+    from kicad_mcp.generators.common.geometry import (
+        _OVERLAP_MARGIN, _pair_margin)
+    a = {"ref": "R1", "pins": [{"num": "1"}, {"num": "2"}],
+         "_sig_neighbors": ("R2",)}
+    b = {"ref": "R2", "pins": [{"num": "1"}, {"num": "2"}],
+         "_sig_neighbors": ("R1",)}
+    c = {"ref": "R3", "pins": [{"num": "1"}, {"num": "2"}],
+         "_sig_neighbors": ()}
+    assert _pair_margin(a, b) == _OVERLAP_MARGIN            # verbunden: Basis
+    assert _pair_margin(a, c) == _OVERLAP_MARGIN + 2.54     # unverbunden: +Luft
+    # Ohne Annotation (PCB-Pfad/Altaufrufer): Verhalten wie bisher
+    d = {"ref": "X1", "pins": [{"num": "1"}]}
+    assert _pair_margin(a, d) == _OVERLAP_MARGIN
+
+
+def test_placement_annotates_signal_neighbors():
+    parts, nets = _multivib()
+    pl.place_schematic(parts, nets)
+    by_ref = {p["ref"]: p for p in parts}
+    assert "D1" in by_ref["Q1"]["_sig_neighbors"]   # Q1_C-Netz
+    assert "Q2" not in by_ref["D1"]["_sig_neighbors"]  # kein gemeinsames Signal

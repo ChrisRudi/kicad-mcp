@@ -48,6 +48,11 @@ Geometrie, Emission und Netzlisten-Vergleich.)*
   Formation nur starr. Das Gesamt-Layout wird zuletzt auf die Blattmitte
   zentriert. *(common/repetition.py, place._uniform_repeated_units,
   place._center_on_sheet.)*
+- **Unverbunden = mehr Luft:** Bauteile ohne gemeinsames Signal-Netz halten
+  mindestens einen Pin-Rasterpunkt (2.54 mm) ZUSÄTZLICHEN Abstand — Nähe ohne
+  elektrischen Grund ist Gedränge; verbundene dürfen näher (sie haben einen
+  Grund). Pin-reiche ICs (≥10 Pins) bekommen +5.08 mm Hof für Pin-Namen und
+  Label-Korridor. *(geometry._pair_margin/_ic_air.)*
 - **R/C/L an GND/VCC stehen senkrecht** (Rotation 0/180, Power-Symbol direkt
   drüber/drunter) — Pull-up und Abblock-C wie im Profi-Schaltbild; der
   Optimierer darf die Konvention nicht wegdrehen (`_rot_locked`).
