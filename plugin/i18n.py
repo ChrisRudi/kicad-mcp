@@ -124,6 +124,7 @@ _EN: dict = {
     "Unterhaltung aus letzter Sitzung fortgesetzt.":
         "Resumed the conversation from your last session.",
     "Neue Unterhaltung begonnen.": "Started a new conversation.",
+    "Projekt gewechselt: ": "Switched project: ",
     "📋 kopiert": "📋 copied",
     "Aktive Optionen: ": "Active options: ",
     "— Optionen zurücksetzen": "— Reset options",

@@ -119,6 +119,25 @@ def find_claude() -> Optional[list]:
     return None
 
 
+def project_switch_dir(old_cwd: str, board_path: str) -> Optional[str]:
+    """Der NEUE Projektordner, wenn das jetzt offene Board nicht mehr zum
+    Plan passt — sonst ``None``.
+
+    Grundlage des Projektwechsel-Detektors im Chat-Panel: der Dock-Pane (und
+    damit RunPlan, Session-ID und Link-Ziele) überlebt ein „Datei → Öffnen"
+    eines ANDEREN Projekts im selben pcbnew-Fenster. Ohne Detektor lief die
+    Unterhaltung des alten Projekts einfach weiter („↺ fortgesetzt") und
+    Claude arbeitete am falschen Board."""
+    if not board_path:
+        return None
+    new_dir = os.path.dirname(board_path)
+    if not new_dir:
+        return None
+    same = (os.path.normcase(os.path.normpath(new_dir))
+            == os.path.normcase(os.path.normpath(old_cwd or "")))
+    return None if same else new_dir
+
+
 @dataclass
 class RunPlan:
     mode: str                  # NATIVE | BRIDGE

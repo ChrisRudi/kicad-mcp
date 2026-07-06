@@ -8,6 +8,22 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Projektwechsel-Detektor im Chat — 0.25.7)
+- **Feld-Bug: „↺ Unterhaltung aus letzter Sitzung fortgesetzt" im FALSCHEN
+  Projekt.** Der als AUI-Pane gedockte Chat überlebt „Datei → Öffnen" eines
+  anderen Projekts; `set_plan` frischte nur den RunPlan auf — Session-ID
+  (bei Panel-Erzeugung aus dem alten Projektordner geladen), Board-Pfad und
+  Link-Ziele blieben am alten Projekt hängen, und ohne erneuten Toolbar-
+  Klick wurde GAR nichts aufgefrischt. Jetzt: Projektwechsel-Detektor
+  (`runtime_env.project_switch_dir`, normcase/normpath-fest) läuft in
+  `set_plan` UND vor jedem Turn (`_sync_project` in `_dispatch_prompt`);
+  bei Wechsel wird über eine vom Action-Plugin gereichte `plan_factory`
+  ein frischer Plan fürs neue Projekt gebaut (inkl. `.kicad-mcp`-Config),
+  die Session-ID des NEUEN Projekts geladen, Board-Pfad/Links/Chips
+  umgezogen und der Wechsel im Transkript angesagt
+  („Projekt gewechselt: … — fortgesetzt/neu"). 5 Wächter-Tests; GUI-Smoke
+  4/4, Plugin-Suite 570 grün.
+
 ### Docs
 - `docs/kicad11_vorbereitung.md`: Vorbereitungsdokument KiCad 11 — vorab
   ausgearbeitete Features (headless IPC = SWIG-Ablösung, API-Plot = Render

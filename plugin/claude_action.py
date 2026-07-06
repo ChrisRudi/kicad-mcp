@@ -81,6 +81,22 @@ class ClaudeActionPlugin(pcbnew.ActionPlugin):
         cfg_path = os.path.join(project_dir, ".kicad-mcp", "claude_mcp.json")
         mcp_root = _mcp_root()  # bundled-first; env override; dev fallback
 
+        def build_plan():
+            """Plan für das JETZT offene Projekt — vom Chat-Panel bei einem
+            erkannten Projektwechsel gerufen (der Dock-Pane überlebt
+            „Datei → Öffnen" eines anderen Projekts; Board-Pfad, cwd und
+            .kicad-mcp-Config müssen dann neu aufgelöst werden)."""
+            b = pcbnew.GetBoard()
+            path = b.GetFileName() if b else ""
+            pdir = os.path.dirname(path) if path else os.getcwd()
+            cfg = os.path.join(pdir, ".kicad-mcp", "claude_mcp.json")
+            p = runtime_env.resolve(pdir, mcp_root, cfg)
+            if p is not None:
+                mcp_config.write_mcp_config(
+                    p.config_write_path, p.config_pythonpath,
+                    python_exe=p.config_command)
+            return p
+
         def open_chat() -> None:
             from . import dock
             from .chat_dialog import ClaudeChatDialog, ClaudeChatPanel
@@ -115,7 +131,8 @@ class ClaudeActionPlugin(pcbnew.ActionPlugin):
             # keeps its panel, so refresh the plan. Fallback: floating dialog.
             panel = dock.attach(
                 lambda frame: ClaudeChatPanel(
-                    frame, plan, on_open_setup=open_setup),
+                    frame, plan, on_open_setup=open_setup,
+                    plan_factory=build_plan),
                 caption=f"Claude — KiCad (v{__version__})",
             )
             if panel is not None:
@@ -123,7 +140,8 @@ class ClaudeActionPlugin(pcbnew.ActionPlugin):
                 if set_plan:
                     set_plan(plan)
                 return
-            dlg = ClaudeChatDialog(None, plan, on_open_setup=open_setup)
+            dlg = ClaudeChatDialog(None, plan, on_open_setup=open_setup,
+                                   plan_factory=build_plan)
             _OPEN_DIALOGS.append(dlg)
             dlg.Bind(wx.EVT_CLOSE,
                      lambda e, d=dlg: (_OPEN_DIALOGS.remove(d), d.Destroy()))

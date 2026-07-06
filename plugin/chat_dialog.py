@@ -42,11 +42,15 @@ def _pick_mono_font() -> "wx.Font":
 class ClaudeChatPanel(wx.Panel):
     """The chat surface itself — dockable (AUI pane) or dialog-hosted."""
 
-    def __init__(self, parent, plan, on_open_setup=None):
+    def __init__(self, parent, plan, on_open_setup=None, plan_factory=None):
         super().__init__(parent)
         # The RunPlan carries the path-consistent cwd / --mcp-config / claude
         # argv for this machine (native Windows, native Linux, or WSL-bridge).
         self._plan = plan
+        # Baut bei einem Projektwechsel (anderes Board im selben Fenster,
+        # wiederverwendeter Dock-Pane) einen FRISCHEN Plan fürs neue Projekt —
+        # inkl. neuer .kicad-mcp-Config. Ohne Factory: best-effort cwd-Tausch.
+        self._plan_factory = plan_factory
         self._on_open_setup = on_open_setup  # reopen Einrichtung/Update panel
         # Persistente Einstellungen → Env (Transport/ngspice/Max-Turns) und
         # Sprache — VOR allem anderen, damit Turn-Spawns sie erben.
@@ -253,8 +257,64 @@ class ClaudeChatPanel(wx.Panel):
 
     def set_plan(self, plan) -> None:
         """Refresh the run plan (a re-shown docked pane keeps the old panel;
-        the project/board may have changed since)."""
+        the project/board may have changed since). Bei einem ECHTEN
+        Projektwechsel reicht der Plan allein nicht — Session-ID, Board-Pfad
+        und Link-Ziele hängen noch am alten Projekt (Feld-Bug: „↺ Unterhaltung
+        fortgesetzt" im falschen Projekt) → kompletter Umstieg."""
+        from . import runtime_env
+        switched = runtime_env.project_switch_dir(
+            getattr(self._plan, "run_cwd", ""), getattr(plan, "run_cwd", ""))
         self._plan = plan
+        if switched:
+            self._apply_project_switch()
+
+    def _sync_project(self) -> None:
+        """Vor jedem Turn: passt der Plan noch zum offenen Board? Der Dock-
+        Pane überlebt „Datei → Öffnen" eines anderen Projekts im selben
+        pcbnew-Fenster, OHNE dass der Toolbar-Button (und damit
+        :meth:`set_plan`) je wieder klickt — deshalb hier prüfen."""
+        from . import runtime_env
+        board_path = self._discover_board_path()
+        new_dir = runtime_env.project_switch_dir(
+            getattr(self._plan, "run_cwd", ""), board_path)
+        if not new_dir:
+            return
+        new_plan = None
+        if self._plan_factory:
+            try:
+                new_plan = self._plan_factory()
+            except Exception:
+                new_plan = None  # Factory-Fehler → best-effort cwd-Tausch unten
+        if new_plan is not None:
+            self._plan = new_plan
+        else:
+            import dataclasses
+            try:
+                self._plan = dataclasses.replace(
+                    self._plan, run_cwd=new_dir, trust_dir=new_dir)
+            except Exception:
+                return  # Plan unveränderbar → lieber alte Session als Absturz
+        self._apply_project_switch()
+
+    def _apply_project_switch(self) -> None:
+        """Alles Projekt-Gebundene auf den (bereits getauschten) Plan
+        umziehen: Session-ID aus dem NEUEN Projektordner, Board-Pfad neu
+        entdecken, Link-Ziele/Chips des alten Boards verwerfen, Wechsel im
+        Transkript ansagen."""
+        self._pcb_path = self._discover_board_path()
+        self._session_id = self._load_session_id()
+        self._refs.clear()
+        self._nets.clear()
+        self._layers.clear()
+        self._pins.clear()
+        self._links = []
+        self._clear_chips()
+        name = os.path.basename(self._pcb_path) \
+            or os.path.basename(getattr(self._plan, "run_cwd", "")) or "?"
+        note = (tr("Unterhaltung aus letzter Sitzung fortgesetzt.")
+                if self._session_id else tr("Neue Unterhaltung begonnen."))
+        self._write("\n— " + tr("Projekt gewechselt: ") + name + " — "
+                    + note + "\n\n", theme.DIM)
 
     # -- ui helpers ---------------------------------------------------------
 
@@ -565,6 +625,13 @@ class ClaudeChatPanel(wx.Panel):
         super-feature)."""
         if self._busy:
             return
+        # Projektwechsel-Detektor: wurde inzwischen ein ANDERES Board/Projekt
+        # geöffnet, erst Session/Plan/Links umziehen — sonst redet dieser Turn
+        # mit der Unterhaltung (und dem Board!) des alten Projekts.
+        try:
+            self._sync_project()
+        except Exception:
+            pass  # Detektor darf das Senden nie verhindern
         self._clear_chips()
         extra_args = shlex.split(self._cli_switches) if self._cli_switches \
             else []
@@ -1284,13 +1351,14 @@ class ClaudeChatPanel(wx.Panel):
 class ClaudeChatDialog(wx.Dialog):
     """Floating fallback when docking into the PCB editor isn't possible."""
 
-    def __init__(self, parent, plan, on_open_setup=None):
+    def __init__(self, parent, plan, on_open_setup=None, plan_factory=None):
         super().__init__(
             parent, title=f"Claude — KiCad (v{__version__})", size=(680, 580),
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
         self.SetBackgroundColour(wx.Colour(theme.BACKGROUND))
-        self.panel = ClaudeChatPanel(self, plan, on_open_setup=on_open_setup)
+        self.panel = ClaudeChatPanel(self, plan, on_open_setup=on_open_setup,
+                                     plan_factory=plan_factory)
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.panel, 1, wx.EXPAND)
         self.SetSizer(sizer)

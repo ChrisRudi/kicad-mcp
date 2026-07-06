@@ -1,7 +1,21 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.25.6**
+Aktuelle Version: **0.25.7**
+
+---
+
+## 🔀 Neu in 0.25.7 — Projektwechsel wird erkannt
+
+- **Feld-Bug behoben:** Öffnete man ein ANDERES Projekt, setzte der Chat die
+  Unterhaltung des alten Projekts fort („↺ … fortgesetzt") und Claude
+  arbeitete am falschen Board. Das Chat-Panel erkennt den Wechsel jetzt —
+  beim erneuten Öffnen UND vor jedem Senden — und zieht Session, Board-Pfad
+  und Klick-Links aufs neue Projekt um. Im Verlauf steht sichtbar
+  „Projekt gewechselt: …".
+- Jedes Projekt behält seine eigene Unterhaltung (wie gehabt in
+  `.kicad-mcp/chat_session.json` im Projektordner) — beim Zurückwechseln
+  wird die richtige fortgesetzt.
 
 ---
 

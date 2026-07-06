@@ -142,3 +142,28 @@ class TestTransportMode:
     def test_typo_falls_back_to_default(self, monkeypatch):
         monkeypatch.setenv(runtime_env.TRANSPORT_ENV, "htpp")
         assert runtime_env.transport_mode() == runtime_env.TRANSPORT_STDIO
+
+
+class TestProjectSwitchDir:
+    """Projektwechsel-Detektor (Feld-Bug: Dock-Pane überlebt „Datei → Öffnen"
+    eines anderen Projekts und setzte die ALTE Unterhaltung fort)."""
+
+    def test_other_project_dir_is_detected(self):
+        assert runtime_env.project_switch_dir(
+            "/home/u/projA", "/home/u/projB/board.kicad_pcb") == "/home/u/projB"
+
+    def test_same_dir_is_no_switch(self):
+        assert runtime_env.project_switch_dir(
+            "/home/u/projA", "/home/u/projA/board.kicad_pcb") is None
+
+    def test_same_dir_with_trailing_slash_is_no_switch(self):
+        assert runtime_env.project_switch_dir(
+            "/home/u/projA/", "/home/u/projA/board.kicad_pcb") is None
+
+    def test_no_board_path_is_no_switch(self):
+        # Board ohne Datei (nie gespeichert) → nichts umziehen
+        assert runtime_env.project_switch_dir("/home/u/projA", "") is None
+
+    def test_empty_old_cwd_switches_to_board_dir(self):
+        assert runtime_env.project_switch_dir(
+            "", "/home/u/projB/board.kicad_pcb") == "/home/u/projB"
