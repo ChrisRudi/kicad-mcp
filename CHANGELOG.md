@@ -8,6 +8,17 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Universaltest-Fund: Fuzzy-Symbol kippte Bauteilklasse — 0.25.1)
+- **„100n" wurde ein MOSFET:** die Fuzzy-Symbolsuche matchte den Wert
+  eines Kondensators auf `Transistor_FET:BSC100N10NSFG` (enthält „100N") —
+  die fremde Pin-Geometrie erzeugte im 99-Hz-Zähler-Test einen ECHTEN
+  Kurzschluss (GND↔CONT), den das Roundtrip-Gate fing. Seit 0.24.1 füllt
+  `normalize_parts` name←value, damit landen rohe Werte in der Suche.
+  Neu: `symbol_lib._class_consistent` — 2-Pin-R/C/L/D dürfen per
+  Fuzzy-Treffer nie die Bauteilklasse wechseln (R→Device:R, C→Device:C,
+  L→Device:L, D→Device:D/LED/Diode); ICs bleiben frei. Kit-Emission
+  byte-identisch; Wächter in `test_generation_minimal_spec.py`.
+
 ### Added (Wiederholung → Symmetrie + Blatt-Zentrierung — 0.25.0)
 - **Nutzer-Regel „Wiederholung sieht gleich aus":** wiederholte
   Teilschaltungen (Multivibrator-Hälften, LED-Ketten-Glieder) werden

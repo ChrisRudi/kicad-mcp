@@ -1,7 +1,18 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.25.0**
+Aktuelle Version: **0.25.1**
+
+---
+
+## 🛡️ Neu in 0.25.1 — Kondensator bleibt Kondensator
+
+- **Bug aus dem Universaltest (2-stelliger 99-Hz-Zähler):** Ein 100-nF-
+  Kondensator bekam durch die unscharfe Symbolsuche ein MOSFET-Symbol
+  („100n" steckt in „BSC100N10NSFG") — mit Kurzschluss als Folge. Jetzt
+  dürfen Widerstände, Kondensatoren, Spulen und Dioden bei der Symbolwahl
+  nie mehr die Bauteilklasse wechseln. Das elektrische Prüf-Gate hatte den
+  Fehler sofort gemeldet — genau dafür ist es da.
 
 ---
 

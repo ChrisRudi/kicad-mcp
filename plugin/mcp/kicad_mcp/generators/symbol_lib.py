@@ -204,6 +204,31 @@ def resolve_lib_id(part: dict) -> str:
 _RESOLVE_CACHE: dict[tuple, str] = {}
 
 
+
+# 2-Pin-Passive dürfen per Fuzzy-Suche nie die Bauteilklasse wechseln: der
+# Wert "100n" als Suchname matchte sonst den FET "BSC100N10NSFG" — ein
+# Kondensator mit MOSFET-Symbol, dessen fremde Pin-Geometrie im Universaltest
+# (Zähler 99 Hz) einen echten Kurzschluss GND↔CONT erzeugte. Seit 0.24.1
+# füllt ``normalize_parts`` name←value, damit landen rohe Werte in der Suche.
+_PASSIVE_FAMILIES = {
+    "R": ("Device:R",),
+    "C": ("Device:C",),
+    "L": ("Device:L",),
+    "D": ("Device:D", "Device:LED", "Diode:", "LED:"),
+}
+
+
+def _class_consistent(part: dict, lib_id: str) -> bool:
+    """Fuzzy-Treffer nur akzeptieren, wenn er zur Ref-Klasse passt (R/C/L/D
+    mit ≤2 Pins → Device-Familie); ICs/Transistoren/Stecker bleiben frei."""
+    ref = part.get("ref", "")
+    prefix = "".join(c for c in ref if c.isalpha())
+    fams = _PASSIVE_FAMILIES.get(prefix)
+    if not fams or len(part.get("pins", [])) > 2:
+        return True
+    return any(lib_id.startswith(f) for f in fams)
+
+
 def _resolve_lib_id_uncached(part: dict) -> str:
     """Resolve the KiCad library symbol ID for a component.
 
@@ -238,7 +263,8 @@ def _resolve_lib_id_uncached(part: dict) -> str:
             if not search_term:
                 continue
             found = find_symbol(search_term)
-            if found and _pin_count_sane(part, found):
+            if found and _pin_count_sane(part, found) \
+                    and _class_consistent(part, found):
                 return found
 
         # Try explicit lib_id (may have wrong suffix like "Timer:NE555")

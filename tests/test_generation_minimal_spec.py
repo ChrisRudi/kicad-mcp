@@ -98,3 +98,20 @@ def test_minimal_spec_generates_schematic(tmp_path):
     text = out.read_text(encoding="utf-8")
     for ref in ("Q1", "R1", "C1", "D1", "J1"):
         assert f'"{ref}"' in text
+
+
+def test_fuzzy_symbol_never_changes_passive_class():
+    """Universaltest-Fund (0.25.1): value "100n" als Suchname matchte den FET
+    "BSC100N10NSFG" — ein Kondensator mit MOSFET-Symbol, dessen fremde
+    Pin-Geometrie einen echten Kurzschluss erzeugte. 2-Pin-R/C/L/D dürfen
+    per Fuzzy-Suche nie die Bauteilklasse wechseln."""
+    from kicad_mcp.generators.symbol_lib import resolve_lib_id
+    for ref, value, family in (
+            ("C4", "100n", "Device:C"),
+            ("R9", "330R", "Device:R"),
+            ("L2", "10uH", "Device:L"),
+    ):
+        part = {"ref": ref, "name": value, "value": value,
+                "pins": [{"num": "1"}, {"num": "2"}]}
+        lib_id = resolve_lib_id(part)
+        assert lib_id.startswith(family), f"{ref} ({value}) → {lib_id}"
