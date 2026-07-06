@@ -8,6 +8,19 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Windows-Diagnose-Crash WinError 6 — 0.25.8)
+- **Feld-Crash:** Diagnose-Dialog stürzte unter Windows ab —
+  `server_manager.pid_alive` prüfte Lebendigkeit mit `os.kill(pid, 0)`
+  („works on Windows too" stimmte nicht): WinError 6 „Das Handle ist
+  ungültig", unter KiCads eingebettetem Python sogar als `SystemError`
+  (kein `OSError`-Subtyp), der jedem `except OSError` entkam und über
+  `status() → is_healthy()` den Dialog tötete. Fix: unter Windows
+  `OpenProcess`/`GetExitCodeProcess` via ctypes (kein Konsolenfenster,
+  kein Subprozess pro Health-Ping; ERROR_ACCESS_DENIED = lebt), dazu ein
+  Catch-all, damit ein Liveness-Fehler NIE mehr einen Dialog crasht.
+  `spawned_registry._alive` war bereits Windows-korrekt (tasklist).
+  2 Wächter-Tests (SystemError-Netz, nt-Dispatch geht nie über os.kill).
+
 ### Fixed (Projektwechsel-Detektor im Chat — 0.25.7)
 - **Feld-Bug: „↺ Unterhaltung aus letzter Sitzung fortgesetzt" im FALSCHEN
   Projekt.** Der als AUI-Pane gedockte Chat überlebt „Datei → Öffnen" eines

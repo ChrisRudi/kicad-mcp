@@ -69,6 +69,31 @@ class TestPurePieces:
         assert not server_manager.pid_alive("x")
         assert not server_manager.pid_alive(-5)
 
+    def test_pid_alive_survives_systemerror(self, monkeypatch):
+        # Feld-Crash (WinError 6): os.kill(pid, 0) warf unter KiCads
+        # eingebettetem Windows-Python einen SystemError (KEIN OSError-
+        # Subtyp) — pid_alive muss ihn schlucken statt den Diagnose-Dialog
+        # zu töten. Windows selbst geht seit dem Fix gar nicht mehr über
+        # os.kill (OpenProcess), der Guard ist das letzte Netz.
+        def _boom(_pid, _sig):
+            raise SystemError("<class 'OSError'> returned a result "
+                              "with an exception set")
+        monkeypatch.setattr(server_manager.os, "kill", _boom)
+        monkeypatch.setattr(server_manager.os, "name", "posix")
+        assert server_manager.pid_alive(os.getpid()) is False
+
+    def test_pid_alive_windows_uses_openprocess_not_kill(self, monkeypatch):
+        # Unter nt darf os.kill NIE gefragt werden (dafür war der Crash) —
+        # der Dispatch muss auf den OpenProcess-Pfad gehen.
+        monkeypatch.setattr(server_manager.os, "name", "nt")
+        monkeypatch.setattr(server_manager, "_pid_alive_nt",
+                            lambda pid: pid == 4242)
+        monkeypatch.setattr(
+            server_manager.os, "kill",
+            lambda *_: (_ for _ in ()).throw(AssertionError("os.kill benutzt")))
+        assert server_manager.pid_alive(4242) is True
+        assert server_manager.pid_alive(4243) is False
+
     def test_state_roundtrip_and_clear(self, monkeypatch, tmp_path):
         _use_tmp_state(monkeypatch, tmp_path)
         assert server_manager.read_state() == {}

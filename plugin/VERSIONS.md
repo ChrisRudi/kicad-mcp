@@ -1,7 +1,18 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.25.7**
+Aktuelle Version: **0.25.8**
+
+---
+
+## 🩺 Neu in 0.25.8 — Diagnose-Crash unter Windows behoben
+
+- Der Diagnose-Knopf konnte unter Windows mit „OSError: [WinError 6] Das
+  Handle ist ungültig" abstürzen: der Server-Gesundheitscheck fragte die
+  Prozess-Lebendigkeit mit einem Unix-Trick (`os.kill`) ab, der unter
+  Windows nicht funktioniert. Jetzt wird der Prozess über die
+  Windows-API (`OpenProcess`) geprüft — und ein Prüf-Fehler kann den
+  Dialog grundsätzlich nicht mehr töten.
 
 ---
 

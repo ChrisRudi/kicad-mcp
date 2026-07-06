@@ -120,8 +120,34 @@ def new_token() -> str:
     return secrets.token_urlsafe(24)
 
 
+def _pid_alive_nt(pid: int) -> bool:
+    """Windows-Liveness über ``OpenProcess`` — ``os.kill(pid, 0)`` ist unter
+    Windows KEIN Existenz-Check: es schlug im Feld mit WinError 6 („Das
+    Handle ist ungültig") fehl, unter KiCads eingebettetem Python sogar als
+    ``SystemError`` (kein ``OSError``-Subtyp!), der jedem ``except OSError``
+    entkam und den Diagnose-Dialog crashte."""
+    import ctypes
+    from ctypes import wintypes
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    process_query_limited = 0x1000
+    still_active = 259
+    handle = k32.OpenProcess(process_query_limited, False, int(pid))
+    if not handle:
+        # ERROR_ACCESS_DENIED (5): Prozess existiert, gehört jemand anderem
+        return ctypes.get_last_error() == 5
+    try:
+        code = wintypes.DWORD()
+        if k32.GetExitCodeProcess(handle, ctypes.byref(code)):
+            return code.value == still_active
+        return True  # Handle offen, Exit-Code nicht lesbar → als lebend werten
+    finally:
+        k32.CloseHandle(handle)
+
+
 def pid_alive(pid: Any) -> bool:
-    """Best-effort liveness (works on Windows too: ``os.kill(pid, 0)``)."""
+    """Best-effort liveness — POSIX ``os.kill(pid, 0)``, Windows ``OpenProcess``
+    (siehe :func:`_pid_alive_nt`). Wirft NIE: der Health-Check läuft in
+    Status-/Diagnose-Pfaden, ein Prüf-Fehler darf dort keinen Dialog töten."""
     try:
         pid = int(pid)
     except (TypeError, ValueError):
@@ -129,10 +155,16 @@ def pid_alive(pid: Any) -> bool:
     if pid <= 0:
         return False
     try:
+        if os.name == "nt":
+            return _pid_alive_nt(pid)
         os.kill(pid, 0)
     except PermissionError:
         return True  # exists, owned by someone else
     except OSError:
+        return False
+    except Exception:
+        # Feld-Fall: SystemError aus os.kill im eingebetteten Python — lieber
+        # konservativ „nicht lebend" melden als die Diagnose crashen.
         return False
     return True
 
