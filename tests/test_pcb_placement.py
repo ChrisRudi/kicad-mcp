@@ -106,3 +106,43 @@ def test_demo_kits_place_without_overlaps(kit_path):
     ref_to_part = {p["ref"]: p for p in parts}
     bad = _overlap_pairs(result, ref_to_part)
     assert not bad, f"Überlappende Paare: {bad}"
+
+
+# ── Router-Gate: fertige Demo-Boards sind DRC-sauber ─────────────────────────
+
+_DONE_KITS = ["audio_amp", "buck_converter", "kit_seeding", "led_ring",
+              "motor_driver", "production_ready"]
+
+
+def _kicad_cli():
+    import shutil
+    return shutil.which("kicad-cli")
+
+
+@pytest.mark.parametrize("kit", _DONE_KITS)
+@_needs_fp_lib
+@pytest.mark.skipif(_kicad_cli() is None, reason="kicad-cli nicht installiert")
+def test_finished_kits_route_drc_clean(kit, tmp_path):
+    # Die Kern-Zusage der Demo-Platinen (Nutzer-Auftrag „3 Demos fertig"):
+    # Grid-Router + Platzierung liefern 0 DRC-Fehler UND 0 offene
+    # Verbindungen — gemessen mit KiCads eigenem DRC, nicht selbstbewertet.
+    import subprocess
+
+    from kicad_mcp.generators.pcb.builder import build_pcb
+    spec_path = os.path.join(os.path.dirname(_KITS[0]), f"{kit}.json")
+    spec = json.load(open(spec_path, encoding="utf-8"))
+    pcb = build_pcb(json.loads(json.dumps(spec["parts"])),
+                    json.loads(json.dumps(spec["nets"])),
+                    json.loads(json.dumps(spec.get("board", {}))), kit)
+    board = tmp_path / f"{kit}.kicad_pcb"
+    board.write_text(pcb, encoding="utf-8")
+    report = tmp_path / "drc.json"
+    subprocess.run([_kicad_cli(), "pcb", "drc", "--format", "json",
+                    "--severity-all", "-o", str(report), str(board)],
+                   capture_output=True, timeout=300, check=False)
+    data = json.loads(report.read_text(encoding="utf-8"))
+    errors = [v for v in data.get("violations", [])
+              if v.get("severity") == "error"]
+    assert not errors, [f"{v['type']}: {v['description']}" for v in errors[:5]]
+    assert not data.get("unconnected_items"), \
+        len(data.get("unconnected_items", []))

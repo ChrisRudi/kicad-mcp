@@ -3,8 +3,8 @@
   "description": "Kleiner Leistungspfad zum interaktiven Routen: 12 V → 5 V AMS1117-Linearregler mit Ein-/Ausgangs-C und Testpunkt. Bewusst winzig, damit Skizzen-Layer → Kupfer und Mitdenken-Review am Handrouten sichtbar werden. AMS1117-Standardapplikation (Datenblatt).",
   "board": {
     "shape": "rectangle",
-    "width": 32,
-    "depth": 24,
+    "width": 40,
+    "depth": 30,
     "layers": 2
   },
   "parts": [
@@ -25,8 +25,6 @@
           "type": "passive"
         }
       ],
-      "hint_pcb_x": 5.0,
-      "hint_pcb_y": 5.0,
       "_pcb_group": "connector_in"
     },
     {
@@ -51,8 +49,6 @@
           "type": "power_in"
         }
       ],
-      "hint_pcb_x": 16.0,
-      "hint_pcb_y": 5.0,
       "_pcb_group": "power_reg"
     },
     {
@@ -72,8 +68,6 @@
           "type": "passive"
         }
       ],
-      "hint_pcb_x": 27.0,
-      "hint_pcb_y": 5.0,
       "_pcb_group": "passive"
     },
     {
@@ -93,8 +87,6 @@
           "type": "passive"
         }
       ],
-      "hint_pcb_x": 5.0,
-      "hint_pcb_y": 19.0,
       "_pcb_group": "passive"
     },
     {
@@ -114,8 +106,6 @@
           "type": "passive"
         }
       ],
-      "hint_pcb_x": 16.0,
-      "hint_pcb_y": 19.0,
       "_pcb_group": "connector_out"
     },
     {
@@ -130,8 +120,6 @@
           "type": "passive"
         }
       ],
-      "hint_pcb_x": 27.0,
-      "hint_pcb_y": 19.0,
       "_pcb_group": "passive"
     }
   ],

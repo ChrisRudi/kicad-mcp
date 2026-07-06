@@ -205,3 +205,68 @@ def _fp_size(part: dict) -> tuple[float, float]:
     if "Potentiometer" in fp or "Bourns" in fp:
         return (10.0, 10.0)
     return (max(6.0, n * 1.5), max(6.0, n * 1.5))
+
+
+_pad_pos_cache: dict[str, dict[str, tuple[float, float]]] = {}
+
+
+def read_footprint_pad_positions(fp_id: str) -> dict[str, tuple[float, float]]:
+    """Pad-Offsets (footprint-lokal, mm) aus dem echten ``.kicad_mod``.
+
+    Geteilte Quelle für Builder (Routing-Padliste), Platzierung
+    (Entwirren-Luftlinien) und alles Künftige — vorher lebte der Leser im
+    Builder und war für die Platzierung unerreichbar (Zirkularimport).
+    Returns {pad_num: (rel_x, rel_y)} oder leer; gecacht.
+    """
+    if fp_id in _pad_pos_cache:
+        return _pad_pos_cache[fp_id]
+    import re as _re
+    result: dict[str, tuple[float, float]] = {}
+    try:
+        from ..footprint_lib import read_kicad_mod
+        raw = read_kicad_mod(fp_id)
+        if raw:
+            pads = _re.findall(
+                r'\(pad "([^"]+)"[^)]*\(at ([\d.-]+) ([\d.-]+)', raw)
+            result = {num: (float(x), float(y)) for num, x, y in pads}
+    except Exception as exc:
+        logger.debug("Pad-Positionen für %s nicht lesbar: %s", fp_id, exc)
+    _pad_pos_cache[fp_id] = result
+    return result
+
+
+_pads_full_cache: dict[str, list[dict]] = {}
+
+
+def read_footprint_pads(fp_id: str) -> list[dict]:
+    """ALLE Pads eines Footprints mit Geometrie — das Hindernis-Modell des
+    Routers braucht Maße und Loch-Info, nicht nur Positionen.
+
+    Returns Liste von ``{num, x, y, w, h, rot, through}`` (footprint-lokal,
+    mm; ``through`` = thru_hole/np_thru_hole → blockiert beide Lagen).
+    Leer, wenn der Footprint nicht lesbar ist; gecacht."""
+    if fp_id in _pads_full_cache:
+        return _pads_full_cache[fp_id]
+    import re as _re
+    pads: list[dict] = []
+    try:
+        from ..footprint_lib import read_kicad_mod
+        raw = read_kicad_mod(fp_id)
+        if raw:
+            for m in _re.finditer(
+                    r'\(pad\s+"([^"]*)"\s+(smd|thru_hole|np_thru_hole)\s+\S+'
+                    r'\s*\(at\s+([-\d.]+)\s+([-\d.]+)(?:\s+([-\d.]+))?\)'
+                    r'\s*\(size\s+([-\d.]+)\s+([-\d.]+)\)', raw):
+                pads.append({
+                    "num": m.group(1),
+                    "x": float(m.group(3)),
+                    "y": float(m.group(4)),
+                    "rot": float(m.group(5) or 0.0),
+                    "w": float(m.group(6)),
+                    "h": float(m.group(7)),
+                    "through": m.group(2) in ("thru_hole", "np_thru_hole"),
+                })
+    except Exception as exc:
+        logger.debug("Pads für %s nicht lesbar: %s", fp_id, exc)
+    _pads_full_cache[fp_id] = pads
+    return pads

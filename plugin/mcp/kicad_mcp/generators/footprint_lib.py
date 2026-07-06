@@ -210,6 +210,7 @@ def build_footprint_with_nets(
     # Track which lines to skip / transform
     skip_depth = 0          # >0 → skip lines until balanced
     header_emitted = False  # first line already replaced above
+    own_layer_skipped = False  # nur die EINE Footprint-Kopf-Layer-Zeile
 
     for line in lines:
         stripped = line.strip()
@@ -222,8 +223,15 @@ def build_footprint_with_nets(
         # ── Skip sections we replaced with our header block ────────
         if stripped.startswith("(version ") or stripped.startswith("(generator "):
             continue
-        # The footprint's own (layer ...) — we already emitted ours
-        if stripped.startswith("(layer ") and skip_depth == 0:
+        # The footprint's own (layer ...) — we already emitted ours.
+        # NUR die erste: die alte Bedingung strich JEDE alleinstehende
+        # (layer …)-Zeile — sämtliche fp_line/fp_rect der Silk/Fab
+        # verloren ihre Lage und fielen auf F.Cu zurück (KiCad-Default):
+        # „Rectangle [<no net>] of C1 on F.Cu" shortete jede Leiterbahn,
+        # die den Bauteil-Umriss kreuzte (Messlatte: 379× shorting_items).
+        if (stripped.startswith("(layer ") and skip_depth == 0
+                and not own_layer_skipped):
+            own_layer_skipped = True
             continue
 
         # ── Handle depth-based skipping (for multi-line properties) ─

@@ -34,8 +34,124 @@ from ..common.placement_cost import build_ref_to_nets, placement_cost
 logger = logging.getLogger(__name__)
 
 
+def _untangle_pcb(
+    result: dict[str, tuple[float, float, int]],
+    nets: list[dict],
+    ref_to_part: dict,
+    x_min: float, y_min: float, x_max: float, y_max: float,
+    fixed: set,
+    sweeps: int = 3,
+) -> None:
+    """Entwirren vor dem Routing: Luftlinien-Kreuzungen deterministisch
+    wegoptimieren (dann Drahtlänge) — dieselbe Bewertung wie das
+    ✨-Entwirren-Feature (``utils.placement_eval.evaluate_layout``), nur
+    in-process auf dem Platzierungs-Ergebnis statt auf einem Board-File.
+
+    Kandidaten je Bauteil: kleine Raster-Verschiebungen (±2.54/±5.08) und —
+    für Passives (≤4 Pins) — die vier Rotationen. Ein Kandidat, der mit
+    einem fremden Courtyard kollidiert oder das Board verlässt, wird
+    verworfen (Kollisionsfreiheit bleibt Gate). Nur strikte Verbesserungen
+    werden angenommen; Reihenfolge sortiert → deterministisch."""
+    from ...utils.placement_eval import evaluate_layout
+    from ..common.bbox import read_footprint_pad_positions
+
+    def _pad_list(part: dict) -> list[dict]:
+        pads = read_footprint_pad_positions(part.get("footprint", ""))
+        if pads:
+            return [{"name": num, "lx": lx, "ly": ly}
+                    for num, (lx, ly) in sorted(pads.items())]
+        return [{"name": str(p["num"]), "lx": i * 2.54, "ly": 0.0}
+                for i, p in enumerate(part.get("pins", []))]
+
+    fps: dict[str, dict] = {}
+    for ref in sorted(result):
+        part = ref_to_part.get(ref, {})
+        x, y, rot = result[ref]
+        w, h = _fp_size(part)
+        fps[ref] = {"ref": ref, "x": x, "y": y, "rot": rot,
+                    "bbox": [w, h], "pads": _pad_list(part)}
+
+    # Netz → [[ref, pad], …] wie der Builder (Pin-Nummer, Name als Fallback)
+    net_map: dict[str, list[list[str]]] = {}
+    for net in nets:
+        members = []
+        for conn in net.get("connections", []):
+            if ":" not in conn:
+                continue
+            ref, pin = conn.split(":", 1)
+            part = ref_to_part.get(ref)
+            if ref not in result or not part:
+                continue
+            nums = {str(p["num"]) for p in part.get("pins", [])}
+            if pin not in nums:
+                by_name = {str(p.get("name", "")): str(p["num"])
+                           for p in part.get("pins", [])}
+                pin = by_name.get(pin, pin)
+            members.append([ref, pin])
+        if len(members) >= 2:
+            net_map[net["name"]] = members
+
+    def _cost() -> float:
+        ev = evaluate_layout(list(fps.values()), net_map)
+        return (ev["signal_crossings"] * 1000.0
+                + ev["overlaps"] * 100000.0
+                + ev["wirelength_mm"])
+
+    def _collides(ref: str, x: float, y: float, rot: int) -> bool:
+        w, h = _fp_size(ref_to_part.get(ref, {}))
+        if rot in (90, 270):
+            w, h = h, w
+        if not (x_min + w / 2 <= x <= x_max - w / 2
+                and y_min + h / 2 <= y <= y_max - h / 2):
+            return True
+        for other, entry in fps.items():
+            if other == ref:
+                continue
+            ow, oh = entry["bbox"]
+            if entry.get("rot", 0) in (90, 270):
+                ow, oh = oh, ow
+            if (abs(x - entry["x"]) < (w + ow) / 2 + 2.0
+                    and abs(y - entry["y"]) < (h + oh) / 2 + 2.0):
+                return True
+        return False
+
+    moves = [(2.54, 0), (-2.54, 0), (0, 2.54), (0, -2.54),
+             (5.08, 0), (-5.08, 0), (0, 5.08), (0, -5.08),
+             (2.54, 2.54), (-2.54, 2.54), (2.54, -2.54), (-2.54, -2.54)]
+    best = _cost()
+    for _ in range(sweeps):
+        improved = False
+        for ref in sorted(result):
+            if ref in fixed:
+                continue
+            part = ref_to_part.get(ref, {})
+            x0, y0, rot0 = result[ref]
+            rots = ([0, 90, 180, 270] if len(part.get("pins", [])) <= 4
+                    else [rot0])
+            for rot in rots:
+                for dx, dy in ([(0.0, 0.0)] + moves):
+                    if rot == rot0 and dx == 0.0 and dy == 0.0:
+                        continue
+                    nx, ny = round(x0 + dx, 2), round(y0 + dy, 2)
+                    if _collides(ref, nx, ny, rot):
+                        continue
+                    fps[ref]["x"], fps[ref]["y"], fps[ref]["rot"] = nx, ny, rot
+                    cand = _cost()
+                    if cand < best - 1e-6:
+                        best = cand
+                        result[ref] = (nx, ny, rot)
+                        x0, y0, rot0 = nx, ny, rot
+                        improved = True
+                    else:
+                        fps[ref]["x"], fps[ref]["y"], fps[ref]["rot"] = \
+                            x0, y0, rot0
+        if not improved:
+            break
+
+
 def _compute_pcb_placement(
     parts: list[dict], nets: list[dict], board_w: float, board_h: float,
+    board: dict | None = None,
 ) -> dict[str, tuple[float, float, int]]:
     """Incremental PCB placement — same rules as schematic, physical interpretation.
 
@@ -50,6 +166,26 @@ def _compute_pcb_placement(
     occupied: list[tuple[str, float, float, float, float]] = []
     ref_to_part = {p["ref"]: p for p in parts}
 
+    # Montagelöcher als FIXE Hindernisse reservieren (gleiche Regel wie der
+    # Builder, der sie emittiert) — vorher kannte die Platzierung sie nicht
+    # und setzte Stecker mitten auf MH3 (hole_clearance der Messlatte).
+    # Synthetische Einträge; werden vor dem Return wieder entfernt.
+    from .board_geom import (MOUNTING_HOLE_KEEPOUT, board_has_mounting_holes,
+                             mounting_hole_positions)
+    mh_refs: list[str] = []
+    if board_has_mounting_holes(board or {}, board_w, board_h):
+        for i, (mx, my) in enumerate(mounting_hole_positions(board_w, board_h)):
+            mh_ref = f"MH{i + 1}"
+            mh_refs.append(mh_ref)
+            result[mh_ref] = (mx, my, 0)
+            occupied.append((mh_ref, mx, my,
+                             MOUNTING_HOLE_KEEPOUT, MOUNTING_HOLE_KEEPOUT))
+            ref_to_part[mh_ref] = {
+                "ref": mh_ref,
+                "footprint": "MountingHole:MountingHole_3.2mm_M3",
+                "pins": [],
+            }
+
     MIN_GAP = 2.0
 
     # Build connectivity
@@ -60,8 +196,12 @@ def _compute_pcb_placement(
             ref = conn.split(":")[0]
             if ref and ref in ref_to_part:
                 refs_in_net.add(ref)
-        for a in refs_in_net:
-            for b in refs_in_net:
+        # sorted(): Set-Iterationsordnung ist PYTHONHASHSEED-abhängig — die
+        # Nachbar-LISTEN steuern Float-Summationen (fd_refine) und damit die
+        # Platzierung; ohne Sortierung war das PCB seed-abhängig
+        # (production_ready im Determinismus-Gate).
+        for a in sorted(refs_in_net):
+            for b in sorted(refs_in_net):
                 if a != b:
                     connectivity_raw[a].append((b, net["name"]))
 
@@ -341,16 +481,18 @@ def _compute_pcb_placement(
 
     # ── Post: Force-directed refinement ──────────────────────────────
     _fd_pcb_refine(result, connectivity_raw, ref_to_part, parts,
-                   x_min, y_min, x_max, y_max, occupied)
+                   x_min, y_min, x_max, y_max, occupied,
+                   extra_fixed=set(mh_refs))
 
     # ── Post: Hart-Entzerrer — Kollisionsfreiheit ist ein GATE ───────
     # Die Physik oben ist gut fürs Kürzen der Wege, garantiert aber keine
     # Überlappungsfreiheit (Schrittweite gegen Ende 0.2 mm). Bauteil-auf-
     # Bauteil ist auf einer Platine immer ein Fehler (Messlatte: C3 auf U1,
     # 105× hole_clearance) → deterministisch auflösen, Stecker bleiben an
-    # ihrer Kante.
+    # ihrer Kante, Montagelöcher sowieso.
     fixed_edge = {p["ref"] for p in parts
                   if str(p.get("_pcb_group", "")).startswith("connector")}
+    fixed_edge |= set(mh_refs)
     leftover = _resolve_pcb_overlaps(result, ref_to_part,
                                      x_min, y_min, x_max, y_max,
                                      fixed=fixed_edge)
@@ -358,4 +500,17 @@ def _compute_pcb_placement(
         logger.warning("PCB-Platzierung: %d Überlappungen unauflösbar "
                        "(Board zu klein?)", leftover)
 
+    # ── Post: Entwirren — Luftlinien-Kreuzungen minimieren ───────────
+    # Geschickte Positionierung senkt die Routingkosten (Nutzer-Tipp):
+    # dieselbe Bewertung wie das ✨-Entwirren-Feature (placement_eval)
+    # läuft hier deterministisch VOR dem Routing — jede vermiedene
+    # Kreuzung ist ein Via/Umweg weniger.
+    if leftover == 0:
+        _untangle_pcb(result, nets, ref_to_part,
+                      x_min, y_min, x_max, y_max, fixed_edge)
+        _resolve_pcb_overlaps(result, ref_to_part,
+                              x_min, y_min, x_max, y_max, fixed=fixed_edge)
+
+    for mh_ref in mh_refs:
+        result.pop(mh_ref, None)
     return result

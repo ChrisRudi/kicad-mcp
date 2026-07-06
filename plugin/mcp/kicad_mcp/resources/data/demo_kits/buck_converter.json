@@ -3,8 +3,8 @@
   "description": "Abwärtswandler MP1584 auf 5 V: Eingangs-/Ausgangs-MLCCs, 10µH-Spule, Schottky-Freilaufdiode, Boot-C, Feedback-Teiler. Nach dem MPS-MP1584-Datenblatt (Typical Application, VOUT=5V) / verbreitetes Mini-Buck-Modul (OSHWLab).",
   "board": {
     "shape": "rectangle",
-    "width": 44,
-    "depth": 32,
+    "width": 50,
+    "depth": 40,
     "layers": 2
   },
   "parts": [
@@ -55,8 +55,6 @@
           "type": "passive"
         }
       ],
-      "hint_pcb_x": 5.0,
-      "hint_pcb_y": 5.0,
       "_pcb_group": "main_ic"
     },
     {
@@ -76,8 +74,6 @@
           "type": "passive"
         }
       ],
-      "hint_pcb_x": 16.33,
-      "hint_pcb_y": 5.0,
       "_pcb_group": "passive"
     },
     {
@@ -97,8 +93,6 @@
           "type": "passive"
         }
       ],
-      "hint_pcb_x": 27.67,
-      "hint_pcb_y": 5.0,
       "_pcb_group": "passive"
     },
     {
@@ -118,8 +112,6 @@
           "type": "passive"
         }
       ],
-      "hint_pcb_x": 39.0,
-      "hint_pcb_y": 5.0,
       "_pcb_group": "passive"
     },
     {
@@ -139,8 +131,6 @@
           "type": "passive"
         }
       ],
-      "hint_pcb_x": 5.0,
-      "hint_pcb_y": 16.0,
       "_pcb_group": "passive"
     },
     {
@@ -160,8 +150,6 @@
           "type": "passive"
         }
       ],
-      "hint_pcb_x": 16.33,
-      "hint_pcb_y": 16.0,
       "_pcb_group": "passive"
     },
     {
@@ -181,8 +169,6 @@
           "type": "passive"
         }
       ],
-      "hint_pcb_x": 27.67,
-      "hint_pcb_y": 16.0,
       "_pcb_group": "passive"
     },
     {
@@ -202,8 +188,6 @@
           "type": "passive"
         }
       ],
-      "hint_pcb_x": 39.0,
-      "hint_pcb_y": 16.0,
       "_pcb_group": "passive"
     },
     {
@@ -223,8 +207,6 @@
           "type": "passive"
         }
       ],
-      "hint_pcb_x": 5.0,
-      "hint_pcb_y": 27.0,
       "_pcb_group": "connector_in"
     },
     {
@@ -244,8 +226,6 @@
           "type": "passive"
         }
       ],
-      "hint_pcb_x": 16.33,
-      "hint_pcb_y": 27.0,
       "_pcb_group": "connector_out"
     }
   ],

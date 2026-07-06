@@ -8,6 +8,47 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Demo-Platinen Phase 2b: Grid-Router + Entwirren — 0.26.0)
+- **Neuer Zwei-Lagen-Router** (`pcb/route.py`, komplett ersetzt): Dijkstra
+  auf 0.635-mm-Raster mit Knick-/Via-Kosten und HARTEM Konfliktmodell —
+  fremde/netzlose Pads (echte Geometrie + Clearance), bereits geroutete
+  Spuren, Vias (Zylinder > Zellbreite: 5-Zellen-Check + 0.85-Keepout),
+  Montagelöcher und Board-Rand sind unpassierbar; SMD-Pads starten nur
+  auf F.Cu (sonst B.Cu-Spur ohne Via-Anbindung), Anschluss-Stummel auf
+  der Andock-Lage. Mehr-Pad-Netze wachsen als Baum (Multi-Target-Suche →
+  T-Abzweige). Kein Weg → Netz bleibt ehrlich offen statt Kurzschluss.
+  GND wird mitgeroutet (kicad-cli füllt Zonen beim DRC nicht).
+- **Entwirren vor dem Routen** (Nutzer-Tipp): `place._untangle_pcb`
+  minimiert Luftlinien-Kreuzungen mit derselben Bewertung wie das
+  ✨-Entwirren-Feature (`utils.placement_eval.evaluate_layout`) —
+  deterministisch, kollisions-geprüft, Rotationen nur für Passives.
+- **Montagelöcher als fixe Hindernisse** in Platzierung UND Router
+  (`pcb/board_geom.py`, eine Regel für Builder+Platzierung) — vorher saß
+  J1 auf MH3 (hole_clearance).
+- Ergebnis: **6 von 10 Demo-Boards bestehen KiCads DRC mit 0 Fehlern und
+  0 offenen Verbindungen** (audio_amp, buck, kit_seeding, led_ring,
+  motor_driver, production_ready) — Gate
+  `test_finished_kits_route_drc_clean`. Bilanz aller 10: 2141 → 76.
+
+### Fixed (Demo-Platinen Phase 2b — 0.26.0)
+- **Footprint-Grafik fiel auf F.Cu zurück:** `build_footprint_with_nets`
+  strich JEDE alleinstehende `(layer …)`-Zeile statt nur der Footprint-
+  Kopfzeile — sämtliche Silk-/Fab-Elemente verloren ihre Lage, KiCad
+  defaultete sie auf Kupfer: „Rectangle [<no net>] of C1 on F.Cu"
+  shortete jede kreuzende Bahn (größter Einzelposten der Messlatte).
+- **Kit-Specs vom starren `hint_pcb`-Gitter befreit** (das „geclusterte
+  Startplatzierung"-Layout aus docs/demo_kits_todo.md): die Hints
+  überstimmten das Auto-Layout exakt und kollidierend; der
+  Hint-Mechanismus selbst bleibt für bewusst designte Vorlagen.
+  buck 44×32→50×40, sketch 32×24→40×30 (ehrlicher Platzbedarf mit echten
+  Courtyards — rechnerisch belegt).
+- **PCB seed-abhängig** (`production_ready`): `connectivity_raw` wurde
+  über Set-Iteration gefüllt; die Nachbar-Reihenfolge steuert Float-
+  Summationen der Kräfte-Physik → `sorted()`. PCB-Determinismus jetzt
+  über 3 Seeds byte-gleich geprüft.
+- `read_footprint_pad_positions`/`read_footprint_pads` nach `common/bbox`
+  (geteilt Builder/Platzierung), `_fd_pcb_refine` mit `extra_fixed`.
+
 ### Fixed (Demo-Platinen Phase 2a: Platzierung kollisionsfrei — 0.25.10)
 - **Courtyard-Parser elementgenau** (`bbox._read_courtyard_size`): die
   Regex-Fassung spannte lazy über Element-Grenzen — beim SOIC-8 wurde das

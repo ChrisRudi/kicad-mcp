@@ -1,7 +1,28 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.25.10**
+Aktuelle Version: **0.26.0**
+
+---
+
+## 🛣️ Neu in 0.26.0 — Echter Autorouter: 6 Demo-Platinen DRC-sauber
+
+- **Neuer Zwei-Lagen-Router** (Rastersuche mit hartem Konfliktmodell):
+  Leiterbahnen weichen fremden Pads, Spuren, Montagelöchern und dem
+  Board-Rand aus oder wechseln per Via die Lage — nie mehr „durchziehen
+  und hoffen". 6 von 10 Demo-Platinen bestehen KiCads DRC jetzt mit
+  **0 Fehlern und 0 offenen Verbindungen** (audio_amp, buck_converter,
+  kit_seeding, led_ring, motor_driver, production_ready) — per Test
+  festgeschrieben.
+- **Entwirren vor dem Routen:** die Platzierung minimiert erst die
+  Luftlinien-Kreuzungen (dieselbe Bewertung wie der ✨-Entwirren-Knopf) —
+  weniger Kreuzungen, weniger Vias, kürzere Wege.
+- **Drei tiefe Bugs gefunden:** Footprint-Grafik verlor beim Einbetten
+  ihre Lage und fiel auf Kupfer zurück (shortete jede kreuzende Bahn);
+  die Platzierung kannte die Montagelöcher nicht; das alte starre
+  Demo-Vorlagen-Gitter überstimmte das Auto-Layout (entfernt).
+- Fehlerbilanz aller 10 Boards: 2141 → 76 (Rest: die 3 dichtesten Boards,
+  nächste Runde). Platine ist jetzt seed-unabhängig reproduzierbar.
 
 ---
 

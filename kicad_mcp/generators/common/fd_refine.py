@@ -20,6 +20,7 @@ def _fd_pcb_refine(
     parts: list[dict],
     x_min: float, y_min: float, x_max: float, y_max: float,
     occupied: list,
+    extra_fixed: set | None = None,
 ) -> None:
     """Force-directed refinement to minimize total wire length (PCB).
 
@@ -29,7 +30,7 @@ def _fd_pcb_refine(
     """
     from .classify import _classify_component
 
-    fixed = set()
+    fixed = set(extra_fixed or ())   # z. B. Montageloch-Keepouts
     for p in parts:
         g = p.get("_pcb_group", _classify_component(p))
         if g.startswith("connector"):

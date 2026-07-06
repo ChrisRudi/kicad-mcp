@@ -18,7 +18,8 @@ import logging
 
 from kicad_mcp.utils.pcb_geometry import pcb_local_to_world
 
-from ..common.bbox import _fp_size
+from ..common.bbox import read_footprint_pad_positions as \
+    _read_footprint_pad_positions
 from ..common.constants import EURO_DIVIDER_SIZES, JLCPCB_RULES
 from ..footprint_lib import build_footprint_with_nets, resolve_footprint
 from ..sexpr import KICAD_PCB_VERSION, SExpr, uid
@@ -181,22 +182,19 @@ def _emit_board_outline(s: SExpr, board: dict, project_name: str) -> None:
     s.gr_rect(ox, oy, ox + w, oy + h, "Edge.Cuts", uid(f"{project_name}_outline"))
 
     # Mounting holes — like a real user would add for any board ≥ 30x30mm
-    add_holes = board.get("mounting_holes", w >= 30 and h >= 30)
-    if add_holes:
+    # (Regel geteilt mit der Platzierung, die die Ecken freihält)
+    from .board_geom import board_has_mounting_holes
+    if board_has_mounting_holes(board, w, h):
         _emit_mounting_holes(s, w, h, project_name, ox, oy)
 
 
 def _emit_mounting_holes(s: SExpr, w: float, h: float, project_name: str,
                          ox: float = 0, oy: float = 0) -> None:
     """Emit M3 mounting holes at board corners."""
-    hole_offset = 3.5  # mm from edge
-    hole_r = 1.6  # M3 hole radius
-    positions = [
-        (ox + hole_offset, oy + hole_offset),
-        (ox + w - hole_offset, oy + hole_offset),
-        (ox + hole_offset, oy + h - hole_offset),
-        (ox + w - hole_offset, oy + h - hole_offset),
-    ]
+    from .board_geom import MOUNTING_HOLE_RADIUS, mounting_hole_positions
+    hole_r = MOUNTING_HOLE_RADIUS
+    positions = [(ox + mx, oy + my)
+                 for mx, my in mounting_hole_positions(w, h)]
     for i, (mx, my) in enumerate(positions):
         hole_uid = uid(f"{project_name}_mh_{i}")
         s.open("footprint", '"MountingHole:MountingHole_3.2mm_M3"',
@@ -236,7 +234,7 @@ def _emit_footprints(
     board_w, board_h = _get_board_dims(board)
 
     # ── Intelligent placement ──────────────────────────────────────
-    placements = _compute_pcb_placement(parts, nets, board_w, board_h)
+    placements = _compute_pcb_placement(parts, nets, board_w, board_h, board=board)
     ox, oy = board.get("_ox", 0), board.get("_oy", 0)
 
     for part in parts:
@@ -426,34 +424,8 @@ def _emit_gnd_zone(s: SExpr, nets: list[dict], board: dict, project_name: str) -
     s.close()  # zone
 
 
-_pad_pos_cache: dict[str, dict[str, tuple[float, float]]] = {}
-
-
-def _read_footprint_pad_positions(fp_id: str) -> dict[str, tuple[float, float]]:
-    """Read pad positions from a real .kicad_mod footprint file.
-
-    Returns {pad_num: (rel_x, rel_y)} or empty dict if not found.
-    Cached for performance.
-    """
-    if fp_id in _pad_pos_cache:
-        return _pad_pos_cache[fp_id]
-
-    import re
-    try:
-        from ..footprint_lib import read_kicad_mod
-        raw = read_kicad_mod(fp_id)
-        if raw:
-            pads = re.findall(
-                r'\(pad "([^"]+)"[^)]*\(at ([\d.-]+) ([\d.-]+)', raw
-            )
-            result = {num: (float(x), float(y)) for num, x, y in pads}
-            _pad_pos_cache[fp_id] = result
-            return result
-    except Exception as exc:
-        logger.debug("Pad-Positionen für %s nicht lesbar: %s", fp_id, exc)
-
-    _pad_pos_cache[fp_id] = {}
-    return {}
+# _read_footprint_pad_positions ist nach common.bbox umgezogen (geteilt mit
+# der Platzierung fürs Entwirren) — Import steht oben bei den anderen.
 
 
 def _emit_routed_traces_from_placements(
@@ -471,7 +443,7 @@ def _emit_routed_traces_from_placements(
         from .route import route_pcb
 
         board_w, board_h = _get_board_dims(board)
-        placements = _compute_pcb_placement(parts, nets, board_w, board_h)
+        placements = _compute_pcb_placement(parts, nets, board_w, board_h, board=board)
         ox, oy = board.get("_ox", 0), board.get("_oy", 0)
 
         # Build net lookups
@@ -497,6 +469,8 @@ def _emit_routed_traces_from_placements(
             # Read real pad positions from footprint library
             fp_id = part.get("footprint", "")
             real_pad_pos = _read_footprint_pad_positions(fp_id)
+            from ..common.bbox import read_footprint_pads as \
+                _read_footprint_pads_full
 
             for pin in part.get("pins", []):
                 conn_by_num = f"{ref}:{pin['num']}"
@@ -531,34 +505,66 @@ def _emit_routed_traces_from_placements(
                 abs_x = round(wx + ox, 3)
                 abs_y = round(wy + oy, 3)
 
-                pad_positions[net_name].append((abs_x, abs_y, f"{ref}:{pad_num}"))
+                pad_through = any(
+                    pd["num"] == pad_num and pd["through"]
+                    for pd in _read_footprint_pads_full(fp_id))
+                pad_positions[net_name].append(
+                    (abs_x, abs_y, f"{ref}:{pad_num}", pad_through))
                 net_info[net_name] = (net_num, net_name)
 
-        # Skip GND (handled by zone)
-        skip_nets = {n["name"] for n in nets if n["name"].upper() == "GND"}
+        # GND wird MIT geroutet (Zone bleibt als Fläche obendrauf, aber die
+        # 0-DRC-offen-Garantie kommt aus Kupferzügen, nicht aus einer
+        # ungefüllten Zone — kicad-cli füllt beim DRC nicht).
         filtered = {
             name: pads for name, pads in pad_positions.items()
-            if name not in skip_nets and len(pads) >= 2
+            if len(pads) >= 2
         }
 
         if not filtered:
             return
 
-        # Build footprint obstacle boxes for trace avoidance
-        fp_obstacles = []
+        # Hindernis-Modell des Routers: JEDES Pad mit echter Geometrie
+        # (auch netzlose — Thermal-Pads, NPTH), plus die Montagelöcher.
+        from ..common.bbox import read_footprint_pads
+        from .board_geom import (MOUNTING_HOLE_RADIUS,
+                                 board_has_mounting_holes,
+                                 mounting_hole_positions)
+        pad_net: dict[tuple[str, str], int] = {}
+        for net in nets:
+            for conn in net.get("connections", []):
+                if ":" in conn:
+                    r, p = conn.split(":", 1)
+                    pad_net[(r, p)] = net_numbers.get(net["name"], 0)
+        all_pads: list[tuple[float, float, float, float, int, bool]] = []
         for part in parts:
             ref = part["ref"]
             if ref not in placements:
                 continue
-            px, py, _ = placements[ref]
-            w, h = _fp_size(part)
-            fp_obstacles.append((px + ox - w / 2, py + oy - h / 2,
-                                 px + ox + w / 2, py + oy + h / 2))
+            fp_x, fp_y, fp_rot = placements[ref]
+            name_by_num = {str(p["num"]): str(p.get("name", ""))
+                           for p in part.get("pins", [])}
+            for pad in read_footprint_pads(part.get("footprint", "")):
+                wx, wy = pcb_local_to_world(
+                    (fp_x, fp_y), fp_rot, pad["x"], pad["y"], flipped=False)
+                w, h = pad["w"], pad["h"]
+                if (fp_rot + pad["rot"]) % 180 == 90:
+                    w, h = h, w
+                num = pad["num"]
+                nn = pad_net.get((ref, num), 0)
+                if nn == 0:  # Pin-NAME als Fallback (wie beim Routen)
+                    nn = pad_net.get((ref, name_by_num.get(num, "")), 0)
+                all_pads.append((round(wx + ox, 3), round(wy + oy, 3),
+                                 w, h, nn, pad["through"]))
+        if board_has_mounting_holes(board, board_w, board_h):
+            hole_d = MOUNTING_HOLE_RADIUS * 2
+            for mx, my in mounting_hole_positions(board_w, board_h):
+                all_pads.append((round(mx + ox, 3), round(my + oy, 3),
+                                 hole_d + 0.4, hole_d + 0.4, 0, True))
 
         # Board outline rectangle
         board_rect = (ox, oy, ox + board_w, oy + board_h)
 
-        trace_text = route_pcb(filtered, net_info, nets, fp_obstacles, board_rect)
+        trace_text = route_pcb(filtered, net_info, nets, all_pads, board_rect)
         if trace_text.strip():
             s.blank()
             for line in trace_text.strip().split('\n'):
