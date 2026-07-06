@@ -1,7 +1,16 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.25.4**
+Aktuelle Version: **0.25.5**
+
+---
+
+## 👁️ Neu in 0.25.5 — Qualitätsmessung sieht Platzhalter-Bauteile echt
+
+- Die Layout-Messung kannte die wahre Größe generierter Platzhalter-Symbole
+  nicht — der Optimierer konnte Bauteile unbemerkt hineinschieben. Jetzt
+  rechnet sie mit der exakten Platzhalter-Geometrie.
+- Noch mehr Grundabstand zwischen Bauteilen (Faktor 1.8).
 
 ---
 

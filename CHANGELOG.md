@@ -8,6 +8,20 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (Metrik sieht Platzhalter + Grundluft 1.8 — 0.25.5)
+- **Blinde Metrik-Stelle geschlossen:** `_bbox_for_lib` nutzt für UNSERE
+  Platzhalter (lib_id ohne Doppelpunkt) die exakte Emitter-Formel statt des
+  Mini-Fallbacks — der Optimierer konnte Bauteile ungestraft IN Platzhalter-
+  Körper schieben (badness sah nichts). Nicht ladbare echte `Lib:Name`-
+  Symbole (Profi-Referenzen!) behalten den konservativen Fallback — die
+  Eichung bleibt exakt 0 (23/23). Der 99-Hz-Zähler misst dadurch ehrlicher
+  (60 → 380: Label-auf-Platzhalter wird jetzt gezählt).
+- **„Man kann weiter auflockern":** `SCHEMATIC_LAYOUT_FACTOR` 1.7 → 1.8.
+- Galerie: unverändert 8×0 / eth 30 / motor+usb 25 — keine Regression.
+- Bekannt & nächste Eichrunde: Seiten-Annotation GEDREHTER ICs kollidiert
+  optisch mit Nachbarn (buck „19k U1"-Salat) — Annot-Boxen der Metrik sind
+  rotations-blind und Annot-über-Fremdkörper wird noch nicht gemessen.
+
 ### Fixed (Global-Label-Format + Stecker-Anziehung — 0.25.4)
 - **Global-Label-Text stand NEBEN dem Pfeilkasten** (Nutzer-Frage): unserer
   Emission fehlten `(shape input)` und das winkelabhängige `(justify …)` —
