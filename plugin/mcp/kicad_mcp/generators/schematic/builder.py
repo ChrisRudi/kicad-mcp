@@ -672,20 +672,27 @@ def _emit_symbol_instances(s: SExpr, parts: list[dict], project_name: str, simul
             # unten), stehen dort dessen Power-Symbole — Wert/Referenz weichen
             # dann 2 Raster weiter aus, sonst liegt der Wertetext exakt auf dem
             # GND-Symbol (ethernet: „LAN8720"⧉GND, annot_overlap).
-            top_air = bot_air = 0.0
+            # Hat der IC Pins an der UNTER-/OBERkante (LAN8720: GND-Reihe),
+            # stehen dort seine Power-Symbole — unter dem Körper ist dann KEIN
+            # freier Platz (auch nicht tiefer: da hängt das GND-Symbol samt
+            # Text). Profi-Konvention: der Wert wandert IN den Körper (große
+            # ICs haben dort Luft), die Referenz analog bei Oberkant-Pins.
+            top_pins = bot_pins = False
             try:
                 from .route import _extract_pin_positions
+                # Toleranz = eine Pin-Länge (2.6): die Bbox reicht über die
+                # Pin-ANKER hinaus (LAN8720: Pins bei 27.94, Kante 29.21).
                 for _, (_, py) in _extract_pin_positions(lib_id, part).items():
-                    if py >= sym_h / 2 - 0.1:
-                        bot_air = 5.08
-                    elif py <= -sym_h / 2 + 0.1:
-                        top_air = 5.08
+                    if py >= sym_h / 2 - 2.6:
+                        bot_pins = True
+                    elif py <= -sym_h / 2 + 2.6:
+                        top_pins = True
             except Exception:
                 pass  # ohne Pin-Geometrie: bisheriges Verhalten
             ref_x = round(x, 2)
-            ref_y = round(y - sym_h / 2 - FONT_SIZE - top_air, 2)
             val_x = round(x, 2)
-            val_y = round(y + sym_h / 2 + FONT_SIZE + bot_air, 2)
+            ref_y = round(y - sym_h / 2 + FONT_SIZE * 2, 2) if top_pins                 else round(y - sym_h / 2 - FONT_SIZE, 2)
+            val_y = round(y + sym_h / 2 - FONT_SIZE * 2, 2) if bot_pins                 else round(y + sym_h / 2 + FONT_SIZE, 2)
             hidden_x, hidden_y = ref_x, ref_y
         else:
             if rot == 90 or rot == 270:
