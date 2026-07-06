@@ -110,10 +110,19 @@ class SExpr:
 
     def global_label(self, name: str, x: float, y: float, uuid_str: str,
                      angle: int = 0) -> "SExpr":
-        """Emit a global label (for power nets)."""
+        """Emit a global label (for power nets).
+
+        ``(shape input)`` und winkelabhängiges ``(justify …)`` sind PFLICHT:
+        ohne sie zeichnet KiCad den Text zentriert auf den Anker — er ragt
+        dann aus dem Pfeilkasten heraus (Nutzer: „warum stehen die
+        Beschriftungen nicht IN den Labels?"). Eeschema selbst schreibt
+        justify left für 0/90 und right für 180/270."""
+        justify = "left" if angle in (0, 90) else "right"
         self._lines.append(
-            f'{self._prefix()}(global_label "{name}" (at {x} {y} {angle})'
-            f' (effects (font (size {FONT_SIZE} {FONT_SIZE}))) (uuid "{uuid_str}"))'
+            f'{self._prefix()}(global_label "{name}" (shape input)'
+            f' (at {x} {y} {angle})'
+            f' (effects (font (size {FONT_SIZE} {FONT_SIZE}))'
+            f' (justify {justify})) (uuid "{uuid_str}"))'
         )
         return self
 

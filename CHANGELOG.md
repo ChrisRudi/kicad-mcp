@@ -8,6 +8,18 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Global-Label-Format + Stecker-Anziehung — 0.25.4)
+- **Global-Label-Text stand NEBEN dem Pfeilkasten** (Nutzer-Frage): unserer
+  Emission fehlten `(shape input)` und das winkelabhängige `(justify …)` —
+  ohne sie zentriert KiCad den Text auf den Anker statt ihn in den Kasten zu
+  setzen. `SExpr.global_label` schreibt jetzt beides (justify left für 0/90,
+  right für 180/270, wie Eeschema selbst). Per Format-Experiment verifiziert.
+- **Riesige Leerstrecken zu den Steckern** (Nutzer-Frage): die Kanten-
+  Platzierung nagelte J/P/CN/X an feste Blattkoordinaten, die Schaltung lag
+  kompakt dazwischen. `place._pull_connectors_to_circuit` zieht Randstecker
+  auf die Schaltungs-Bbox + 15.24 mm heran (Seite bleibt erhalten), danach
+  laufen Luft-/Überlappungs-Regeln wie gehabt.
+
 ### Added (Unverbunden = mehr Luft — 0.25.3)
 - **Nutzer-Regel („kost wenig, bringt viel"):** Bauteile OHNE gemeinsames
   Signal-Netz halten beim Entzerren mindestens einen Pin-Rasterpunkt

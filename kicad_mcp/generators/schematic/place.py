@@ -182,6 +182,11 @@ def place_schematic(parts: list[dict], nets: list[dict]) -> list[dict]:
     for part in parts:
         part["_sig_neighbors"] = tuple(sorted(adj.get(part.get("ref", ""), ())))
 
+    # Randstecker an die Schaltung heranziehen: die Kanten-Platzierung nagelt
+    # J/P/X an feste Blattkoordinaten, die Schaltung liegt kompakt dazwischen —
+    # riesige Leerstrecken (Nutzer: „warum haben die Jxx so große Abstände?").
+    _pull_connectors_to_circuit(parts)
+
     # Wiederholte Teilschaltungen uniform stellen (Nutzer-Regel: „Wiederholung
     # sollte zu gleichartigen Schaltungsteilen führen" — Multivibrator-Hälften,
     # LED-Ketten-Glieder), BEVOR die Post-Regeln aufräumen.
@@ -195,6 +200,38 @@ def place_schematic(parts: list[dict], nets: list[dict]) -> list[dict]:
 
 
 # ── Listen-getriebene Regel-Durchsetzung ────────────────────────────────────
+
+_CONN_PREFIXES = ("J", "P", "CN", "X")
+
+
+def _pull_connectors_to_circuit(parts: list[dict]) -> None:
+    """Stecker von der Blattkante an die Schaltungs-Bbox holen (+ fester
+    Abstand, Seite bleibt erhalten). Die Überlappungs-/Luft-Regeln laufen
+    danach und räumen etwaige neue Nähe wieder auf."""
+    gap = 15.24
+
+    def _is_conn(p: dict) -> bool:
+        prefix = "".join(c for c in str(p.get("ref", "")) if c.isalpha())
+        return prefix in _CONN_PREFIXES
+
+    core = [p for p in parts if "_place_x" in p and not _is_conn(p)]
+    conns = [p for p in parts if "_place_x" in p and _is_conn(p)]
+    if not core or not conns:
+        return
+    minx = min(p["_place_x"] for p in core)
+    maxx = max(p["_place_x"] for p in core)
+    miny = min(p["_place_y"] for p in core)
+    maxy = max(p["_place_y"] for p in core)
+    for c in conns:
+        if c["_place_x"] < minx - gap:
+            c["_place_x"] = _snap(minx - gap)
+        elif c["_place_x"] > maxx + gap:
+            c["_place_x"] = _snap(maxx + gap)
+        if c["_place_y"] < miny - gap:
+            c["_place_y"] = _snap(miny - gap)
+        elif c["_place_y"] > maxy + gap:
+            c["_place_y"] = _snap(maxy + gap)
+
 
 def _uniform_repeated_units(parts: list[dict], nets: list[dict]) -> None:
     """Wiederholte Teilschaltungen identisch aussehen lassen (Symmetrie).

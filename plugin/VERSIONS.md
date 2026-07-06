@@ -1,7 +1,17 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.25.3**
+Aktuelle Version: **0.25.4**
+
+---
+
+## 🏷️ Neu in 0.25.4 — Labels sitzen im Kasten, Stecker rücken heran
+
+- **Globale Netz-Labels:** Der Text steht jetzt IM Pfeilkasten statt daneben
+  (es fehlten zwei KiCad-Formatfelder in der Ausgabe).
+- **Stecker:** J-/P-/X-Verbinder kleben nicht mehr an der Blattkante mit
+  riesiger Leerfläche zur Schaltung — sie rücken auf festen Abstand an die
+  Schaltung heran.
 
 ---
 
