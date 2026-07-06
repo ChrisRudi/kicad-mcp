@@ -28,7 +28,7 @@ from ..common.classify import (
     _is_pullup,
     _map_bypass_caps_round_robin,
 )
-from ..common.fd_refine import _fd_pcb_refine
+from ..common.fd_refine import _fd_pcb_refine, _resolve_pcb_overlaps
 from ..common.placement_cost import build_ref_to_nets, placement_cost
 
 logger = logging.getLogger(__name__)
@@ -342,5 +342,20 @@ def _compute_pcb_placement(
     # ── Post: Force-directed refinement ──────────────────────────────
     _fd_pcb_refine(result, connectivity_raw, ref_to_part, parts,
                    x_min, y_min, x_max, y_max, occupied)
+
+    # ── Post: Hart-Entzerrer — Kollisionsfreiheit ist ein GATE ───────
+    # Die Physik oben ist gut fürs Kürzen der Wege, garantiert aber keine
+    # Überlappungsfreiheit (Schrittweite gegen Ende 0.2 mm). Bauteil-auf-
+    # Bauteil ist auf einer Platine immer ein Fehler (Messlatte: C3 auf U1,
+    # 105× hole_clearance) → deterministisch auflösen, Stecker bleiben an
+    # ihrer Kante.
+    fixed_edge = {p["ref"] for p in parts
+                  if str(p.get("_pcb_group", "")).startswith("connector")}
+    leftover = _resolve_pcb_overlaps(result, ref_to_part,
+                                     x_min, y_min, x_max, y_max,
+                                     fixed=fixed_edge)
+    if leftover:
+        logger.warning("PCB-Platzierung: %d Überlappungen unauflösbar "
+                       "(Board zu klein?)", leftover)
 
     return result

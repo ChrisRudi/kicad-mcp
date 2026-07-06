@@ -8,6 +8,25 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Demo-Platinen Phase 2a: Platzierung kollisionsfrei — 0.25.10)
+- **Courtyard-Parser elementgenau** (`bbox._read_courtyard_size`): die
+  Regex-Fassung spannte lazy über Element-Grenzen — beim SOIC-8 wurde das
+  Pin-1-Silk-Dreieck (0.48×0.33 mm) als Courtyard gelesen statt ~7.4×5.4;
+  ICs waren für jede Abstandsrechnung Staubkörner (C3 landete AUF U1).
+  Jetzt via `parse_sexpr`: nur Grafik-Elemente, deren eigener Layer auf
+  `*.CrtYd` liegt, zählen zur Bbox.
+- **`_fd_pcb_refine` rotations-blind für das eigene Teil:** w/h wurden nur
+  beim Gegenüber getauscht — Kollisionen an gedrehten Teilen unsichtbar.
+- **Neuer Hart-Entzerrer `_resolve_pcb_overlaps`** nach der Kräfte-Physik
+  (deren Schrittweite → 0.2 mm eine späte Kollision nie mehr löst):
+  deterministisch (sortierte Refs), Achse der geringsten Durchdringung,
+  Stecker bleiben an ihrer Kante, Board-Kanten-Klemmung führt zu
+  Richtungs-/Achswechsel statt Endlos-Schieben. Kollisionsfreiheit ist
+  jetzt ein GATE: `tests/test_pcb_placement.py` erzwingt 10/10 Demo-Kits
+  ohne Bauteil-Überlappung (mit und ohne Footprint-Lib).
+- Messlatte (kicad-cli-DRC, alle Kits): Fehler gesamt 2141 → 1432; Rest
+  ist Router-Arbeit (shorting/clearance/mask — Phase 2b).
+
 ### Changed (E2E-Report: Foto/Datenblatt-Features suchen selbst — 0.25.9)
 - **Feld-E2E-Lauf (Windows, 34 Features: 32 PASS, 2 WARN) zurückgelesen:**
   `photo_reverse` und `datasheet_circuit` stoppten bei fehlender Eingabe

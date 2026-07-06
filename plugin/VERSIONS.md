@@ -1,7 +1,21 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.25.9**
+Aktuelle Version: **0.25.10**
+
+---
+
+## 🧲 Neu in 0.25.10 — Platinen: keine Bauteile mehr übereinander
+
+- Start der Demo-Platinen-Überarbeitung (Messlatte: DRC + offene Netze je
+  Board). Drei Platzierungs-Fehler behoben:
+  - Der Courtyard-Leser las beim SOIC-8 versehentlich das kleine
+    Pin-1-Dreieck der Beschriftung statt des Bauteil-Hofs — das IC galt
+    als 0,5 mm klein und andere Teile wurden mittendrauf gesetzt.
+  - Gedrehte Bauteile wurden mit ungedrehter Größe geprüft.
+  - Nach der Feinverteilung räumt jetzt ein harter Entzerrer auf:
+    Bauteil-auf-Bauteil ist ein Gate (10/10 Demo-Boards kollisionsfrei,
+    per Test abgesichert). DRC-Fehler gesamt: 2141 → 1432.
 
 ---
 

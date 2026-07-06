@@ -16,7 +16,6 @@ Callers:
 
 # pylint: disable=unsubscriptable-object  # find_node() returns list|None; if-checks suffice
 import logging
-import re
 
 from .constants import GRID, HALF_GRID
 
@@ -122,57 +121,57 @@ _courtyard_cache: dict[str, tuple[float, float] | None] = {}
 def _read_courtyard_size(fp_id: str) -> tuple[float, float] | None:
     """Read courtyard bounding box (width, height) from a .kicad_mod file.
 
-    Checks fp_rect and fp_line on F.CrtYd layer.
+    Elementgenau über den S-Expression-Parser: NUR Grafik-Elemente, deren
+    eigener ``(layer …)`` auf ``*.CrtYd`` liegt, zählen zur Bbox. Die alte
+    Regex-Fassung spannte lazy ÜBER Element-Grenzen („irgendein fp_poly,
+    hinter dem irgendwo F.CrtYd steht") und las so beim SOIC-8 das
+    Pin-1-Dreieck der Silkscreen als Courtyard — 0.48×0.33 mm statt ~6×5:
+    das IC war für jede Abstandsrechnung ein Staubkorn, Bauteile wurden
+    „kollisionsfrei" mitten auf den Chip gesetzt (Demo-Board-Messlatte).
     Returns (width, height) or None if not found.  Cached.
     """
     if fp_id in _courtyard_cache:
         return _courtyard_cache[fp_id]
 
+    size: tuple[float, float] | None = None
     try:
+        from ...utils.sexpr_parser import find_node, parse_sexpr
         from ..footprint_lib import read_kicad_mod
         raw = read_kicad_mod(fp_id)
         if raw:
-            # Try fp_rect first (KiCad 8+ style)
-            rect_m = re.search(
-                r'\(fp_rect\s[^)]*\(start ([\d.-]+) ([\d.-]+)\)\s*'
-                r'\(end ([\d.-]+) ([\d.-]+)\).*?F\.CrtYd', raw, re.DOTALL)
-            if rect_m:
-                x1, y1 = float(rect_m.group(1)), float(rect_m.group(2))
-                x2, y2 = float(rect_m.group(3)), float(rect_m.group(4))
-                size = (abs(x2 - x1), abs(y2 - y1))
-                _courtyard_cache[fp_id] = size
-                return size
+            xs: list[float] = []
+            ys: list[float] = []
 
-            # Try fp_poly on F.CrtYd (ESP32-WROOM etc. use polygons)
-            poly_m = re.search(
-                r'\(fp_poly\s(.*?)F\.CrtYd', raw, re.DOTALL)
-            if poly_m:
-                coords = re.findall(r'\(xy ([\d.-]+) ([\d.-]+)\)', poly_m.group(1))
-                if coords:
-                    xs = [float(c[0]) for c in coords]
-                    ys = [float(c[1]) for c in coords]
-                    size = (max(xs) - min(xs), max(ys) - min(ys))
-                    _courtyard_cache[fp_id] = size
-                    return size
+            def _walk(node):
+                if not isinstance(node, list) or not node:
+                    return
+                if node[0] in ("fp_line", "fp_rect", "fp_poly",
+                               "fp_circle", "fp_arc"):
+                    layer = find_node(node, "layer")
+                    lname = ""
+                    if layer and len(layer) > 1:
+                        lname = str(layer[1]).strip('"')
+                    if lname.endswith("CrtYd"):
+                        for tag in ("start", "mid", "end", "center"):
+                            sub = find_node(node, tag)
+                            if sub and len(sub) >= 3:
+                                xs.append(float(sub[1]))
+                                ys.append(float(sub[2]))
+                        for x, y in _iter_xy(node):
+                            xs.append(x)
+                            ys.append(y)
+                for child in node:
+                    if isinstance(child, list):
+                        _walk(child)
 
-            # Fallback: fp_line on F.CrtYd — collect all start/end coords
-            crtyd_lines = re.findall(
-                r'\(fp_line\s.*?\"F\.CrtYd\".*?\)', raw, re.DOTALL)
-            if crtyd_lines:
-                coords = re.findall(
-                    r'\((?:start|end) ([\d.-]+) ([\d.-]+)\)',
-                    ' '.join(crtyd_lines))
-                if coords:
-                    xs = [float(c[0]) for c in coords]
-                    ys = [float(c[1]) for c in coords]
-                    size = (max(xs) - min(xs), max(ys) - min(ys))
-                    _courtyard_cache[fp_id] = size
-                    return size
+            _walk(parse_sexpr(raw))
+            if xs and ys:
+                size = (max(xs) - min(xs), max(ys) - min(ys))
     except Exception:
         logger.debug("Failed to read courtyard for %s", fp_id)
 
-    _courtyard_cache[fp_id] = None
-    return None
+    _courtyard_cache[fp_id] = size
+    return size
 
 
 def _fp_size(part: dict) -> tuple[float, float]:
