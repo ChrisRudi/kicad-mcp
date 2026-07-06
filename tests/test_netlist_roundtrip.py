@@ -78,11 +78,19 @@ def test_roundtrip_survives_layout_optimizer(tmp_path):
 def test_junctions_present_at_t_joins():
     # Nutzer-Regel: „wenn aus einer geraden Leitung eine Leitung abzweigt,
     # muss ein Punkt das kennzeichnen" — T-Abzweige tragen Junction-Punkte.
-    # kit_seeding hat Mehrpunkt-Netze mit verzweigten Routen → Junctions.
-    kit = os.path.join(os.path.dirname(__file__), "..", "kicad_mcp",
-                       "resources", "data", "demo_kits", "kit_seeding.json")
-    spec = json.load(open(kit, encoding="utf-8"))
-    parts = json.loads(json.dumps(spec["parts"]))
-    nets = json.loads(json.dumps(spec["nets"]))
-    text = build_schematic(parts, nets, project_name="seedj")
-    assert "(junction (at " in text
+    # WELCHES Kit T-Abzweige routet, hängt vom Layout ab (Abstands-Regeln
+    # verschieben das) — der Wächter prüft deshalb über ALLE Kits: mindestens
+    # eines muss Junctions emittieren, sonst ist der Junction-Pass tot.
+    kit_dir = os.path.join(os.path.dirname(__file__), "..", "kicad_mcp",
+                           "resources", "data", "demo_kits")
+    found = []
+    for name in sorted(os.listdir(kit_dir)):
+        if not name.endswith(".json"):
+            continue
+        spec = json.load(open(os.path.join(kit_dir, name), encoding="utf-8"))
+        parts = json.loads(json.dumps(spec["parts"]))
+        nets = json.loads(json.dumps(spec["nets"]))
+        text = build_schematic(parts, nets, project_name=f"j_{name[:-5]}")
+        if "(junction (at " in text:
+            found.append(name[:-5])
+    assert found, "kein einziges Kit emittiert Junctions — Junction-Pass tot?"
