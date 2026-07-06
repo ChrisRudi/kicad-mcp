@@ -8,6 +8,18 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (Mehr Luft um pin-reiche ICs — 0.25.2)
+- **Nutzer-Befund am 99-Hz-Zähler („U2 bekommt seine Netze überlappend
+  ohne Grund — machs luftiger"):** Passive klebten an der IC-Kante, ihre
+  Referenzen/Werte kollidierten mit Pin-Namen und Netz-Labels des ICs.
+  Neu: ``geometry._ic_air`` — Bauteile mit ≥ 10 Pins bekommen +5.08 mm
+  Hof in ``_boxes_overlap`` (wirkt in ``force_no_overlap`` und
+  ``_resolve_overlaps``), denn ihre Pin-Namen ragen über den Körper hinaus
+  und die Netz-Labels brauchen den Korridor davor. Zähler-Testfall:
+  badness 360 → 60 (Label-Überlappungen 3 → 0). Kits: Roundtrip 10/10,
+  deterministisch; nur ethernet/usb ändern sich (badness-Vergleich in der
+  Galerie, keine Regression).
+
 ### Fixed (Universaltest-Fund: Fuzzy-Symbol kippte Bauteilklasse — 0.25.1)
 - **„100n" wurde ein MOSFET:** die Fuzzy-Symbolsuche matchte den Wert
   eines Kondensators auf `Transistor_FET:BSC100N10NSFG` (enthält „100N") —

@@ -1,7 +1,16 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.25.1**
+Aktuelle Version: **0.25.2**
+
+---
+
+## 🌬️ Neu in 0.25.2 — Mehr Luft um große ICs
+
+- Bauteile rücken großen ICs (ab 10 Pins) nicht mehr auf die Pelle: deren
+  Pin-Beschriftungen und Netz-Labels bekommen einen garantierten Freiraum
+  von ~5 mm. Beim 2-stelligen Zähler verschwanden damit alle
+  Beschriftungs-Kollisionen an den Zähler-ICs.
 
 ---
 

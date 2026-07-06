@@ -64,10 +64,19 @@ def _resolve_overlaps(parts: list[dict]) -> bool:
     return moved
 
 
+def _ic_air(part: dict) -> float:
+    """Zusatz-Hof für pin-reiche ICs: ihre Pin-NAMEN (CLK, THRES, …) ragen
+    über den Körper hinaus, und ihre Netz-Labels brauchen den Korridor davor.
+    Ein Passiv direkt an der IC-Kante erzeugt sonst „Netze überlappend ohne
+    Grund" (Nutzer-Befund am 99-Hz-Zähler: R13 in U1s, R4/C4 in U2s Zone)."""
+    return 5.08 if len(part.get("pins", [])) >= 10 else 0.0
+
+
 def _boxes_overlap(a: dict, b: dict, margin: float = _OVERLAP_MARGIN) -> bool:
     """Überlappen die Rahmen von ``a`` und ``b`` (rotations-bewusst, mit Spalt)?"""
     ahw, ahh = _half_extents(a)
     bhw, bhh = _half_extents(b)
+    margin = margin + max(_ic_air(a), _ic_air(b))
     return (abs(a["_place_x"] - b["_place_x"]) < ahw + bhw + margin
             and abs(a["_place_y"] - b["_place_y"]) < ahh + bhh + margin)
 
