@@ -66,7 +66,7 @@ _RAW_SCH_FACTOR = _env_float("KICAD_SCH_FACTOR", 0.0)  # 0 = auto
 # ohne Not mitten ins Gewühl (BME280 so nah am MCU, dass Netz-Beschriftungen
 # keinen Platz hatten). Die crowding-Metrik wacht darüber, der Faktor sorgt
 # vor. Übersteuerbar per KICAD_SCH_FACTOR.
-SCHEMATIC_LAYOUT_FACTOR = _RAW_SCH_FACTOR if _RAW_SCH_FACTOR > 0 else 1.7
+SCHEMATIC_LAYOUT_FACTOR = _RAW_SCH_FACTOR if _RAW_SCH_FACTOR > 0 else 1.8
 
 
 INLINE_GAP = 15.0 * SCHEMATIC_LAYOUT_FACTOR

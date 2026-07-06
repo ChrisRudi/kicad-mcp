@@ -91,8 +91,20 @@ def _bbox_for_lib(lib_id: str, n_pins: int = 2) -> tuple[float, float]:
         # Symbol-Geometrie nicht parsebar → Pin-Zahl-Fallback-Bbox unten
         pass
     if w <= 0 or h <= 0:
-        h = max(n_pins * GRID, GRID * 2)
-        w = GRID * 2
+        if ":" not in lib_id:
+            # lib_id OHNE Doppelpunkt = UNSER Platzhalter, dessen Geometrie
+            # wir EXAKT kennen (builder._emit_placeholder_symbol): Breite
+            # 2×SYM_HALF_WIDTH, Höhe 2×max(n·FONT, 2·FONT). Der alte Mini-
+            # Fallback (2.54 breit) machte die Metrik blind — der Optimierer
+            # parkte R2 mitten IM MP1584-Platzhalter, weil badness nichts sah.
+            from ..sexpr import FONT_SIZE as _F, SYM_HALF_WIDTH as _HW
+            h = 2 * max(n_pins * _F, 2 * _F)
+            w = 2 * _HW
+        else:
+            # Echtes ``Lib:Name``, hier nur nicht ladbar (Profi-Referenzen!)
+            # → konservativ klein schätzen, sonst reißt die Eichung.
+            h = max(n_pins * GRID, GRID * 2)
+            w = GRID * 2
     _BBOX[lib_id] = (w, h)
     return (w, h)
 
