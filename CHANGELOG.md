@@ -8,6 +8,19 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (E2E-Report: Foto/Datenblatt-Features suchen selbst — 0.25.9)
+- **Feld-E2E-Lauf (Windows, 34 Features: 32 PASS, 2 WARN) zurückgelesen:**
+  `photo_reverse` und `datasheet_circuit` stoppten bei fehlender Eingabe
+  sofort (0 Tools → WARN „keine-tools-benutzt"), weil ihre Prompts das so
+  befahlen. Jetzt suchen beide ZUERST selbst im Projekt (Foto: Glob
+  jpg/jpeg/png/webp auch unter docs//fotos/; Datenblatt: docs/*.pdf +
+  *.pdf, per `list_schematic_components` mit den IC-Values abgeglichen):
+  eindeutiger Treffer → direkt loslegen, mehrere → Auswahl-Rückfrage,
+  keiner → Ein-Satz-Anleitung wie bisher. Im Feld heißt das: Datei ins
+  Projekt legen reicht, der Knopf findet sie — und der E2E-Bewerter sieht
+  echte Tool-Arbeit (PASS „bericht") bzw. eine Rückfrage (PASS
+  „fragt-nach"). Go-Gates unverändert.
+
 ### Fixed (Windows-Diagnose-Crash WinError 6 — 0.25.8)
 - **Feld-Crash:** Diagnose-Dialog stürzte unter Windows ab —
   `server_manager.pid_alive` prüfte Lebendigkeit mit `os.kill(pid, 0)`

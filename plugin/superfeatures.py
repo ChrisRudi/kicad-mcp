@@ -704,16 +704,19 @@ FEATURES: tuple[SuperFeature, ...] = (
                  "Netzliste/Schaltplan als Ausgangspunkt."),
         moat="KiCad hat keine Bild-Wahrnehmung — das ist reine Multimodal-Arbeit.",
         prompt=(
-                "Foto → Schaltung: Bitte lege das Platinen-Foto als Bilddatei "
-                "in den Projektordner und nenne mir den Dateinamen — Bilder "
-                "kann ich über Read ansehen. Dann: (1) Read auf das Bild; "
-                "identifiziere Bauteile, Aufdrucke und sichtbare Leiterbahnen; "
-                "(2) rekonstruiere daraus Stückliste und Netz-Hypothesen als "
-                "Tabelle mit Konfidenz je Verbindung (sichtbar vs. vermutet); "
-                "(3) auf Wunsch baue ich daraus per generate_schematic / "
-                "add_schematic_symbols einen Schaltplan-Startpunkt — erst nach "
-                "deinem Go. Ist kein Bild genannt, sage in einem Satz, wie es "
-                "geht, und stoppe. EHRLICH: verdeckte Leiterbahnen und "
+                "Foto → Schaltung: (1) Suche ZUERST selbst nach einem "
+                "Platinen-Foto im Projektordner (Glob: *.jpg *.jpeg *.png "
+                "*.webp, auch unter docs/ und fotos/). Genau ein Treffer → "
+                "nimm ihn und sage kurz, welchen. Mehrere → liste sie und "
+                "frage, welches Bild gemeint ist. Keiner → sage in einem "
+                "Satz, dass ein Foto in den Projektordner gehört, und "
+                "stoppe. (2) Read auf das Bild; identifiziere Bauteile, "
+                "Aufdrucke und sichtbare Leiterbahnen; (3) rekonstruiere "
+                "daraus Stückliste und Netz-Hypothesen als Tabelle mit "
+                "Konfidenz je Verbindung (sichtbar vs. vermutet); (4) auf "
+                "Wunsch baue ich daraus per generate_schematic / "
+                "add_schematic_symbols einen Schaltplan-Startpunkt — erst "
+                "nach deinem Go. EHRLICH: verdeckte Leiterbahnen und "
                 "Innenlagen kann ein Foto nicht zeigen. Kein pcb_render."),
         category="kreativ",
     ),
@@ -728,16 +731,21 @@ FEATURES: tuple[SuperFeature, ...] = (
         moat=("KiCad liest keine Datenblätter und kennt keine "
               "Applikationsschaltungen."),
         prompt=(
-                "Datenblatt → Schaltung: Nenne mir das IC oder lege sein "
-                "Datenblatt als docs/<Value>.pdf ins Projekt. Dann: (1) "
+                "Datenblatt → Schaltung: (1) Suche ZUERST selbst nach "
+                "Datenblättern im Projekt (Glob: docs/*.pdf und *.pdf) und "
+                "gleiche die Dateinamen mit den IC-Values aus "
+                "list_schematic_components ab. Eindeutiger Treffer → nimm "
+                "ihn und sage kurz, welchen. Mehrere Kandidaten → liste sie "
+                "und frage, welches IC gemeint ist. Keiner → sage in einem "
+                "Satz, dass ich das IC oder sein Datenblatt als "
+                "docs/<Value>.pdf brauche, und stoppe. (2) "
                 "extract_circuit_from_pdf auf die Seite mit der "
                 "Applikationsschaltung (bzw. extract_pdf_tables für die Pin- "
-                "Tabelle), (2) zeige den erkannten Schaltungsblock (Bauteile, "
-                "Werte, Verbindungen) als Vorschau, (3) erst nach deinem Go: "
+                "Tabelle), (3) zeige den erkannten Schaltungsblock (Bauteile, "
+                "Werte, Verbindungen) als Vorschau, (4) erst nach deinem Go: "
                 "apply_circuit_block in den Schaltplan — NUR bei geschlossenem "
-                "Eeschema (KiCad 10 hat kein Live-Schaltplan-API). Ist kein "
-                "IC/PDF genannt, sage in einem Satz, was ich brauche, und "
-                "stoppe. Kein pcb_render."),
+                "Eeschema (KiCad 10 hat kein Live-Schaltplan-API). "
+                "Kein pcb_render."),
         category="kreativ",
     ),
     SuperFeature(

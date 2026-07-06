@@ -1,7 +1,18 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.25.8**
+Aktuelle Version: **0.25.9**
+
+---
+
+## 🔍 Neu in 0.25.9 — Foto- und Datenblatt-Feature suchen selbst
+
+- **E2E-Feld-Report umgesetzt (32× PASS, 2× WARN):** Die Knöpfe
+  „📷 Foto→Schaltung" und „📄 Datenblatt→Schaltung" haben bei fehlender
+  Eingabe sofort gestoppt. Jetzt suchen sie ZUERST selbst im Projektordner
+  (Foto: jpg/png/webp; Datenblatt: docs/*.pdf, abgeglichen mit den ICs im
+  Schaltplan) — liegt die Datei schon da, läuft das Feature direkt los;
+  bei mehreren Kandidaten wird kurz nachgefragt.
 
 ---
 
