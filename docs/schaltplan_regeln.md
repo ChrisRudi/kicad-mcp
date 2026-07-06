@@ -58,6 +58,14 @@ Geometrie, Emission und Netzlisten-Vergleich.)*
   Optimierer darf die Konvention nicht wegdrehen (`_rot_locked`).
   *(place.py inkl. _orient_power_passives, defrag_place.py,
   builder._resolve_pin_collisions.)*
+- **Beschriftung liegt nie auf fremden Körpern:** Referenz/Wert-Texte ragen
+  vom eigenen Bauteil in FREIEN Raum, nie über den Nachbarn (Metrik
+  `annot_body_overlaps`; Boxen effektiv-winkel-bewusst: Symbol-Rotation +
+  Property-Winkel, Anker zentriert wie KiCads Text-Default). Platzhalter
+  messen mit ihrer WAHREN Höhe aus dem eingebetteten lib_symbols-Block —
+  eine Metrik, die den Platzhalter kleiner sieht als KiCad ihn zeichnet,
+  wird vom Optimierer ausgenutzt. *(layout_measure._annot_boxes,
+  _embedded_pin_counts.)*
 
 ## 3. Verdrahten: erst schützen, dann zeichnen
 

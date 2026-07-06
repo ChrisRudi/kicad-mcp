@@ -35,14 +35,14 @@ from dataclasses import dataclass, field
 GRID = 1.27
 
 # ── Symbol-Bounding-Box je lib_id (aus der KiCad-Symbol-Lib, gecacht) ────────
-_BBOX: dict[str, tuple[float, float]] = {}
+_BBOX: dict[tuple[str, int], tuple[float, float]] = {}
 
 
 def _bbox_for_lib(lib_id: str, n_pins: int = 2) -> tuple[float, float]:
     """(Breite, Höhe) des Symbol-Rahmens in mm — aus der echten Symbol-Lib,
     sonst grober Fallback aus der Pin-Zahl."""
-    if lib_id in _BBOX:
-        return _BBOX[lib_id]
+    if (lib_id, n_pins) in _BBOX:
+        return _BBOX[(lib_id, n_pins)]
     w = h = 0.0
     _PIN_LEN = 2.54  # Pins ragen ~2.54 mm aus dem Körper
     try:
@@ -105,7 +105,7 @@ def _bbox_for_lib(lib_id: str, n_pins: int = 2) -> tuple[float, float]:
             # → konservativ klein schätzen, sonst reißt die Eichung.
             h = max(n_pins * GRID, GRID * 2)
             w = GRID * 2
-    _BBOX[lib_id] = (w, h)
+    _BBOX[(lib_id, n_pins)] = (w, h)
     return (w, h)
 
 
@@ -116,9 +116,10 @@ class _Sym:
     y: float
     rot: int
     is_power: bool
+    n_pins: int = 2
 
     def half(self) -> tuple[float, float]:
-        w, h = _bbox_for_lib(self.lib_id)
+        w, h = _bbox_for_lib(self.lib_id, self.n_pins)
         if self.rot in (90, 270):
             w, h = h, w
         return w / 2.0, h / 2.0
@@ -149,6 +150,7 @@ class Metrics:
     label_label_overlaps: int = 0
     label_wire_overlaps: int = 0
     annot_overlaps: int = 0
+    annot_body_overlaps: int = 0
     wire_through_body: int = 0
     wire_overlaps: int = 0
     wire_crossings: int = 0
@@ -164,7 +166,8 @@ class Metrics:
         return {k: getattr(self, k) for k in (
             "comp_overlaps", "crowding", "label_overlaps", "label_wrong_dir",
             "label_label_overlaps", "label_wire_overlaps",
-            "annot_overlaps", "wire_through_body", "wire_overlaps",
+            "annot_overlaps", "annot_body_overlaps",
+            "wire_through_body", "wire_overlaps",
             "wire_crossings", "diag_wires", "offgrid",
             "wirelength_mm", "n_symbols", "n_labels", "n_wires")}
 
@@ -185,6 +188,7 @@ class Metrics:
                 + w["label_label_overlaps"] * self.label_label_overlaps
                 + w["label_wire_overlaps"] * self.label_wire_overlaps
                 + w["annot_overlaps"] * self.annot_overlaps
+                + w["annot_body_overlaps"] * self.annot_body_overlaps
                 + w["wire_through_body"] * self.wire_through_body
                 + w["wire_overlaps"] * self.wire_overlaps
                 + w["wire_crossings"] * self.wire_crossings
@@ -201,6 +205,8 @@ _DEFAULT_WEIGHTS = {
     "label_label_overlaps": 25.0,  # zwei Netz-Labels überdecken sich
     "label_wire_overlaps": 22.0,   # Netz-Label liegt über einem (fremden) Draht
     "annot_overlaps": 25.0,   # Referenz/Wert-Text zweier Bauteile übereinander
+    "annot_body_overlaps": 25.0,  # Referenz/Wert-Text liegt auf einem FREMDEN
+    #                               Bauteilkörper (der „19k/U1/MP1584"-Salat)
     "wire_through_body": 30.0,  # Leitung quer durch ein fremdes Bauteil
     "wire_overlaps": 18.0,    # zwei Leitungen liegen ÜBEREINANDER (kollinear)
     "wire_crossings": 0.0,    # Kreuzungen (X) sind OK (Nutzer-Vorgabe) — weiter
@@ -224,7 +230,7 @@ _WIRE_RE = re.compile(
 # Property-Block geholt (das reale Format ist mehrzeilig, mit ``(hide yes)`` NACH
 # verschachtelten Klammern — ein simpler Tail-Regex verpasst es).
 _PROP_HEAD_RE = re.compile(r'\(property\s+"(Reference|Value)"\s+"([^"]*)"')
-_PROP_AT_RE = re.compile(r'\(at\s+([-\d.]+)\s+([-\d.]+)\s+\d+\)')
+_PROP_AT_RE = re.compile(r'\(at\s+([-\d.]+)\s+([-\d.]+)\s+(\d+)\)')
 
 #: geschätzte KiCad-Zeichenbreite (mm) bei Standard-Textgröße 1.27 — konservativ
 #: gewählt, sodass die Profi-Referenz-Schaltbilder 0 Annotations-Überlappungen
@@ -249,18 +255,46 @@ def _balanced_end(text: str, start: int) -> int:
     return len(text)
 
 
-def _annotation_overlaps(text: str) -> int:
-    """Paare von Bauteilen, deren SICHTBARE Referenz/Wert-Texte sich überlappen.
+def _embedded_pin_counts(text: str) -> dict[str, int]:
+    """Pin-Zahl je Symbol-DEFINITION aus dem eingebetteten ``lib_symbols``-Block
+    des Dokuments. Für unsere Doppelpunkt-losen Platzhalter ist das die einzige
+    Quelle der wahren Geometrie (die KiCad-Lib kennt sie nicht) — ohne sie maß
+    die Metrik jeden Platzhalter mit der 2-Pin-Fallback-Höhe (5.08 statt z. B.
+    20.32 mm beim 8-Pin-MP1584) und war blind für Gedränge/Überdeckung an ihm."""
+    counts: dict[str, int] = {}
+    start = text.find("(lib_symbols")
+    if start < 0:
+        return counts
+    block = text[start:_balanced_end(text, start)]
+    i = block.find('(symbol "', 1)
+    while i > 0:
+        end = _balanced_end(block, i)
+        name_m = re.match(r'\(symbol\s+"([^"]+)"', block[i:end])
+        if name_m:
+            counts[name_m.group(1)] = block.count("(pin ", i, end)
+        i = block.find('(symbol "', end)
+    return counts
 
-    Nur zwischen VERSCHIEDENEN Bauteilen (das eigene Referenz-über-Wert-Paar ist
-    erlaubt/normal). Block-genau geparst über die Symbol-Grenzen; verborgene
-    Felder (``(hide yes)`` — Footprint, Power-Ref) zählen nicht. Der Text ragt vom
-    Anker nach außen — die Box ist ``len*char_w`` breit, ``line_h`` hoch."""
-    starts = [m.start() for m in _SYM_RE.finditer(text)]
-    starts.append(len(text))
+
+def _annot_boxes(text: str) -> list[list[tuple[float, float, float, float]]]:
+    """Je Symbol-INSTANZ die Boxen der SICHTBAREN Referenz/Wert-Texte
+    (cx, cy, w, h) — block-genau über die Symbol-Grenzen geparst; verborgene
+    Felder (``(hide yes)`` — Footprint, Power-Ref) zählen nicht.
+
+    Rotations-bewusst: KiCad rendert Property-Text relativ zur Symbol-Rotation
+    — der EFFEKTIVE Winkel ist (Symbol-Rot + Property-Winkel). Bei 90/270 steht
+    der Text senkrecht (Box hochkant), sonst waagrecht. Anker: ohne
+    ``(justify …)``-Token ist KiCad-Text ZENTRIERT (die frühere Annahme „Text
+    läuft vom Anker nach rechts" verfehlte den fremden Körper unter dem Text um
+    genau die halbe Breite — der „19k/U1/MP1584"-Salat blieb unsichtbar);
+    ``left``/``right`` verschieben entsprechend. Die Liste ist index-gleich zu
+    den Symbolen aus ``_parse`` (gleiche Regex, gleiche Reihenfolge)."""
+    matches = list(_SYM_RE.finditer(text))
+    starts = [m.start() for m in matches] + [len(text)]
     syms: list[list[tuple[float, float, float, float]]] = []
-    for k in range(len(starts) - 1):
+    for k, sm in enumerate(matches):
         block = text[starts[k]:starts[k + 1]]
+        sym_rot = int(sm.group(4))
         boxes = []
         for hm in _PROP_HEAD_RE.finditer(block):
             val = hm.group(2)
@@ -275,25 +309,31 @@ def _annotation_overlaps(text: str) -> int:
                 continue
             x, y = float(at.group(1)), float(at.group(2))
             w = max(len(val), 1) * _ANNOT_CHAR_W
-            # Box-Mitte = Anker + halbe Breite (Text läuft nach rechts)
-            boxes.append((x + w / 2.0, y, w, _ANNOT_LINE_H))
-        if boxes:
-            syms.append(boxes)
+            shift = 0.0                       # zentriert (KiCad-Default)
+            if "(justify left" in prop:
+                shift = w / 2.0               # Text läuft vom Anker weg
+            elif "(justify right" in prop:
+                shift = -w / 2.0
+            eff = (sym_rot + int(at.group(3))) % 360
+            if eff in (90, 270):
+                # senkrecht: 90 läuft vom Anker nach oben, 270 nach unten
+                sgn = -1.0 if eff == 90 else 1.0
+                boxes.append((x, y + sgn * shift, _ANNOT_LINE_H, w))
+            else:
+                # waagrecht (0 wie 180 — KiCad normalisiert auf lesbar)
+                boxes.append((x + shift, y, w, _ANNOT_LINE_H))
+        syms.append(boxes)
+    return syms
 
-    def _ov(a, b) -> bool:
-        return (abs(a[0] - b[0]) < (a[2] + b[2]) / 2 - _ANNOT_MARGIN
-                and abs(a[1] - b[1]) < (a[3] + b[3]) / 2 - _ANNOT_MARGIN)
 
-    count = 0
-    for i in range(len(syms)):
-        for j in range(i + 1, len(syms)):
-            if any(_ov(a, b) for a in syms[i] for b in syms[j]):
-                count += 1
-    return count
+def _annot_box_overlap(a, b) -> bool:
+    return (abs(a[0] - b[0]) < (a[2] + b[2]) / 2 - _ANNOT_MARGIN
+            and abs(a[1] - b[1]) < (a[3] + b[3]) / 2 - _ANNOT_MARGIN)
 
 
 def _parse(text: str) -> tuple[list[_Sym], list[_Label], list[_Wire]]:
     syms = []
+    pin_counts = _embedded_pin_counts(text)
     for m in _SYM_RE.finditer(text):
         lib = m.group(1)
         # „echtes Bauteil?" — semantisch über in_bom/on_board (die kurz nach dem
@@ -311,7 +351,8 @@ def _parse(text: str) -> tuple[list[_Sym], list[_Label], list[_Wire]]:
                     or ref_val.startswith("#")
                     or "(in_bom no)" in tail or "(on_board no)" in tail)
         syms.append(_Sym(lib, float(m.group(2)), float(m.group(3)),
-                         int(m.group(4)), is_power))
+                         int(m.group(4)), is_power,
+                         n_pins=max(pin_counts.get(lib, 0), 2)))
     labels = [_Label(m.group(1), float(m.group(2)), float(m.group(3)),
                      int(m.group(4))) for m in _LABEL_RE.finditer(text)]
     wires = [_Wire(float(m.group(1)), float(m.group(2)),
@@ -481,8 +522,32 @@ def measure_text(text: str) -> Metrics:
     """Ein ``.kicad_sch`` (als String) parsen und objektiv vermessen."""
     syms, labels, wires = _parse(text)
     m = Metrics(n_symbols=len(syms), n_labels=len(labels), n_wires=len(wires))
-    m.annot_overlaps = _annotation_overlaps(text)
     bodies = [s for s in syms if not s.is_power]
+
+    # Referenz/Wert-Texte: (a) übereinander (verschiedener Bauteile), (b) auf
+    # einem FREMDEN Bauteilkörper. Das eigene Paar bzw. der bewusst IN den
+    # eigenen Körper gelegte Wert (LAN8720 mit Unterkanten-Pins) sind erlaubt —
+    # nur fremde Körper zählen. Power-Symbol-Texte (GND/VCC) sind KiCad-Standard
+    # dicht am Symbol und bleiben beim Körper-Check außen vor.
+    aboxes = _annot_boxes(text)
+    for i in range(len(aboxes)):
+        for j in range(i + 1, len(aboxes)):
+            if any(_annot_box_overlap(a, b)
+                   for a in aboxes[i] for b in aboxes[j]):
+                m.annot_overlaps += 1
+    for i, s in enumerate(syms):
+        if s.is_power or not aboxes[i]:
+            continue
+        for t in bodies:
+            if t is s:
+                continue
+            hw, hh = _eff_half(t)
+            if any(abs(b[0] - t.x) < hw + b[2] / 2 - _ANNOT_MARGIN
+                   and abs(b[1] - t.y) < hh + b[3] / 2 - _ANNOT_MARGIN
+                   for b in aboxes[i]):
+                m.annot_body_overlaps += 1
+                m.details.append(
+                    f"Referenz/Wert von {s.lib_id} liegt auf {t.lib_id}")
 
     # Bauteil-Überlappungen (Rahmen, mit kleinem Spalt)
     for i in range(len(bodies)):

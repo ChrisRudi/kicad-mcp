@@ -258,3 +258,66 @@ def test_crowding_is_detected():
     roomy = tight.replace("103.5", "112")
     assert lm.measure_text(tight).crowding >= 1
     assert lm.measure_text(roomy).crowding == 0
+
+
+def test_annot_over_foreign_body_is_detected():
+    # Der Buck-Fall: Referenz/Wert-Text von U1 steht mitten AUF dem Körper des
+    # Nachbar-Widerstands ("19k/U1/MP1584"-Salat). Das eigene Feld über dem
+    # eigenen Körper (bewusst: Wert IM IC-Körper) zählt NICHT.
+    sch = ('(kicad_sch\n'
+           '(symbol (lib_id "Device:R") (at 100 100 0) (unit 1)'
+           ' (in_bom yes) (on_board yes)\n'
+           '  (property "Reference" "R2" (at 104 99 0))\n'
+           '  (property "Value" "19k1" (at 104 101 0)))\n'
+           '(symbol (lib_id "Device:C") (at 130 100 0) (unit 1)'
+           ' (in_bom yes) (on_board yes)\n'
+           '  (property "Reference" "U1" (at 100 100 0))\n'   # auf R-Körper!
+           '  (property "Value" "MP1584" (at 100 103 0)))\n)')
+    m = lm.measure_text(sch)
+    assert m.annot_body_overlaps >= 1
+    # eigenes Feld im eigenen Körper: erlaubt
+    own = ('(kicad_sch\n'
+           '(symbol (lib_id "Device:R") (at 100 100 0) (unit 1)'
+           ' (in_bom yes) (on_board yes)\n'
+           '  (property "Reference" "R1" (at 100 100 0)))\n)')
+    assert lm.measure_text(own).annot_body_overlaps == 0
+
+
+def test_placeholder_bbox_uses_embedded_pin_count():
+    # Doppelpunkt-lose Platzhalter: die wahre Höhe steht im eingebetteten
+    # lib_symbols-Block (8 Pins → 20.32 mm hoch). Ohne die Pin-Zahl maß die
+    # Metrik die 2-Pin-Fallback-Höhe (5.08) und war blind für zwei ineinander
+    # geschobene Platzhalter (der U1↔R2-Blindfleck im Buck).
+    pins = "".join(
+        f'(pin passive line (at -7.62 {8.89 - i * 2.54} 0) (length 2.54)'
+        f' (name "P{i}" (effects (font (size 1.27 1.27))))'
+        f' (number "{i + 1}" (effects (font (size 1.27 1.27)))))\n'
+        for i in range(8))
+    sch = ('(kicad_sch\n'
+           '(lib_symbols (symbol "MP1584"'
+           ' (symbol "MP1584_0_1"\n' + pins + ')))\n'
+           '(symbol (lib_id "MP1584") (at 100 100 0) (unit 1)'
+           ' (in_bom yes) (on_board yes)\n'
+           '  (property "Reference" "U1" (at 100 88 0)))\n'
+           '(symbol (lib_id "MP1584") (at 100 110 0) (unit 1)'
+           ' (in_bom yes) (on_board yes)\n'
+           '  (property "Reference" "U2" (at 100 122 0)))\n)')
+    # 10 mm Versatz: bei ehrlicher Höhe (±10.16) Überlappung, bei 2-Pin-
+    # Fallback (±2.54) nicht einmal Gedränge.
+    assert lm.measure_text(sch).comp_overlaps >= 1
+
+
+def test_vertical_annotation_box_is_rotation_aware():
+    # Effektiver Text-Winkel = Symbol-Rotation + Property-Winkel. Ein senkrecht
+    # stehender Text (eff. 90) belegt eine HOCHKANT-Box — die alte waagrechte
+    # Annahme legte die Box quer und verfehlte die reale Kollision.
+    sch = ('(kicad_sch\n'
+           '(symbol (lib_id "Device:R") (at 100 100 0) (unit 1)'
+           ' (in_bom yes) (on_board yes)\n'
+           '  (property "Reference" "LONGNAME" (at 120 100 90)))\n'
+           '(symbol (lib_id "Device:R") (at 160 100 0) (unit 1)'
+           ' (in_bom yes) (on_board yes)\n'
+           '  (property "Reference" "XX" (at 120 98 0)))\n)')
+    # dy=2: in der Hochkant-Box (halbe Höhe 2.4) drin, in der Quer-Box
+    # (halbe Höhe 0.635) längst draußen — nur die Rotations-Sicht sieht das.
+    assert lm.measure_text(sch).annot_overlaps >= 1

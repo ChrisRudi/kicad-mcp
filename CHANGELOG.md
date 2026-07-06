@@ -8,6 +8,31 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Eichrunde Annot-Boxen: rotations-bewusst + Fremdkörper — 0.25.6)
+- **Neue Metrik-Dimension `annot_body_overlaps` (Gewicht 25):** Referenz/
+  Wert-Text eines Bauteils liegt auf einem FREMDEN Körper — der buck-Salat
+  („19k/U1/MP1584": U1s Seiten-Annotation stand mitten auf R2). Eigene
+  Felder über dem eigenen Körper (bewusst: Wert IM IC) zählen nicht; Power-
+  Symbol-Texte (KiCad-Standard) bleiben außen vor. An den Profi-Referenzen
+  geeicht (weiterhin exakt 0, 26/26 Metrik-Tests).
+- **Annot-Boxen rotations-bewusst + ehrlicher Anker:** effektiver Text-
+  Winkel = Symbol-Rotation + Property-Winkel (senkrechte Texte belegen eine
+  Hochkant-Box), Anker ZENTRIERT wie KiCads Text-Default ohne `justify` —
+  die alte „Text läuft vom Anker nach rechts"-Annahme verfehlte den fremden
+  Körper unter dem Text um genau die halbe Breite. `(justify left/right)`
+  wird respektiert.
+- **Platzhalter messen mit wahrer Höhe:** `_embedded_pin_counts` liest die
+  Pin-Zahl je Definition aus dem eingebetteten `lib_symbols`-Block des
+  Dokuments (die einzige Quelle für Doppelpunkt-lose Platzhalter) — vorher
+  maß die Metrik jeden Platzhalter mit der 2-Pin-Fallback-Höhe (5.08 statt
+  20.32 mm beim 8-Pin-MP1584) und war blind für Gedränge/Überdeckung an ihm
+  (U1↔R2-Spalt 0.25 mm ohne crowding-Treffer).
+- Ergebnis: der Optimierer (validiert gegen dieselbe Metrik) räumt den
+  buck-Salat selbst auf — U1 wird entdreht, Referenz oben/Wert unten.
+  Galerie: 8×0 / eth 30 / motor 25 / usb 25 unverändert; buck ehrlich 5
+  (offgrid-Konflikt-Stub 0.635 an U1s dichter Pin-Spalte — vorher blind 0
+  MIT Salat). Roundtrip 10/10, Determinismus über Seeds byte-gleich.
+
 ### Changed (Metrik sieht Platzhalter + Grundluft 1.8 — 0.25.5)
 - **Blinde Metrik-Stelle geschlossen:** `_bbox_for_lib` nutzt für UNSERE
   Platzhalter (lib_id ohne Doppelpunkt) die exakte Emitter-Formel statt des

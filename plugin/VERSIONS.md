@@ -1,7 +1,18 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.25.5**
+Aktuelle Version: **0.25.6**
+
+---
+
+## 🔍 Neu in 0.25.6 — Beschriftungen landen nicht mehr auf Nachbar-Bauteilen
+
+- Der „19k/U1/MP1584"-Textsalat am gedrehten Schaltregler ist weg: die
+  Qualitätsmessung erkennt jetzt, wenn Referenz/Wert-Texte auf einem FREMDEN
+  Bauteilkörper liegen — und der Optimierer räumt das automatisch auf.
+- Text-Boxen werden rotations-bewusst gemessen (senkrechte Texte hochkant)
+  und mit KiCads echtem Text-Anker (zentriert) statt einer Schätzung.
+- Platzhalter-Symbole messen mit ihrer wahren Höhe (Pin-Zahl aus der Datei).
 
 ---
 
