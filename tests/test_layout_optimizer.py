@@ -17,6 +17,16 @@ import pytest
 from kicad_mcp.generators.schematic import layout_optimizer as opt
 from kicad_mcp.generators.schematic import layout_measure as lm
 from kicad_mcp.generators.schematic.builder import build_schematic
+from kicad_mcp.generators.symbol_cache import get_real_symbol
+
+# Die Profi-Null ist nur mit der ECHTEN Symbol-Bibliothek erreichbar: ohne sie
+# wird JEDES Teil ein Platzhalter (auch Device:R), und reine Platzhalter-
+# Geometrie kann die am Profi geeichte 0 strukturell nicht erfüllen (Off-Grid-
+# Pins, Annot-Reste). Der Echt-KiCad-CI-Job fährt den Test scharf; der
+# Mock-Job skippt — wie die Symbol-Lib-Tests in test_pin_stubs (0.25.2).
+_needs_symbol_lib = pytest.mark.skipif(
+    not get_real_symbol("74xx:74HC595"),
+    reason="KiCad-Symbol-Bibliothek nicht installiert")
 
 _KIT_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
@@ -81,6 +91,7 @@ def test_never_worse_than_input():
     "led_ring",         # Labels in Nachbarn
     "production_ready",  # Kreuzungen + dichter Cluster
 ])
+@_needs_symbol_lib
 def test_kits_reach_professional_zero(kit):
     # Der Goldstandard: nach der Optimierung misst die Demo-Schaltung wie ein
     # Profi-Referenz-Schaltbild — badness 0 (nichts überlappt, Labels zeigen
