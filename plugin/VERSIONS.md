@@ -1,7 +1,19 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.24.1**
+Aktuelle Version: **0.25.0**
+
+---
+
+## 🪞 Neu in 0.25.0 — Wiederholte Schaltungsteile sehen gleich aus
+
+- **Symmetrie-Regel:** Besteht eine Schaltung aus wiederholten gleichen
+  Teilen (die zwei Hälften eines Multivibrators, die Glieder einer
+  LED-Kette), erkennt der Generator das jetzt und zeichnet jede Instanz
+  IDENTISCH — nebeneinander in Leseordnung (D1→D6 statt Zickzack).
+  Der Optimierer verschiebt solche Gruppen nur noch als Ganzes.
+- **Blatt-Zentrierung:** Das fertige Layout wird auf die Blattmitte
+  geschoben statt links oben zu kleben.
 
 ---
 

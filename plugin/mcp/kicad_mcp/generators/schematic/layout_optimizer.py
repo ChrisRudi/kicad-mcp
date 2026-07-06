@@ -232,6 +232,13 @@ def _restore(parts: list[dict], snap: list[dict]) -> None:
                 p[f] = v
 
 
+# Instanz-Index → Mitglieder wiederholter Teilschaltungen (place.py setzt
+# ``_rep_unit``). Von ``optimize()`` je Lauf befüllt; ``_apply`` bewegt solche
+# Einheiten STARR (gleiche Translation für alle Mitglieder) — sonst zerstörte
+# die Suche die Nutzer-Regel „Wiederholung sieht gleich aus" sofort wieder.
+_UNIT_GROUPS: dict[int, list[dict]] = {}
+
+
 def _apply(cand: Candidate) -> None:
     for part, field, value in cand:
         # Nutzer-Regel „Power-Passives senkrecht": rotations-gesperrte Teile
@@ -240,14 +247,26 @@ def _apply(cand: Candidate) -> None:
         if field == "_rotation" and part.get("_rot_locked") \
                 and int(value) % 180 != 0:
             continue
+        unit = part.get("_rep_unit")
+        if unit is not None:
+            if field == "_rotation":
+                continue  # Einzeldrehung bräche die Gleichartigkeit
+            if field in ("_place_x", "_place_y"):
+                delta = value - part.get(field, value)
+                for member in _UNIT_GROUPS.get(unit, (part,)):
+                    member[field] = member.get(field, 0) + delta
+                continue
         part[field] = value
 
 
 def _kick(placed: list[dict], rng: random.Random) -> None:
     """Zufalls-Störung für den Neustart: ein paar Teile um 1–2 Raster
     versetzen, um aus einem lokalen Minimum zu springen."""
-    k = max(1, len(placed) // 3)
-    for p in rng.sample(placed, min(k, len(placed))):
+    pool = [q for q in placed if q.get("_rep_unit") is None]
+    if not pool:
+        return
+    k = max(1, len(pool) // 3)
+    for p in rng.sample(pool, min(k, len(pool))):
         p["_place_x"] = round(p["_place_x"] + rng.choice((-2, -1, 1, 2)) * GRID, 2)
         p["_place_y"] = round(p["_place_y"] + rng.choice((-2, -1, 1, 2)) * GRID, 2)
 
@@ -286,6 +305,10 @@ def optimize(
     input (das Eingangs-Layout ist die Untergrenze).
     """
     placed = [p for p in parts if "_place_x" in p]
+    _UNIT_GROUPS.clear()
+    for p in placed:
+        if p.get("_rep_unit") is not None:
+            _UNIT_GROUPS.setdefault(p["_rep_unit"], []).append(p)
     if len(placed) < 2:
         return {"start": 0.0, "badness": 0.0, "evals": 0, "improved": False}
 

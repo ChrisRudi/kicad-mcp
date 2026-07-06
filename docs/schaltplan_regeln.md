@@ -42,6 +42,12 @@ Geometrie, Emission und Netzlisten-Vergleich.)*
   Überdeckung selbst ein.
 - **Pins dürfen nie aufeinander liegen** — Pin-auf-Pin ist in KiCad eine harte
   Verbindung; Kollisionen werden nach der Platzierung deterministisch entzerrt.
+- **Wiederholung sieht gleich aus:** wiederholte Teilschaltungen
+  (Multivibrator-Hälften, Ketten-Glieder) werden strukturell erkannt und
+  identisch gestempelt, Instanzen in Leseordnung; der Optimierer bewegt die
+  Formation nur starr. Das Gesamt-Layout wird zuletzt auf die Blattmitte
+  zentriert. *(common/repetition.py, place._uniform_repeated_units,
+  place._center_on_sheet.)*
 - **R/C/L an GND/VCC stehen senkrecht** (Rotation 0/180, Power-Symbol direkt
   drüber/drunter) — Pull-up und Abblock-C wie im Profi-Schaltbild; der
   Optimierer darf die Konvention nicht wegdrehen (`_rot_locked`).

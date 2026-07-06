@@ -174,6 +174,11 @@ def place_schematic(parts: list[dict], nets: list[dict]) -> list[dict]:
     # Ensure all parts have placement coordinates
     placed_refs |= {p["ref"] for p in parts if "_place_x" in p}
 
+    # Wiederholte Teilschaltungen uniform stellen (Nutzer-Regel: „Wiederholung
+    # sollte zu gleichartigen Schaltungsteilen führen" — Multivibrator-Hälften,
+    # LED-Ketten-Glieder), BEVOR die Post-Regeln aufräumen.
+    _uniform_repeated_units(parts, nets)
+
     # 11+12. Post-Placement-Regeln listen-getrieben durchsetzen (Überlappung,
     # Mindest-Draht, Pin-Richtung, Grid-Snap) — die Reihenfolge/Auswahl steht im
     # wartbaren Regel-Set ``layout_rules``, nicht hier fest verdrahtet.
@@ -182,6 +187,46 @@ def place_schematic(parts: list[dict], nets: list[dict]) -> list[dict]:
 
 
 # ── Listen-getriebene Regel-Durchsetzung ────────────────────────────────────
+
+def _uniform_repeated_units(parts: list[dict], nets: list[dict]) -> None:
+    """Wiederholte Teilschaltungen identisch aussehen lassen (Symmetrie).
+
+    Nimmt das (bereits kostenoptimiert platzierte) Layout der ERSTEN Instanz
+    als Schablone und stampt es auf alle weiteren — in Leseordnung von links
+    nach rechts, mit Luft zwischen den Instanzen. Mitglieder bekommen
+    ``_rep_unit`` (Instanz-Index) + ``_rot_locked``: der Layout-Optimierer
+    verschiebt Einheiten dann nur noch STARR und dreht kein Mitglied einzeln
+    weg — sonst wäre die Gleichartigkeit nach der ersten Suchrunde dahin."""
+    from ..common.repetition import find_repeated_units
+
+    units = find_repeated_units(parts, nets)
+    if len(units) < 2:
+        return
+    ref_to_part = {p.get("ref", ""): p for p in parts}
+    first = [ref_to_part[r] for r in units[0]]
+    if any("_place_x" not in p for p in first):
+        return
+    ax, ay = first[0]["_place_x"], first[0]["_place_y"]
+    # Schablone: relative Lage + Rotation je Mitglieds-Position (Index i —
+    # die Einheiten sind validiert strukturgleich sortiert)
+    template = [(p["_place_x"] - ax, p["_place_y"] - ay,
+                 int(p.get("_rotation", 0))) for p in first]
+    width = max(dx for dx, _, _ in template) - min(dx for dx, _, _ in template)
+    pitch = _snap(max(width + 10.16, 20.32))  # Instanz + Luft (Singles: 16 Raster)
+
+    for ui, unit in enumerate(units):
+        ox, oy = ax + ui * pitch, ay
+        for (dx, dy, rot), ref in zip(template, unit):
+            p = ref_to_part[ref]
+            p["_place_x"] = _snap(ox + dx)
+            p["_place_y"] = _snap(oy + dy)
+            p["_rotation"] = rot
+            # EINE Formation für alle Instanzen: der Optimierer verschiebt
+            # die ganze Reihe starr — sonst rutscht ein Kettenglied (D4)
+            # aus der Leseordnung, sobald das seine badness senkt.
+            p["_rep_unit"] = 0
+            p["_rot_locked"] = True
+
 
 def _orient_power_passives(parts: list[dict], nets: list[dict]) -> None:
     """Nutzer-Regel: Geht ein R, C oder L an GND/VCC (Power-Netz), steht er
@@ -262,6 +307,34 @@ def _enforce_layout_rules(parts: list[dict], nets: list[dict]) -> None:
         fn = enforcers.get(rule.enforcer)
         if fn:
             fn()
+
+    # Zuallerletzt: das Gesamt-Layout auf die Blattmitte schieben (starre,
+    # raster-gesnappte Translation — ändert NICHTS am relativen Layout).
+    # Nutzer: „Könnte man nicht versuchen, auf dem Blatt zu zentrieren?"
+    _center_on_sheet(parts)
+
+
+def _center_on_sheet(parts: list[dict]) -> None:
+    """Bounding-Box aller platzierten Teile auf die Blattmitte zentrieren.
+
+    Reine Translation um ein Raster-Vielfaches: Abstände, Rotationen und
+    On-Grid-Lage bleiben exakt erhalten (badness translations-invariant);
+    nur die Leerfläche verteilt sich gleichmäßig statt rechts/unten zu
+    klumpen. Läuft als allerletzter Platzierungs-Schritt."""
+    from ..common.constants import SHEET_W
+
+    xs = [p["_place_x"] for p in parts if "_place_x" in p]
+    ys = [p["_place_y"] for p in parts if "_place_y" in p]
+    if not xs:
+        return
+    dx = _snap((SHEET_W - (min(xs) + max(xs))) / 2.0)
+    dy = _snap((SHEET_H - (min(ys) + max(ys))) / 2.0)
+    if not dx and not dy:
+        return
+    for p in parts:
+        if "_place_x" in p:
+            p["_place_x"] = round(p["_place_x"] + dx, 2)
+            p["_place_y"] = round(p["_place_y"] + dy, 2)
 
 
 #: Minimale sichtbare Leitungslänge zwischen zwei verbundenen Bauteil-Pins (mm).

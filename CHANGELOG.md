@@ -8,6 +8,23 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Wiederholung → Symmetrie + Blatt-Zentrierung — 0.25.0)
+- **Nutzer-Regel „Wiederholung sieht gleich aus":** wiederholte
+  Teilschaltungen (Multivibrator-Hälften, LED-Ketten-Glieder) werden
+  strukturell erkannt (`common/repetition.py`: Anker-Signatur ≥3 Pins ×k,
+  BFS-Zuordnung der k-fachen Begleiter, Abbruch bei ungleichen Instanzen)
+  und identisch gestempelt — Layout der ersten Instanz als Schablone, alle
+  Instanzen in Leseordnung nebeneinander. Der Layout-Optimierer bewegt die
+  Formation nur noch STARR (`_rep_unit`) und dreht kein Mitglied einzeln.
+- **„Auf dem Blatt zentrieren":** `place._center_on_sheet` schiebt das
+  Gesamt-Layout als allerletzten Schritt raster-gesnappt in die Blattmitte
+  (reine Translation, badness-invariant).
+- Gates: Roundtrip 10/10, deterministisch, Galerie ohne Regression (nur
+  led_ring ändert sich — Kette jetzt D1→D6 in Reihe, weiter badness 0);
+  Multivibrator-Demo: zwei identische Hälften, badness 0. Wächter
+  `tests/test_repetition.py` (Erkennung, Uniformität, starre Formation,
+  Zentrierung).
+
 ### Fixed (Feld-Bug: Generator lehnte LLM-Specs ab — 0.24.1)
 - **„zeichne einen astabilen Multivibrator" scheiterte im Feld:** der
   Validator erzwang `name`, `footprint` und je Pin `name`+`type` — ein
