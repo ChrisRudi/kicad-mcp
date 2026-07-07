@@ -61,8 +61,17 @@ VCC/SER/SRCLK/RCLK/GND); **/OE(13)→GND** (Ausgänge aktiv), **/SRCLR(10)→VCC
 byte-deterministisch. **Verified → ⭐.**
 
 ## Noch offen (kein verified)
-- **ac_dc_supply**: Platine seit 0.31.0 0/0 (✅), aber Schaltplan-Review
-  (TNY268 + PC817 + TL431: EN/BP-Beschaltung, Bias-Wicklung, TL431-Teiler,
-  Kriechstrecken) steht aus → noch nicht verified.
+- **ac_dc_supply**: Platine seit 0.31.0 0/0 (✅), Schaltplan **bewusst NICHT
+  verified** — der TNY268-Review (2026-07-07) fand echte Mängel:
+  (1) **BP/M-Pin (5) unbeschaltet** — der TinySwitch-II braucht ZWINGEND
+  einen Bypass-C an BP→SOURCE (typ. 0,1/1 µF; sein Wert wählt zudem den
+  Strom-Limit-Mode). Ohne ihn nicht funktionsfähig.
+  (2) Pinout EN/DRAIN/BP gegen das PI-Datenblatt (DIP-8B) zu verifizieren
+  (aktuell DRAIN=1, S=4, BP=5, EN=8 — gegen die Standard-Belegung prüfen).
+  (3) AUX-Wicklung (T1:3→PRI_GND) klären — TinySwitch-II ist selbstversorgt
+  aus DRAIN, eine Bias-Wicklung ist meist unnötig.
+  **Netzspannungs-Schaltung → kein Raten**: der Rework braucht das echte
+  PI-Datenblatt + Kriechstrecken-Prüfung (safety_spacing), bevor ⭐. Bis
+  dahin ehrlich ✅ (Platine sauber, Schaltplan ungeprüft).
 - **usb_sensor_hub, ethernet_device**: Roadmap Phase 2c (Fein-Pitch-Router)
   + Phase 3 (Datenblatt-Review, mehrere ICs/Straps).
