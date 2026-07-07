@@ -24,3 +24,16 @@ apply_circuit_block(sch_path="my.kicad_sch",
 
 For multi-instance: add an `instances[]` array to the spec, then call
 `apply_circuit_block` once per `instance_id`.
+
+## Abgrenzung: Wo liegen die Demo-Schaltungen?
+
+Die **kompletten Demo-Schaltungen** (Buck-Converter, Motor-Treiber,
+Audio-Amp, …) liegen NICHT hier, sondern als parts+nets+board-Specs unter
+`kicad_mcp/resources/data/demo_kits/*.json` — das ist, was der ▶-Demo-Knopf
+im Plugin baut (Topologien datenblatt-geprüft, Quelle in jeder Spec).
+
+Dieser Ordner enthält dagegen **wiederverwendbare IC-Applikations-Blöcke**
+(Schema v1.1) für `apply_circuit_block`: „füge diese Regler-/OpAmp-
+Beschaltung in einen BESTEHENDEN Schaltplan ein". Geplant (Demo-Plan
+Schritt 3): die Demo-Kits aus solchen Blöcken komponieren, damit beide
+Welten dieselbe Quelle teilen.
