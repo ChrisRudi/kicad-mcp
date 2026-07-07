@@ -1,7 +1,22 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.31.0**
+Aktuelle Version: **0.32.0**
+
+---
+
+## 🔧 Neu in 0.32.0 — Schieberegister-Demo funktionsfähig (jetzt 6 ⭐)
+
+- **74HC595-Breakout aufs echte Bauteil umgebaut.** Die Demo trug bisher
+  ein auf 8 Pins verkürztes 74HC595 mit **unbeschaltetem Latch-Takt
+  (RCLK)** — so hätte das Schieberegister real nie die Ausgänge
+  übernommen. Jetzt das echte 16-Pin-IC: RCLK an den Stecker geführt,
+  Ausgangsfreigabe (/OE) auf Masse, Clear (/SRCLR) auf Plus — datenblatt-
+  korrekt und funktionsfähig. Platine weiterhin 0 Fehler / 0 offen.
+- Damit sind **6 der 10 Demos ⭐ Referenz-Qualität**: Buck, Motor, NE555,
+  LED-Ring, Audio, Schieberegister.
+
+Stand: **6 ⭐ / 2 ✅ / 2 🔬** (nur noch USB-Hub & Ethernet — Fein-Pitch).
 
 ---
 

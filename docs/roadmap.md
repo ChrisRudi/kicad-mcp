@@ -37,13 +37,13 @@ eigener Gate. **Regel:** „⭐"/`board_clean` ist ein grüner Test
 | led_ring | 0 | 0 | WS2812B ✓ (0.30.0) | ⭐ |
 | kit_seeding | 0 | 0 | NE555 ✓ (0.30.0) | ⭐ |
 | audio_amp | 0 | 0 | LM386 ✓; Platine 0/0 (0.31.0 Rip-up-lite) | ⭐ |
+| production_ready | 0 | 0 | 74HC595 16-Pin ✓ (0.32.0 Rework) | ⭐ |
 | ac_dc_supply | 0 | 0 | Platine 0/0 (0.31.0 Courtyard-Offset); TNY268-Review offen | ✅ |
-| production_ready | 0 | 0 | 74HC595 8-Pin-Reduktion → Rework offen | ✅ (Schaltplan offen) |
 | sketch_to_copper | 0 | **1** | AMS1117 ✓ (0.30.0) | ✅ (Platine: bewusst Skizze) |
 | ethernet_device | **14** | **25** | clearance ×7, mask ×5, shorting ×2 (LQFP-48-Umfeld) | 🔬 |
 | usb_sensor_hub | **31** | **22** | mask ×14, clearance ×9, shorting ×7, crossing ×1 (LQFP-48) | 🔬 |
 
-**Stand nach 0.31.0: 5 ⭐ / 3 ✅ / 2 🔬** (board_clean: 7 Kits). Datenblatt-
+**Stand nach 0.32.0: 6 ⭐ / 2 ✅ / 2 🔬** (board_clean: 7 Kits). Datenblatt-
 Belege je Kit in `docs/kit_datasheet_reviews.md`.
 
 ---

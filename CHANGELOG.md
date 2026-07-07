@@ -8,6 +8,20 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (74HC595 aufs echte 16-Pin — production_ready ⭐ — Phase 3 — 0.32.0)
+- **production_ready trug ein auf SOIC-8 verkürztes 74HC595 mit
+  unbeschaltetem RCLK** (Pin-Reduktion → das Schieberegister hätte real nie
+  gelatcht = nicht funktionsfähig). Umgebaut aufs echte 16-Pin (SOIC-16,
+  Symbol `74xx:74HC595`): QA(15)/QB(1)/QC(2)→LEDs über R4/R5/R6; SER(14),
+  SRCLK(11), **RCLK(12)** an J1 (jetzt 1×05: VCC/SER/SRCLK/RCLK/GND);
+  **/OE(13)→GND**, **/SRCLR(10)→VCC**; VCC(16)/GND(8). Board bleibt 0 DRC /
+  0 offen (verbesserte Platzierung + Rip-up-Router aus 0.31.0 tragen das
+  größere IC), Roundtrip 10/10, PCB byte-deterministisch (2 Seeds).
+- **verified=True → production_ready ist ⭐.** Stand **6 ⭐ / 2 ✅ / 2 🔬**
+  (buck, motor, kit_seeding, led_ring, audio, production_ready). Offen nur
+  noch usb_sensor_hub + ethernet_device (Fein-Pitch LQFP-48, Phase 2c).
+  Beleg: `docs/kit_datasheet_reviews.md`.
+
 ### Fixed (Platzierung + Router: ac_dc & audio auf 0/0 — Roadmap Phase 2 — 0.31.0)
 - **Courtyard-Zentrum-Offset im Hart-Entzerrer (Wurzel-Fix).** Bei THT-
   Footprints (DIP, Dioden-Brücke, Pin-Header) sitzt der Platzierungs-Origin

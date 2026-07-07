@@ -12,45 +12,85 @@
       "ref": "U1",
       "name": "74HC595",
       "value": "74HC595",
-      "footprint": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+      "footprint": "Package_SO:SOIC-16_3.9x9.9mm_P1.27mm",
       "pins": [
         {
           "num": "1",
-          "name": "Q1",
+          "name": "QB",
           "type": "output"
         },
         {
           "num": "2",
-          "name": "Q2",
+          "name": "QC",
           "type": "output"
         },
         {
           "num": "3",
-          "name": "Q3",
+          "name": "QD",
           "type": "output"
         },
         {
           "num": "4",
+          "name": "QE",
+          "type": "output"
+        },
+        {
+          "num": "5",
+          "name": "QF",
+          "type": "output"
+        },
+        {
+          "num": "6",
+          "name": "QG",
+          "type": "output"
+        },
+        {
+          "num": "7",
+          "name": "QH",
+          "type": "output"
+        },
+        {
+          "num": "8",
           "name": "GND",
           "type": "power_in"
         },
         {
-          "num": "5",
-          "name": "SER",
+          "num": "9",
+          "name": "QHs",
+          "type": "output"
+        },
+        {
+          "num": "10",
+          "name": "SRCLR_N",
           "type": "input"
         },
         {
-          "num": "6",
+          "num": "11",
           "name": "SRCLK",
           "type": "input"
         },
         {
-          "num": "7",
+          "num": "12",
           "name": "RCLK",
           "type": "input"
         },
         {
-          "num": "8",
+          "num": "13",
+          "name": "OE_N",
+          "type": "input"
+        },
+        {
+          "num": "14",
+          "name": "SER",
+          "type": "input"
+        },
+        {
+          "num": "15",
+          "name": "QA",
+          "type": "output"
+        },
+        {
+          "num": "16",
           "name": "VCC",
           "type": "power_in"
         }
@@ -268,9 +308,9 @@
     },
     {
       "ref": "J1",
-      "name": "Conn_01x04",
+      "name": "Conn_01x05",
       "value": "IO",
-      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical",
       "pins": [
         {
           "num": "1",
@@ -289,6 +329,11 @@
         },
         {
           "num": "4",
+          "name": "RCLK",
+          "type": "passive"
+        },
+        {
+          "num": "5",
           "name": "GND",
           "type": "passive"
         }
@@ -301,7 +346,8 @@
       "name": "VCC",
       "type": "power",
       "connections": [
-        "U1:8",
+        "U1:16",
+        "U1:10",
         "J1:1",
         "R1:1",
         "R2:1",
@@ -316,8 +362,9 @@
       "name": "GND",
       "type": "power",
       "connections": [
-        "U1:4",
-        "J1:4",
+        "U1:8",
+        "U1:13",
+        "J1:5",
         "C1:2",
         "C2:2",
         "C3:2",
@@ -333,7 +380,7 @@
       "type": "signal",
       "connections": [
         "J1:2",
-        "U1:5"
+        "U1:14"
       ]
     },
     {
@@ -341,14 +388,14 @@
       "type": "signal",
       "connections": [
         "J1:3",
-        "U1:6"
+        "U1:11"
       ]
     },
     {
       "name": "Q1",
       "type": "signal",
       "connections": [
-        "U1:1",
+        "U1:15",
         "R4:1"
       ]
     },
@@ -356,7 +403,7 @@
       "name": "Q2",
       "type": "signal",
       "connections": [
-        "U1:2",
+        "U1:1",
         "R5:1"
       ]
     },
@@ -364,7 +411,7 @@
       "name": "Q3",
       "type": "signal",
       "connections": [
-        "U1:3",
+        "U1:2",
         "R6:1"
       ]
     },
@@ -376,6 +423,14 @@
         "R5:2",
         "R6:2",
         "D1:2"
+      ]
+    },
+    {
+      "name": "RCLK",
+      "type": "signal",
+      "connections": [
+        "J1:4",
+        "U1:12"
       ]
     }
   ]

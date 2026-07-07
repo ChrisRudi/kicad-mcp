@@ -277,7 +277,7 @@ KITS: tuple[DemoKit, ...] = (
             "cost_estimate": "Die Kostentreiber sortiert zeigen — Fläche, "
                              "Lagen, Vias, BOM.",
         },
-        board_clean=True, verified=False,
+        board_clean=True, verified=True,
     ),
     DemoKit(
         key="kit_seeding",

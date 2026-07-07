@@ -52,12 +52,15 @@ Pinout, Kette und Versorgung sind datenblatt-korrekt. **Verified.**
 
 ---
 
+## production_ready — 74HC595 (Nexperia/TI, SOIC-16)
+Seit 0.32.0 aufs **echte 16-Pin** umgebaut (vorher 8-Pin-Reduktion mit
+unbeschaltetem RCLK = nicht funktionsfähig). QA(15)/QB(1)/QC(2) treiben die
+LEDs über R4/R5/R6; SER(14), SRCLK(11), **RCLK(12)** an J1 (1×05:
+VCC/SER/SRCLK/RCLK/GND); **/OE(13)→GND** (Ausgänge aktiv), **/SRCLR(10)→VCC**
+(Clear inaktiv); VCC(16)/GND(8), Abblock-Cs. Board 0/0, Roundtrip 10/10,
+byte-deterministisch. **Verified → ⭐.**
+
 ## Noch offen (kein verified)
-- **production_ready — 74HC595**: derzeit als 8-Pin-Symbol reduziert (real
-  16-Pin: /OE Pin 13, /SRCLR Pin 10, RCLK Pin 12, Q0–Q7, Q7'); RCLK aktuell
-  unbeschaltet. Braucht echten Rework auf das 16-Pin-Bauteil mit /OE→GND,
-  /SRCLR→VCC, RCLK verdrahtet, bevor „verified". Board bleibt solange
-  board_clean (✅), Schaltplan nicht datenblatt-geprüft.
 - **ac_dc_supply**: Platine seit 0.31.0 0/0 (✅), aber Schaltplan-Review
   (TNY268 + PC817 + TL431: EN/BP-Beschaltung, Bias-Wicklung, TL431-Teiler,
   Kriechstrecken) steht aus → noch nicht verified.
