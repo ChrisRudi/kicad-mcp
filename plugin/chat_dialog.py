@@ -79,6 +79,7 @@ class ClaudeChatPanel(wx.Panel):
         self._pins: dict = {}  # ref -> {padnumber}, so pin links are verified
         self._links: list = []  # (start, end, kind, value)
         self._turn_changes: list = []  # board targets the agent changed this turn
+        self._demo_flow: dict | None = None  # geführter Demo-Ablauf {kit, step}
 
         self.SetBackgroundColour(wx.Colour(theme.BACKGROUND))
         root = wx.BoxSizer(wx.VERTICAL)
@@ -365,6 +366,9 @@ class ClaudeChatPanel(wx.Panel):
                 if target is None:
                     self._write(chunk, color, bold=bold, bg=bg)
                     continue
+                # tokenize liefert (chunk, None|Tuple); None ist oben
+                # abgefangen — Pylints Inferenz kippt je nach Datei-Kontext.
+                # pylint: disable-next=unpacking-non-sequence
                 kind, value = target
                 self._write_link(chunk, kind, value)
                 rendered += 1
@@ -832,6 +836,7 @@ class ClaudeChatPanel(wx.Panel):
             self._write_change_receipt()
             self._show_reply_chips(
                 choices, claude_bridge.extract_code_blocks(text))
+            self._offer_next_demo_step()   # geführter Demo-Ablauf (falls aktiv)
         else:
             self._append("error", result.get("error") or "unbekannt")
         # Ampeln: MCP aus dem Turn-Status, IPC aus der Link-Fähigkeit.
@@ -1202,9 +1207,68 @@ class ClaudeChatPanel(wx.Panel):
                 "das Board entwerfen.") + "\n", theme.DIM)
         else:
             self._write("  💡 " + tr(
-                "Die Skills laufen (noch) nicht automatisch nacheinander — du "
-                "kannst jeden oben per Button auf dem Board auslösen.") + "\n",
-                theme.DIM)
+                "Klicke unten den „Weiter“-Chip — er startet die Schritte "
+                "der Reihe nach; jeder ist auch einzeln per ✨-Button "
+                "auslösbar.") + "\n", theme.DIM)
+
+    def _offer_next_demo_step(self) -> None:
+        """Geführter Demo-Ablauf: den NÄCHSTEN Pipeline-Skill als Klick-Chip
+        anbieten (Nutzer-Feedback: „✨-Button immer einfach vorschlagen, dann
+        gibt es einen klaren Ablauf"). Ein Chip pro Schritt statt Auto-Lauf —
+        der Nutzer sieht jedes Ergebnis, bevor der nächste Skill startet."""
+        flow = self._demo_flow
+        if not isinstance(flow, dict):
+            return
+        from . import demo_kits, superfeatures as sf
+        kit = demo_kits.get(flow["kit"])
+        if kit is None:
+            self._demo_flow = None
+            return
+        if flow["step"] >= len(kit.pipeline):
+            self._demo_flow = None
+            self._write("\n🏁 " + tr("Demo-Ablauf abgeschlossen — alle "
+                                      "Skills sind durch.") + "\n",
+                        theme.CLAUDE_ORANGE, bold=True)
+            return
+        feat = sf.get(kit.pipeline[flow["step"]])
+        if feat is None:
+            self._demo_flow = None
+            return
+        label = (f"✨ {tr('Weiter')} ({flow['step'] + 1}/"
+                 f"{len(kit.pipeline)}): {feat.label}")
+        self._add_chip(label, lambda _e: self._run_demo_step())
+        self._add_chip("✋ " + tr("Ablauf beenden"),
+                       lambda _e: self._end_demo_flow())
+        self._chip_row.Show()
+        self.Layout()
+
+    def _run_demo_step(self) -> None:
+        """Den aktuellen Schritt des geführten Ablaufs als echten Skill-Turn
+        starten (kanonischer Prompt + Kit-Begründung + Selektions-Zeile)."""
+        flow = self._demo_flow
+        if not isinstance(flow, dict) or self._busy:
+            return
+        from . import demo_kits, superfeatures as sf
+        kit = demo_kits.get(flow["kit"])
+        feat = sf.get(kit.pipeline[flow["step"]]) if kit else None
+        if feat is None:
+            self._demo_flow = None
+            return
+        flow["step"] += 1
+        self._write(f"\n✨ {feat.name}  ({flow['step']}/"
+                    f"{len(kit.pipeline)})\n", theme.CLAUDE_ORANGE, bold=True)
+        why = kit.rationale.get(feat.key, "")
+        if why:
+            self._write(f"  {why}\n", theme.DIM)
+        self._write(f"  {self._selection_scope_line()}\n", theme.DIM)
+        self._dispatch_prompt(feat.prompt, include_sel=True)
+
+    def _end_demo_flow(self) -> None:
+        self._demo_flow = None
+        self._clear_chips()
+        self._write("  ✋ " + tr("Geführter Ablauf beendet — jeder Skill "
+                                 "bleibt einzeln per ✨-Button nutzbar.")
+                    + "\n", theme.DIM)
 
     def _run_quick_demo(self) -> None:
         """Schnell-Demo: baut die Testschaltung sichtbar (Idee→Schaltplan→
@@ -1226,8 +1290,8 @@ class ClaudeChatPanel(wx.Panel):
         In-Process-Import), Schritte live ins Transkript. ``kit_key`` leer =
         Selftest-Board (Schnell-Demo), sonst der gewählte Bausatz (``--kit``).
         Öffnen muss der Nutzer selbst (KiCad-10-IPC kann kein Dokument öffnen)."""
-        import os as _os
         import subprocess
+        _os = os
         from . import deps as _deps, mcp_config, server_manager
         board = ""
         try:
@@ -1236,8 +1300,12 @@ class ClaudeChatPanel(wx.Panel):
                 raise RuntimeError("KiCad-Python nicht gefunden.")
             mcp_root = getattr(self._plan, "config_pythonpath", "") \
                 or server_manager.default_mcp_root()
-            sub = _os.path.join("demo", kit_key) if kit_key else "demo"
-            out_dir = _os.path.join(self._plan.run_cwd, ".kicad-mcp", sub)
+            # Sichtbarer Ort (Nutzer-Feedback: verstecktes .kicad-mcp/demo
+            # „geht gar nicht"): eigener Projektordner unter Dokumente.
+            docs = _os.path.join(_os.path.expanduser("~"), "Documents")
+            base = docs if _os.path.isdir(docs) else _os.path.expanduser("~")
+            sub = kit_key if kit_key else "schnell-demo"
+            out_dir = _os.path.join(base, "KiCad", "claude-demos", sub)
             cmd = [py, "-c",
                    mcp_config.demo_bootstrap_code(mcp_root,
                                                   _deps.active_deps_dir()),
@@ -1258,13 +1326,38 @@ class ClaudeChatPanel(wx.Panel):
                 wx.CallAfter(self._write, "  " + line + "\n", col)
             proc.wait()
             if board:
-                wx.CallAfter(self._write,
-                             "  📂 " + tr("In KiCad öffnen: Datei → Öffnen →")
-                             + f" {board}\n", theme.DIM)
+                # Auto-Öffnen über den OS-Handler (wie Doppelklick): das
+                # .kicad_pro startet den Projekt-Manager — kein Geister-
+                # Editor-Risiko wie beim direkten pcbnew-Spawn (0.7.8).
+                pro = (board[:-10] + ".kicad_pro"
+                       if board.endswith(".kicad_pcb") else board)
+                opened = False
+                try:
+                    if _os.path.isfile(pro):
+                        if hasattr(_os, "startfile"):
+                            _os.startfile(pro)  # Windows
+                        else:
+                            subprocess.Popen(
+                                ["xdg-open", pro],
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL)
+                        opened = True
+                except Exception:
+                    opened = False
+                if opened:
+                    wx.CallAfter(self._write,
+                                 "  📂 " + tr("Projekt geöffnet: ")
+                                 + f"{pro}\n", theme.DIM)
+                else:
+                    wx.CallAfter(self._write,
+                                 "  📂 " + tr("In KiCad öffnen: Datei → Öffnen →")
+                                 + f" {board}\n", theme.DIM)
             if kit_key:
-                # Schaltplan/Board liegen — jetzt die Skill-Folge zeigen, die
-                # das Board entwirft (transparent, was als Nächstes hilft).
+                # Schaltplan/Board liegen — jetzt die Skill-Folge zeigen und
+                # den geführten Ablauf starten (je ein „Weiter“-Chip).
+                self._demo_flow = {"kit": kit_key, "step": 0}
                 wx.CallAfter(self._write_demo_plan, kit_key, False)
+                wx.CallAfter(self._offer_next_demo_step)
         except Exception as exc:
             wx.CallAfter(self._append, "error",
                          f"Demo fehlgeschlagen: {type(exc).__name__}: {exc}")

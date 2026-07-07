@@ -1,7 +1,23 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.26.1**
+Aktuelle Version: **0.26.2**
+
+---
+
+## 🎬 Neu in 0.26.2 — Demo mit klarem Ablauf (Nutzer-Feedback)
+
+- **Sichtbarer Speicherort:** Demo-Projekte landen jetzt unter
+  `Dokumente/KiCad/claude-demos/<name>/` statt im versteckten
+  `.kicad-mcp`-Ordner.
+- **Automatisch öffnen:** Nach dem Bau öffnet sich das Projekt von selbst
+  (wie ein Doppelklick auf die `.kicad_pro`) — kein manuelles
+  Datei → Öffnen mehr.
+- **Geführter Ablauf:** Nach der Demo erscheint unten ein
+  „✨ Weiter (1/N)"-Chip — jeder Klick startet den nächsten Skill der
+  Bausatz-Pipeline (mit Begründung, warum er hilft), nach jeder Antwort
+  wird der nächste Schritt angeboten. Jederzeit beendbar; jeder Skill
+  bleibt auch einzeln per ✨-Button nutzbar. Kein Prompt-Kopieren nötig.
 
 ---
 

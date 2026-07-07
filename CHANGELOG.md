@@ -8,6 +8,20 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Demo-UX: Speicherort, Auto-Öffnen, geführter Ablauf — 0.26.2)
+- **Nutzer-Feedback umgesetzt:** (1) Demo-Projekte landen sichtbar unter
+  `Dokumente/KiCad/claude-demos/<kit>/` statt im versteckten
+  `.kicad-mcp/demo` („geht gar nicht"); (2) nach dem Bau öffnet sich die
+  `.kicad_pro` automatisch über den OS-Handler (wie Doppelklick auf das
+  Projekt — kein Geister-Editor-Spawn wie beim direkten pcbnew-Start,
+  vgl. 0.7.8); (3) **geführter Ablauf**: nach der Demo bietet ein
+  „✨ Weiter (i/N)"-Chip den jeweils nächsten Pipeline-Skill an
+  (kanonischer Prompt + Kit-Begründung + Selektions-Zeile), nach jedem
+  fertigen Turn erscheint der Folge-Chip; „✋ Ablauf beenden" jederzeit.
+  Damit hat der Demo-Nutzer einen klaren Klick-für-Klick-Pfad — kein
+  Prompt-Kopieren, kein Suchen in der Feature-Leiste
+  (`chat_dialog._offer_next_demo_step/_run_demo_step`, `_demo_flow`).
+
 ### Fixed (Industrie-Review der Demo-Kits + Pad-Winkel-Emission — 0.26.1)
 - **buck_converter trug das MP2307-Pinout unter MP1584-Namen** (1 BST,
   2 IN, 3 SW … 8 SS = Mini-360-Chip). Korrigiert aufs verifizierte

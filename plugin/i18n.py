@@ -124,6 +124,19 @@ _EN: dict = {
     "Unterhaltung aus letzter Sitzung fortgesetzt.":
         "Resumed the conversation from your last session.",
     "Neue Unterhaltung begonnen.": "Started a new conversation.",
+    "Projekt geöffnet: ": "Project opened: ",
+    "Weiter": "Next",
+    "Ablauf beenden": "stop guided flow",
+    "Demo-Ablauf abgeschlossen — alle Skills sind durch.":
+        "Demo flow complete — all skills have run.",
+    "Geführter Ablauf beendet — jeder Skill bleibt einzeln per "
+    "✨-Button nutzbar.":
+        "Guided flow stopped — every skill remains available via its "
+        "✨ button.",
+    "Klicke unten den „Weiter“-Chip — er startet die Schritte der Reihe "
+    "nach; jeder ist auch einzeln per ✨-Button auslösbar.":
+        "Click the \u201eNext\u201c chip below — it runs the steps in order; "
+        "each one can also be triggered individually via its ✨ button.",
     "Projekt gewechselt: ": "Switched project: ",
     "📋 kopiert": "📋 copied",
     "Aktive Optionen: ": "Active options: ",
