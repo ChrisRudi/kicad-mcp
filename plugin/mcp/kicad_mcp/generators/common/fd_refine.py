@@ -10,7 +10,7 @@ Callers:
 
 import math
 
-from .bbox import _fp_size
+from .bbox import _fp_center_offset, _fp_size
 
 
 def _fd_pcb_refine(
@@ -137,44 +137,74 @@ def _resolve_pcb_overlaps(
     fixed = fixed or set()
     refs = sorted(result)
 
+    # Courtyard-Zentrum-Offset je Ref (LOCAL → Welt, rotations-korrekt über den
+    # CLAUDE.md-Helfer). Bei THT-Teilen sitzt der Origin auf Pin 1, nicht im
+    # Courtyard-Zentrum (DIP-4: +3,8/+1,3 mm) — ohne diesen Offset trennt der
+    # Entzerrer an den Origins und lässt KiCad-DRC-Overlaps stehen. Rotationen
+    # ändern sich hier nicht (nur Translation) → einmal vorberechnen.
+    from ...utils.pcb_geometry import pcb_local_to_world
+    _off: dict[str, tuple[float, float]] = {}
+    for ref in refs:
+        lox, loy = _fp_center_offset(ref_to_part.get(ref, {}))
+        if lox or loy:
+            _off[ref] = pcb_local_to_world((0.0, 0.0), result[ref][2], lox, loy)
+        else:
+            _off[ref] = (0.0, 0.0)
+
     def _size(ref: str) -> tuple[float, float]:
         w, h = _fp_size(ref_to_part.get(ref, {}))
         if result[ref][2] in (90, 270):
             w, h = h, w
         return w, h
 
+    def _center(ref: str) -> tuple[float, float]:
+        return (result[ref][0] + _off[ref][0], result[ref][1] + _off[ref][1])
+
     def _clamp(ref: str, x: float, y: float) -> tuple[float, float]:
+        # x,y = Kandidat-ORIGIN; der Courtyard (Zentrum = Origin+Offset) muss im
+        # Board bleiben → Grenzen um den Offset verschoben.
         w, h = _size(ref)
-        return (max(x_min + w / 2, min(x, x_max - w / 2)),
-                max(y_min + h / 2, min(y, y_max - h / 2)))
+        offx, offy = _off[ref]
+        lo_x, hi_x = x_min - offx + w / 2, x_max - offx - w / 2
+        lo_y, hi_y = y_min - offy + h / 2, y_max - offy - h / 2
+        cx = lo_x if lo_x > hi_x else max(lo_x, min(x, hi_x))
+        cy = lo_y if lo_y > hi_y else max(lo_y, min(y, hi_y))
+        return cx, cy
 
     def _overlaps(a: str, b: str) -> tuple[float, float]:
-        """(Durchdringung x, y) — beide > 0 heißt Kollision."""
-        ax, ay, _ = result[a]
-        bx, by, _ = result[b]
+        """(Durchdringung x, y) der Courtyard-Zentren — beide > 0 = Kollision."""
+        cax, cay = _center(a)
+        cbx, cby = _center(b)
         aw, ah = _size(a)
         bw, bh = _size(b)
-        return ((aw + bw) / 2 + min_gap - abs(ax - bx),
-                (ah + bh) / 2 + min_gap - abs(ay - by))
+        return ((aw + bw) / 2 + min_gap - abs(cax - cbx),
+                (ah + bh) / 2 + min_gap - abs(cay - cby))
 
     def _separate_single(mov: str, anchor: str) -> None:
         """``mov`` auf die erste Kandidaten-Position schieben, die nach der
         Board-Klemmung WIRKLICH frei von ``anchor`` ist — mit Richtungs- und
         Achswechsel: eine an die Board-Kante geklemmte Bewegung löst nichts
-        (der naive Schub drückte dann jeden Pass erneut gegen die Wand)."""
-        mx, my, mrot = result[mov]
-        ancx, ancy, _ = result[anchor]
+        (der naive Schub drückte dann jeden Pass erneut gegen die Wand).
+        Rechnet in Courtyard-Zentren, schreibt aber Origins zurück."""
+        mrot = result[mov][2]
+        moffx, moffy = _off[mov]
+        mcx, mcy = _center(mov)
+        acx, acy = _center(anchor)
         mw, mh = _size(mov)
         aw2, ah2 = _size(anchor)
         need_x = (mw + aw2) / 2 + min_gap + 0.1
         need_y = (mh + ah2) / 2 + min_gap + 0.1
-        sx = 1.0 if mx >= ancx else -1.0
-        sy = 1.0 if my >= ancy else -1.0
+        sx = 1.0 if mcx >= acx else -1.0
+        sy = 1.0 if mcy >= acy else -1.0
         ox, oy = _overlaps(mov, anchor)
-        cands = [(ancx + need_x * sx, my), (ancx - need_x * sx, my),
-                 (mx, ancy + need_y * sy), (mx, ancy - need_y * sy)]
+        # Kandidaten als Ziel-ZENTREN → Origin = Zentrum − Offset.
+        cands = [(acx + need_x * sx - moffx, mcy - moffy),
+                 (acx - need_x * sx - moffx, mcy - moffy),
+                 (mcx - moffx, acy + need_y * sy - moffy),
+                 (mcx - moffx, acy - need_y * sy - moffy)]
         if oy < ox:  # y-Achse ist der kürzere Weg → zuerst probieren
             cands = cands[2:] + cands[:2]
+        mx, my = result[mov][0], result[mov][1]
         for cand_x, cand_y in cands:
             new_x, new_y = _clamp(mov, cand_x, cand_y)
             result[mov] = (new_x, new_y, mrot)

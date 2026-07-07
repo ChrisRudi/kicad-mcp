@@ -36,15 +36,15 @@ eigener Gate. **Regel:** „⭐"/`board_clean` ist ein grüner Test
 | motor_driver | 0 | 0 | DRV8871 ✓ | ⭐ |
 | led_ring | 0 | 0 | WS2812B ✓ (0.30.0) | ⭐ |
 | kit_seeding | 0 | 0 | NE555 ✓ (0.30.0) | ⭐ |
-| audio_amp | 0 | **2** | LM386 ✓ | ✅ (Platine: Pin-Tasche U1:3) |
+| audio_amp | 0 | 0 | LM386 ✓; Platine 0/0 (0.31.0 Rip-up-lite) | ⭐ |
+| ac_dc_supply | 0 | 0 | Platine 0/0 (0.31.0 Courtyard-Offset); TNY268-Review offen | ✅ |
 | production_ready | 0 | 0 | 74HC595 8-Pin-Reduktion → Rework offen | ✅ (Schaltplan offen) |
 | sketch_to_copper | 0 | **1** | AMS1117 ✓ (0.30.0) | ✅ (Platine: bewusst Skizze) |
-| ac_dc_supply | **10** | 1 | pth_inside_courtyard ×4, courtyards_overlap ×2, shorting ×2, mask ×2 | 🔬 |
 | ethernet_device | **14** | **25** | clearance ×7, mask ×5, shorting ×2 (LQFP-48-Umfeld) | 🔬 |
 | usb_sensor_hub | **31** | **22** | mask ×14, clearance ×9, shorting ×7, crossing ×1 (LQFP-48) | 🔬 |
 
-**Stand nach 0.30.0: 4 ⭐ / 3 ✅ / 3 🔬.** Datenblatt-Belege je Kit in
-`docs/kit_datasheet_reviews.md`.
+**Stand nach 0.31.0: 5 ⭐ / 3 ✅ / 2 🔬** (board_clean: 7 Kits). Datenblatt-
+Belege je Kit in `docs/kit_datasheet_reviews.md`.
 
 ---
 

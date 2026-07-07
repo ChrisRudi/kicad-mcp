@@ -68,20 +68,31 @@ def test_resolve_pcb_overlaps_keeps_fixed_parts():
 
 
 def _overlap_pairs(result: dict, ref_to_part: dict, gap: float = 1.9) -> list:
+    # Courtyard-ZENTREN vergleichen, nicht Origins: bei THT-Teilen sitzt der
+    # Origin auf Pin 1, nicht im Courtyard-Zentrum (DIP-4: +3,8/+1,3 mm) — ein
+    # origin-zentriertes Modell meldet Phantom-Overlaps, die KiCads DRC nicht
+    # sieht (dieselbe Wurzel wie im Entzerrer, fd_refine 0.31.0).
+    from kicad_mcp.generators.common.bbox import _fp_center_offset
+    from kicad_mcp.utils.pcb_geometry import pcb_local_to_world
+
+    def _cbox(ref):
+        x, y, rot = result[ref]
+        w, h = _fp_size(ref_to_part[ref])
+        if rot in (90, 270):
+            w, h = h, w
+        lox, loy = _fp_center_offset(ref_to_part[ref])
+        offx, offy = ((0.0, 0.0) if not (lox or loy)
+                      else pcb_local_to_world((0.0, 0.0), rot, lox, loy))
+        return x + offx, y + offy, w, h
+
     refs = sorted(result)
     bad = []
     for i, a in enumerate(refs):
-        ax, ay, arot = result[a]
-        aw, ah = _fp_size(ref_to_part[a])
-        if arot in (90, 270):
-            aw, ah = ah, aw
+        acx, acy, aw, ah = _cbox(a)
         for b in refs[i + 1:]:
-            bx, by, brot = result[b]
-            bw, bh = _fp_size(ref_to_part[b])
-            if brot in (90, 270):
-                bw, bh = bh, bw
-            if (abs(ax - bx) < (aw + bw) / 2 + gap
-                    and abs(ay - by) < (ah + bh) / 2 + gap):
+            bcx, bcy, bw, bh = _cbox(b)
+            if (abs(acx - bcx) < (aw + bw) / 2 + gap
+                    and abs(acy - bcy) < (ah + bh) / 2 + gap):
                 bad.append((a, b))
     return bad
 
@@ -114,10 +125,8 @@ def test_demo_kits_place_without_overlaps(kit_path):
 # der Registry; das Menü-Label und dieses Gate lesen dieselbe Liste
 # (demo_kits.board_clean_keys). Wer ein Kit auf board_clean hebt, MUSS diesen
 # Test bestehen; fällt ein Board zurück, wird der Test rot — Label und Realität
-# können nicht auseinanderlaufen.
-# audio_amp bleibt bewusst draußen (board_clean=False): 0 DRC-Fehler, aber 2
-# offene IN_NODE-Kanten — die Pin-Tasche an U1:3 ist von Nachbar-Pad-
-# Aufblasungen versiegelt (Pin-Escape-Fähigkeit steht aus).
+# können nicht auseinanderlaufen. Stand 0.31.0: 7 Kits board_clean (ac_dc und
+# audio kamen mit dem Courtyard-Offset-Entzerrer + Rip-up-lite-Router dazu).
 from plugin import demo_kits as _demo_kits  # noqa: E402
 
 _DONE_KITS = sorted(_demo_kits.board_clean_keys())

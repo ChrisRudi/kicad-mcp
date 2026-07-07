@@ -8,6 +8,29 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Platzierung + Router: ac_dc & audio auf 0/0 — Roadmap Phase 2 — 0.31.0)
+- **Courtyard-Zentrum-Offset im Hart-Entzerrer (Wurzel-Fix).** Bei THT-
+  Footprints (DIP, Dioden-Brücke, Pin-Header) sitzt der Platzierungs-Origin
+  auf Pin 1, NICHT im Courtyard-Zentrum (DIP-4: +3,8/+1,3 mm). Der Entzerrer
+  (`fd_refine._resolve_pcb_overlaps`) verglich origin-zentrierte Boxen → er
+  ließ Überlappungen stehen, die KiCads DRC als `courtyards_overlap`/
+  `pth_inside_courtyard` meldet (ac_dc: 10 Fehler, U1↔U2 & T1↔BR1). Neuer
+  `bbox._read_courtyard_bbox` + `_fp_center_offset`; der Entzerrer rechnet
+  jetzt in Courtyard-Zentren (Offset rotations-korrekt über
+  `pcb_local_to_world`), Board-Klemmung ebenso. Derselbe Fix im Test-Helfer
+  `_overlap_pairs` (er hatte den gleichen Origin-Bug → Phantom-Overlaps).
+- **Rip-up-lite im Router.** Scheitert ein Netz (von früher gerouteten Netzen
+  zugebaut), fährt `route_pcb` EINEN Rettungslauf auf frischem Grid mit den
+  gescheiterten Netzen ZUERST und übernimmt nur bei strikt weniger offenen
+  Netzen (`_route_pass` ausgelagert). Boards, die schon voll routen, lösen
+  keinen Retry aus → byte-identische Ausgabe. Löste die 2 offenen IN_NODE-
+  Kanten des Audio-Boards (versiegelte Pin-Tasche U1:3) mit.
+- **Ergebnis: ac_dc_supply 10/1 → 0/0, audio_amp 0/2 → 0/0.** Stand jetzt
+  **5 ⭐ / 3 ✅ / 2 🔬** (board_clean: 7 Kits). Byte-Determinismus über 2
+  PYTHONHASHSEED-Seeds bestätigt; `_DONE_KITS` (aus `board_clean_keys()`)
+  deckt jetzt 7 Kits, alle DRC 0/0. Offen: usb_sensor_hub, ethernet_device
+  (Fein-Pitch LQFP-48, Phase 2c).
+
 ### Changed (Datenblatt-Review: 3 weitere Kits verified — Roadmap Phase 3 — 0.30.0)
 - **kit_seeding (NE555), led_ring (WS2812B), sketch_to_copper (AMS1117-5.0)**
   Pin-für-Pin gegen Datenblatt geprüft und auf `verified=True` gesetzt. Belege

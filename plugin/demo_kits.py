@@ -111,7 +111,7 @@ KITS: tuple[DemoKit, ...] = (
             "ampacity": "Die Lautsprecher-Ausgangsbahnen tragen echten Strom — "
                         "Breite gegen Laststrom prüfen.",
         },
-        board_clean=False, verified=True,
+        board_clean=True, verified=True,
     ),
     DemoKit(
         key="usb_sensor_hub",
@@ -154,7 +154,7 @@ KITS: tuple[DemoKit, ...] = (
                               "Leistungshalbleiter.",
             "ampacity": "Primär- und Sekundärströme brauchen breite Bahnen.",
         },
-        board_clean=False, verified=False,
+        board_clean=True, verified=False,
     ),
     DemoKit(
         key="led_ring",

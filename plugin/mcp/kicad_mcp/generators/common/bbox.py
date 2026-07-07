@@ -8,7 +8,7 @@ Callers:
   - auto_place.py          (_bbox_cache, _get_symbol_bbox, _get_symbol_width, _get_symbol_height)
   - schematic_builder.py   (via auto_place re-export: _get_symbol_bbox)
   - test_generators.py     (via auto_place re-export: _get_symbol_bbox)
-  - pcb_builder.py         (_fp_size, _read_courtyard_size, _courtyard_cache)
+  - pcb_builder.py         (_fp_size, _read_courtyard_size, _fp_center_offset)
   - common/geometry.py     (_get_symbol_width, _get_symbol_height)
   - common/fd_refine.py    (_fp_size — fuer PCB)
 """
@@ -115,7 +115,7 @@ def _get_symbol_height(comp: dict) -> float:
 # Footprint BBox (from pcb_builder.py)
 # ---------------------------------------------------------------------------
 
-_courtyard_cache: dict[str, tuple[float, float] | None] = {}
+_courtyard_bbox_cache: dict[str, tuple[float, float, float, float] | None] = {}
 
 
 def _read_courtyard_size(fp_id: str) -> tuple[float, float] | None:
@@ -130,10 +130,26 @@ def _read_courtyard_size(fp_id: str) -> tuple[float, float] | None:
     „kollisionsfrei" mitten auf den Chip gesetzt (Demo-Board-Messlatte).
     Returns (width, height) or None if not found.  Cached.
     """
-    if fp_id in _courtyard_cache:
-        return _courtyard_cache[fp_id]
+    bb = _read_courtyard_bbox(fp_id)
+    return None if bb is None else (bb[2] - bb[0], bb[3] - bb[1])
 
-    size: tuple[float, float] | None = None
+
+def _read_courtyard_bbox(fp_id: str) -> tuple[float, float, float, float] | None:
+    """Read the courtyard bounding box ``(min_x, min_y, max_x, max_y)`` in the
+    footprint's LOCAL frame — i.e. relative to its placement origin (pin 1 for
+    many THT parts, body-center for most SMD). Elementgenau wie
+    :func:`_read_courtyard_size`. Cached.
+
+    Warum die volle Bbox statt nur (w,h): bei THT-Footprints (DIP, Dioden-
+    Brücke, Pin-Header) sitzt der Origin auf Pin 1, NICHT im Courtyard-Zentrum
+    (DIP-4: Zentrum +3,8/+1,3 mm vom Origin). Ein am Origin zentriertes
+    Kollisionsmodell ist dann um mehrere mm falsch — Bauteile „ohne Overlap",
+    die KiCads DRC als ``courtyards_overlap``/``pth_inside_courtyard`` meldet.
+    Der Entzerrer braucht den Zentrum-Offset (``_fp_center_offset``)."""
+    if fp_id in _courtyard_bbox_cache:
+        return _courtyard_bbox_cache[fp_id]
+
+    bbox: tuple[float, float, float, float] | None = None
     try:
         from ...utils.sexpr_parser import find_node, parse_sexpr
         from ..footprint_lib import read_kicad_mod
@@ -166,12 +182,23 @@ def _read_courtyard_size(fp_id: str) -> tuple[float, float] | None:
 
             _walk(parse_sexpr(raw))
             if xs and ys:
-                size = (max(xs) - min(xs), max(ys) - min(ys))
+                bbox = (min(xs), min(ys), max(xs), max(ys))
     except Exception:
         logger.debug("Failed to read courtyard for %s", fp_id)
 
-    _courtyard_cache[fp_id] = size
-    return size
+    _courtyard_bbox_cache[fp_id] = bbox
+    return bbox
+
+
+def _fp_center_offset(part: dict) -> tuple[float, float]:
+    """Offset des Courtyard-Zentrums vom Platzierungs-Origin (LOCAL, mm), oder
+    (0,0) wenn keine Courtyard-Daten (Fallback-Schätzung ist bereits zentriert).
+    Vom Entzerrer rotations-korrekt auf die Weltlage angewandt."""
+    fp = part.get("footprint", "")
+    bb = _read_courtyard_bbox(fp) if fp else None
+    if bb is None:
+        return (0.0, 0.0)
+    return ((bb[0] + bb[2]) / 2.0, (bb[1] + bb[3]) / 2.0)
 
 
 def _fp_size(part: dict) -> tuple[float, float]:

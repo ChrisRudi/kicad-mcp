@@ -237,15 +237,7 @@ def route_pcb(
     """
     if not board_rect:
         return ""
-    grid = _Grid(*board_rect)
     net_types = {n["name"]: n.get("type", "signal") for n in nets}
-
-    # Hindernis-Modell: Pads mit Clearance + halber Spurbreite aufblasen.
-    infl = _CLEARANCE + max(POWER_TRACE_W, SIGNAL_TRACE_W) / 2
-    for (px, py, w, h, net_num, through) in (all_pads or []):
-        for layer in ((0, 1) if through else (0,)):
-            grid.mark_rect(layer, px, py, w / 2 + infl, h / 2 + infl,
-                           net_num if net_num > 0 else -1)
 
     # Reihenfolge: Power zuerst (breit), dann kleine Netze, dann Name
     # Power zuerst (breite Spuren brauchen Platz), dann GROSSE Netze —
@@ -257,8 +249,49 @@ def route_pcb(
         key=lambda n: (0 if net_types.get(n) == "power" else 1,
                        -len(pad_positions[n]), n))
 
+    lines, unrouted = _route_pass(board_rect, all_pads, pad_positions,
+                                  net_info, net_types, order)
+    # Rip-up-lite: scheitert ein Netz, wird es von früher gerouteten Netzen
+    # zugebaut. EIN Rettungslauf auf frischem Grid mit den gescheiterten Netzen
+    # ZUERST (deterministisch) — nur übernehmen, wenn strikt weniger offen
+    # bleiben. Boards, die schon voll routen, lösen keinen Retry aus → ihre
+    # Ausgabe bleibt byte-identisch (Determinismus/DRC unberührt).
+    if unrouted:
+        retry_order = ([n for n in order if n in unrouted]
+                       + [n for n in order if n not in unrouted])
+        lines2, unrouted2 = _route_pass(board_rect, all_pads, pad_positions,
+                                        net_info, net_types, retry_order)
+        if len(unrouted2) < len(unrouted):
+            lines, unrouted = lines2, unrouted2
+
+    logger.info("Router: %d Netze, %d Zeilen, %d Netze unroutbar",
+                len(order), len(lines), len(unrouted))
+    return "\n".join(lines)
+
+
+def _route_pass(
+    board_rect: tuple[float, float, float, float],
+    all_pads: list | None,
+    pad_positions: dict,
+    net_info: dict,
+    net_types: dict,
+    order: list[str],
+) -> tuple[list[str], set[str]]:
+    """Ein vollständiger Routing-Durchgang auf einem FRISCHEN Grid in der
+    gegebenen Netz-Reihenfolge. Rückgabe: (Zeilen, Menge unroutbarer Netz-Namen).
+    Ausgelagert, damit ``route_pcb`` einen Rip-up-Rettungslauf mit anderer
+    Reihenfolge fahren kann."""
+    grid = _Grid(*board_rect)
+
+    # Hindernis-Modell: Pads mit Clearance + halber Spurbreite aufblasen.
+    infl = _CLEARANCE + max(POWER_TRACE_W, SIGNAL_TRACE_W) / 2
+    for (px, py, w, h, net_num, through) in (all_pads or []):
+        for layer in ((0, 1) if through else (0,)):
+            grid.mark_rect(layer, px, py, w / 2 + infl, h / 2 + infl,
+                           net_num if net_num > 0 else -1)
+
     lines: list[str] = []
-    unrouted = 0
+    unrouted: set[str] = set()
     for net_name in order:
         net_num, _ = net_info[net_name]
         trace_w = (POWER_TRACE_W if net_types.get(net_name) == "power"
@@ -305,7 +338,7 @@ def route_pcb(
             path = _route_edge(grid, pc["cells"], tree, net_num,
                                start_layers=pc["layers"])
             if path is None:
-                unrouted += 1
+                unrouted.add(net_name)
                 logger.info("Netz %s: Pad (%.2f, %.2f) nicht routbar",
                             net_name, pc["x"], pc["y"])
                 continue
@@ -339,9 +372,7 @@ def route_pcb(
                 lines.append(_segment(pc["x"], pc["y"], gx, gy, layer,
                                       trace_w, net_num))
 
-    logger.info("Router: %d Netze, %d Zeilen, %d Kanten unroutbar",
-                len(order), len(lines), unrouted)
-    return "\n".join(lines)
+    return lines, unrouted
 
 
 def _segment(x1: float, y1: float, x2: float, y2: float,

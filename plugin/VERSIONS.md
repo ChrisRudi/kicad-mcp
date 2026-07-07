@@ -1,7 +1,28 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.30.0**
+Aktuelle Version: **0.31.0**
+
+---
+
+## 🎯 Neu in 0.31.0 — Zwei weitere Platinen fehlerfrei (jetzt 5 ⭐)
+
+- **AC-DC-Netzteil und Audioverstärker sind jetzt 0 DRC-Fehler / 0 offene
+  Verbindungen.** Damit sind **5 Demos ⭐ Referenz-Qualität** (Buck,
+  Motor, NE555, LED-Ring, Audio) und das Netzteil ✅.
+- **Wurzel-Fix in der Platzierung:** Bei bedrahteten Bauteilen (DIP,
+  Dioden-Brücke, Steckerleisten) liegt der Bezugspunkt auf Pin 1, nicht
+  in der Bauteilmitte — der Entzerrer rechnete zentriert und ließ echte
+  Überlappungen stehen (AC-DC: 10 Fehler). Jetzt rechnet er mit dem
+  echten Bauteil-Umriss → die Bauteile stehen sauber getrennt.
+- **Klügerer Router:** Scheitert eine Verbindung, weil frühere sie
+  zugebaut haben, routet der Router einmal komplett neu und nimmt die
+  gescheiterten zuerst dran. Das hat nebenbei die zwei hartnäckig
+  offenen Verbindungen des Audio-Boards gelöst.
+- Determinismus über mehrere Läufe byte-genau bestätigt.
+
+Stand: **5 ⭐ / 3 ✅ / 2 🔬** (nur noch USB-Hub und Ethernet offen —
+beide Fein-Pitch-MCU-Boards, `docs/roadmap.md` Phase 2c).
 
 ---
 

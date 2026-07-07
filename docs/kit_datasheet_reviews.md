@@ -18,6 +18,8 @@ Verifiziert 0.26.1; Block ``drv8871_hbridge``. Pinout 1 GND, 2 IN2, 3 IN1,
 ## audio_amp — LM386 (TI SLOS147)
 Verifiziert 0.26.1; Block ``lm386_amp20``. gain=20 (Pins 1/8 offen), Zobel
 10 Ω + 47 n, Bypass 10 µ, Eingangskopplung 10 µ, Versorgungsstecker J3.
+Platine seit 0.31.0 0 DRC / 0 offen (Rip-up-lite-Router löste die zuvor
+versiegelte Pin-Tasche an U1:3) → **⭐**.
 
 ## kit_seeding — NE555 (TI SLFS022, astabiler Multivibrator)
 Pinout 1 GND, 2 TRIG, 3 OUT, 4 RESET, 5 CTRL, 6 THR, 7 DISCH, 8 VCC — korrekt.
@@ -56,5 +58,8 @@ Pinout, Kette und Versorgung sind datenblatt-korrekt. **Verified.**
   unbeschaltet. Braucht echten Rework auf das 16-Pin-Bauteil mit /OE→GND,
   /SRCLR→VCC, RCLK verdrahtet, bevor „verified". Board bleibt solange
   board_clean (✅), Schaltplan nicht datenblatt-geprüft.
-- **ac_dc_supply, usb_sensor_hub, ethernet_device**: Roadmap Phase 3 (eigene
-  Runde je Kit, mehrere ICs/Straps).
+- **ac_dc_supply**: Platine seit 0.31.0 0/0 (✅), aber Schaltplan-Review
+  (TNY268 + PC817 + TL431: EN/BP-Beschaltung, Bias-Wicklung, TL431-Teiler,
+  Kriechstrecken) steht aus → noch nicht verified.
+- **usb_sensor_hub, ethernet_device**: Roadmap Phase 2c (Fein-Pitch-Router)
+  + Phase 3 (Datenblatt-Review, mehrere ICs/Straps).
