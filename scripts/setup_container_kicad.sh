@@ -32,6 +32,14 @@ else
     . /etc/os-release
     echo "deb [signed-by=/etc/apt/keyrings/kicad.gpg] https://ppa.launchpadcontent.net/kicad/kicad-10.0-releases/ubuntu ${VERSION_CODENAME} main" \
         > /etc/apt/sources.list.d/kicad.list
+    # GitHub-Runner-Flake: der vorinstallierte Microsoft/azure-cli-apt-Repo
+    # liefert sporadisch ein kaputtes InRelease ("got 'NOSPLIT'"/"no longer
+    # signed") und lässt 'apt-get update' mit Exit 100 sterben — BEVOR KiCad
+    # überhaupt dran ist (der real-KiCad-Job auf demselben Commit lief grün,
+    # nur Live-IPC + GUI-Smoke fielen um → reiner Infra-Zufall). Wir brauchen
+    # dieses Repo nie; vor dem Update entfernen (best-effort, idempotent).
+    grep -rliE 'packages\.microsoft\.com|azure-cli' \
+        /etc/apt/sources.list.d/ 2>/dev/null | xargs -r rm -f || true
     apt-get update -qq
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
         --no-install-recommends kicad kicad-symbols kicad-footprints

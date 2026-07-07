@@ -8,6 +8,16 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (CI-Infra: Microsoft-apt-Repo-Flake härten — 0.36.0)
+- **Live-IPC- und GUI-Smoke-Job fielen auf main um** (0.35.0-Push, 9b6386d) —
+  aber NICHT an Code: der auf GitHub-Runnern vorinstallierte
+  Microsoft/azure-cli-apt-Repo lieferte ein kaputtes `InRelease`
+  (`got 'NOSPLIT'` / „no longer signed"), worauf `apt-get update` in
+  `scripts/setup_container_kicad.sh` mit Exit 100 starb, bevor KiCad dran war.
+  Der real-KiCad-pytest-Job auf demselben Commit lief grün → reiner
+  Infra-Zufall. Das Skript entfernt jetzt vor `apt-get update` die
+  nie benötigten Microsoft/azure-cli-Quellen (best-effort, idempotent).
+
 ### Fixed (USB-C-Buchse voll beschaltet — Footprint-Fehler an der Quelle — 0.36.0)
 - **Der vom Nutzer gemeldete „Footprint-Fehler" ist behoben** (keine
   Geometrie-, sondern eine Beschaltungs-Sache): die Buchse
