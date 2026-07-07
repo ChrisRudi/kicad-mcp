@@ -8,6 +8,27 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Demo als sichtbare Tool-Kette + Auto-Lauf der Skills — 0.28.0)
+- **Bau als sichtbare Tool-Kette** (Feld-Wunsch „die Entstehung
+  verfolgen, damit der User weiß: so kann ich das auch machen"):
+  `demo.run_demo` ruft statt des gebündelten `generate_project` jetzt die
+  drei echten, einzeln aufrufbaren MCP-Tools in Folge — `validate_design`
+  → `generate_schematic` → `generate_pcb` — und streamt je Aufruf eine
+  `⚙`-Zeile (Tool-Name + Kurz-Argumente + Ergebnis, inkl. ERC-Zähler).
+  Das Panel färbt `⚙`-Zeilen gedämpft wie Claudes eigene Tool-Zeilen.
+  Byte-Identität zum bisherigen `generate_project`-Pfad für alle 10 Kits
+  empirisch verifiziert (alle Einzelblatt < Multisheet-Schwelle 40) und
+  als Regressions-Test verankert
+  (`test_build_is_byte_identical_to_generate_project`) — DRC-/
+  Determinismus-Gates unberührt. Schritte jetzt 5 (idee, pruefen,
+  schaltplan, berechnung, platine).
+- **Auto-Lauf der geführten Skills:** Nach dem Bau fährt der Demo-Ablauf
+  die Pipeline-Skills automatisch nacheinander ab (`_auto_run_demo_step`
+  reiht sich per `wx.CallLater` an den Turn-Abschluss, wartet `_busy` ab)
+  statt einen „✨ Weiter"-Klick je Schritt zu verlangen. „✋ Stoppen"
+  bricht jederzeit ab; jeder Skill bleibt einzeln per ✨-Button nutzbar.
+  Ein fehlgeschlagener Turn hält die Kette natürlich an (kein Runaway).
+
 ### Fixed (Warnungs-Flut im Demo-Transkript: 73× „Flyback_Trafo" — 0.27.2)
 - **Platzhalter-Warnung je Symbol dedupliziert** (Feld-Report AC-DC-Demo):
   der Layout-Optimierer ruft `build_schematic` dutzendfach auf; jede Runde

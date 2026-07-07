@@ -1207,9 +1207,10 @@ class ClaudeChatPanel(wx.Panel):
                 "das Board entwerfen.") + "\n", theme.DIM)
         else:
             self._write("  💡 " + tr(
-                "Klicke unten den „Weiter“-Chip — er startet die Schritte "
-                "der Reihe nach; jeder ist auch einzeln per ✨-Button "
-                "auslösbar.") + "\n", theme.DIM)
+                "Die Skills laufen jetzt automatisch nacheinander — jeder "
+                "als echter Tool-Aufruf, den du selbst so machen könntest. "
+                "„✋ Stoppen“ hält an; jeder Skill bleibt einzeln per "
+                "✨-Button nutzbar.") + "\n", theme.DIM)
 
     def _offer_next_demo_step(self) -> None:
         """Geführter Demo-Ablauf: den NÄCHSTEN Pipeline-Skill als Klick-Chip
@@ -1234,6 +1235,17 @@ class ClaudeChatPanel(wx.Panel):
         if feat is None:
             self._demo_flow = None
             return
+        if flow.get("auto"):
+            # Auto-Lauf: nur „✋ Stoppen" anbieten, den nächsten Skill selbst
+            # starten. Kurze Pause, damit der Nutzer das Vorergebnis liest;
+            # _auto_run_demo_step wartet ab, bis der Vorlauf-Turn fertig ist.
+            self._clear_chips()
+            self._add_chip("✋ " + tr("Ablauf stoppen"),
+                           lambda _e: self._end_demo_flow())
+            self._chip_row.Show()
+            self.Layout()
+            wx.CallLater(1400, self._auto_run_demo_step)
+            return
         label = (f"✨ {tr('Weiter')} ({flow['step'] + 1}/"
                  f"{len(kit.pipeline)}): {feat.label}")
         self._add_chip(label, lambda _e: self._run_demo_step())
@@ -1241,6 +1253,19 @@ class ClaudeChatPanel(wx.Panel):
                        lambda _e: self._end_demo_flow())
         self._chip_row.Show()
         self.Layout()
+
+    def _auto_run_demo_step(self) -> None:
+        """Auto-Lauf: den nächsten geführten Skill selbst starten. Wartet, bis
+        der Vorlauf-Turn fertig ist (nicht mehr ``_busy``), sonst kurz später
+        erneut. Bricht still ab, wenn der Nutzer „✋ Stoppen" geklickt hat
+        (``_demo_flow`` None) oder der Ablauf nicht mehr im Auto-Modus ist."""
+        flow = self._demo_flow
+        if not isinstance(flow, dict) or not flow.get("auto"):
+            return
+        if self._busy:
+            wx.CallLater(400, self._auto_run_demo_step)
+            return
+        self._run_demo_step()
 
     def _run_demo_step(self) -> None:
         """Den aktuellen Schritt des geführten Ablaufs als echten Skill-Turn
@@ -1321,8 +1346,12 @@ class ClaudeChatPanel(wx.Panel):
                 if line.startswith("BOARD\t"):
                     board = line.split("\t", 1)[1]
                     continue
-                col = theme.CLAUDE_ORANGE if line.startswith(("✅", "⚠")) \
-                    else theme.FOREGROUND
+                if line.startswith(("✅", "⚠")):
+                    col = theme.CLAUDE_ORANGE
+                elif line.startswith("⚙"):
+                    col = theme.DIM   # sichtbarer Tool-Aufruf (wie Claudes Tool-Zeilen)
+                else:
+                    col = theme.FOREGROUND
                 wx.CallAfter(self._write, "  " + line + "\n", col)
             proc.wait()
             if board:
@@ -1354,8 +1383,10 @@ class ClaudeChatPanel(wx.Panel):
                                  + f" {board}\n", theme.DIM)
             if kit_key:
                 # Schaltplan/Board liegen — jetzt die Skill-Folge zeigen und
-                # den geführten Ablauf starten (je ein „Weiter“-Chip).
-                self._demo_flow = {"kit": kit_key, "step": 0}
+                # den geführten Ablauf AUTOMATISCH abfahren (Feld-Wunsch: „die
+                # Supertools automatisch mitlaufen lassen"); „✋ Stoppen"
+                # bricht jederzeit ab, jeder Skill bleibt einzeln nutzbar.
+                self._demo_flow = {"kit": kit_key, "step": 0, "auto": True}
                 wx.CallAfter(self._write_demo_plan, kit_key, False)
                 wx.CallAfter(self._offer_next_demo_step)
         except Exception as exc:

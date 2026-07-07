@@ -7,12 +7,18 @@ als Erstkontakt und Live-Beweis: was hier entsteht, ist erwiesen lauffähig.
 
 Bewusst DETERMINISTISCH und OHNE LLM: der Ablauf ruft die echten
 Generierungs-/Rechen-Tools direkt (in-process ``call_tool``), verbraucht also
-kein Modell-Kontingent und läuft immer gleich. Die vier Schritte:
+kein Modell-Kontingent und läuft immer gleich. Die Schritte sind als sichtbare
+Tool-Kette gebaut (Feld-Wunsch „die Entstehung verfolgen") — jeder ``⚙``-Aufruf
+ist ein echtes MCP-Tool, das der Nutzer genauso aus dem Chat rufen kann:
 
-  1. Idee        — die fixe Spezifikation (5 V→3,3 V-Regler, LED, Testpunkt)
-  2. Schaltplan  — ``generate_project`` erzeugt ``.kicad_sch`` + ``.kicad_pcb``
-  3. Berechnung  — LED-Vorwiderstand aus den echten Spec-Werten nachrechnen
-  4. Platine     — der ``.kicad_pcb``-Pfad (das Panel öffnet ihn im Editor)
+  1. Idee        — die fixe Spezifikation (Bauteile + Netze + Board)
+  2. Prüfen      — ``validate_design`` (Refs/Pin-Typen/Board-Maß, schreibt nichts)
+  3. Schaltplan  — ``generate_schematic`` erzeugt ``.kicad_sch`` (+ ERC-Report)
+  4. Berechnung  — LED-Vorwiderstand aus den echten Spec-Werten nachrechnen
+  5. Platine     — ``generate_pcb`` erzeugt ``.kicad_pcb`` (Panel öffnet ihn)
+
+Die Zerlegung liefert byte-identische Dateien wie das frühere
+``generate_project`` (alle Demo-Kits sind Einzelblatt; empirisch verifiziert).
 
 Kern pur (``on_step``-Callback für Live-Narration, ``server`` injectable) —
 headless testbar; der Knopf lebt im Chat-Panel.
@@ -49,6 +55,14 @@ def _call(server, name: str, args: dict) -> dict:
     result = asyncio.run(server.call_tool(name, args))
     data = getattr(result, "structured_content", None)
     return data if isinstance(data, dict) else {"raw": data}
+
+
+def _tool_line(tool: str, detail: str) -> str:
+    """Eine sichtbare Tool-Aufruf-Zeile fürs Transkript (Feld-Wunsch: „die
+    Entstehung verfolgen"). Zeigt dem Nutzer, WELCHES echte MCP-Tool den
+    Schritt macht — genau so ruft er es selbst aus dem Chat auf. Das Panel
+    färbt ``⚙``-Zeilen gedämpft (wie Claudes eigene Tool-Zeilen)."""
+    return f"⚙ {tool}  ·  {detail}"
 
 
 def _rail_voltage(spec: dict) -> float:
@@ -139,6 +153,18 @@ def run_demo(out_dir: str, server=None, spec_path: Optional[str] = None,
         if on_step:
             on_step(line)
 
+    # Gemeinsame Argumente für die Tool-Kette (JSON-Strings, wie ein LLM sie
+    # aus dem Chat schicken würde — der Nutzer sieht dieselben Tools).
+    parts_json = json.dumps(spec["parts"])
+    nets_json = json.dumps(spec["nets"])
+    board_cfg = spec.get("board") or {}
+    board_json = json.dumps(board_cfg)
+    name = spec.get("project_name", "kicad_mcp_demo")
+    sch_path = os.path.join(out_dir, f"{name}.kicad_sch")
+    pcb_path = os.path.join(out_dir, f"{name}.kicad_pcb")
+    dims = (f"{board_cfg.get('width','?')}×{board_cfg.get('depth','?')} mm"
+            if board_cfg else "")
+
     # 1) Idee
     n_parts, n_nets = len(spec["parts"]), len(spec["nets"])
     steps.append({"key": "idee", "ok": True,
@@ -147,31 +173,43 @@ def run_demo(out_dir: str, server=None, spec_path: Optional[str] = None,
                            f"{n_parts} Bauteile, {n_nets} Netze.")})
     emit(f"① Idee: {steps[-1]['text']}")
 
-    # 2) Schaltplan (+ PCB in einem Rutsch)
-    board_path = ""
+    # 2) Prüfen — validate_design (sichtbarer Tool-Aufruf, schreibt nichts)
+    emit(_tool_line("validate_design",
+                    f"Spec prüfen ({n_parts} Bauteile, {n_nets} Netze)"))
     try:
-        out = _call(server, "generate_project", {
-            "output_dir": out_dir,
-            "parts": json.dumps(spec["parts"]),
-            "nets": json.dumps(spec["nets"]),
-            "board": json.dumps(spec.get("board") or {}),
-            "project_name": spec.get("project_name", "kicad_mcp_demo")})
-        files = out.get("files") or {}
-        sch_ok = bool(files.get("schematic") and
-                      os.path.isfile(files["schematic"]))
-        board_path = files.get("pcb", "")
-        steps.append({"key": "schaltplan", "ok": sch_ok,
-                      "title": "Schaltplan",
-                      "text": (f"{os.path.basename(files.get('schematic',''))} "
-                               f"erzeugt — {n_parts} Bauteile, {n_nets} Netze "
-                               "verdrahtet.")
-                      if sch_ok else f"Fehler: {out.get('error') or out}"})
+        val = _call(server, "validate_design", {
+            "parts": parts_json, "nets": nets_json, "board": board_json})
+        v_ok = bool(val.get("valid"))
+        v_text = ("Spec gültig — keine Konflikte (Refs, Pin-Typen, Board-Maß)."
+                  if v_ok else
+                  f"{val.get('error_count', '?')} Fehler: "
+                  + "; ".join(val.get("errors", [])[:3]))
     except Exception as exc:  # pragma: no cover - defensiv
-        steps.append({"key": "schaltplan", "ok": False, "title": "Schaltplan",
-                      "text": f"{type(exc).__name__}: {exc}"})
-    emit(f"② Schaltplan: {steps[-1]['text']}")
+        v_ok, v_text = False, f"{type(exc).__name__}: {exc}"
+    steps.append({"key": "pruefen", "ok": v_ok, "title": "Prüfen", "text": v_text})
+    emit(f"② Prüfen: {v_text}")
 
-    # 3) Berechnung (rein, aus den Spec-Werten). Der Mini-Rechenschritt ist die
+    # 3) Schaltplan — generate_schematic (erzeugt .kicad_sch, .kicad_pro)
+    emit(_tool_line("generate_schematic", f"→ {name}.kicad_sch"))
+    try:
+        out = _call(server, "generate_schematic", {
+            "output_path": sch_path, "parts": parts_json,
+            "nets": nets_json, "project_name": name})
+        sch_ok = bool(out.get("success") and os.path.isfile(sch_path))
+        erc = ""
+        if "erc_clean" in out:
+            erc = ("  · ERC 0 Fehler" if out.get("erc_clean") else
+                   f"  · ERC {out.get('drc', {}).get('error_count', '?')} Fehler")
+        sch_text = (f"{os.path.basename(sch_path)} erzeugt — {n_parts} Bauteile, "
+                    f"{n_nets} Netze verdrahtet.{erc}") if sch_ok else \
+            f"Fehler: {out.get('error') or out.get('errors') or out}"
+    except Exception as exc:  # pragma: no cover - defensiv
+        sch_ok, sch_text = False, f"{type(exc).__name__}: {exc}"
+    steps.append({"key": "schaltplan", "ok": sch_ok, "title": "Schaltplan",
+                  "text": sch_text})
+    emit(f"③ Schaltplan: {sch_text}")
+
+    # 4) Berechnung (rein, aus den Spec-Werten). Der Mini-Rechenschritt ist die
     # LED-Vorwiderstands-Prüfung; hat ein Bausatz keinen LED-Zweig, entfällt sie
     # neutral (kein Fehler) — die echte Rechnung übernehmen die Elektrik-Skills.
     if _spec_has_led(spec):
@@ -185,18 +223,26 @@ def run_demo(out_dir: str, server=None, spec_path: Optional[str] = None,
         steps.append({"key": "berechnung", "ok": True, "title": "Berechnung",
                       "text": ("keine LED-Vorwiderstands-Prüfung nötig — die "
                                "Elektrik-Skills rechnen das Passende.")})
-    emit(f"③ Berechnung: {steps[-1]['text']}")
+    emit(f"④ Berechnung: {steps[-1]['text']}")
 
-    # 4) Platine
-    pcb_ok = bool(board_path and os.path.isfile(board_path))
-    b = spec.get("board") or {}
-    dims = (f"{b.get('width','?')}×{b.get('depth','?')} mm"
-            if b else "")
+    # 5) Platine — generate_pcb (erzeugt .kicad_pcb)
+    emit(_tool_line("generate_pcb",
+                    f"→ {name}.kicad_pcb" + (f" ({dims})" if dims else "")))
+    board_path = ""
+    try:
+        out = _call(server, "generate_pcb", {
+            "output_path": pcb_path, "parts": parts_json, "nets": nets_json,
+            "board": board_json, "project_name": name})
+        board_path = out.get("output_path") or (
+            pcb_path if os.path.isfile(pcb_path) else "")
+        pcb_ok = bool(board_path and os.path.isfile(board_path))
+        pcb_text = (f"{os.path.basename(board_path)} · {dims} — erzeugt."
+                    if pcb_ok else f"Fehler: {out.get('error') or out}")
+    except Exception as exc:  # pragma: no cover - defensiv
+        pcb_ok, pcb_text = False, f"{type(exc).__name__}: {exc}"
     steps.append({"key": "platine", "ok": pcb_ok, "title": "Platine",
-                  "text": (f"{os.path.basename(board_path)} · {dims} — "
-                           "erzeugt." if pcb_ok
-                           else "PCB nicht erzeugt.")})
-    emit(f"④ Platine: {steps[-1]['text']}")
+                  "text": pcb_text})
+    emit(f"⑤ Platine: {pcb_text}")
 
     return {
         "ok": all(s["ok"] for s in steps),

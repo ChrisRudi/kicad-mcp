@@ -1,7 +1,22 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.27.2**
+Aktuelle Version: **0.28.0**
+
+---
+
+## 👀 Neu in 0.28.0 — Demo zeigt jetzt, WIE sie es macht
+
+- **Entstehung verfolgbar:** Beim Demo-Bau erscheint jeder echte
+  Werkzeug-Aufruf als eigene Zeile — ⚙ `validate_design` (prüfen) →
+  ⚙ `generate_schematic` (Schaltplan) → ⚙ `generate_pcb` (Platine). So
+  sieht man Schritt für Schritt, welches Tool was macht — und weiß:
+  „genau das kann ich selbst aus dem Chat aufrufen". Die erzeugten
+  Dateien sind byte-identisch wie vorher (geprüft).
+- **Skills laufen automatisch mit:** Nach dem Bau fährt die Demo die
+  Fach-Skills (Schutzklassen, Sicherheitsabstände, Thermik …) von selbst
+  nacheinander ab — kein Klick pro Schritt mehr nötig. „✋ Stoppen" hält
+  jederzeit an, jeder Skill bleibt einzeln per ✨-Button nutzbar.
 
 ---
 

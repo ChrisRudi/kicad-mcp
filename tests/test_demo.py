@@ -48,23 +48,29 @@ class TestRunDemo:
         lines = []
         res = demo.run_demo(str(tmp_path), on_step=lines.append)
         keys = [s["key"] for s in res["steps"]]
-        assert keys == ["idee", "schaltplan", "berechnung", "platine"]
+        assert keys == ["idee", "pruefen", "schaltplan", "berechnung", "platine"]
         assert res["ok"] is True
         # echte Dateien
         assert os.path.isfile(res["board_path"])
         assert res["board_path"].endswith(".kicad_pcb")
         assert list(tmp_path.glob("*.kicad_sch"))
-        # narriert je Schritt genau eine Zeile
-        assert len(lines) == 4
-        assert lines[0].startswith("①") and lines[3].startswith("④")
+        # Sichtbare Tool-Kette: die drei echten MCP-Tools stehen als ⚙-Zeilen
+        # im Transkript (Feld-Wunsch „die Entstehung verfolgen").
+        tool_lines = [ln for ln in lines if ln.startswith("⚙")]
+        assert any("validate_design" in ln for ln in tool_lines)
+        assert any("generate_schematic" in ln for ln in tool_lines)
+        assert any("generate_pcb" in ln for ln in tool_lines)
+        # nummerierte Narration je Schritt
+        assert lines[0].startswith("①")
+        assert any(ln.startswith("⑤ Platine") for ln in lines)
 
     def test_summary_line_reports_success(self, tmp_path):
         res = demo.run_demo(str(tmp_path))
         assert "Demo fertig" in demo.summary_line(res)
-        assert "4/4" in demo.summary_line(res)
+        assert "5/5" in demo.summary_line(res)
 
     def test_step_failure_does_not_crash_run(self, tmp_path, monkeypatch):
-        # generate_project bricht → schaltplan/platine ok:False, Ablauf lebt
+        # Tool-Kette bricht → prüfen/schaltplan/platine ok:False, Ablauf lebt
         class _Boom:
             def call_tool(self, *a, **k):
                 raise RuntimeError("kaputt")
@@ -72,6 +78,30 @@ class TestRunDemo:
         assert res["ok"] is False
         by = {s["key"]: s for s in res["steps"]}
         assert by["schaltplan"]["ok"] is False
-        assert by["idee"]["ok"] is True          # reine Schritte laufen
+        assert by["pruefen"]["ok"] is False       # validate_design brach
+        assert by["idee"]["ok"] is True           # reine Schritte laufen
         assert by["berechnung"]["ok"] is True     # Rechnung braucht keinen Server
         assert "Problemen" in demo.summary_line(res)
+
+    def test_build_is_byte_identical_to_generate_project(self, tmp_path):
+        # Sicherheitsnetz: die zerlegte Tool-Kette (generate_schematic +
+        # generate_pcb) muss dieselben Bytes liefern wie das gebündelte
+        # generate_project — sonst driften die DRC-/Determinismus-Gates.
+        import json as _json
+        from kicad_mcp.selftest import SPEC_PATH, load_spec
+        from kicad_mcp.generators.schematic.builder import build_schematic
+        from kicad_mcp.generators.pcb.builder import build_pcb
+        spec = load_spec(SPEC_PATH)
+        name = spec.get("project_name", "kicad_mcp_demo")
+        res = demo.run_demo(str(tmp_path))
+        sch_demo = open(res["board_path"][:-10] + ".kicad_sch",
+                        encoding="utf-8").read()
+        pcb_demo = open(res["board_path"], encoding="utf-8").read()
+        sch_ref = build_schematic(_json.loads(_json.dumps(spec["parts"])),
+                                  _json.loads(_json.dumps(spec["nets"])),
+                                  name, optimize=True)
+        pcb_ref = build_pcb(_json.loads(_json.dumps(spec["parts"])),
+                            _json.loads(_json.dumps(spec["nets"])),
+                            spec.get("board") or {}, name)
+        assert sch_demo == sch_ref
+        assert pcb_demo == pcb_ref
