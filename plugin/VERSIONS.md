@@ -1,7 +1,18 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.27.0**
+Aktuelle Version: **0.27.1**
+
+---
+
+## 🩹 Neu in 0.27.1 — Demo baute im Feld nichts (nur Vorschau)
+
+- **Behoben:** Beim installierten Plugin zeigte jede Demo „Spec noch
+  nicht gebaut (folgt)" und lief nur als Text-Vorschau — Schaltplan und
+  Platine entstanden nicht. Ursache: Der Demo-Runner suchte die
+  Bausatz-Schaltungen an einem Pfad, den es nur im Entwicklungs-Checkout
+  gibt, statt im mitgelieferten Plugin-Bundle. Jetzt nutzt er denselben
+  Auflöser wie der Tool-Server — die Demos bauen wieder wirklich.
 
 ---
 

@@ -12,10 +12,9 @@ wird. Die eigentliche Ausführung (Prompt an den Chat-Bridge dispatchen, auf die
 Antwort warten, nächster Schritt) und das GUI-Dropdown hängen sich später an
 ``plan()`` — sie fügen keine neue Logik hinzu, sie *fahren* den Plan ab.
 
-Offen (bewusst, laut Scope „erst Registry+Gerüst, ohne Schaltpläne"): die
-``.kicad_sch``-Spec-JSONs unter ``kicad_mcp/resources/data/demo_kits/`` gibt es
-noch nicht. ``spec_path()``/``spec_exists()`` zeigen den erwarteten Ort; der
-Build-Schritt im Plan markiert ehrlich, ob die Spec schon da ist.
+Die Spec-JSONs liegen unter ``kicad_mcp/resources/data/demo_kits/`` im
+mcp-Root (Bundle bzw. env-Override); ``spec_path()``/``spec_exists()`` lösen
+den Ort auf, der Build-Schritt im Plan markiert ehrlich, ob die Spec da ist.
 """
 
 from __future__ import annotations
@@ -26,9 +25,16 @@ from pathlib import Path
 from . import demo_kits
 from . import superfeatures as sf
 
-# Wo die (separat zu bauenden) Bausatz-Schaltplan-Specs liegen werden.
-_SPEC_DIR = (Path(__file__).resolve().parents[1]
-             / "kicad_mcp" / "resources" / "data" / "demo_kits")
+def _spec_dir() -> Path:
+    """Wo die Bausatz-Specs liegen — über den kanonischen mcp-root-Resolver
+    (env-Override → Bundle ``<plugin>/mcp``). Der frühere Dev-Checkout-Pfad
+    (``parents[1]/kicad_mcp``) existiert im INSTALLIERTEN Plugin nicht — das
+    Feld sah dadurch fälschlich „Spec noch nicht gebaut" und die Demo lief
+    nur als Vorschau. Im Repo greift derselbe Resolver auf den
+    Bundle-Spiegel ``plugin/mcp/``."""
+    from . import server_manager
+    return (Path(server_manager.default_mcp_root())
+            / "kicad_mcp" / "resources" / "data" / "demo_kits")
 
 # Schritt-Arten.
 STEP_BUILD = "build_schematic"   # den hinterlegten Schaltplan anlegen
@@ -55,7 +61,7 @@ class DemoStep:
 def spec_path(kit: demo_kits.DemoKit) -> Path:
     """Erwarteter Pfad der Schaltplan-Spec eines Bausatzes (existiert ggf. noch
     nicht)."""
-    return _SPEC_DIR / kit.spec_file
+    return _spec_dir() / kit.spec_file
 
 
 def spec_exists(kit: demo_kits.DemoKit) -> bool:

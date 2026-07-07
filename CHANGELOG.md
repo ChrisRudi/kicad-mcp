@@ -8,6 +8,19 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Demo baute im Feld nichts — Spec-Pfad zeigte auf Dev-Checkout — 0.27.1)
+- **`demo_runner._SPEC_DIR` war der Dev-Checkout-Pfad**
+  (`parents[1]/kicad_mcp/…`), den es im INSTALLIERTEN Plugin nicht gibt —
+  `spec_exists()` war im Feld immer False, der ▶-Eintrag hieß „Ablauf
+  zeigen (Spec folgt)" und `_run_demo_kit` schrieb nur die Vorschau
+  („Spec noch nicht gebaut (folgt)") statt Schaltplan+Platine zu bauen.
+  Jetzt löst `_spec_dir()` über den kanonischen mcp-root-Resolver auf
+  (`server_manager.default_mcp_root()`: env-Override → Bundle
+  `<plugin>/mcp`); im Repo greift derselbe Weg auf den Bundle-Spiegel.
+  Feld-Layout per Simulation verifiziert (Plugin-Kopie außerhalb des
+  Repos findet die Spec). Veralteten Modul-Docstring („Specs gibt es
+  noch nicht") mitkorrigiert.
+
 ### Changed (Eine Quelle: Demo-Kits aus Circuit-Blocks komponiert — 0.27.0)
 - **Verschmelzung der zwei Orte/Aufgaben (Nutzer-Auftrag):** Die
   datenblatt-geprüfte IC-Applikationsschaltung lebt genau EINMAL als
