@@ -49,6 +49,21 @@ _COST_STEP = 10
 _COST_TURN = 6
 _COST_VIA = 60
 
+# Fein-Pitch-Fanout (LQFP/USB-C): schmale längliche Pads dürfen NUR entlang
+# ihrer Längsachse angefahren werden (± über die Spitze hinaus), sonst läuft
+# der Anschluss-Stummel quer übers Nachbar-Pad. Das Prädikat gated über die
+# Pad-GEOMETRIE — Boards ohne solche Pads (alle 7 ⭐) bleiben byte-identisch.
+_FINE_PAD_MAX_W = 0.55   # unter SOIC (0,6); fängt LQFP-48 (0,3) UND
+#                          LQFP-32/LAN8720 (0,5) — 0603-Pads (0,8+) nie
+_FINE_PAD_ASPECT = 1.5   # länglich (LQFP 0,3×1,5 / 0,5×1,5; USB-C 0,3×1,15)
+_FANOUT_CELLS = 3        # Escape-Reichweite über die Pad-Spitze hinaus
+
+
+def _is_fine_pitch_pad(pw: float, ph: float) -> bool:
+    """Erkennt Fein-Pitch-Pads an der Geometrie (schmal + länglich)."""
+    lo, hi = min(pw, ph), max(pw, ph)
+    return 0 < lo < _FINE_PAD_MAX_W and hi / lo >= _FINE_PAD_ASPECT
+
 _DIRS = ((1, 0), (-1, 0), (0, 1), (0, -1))
 
 # Zellen, die ein Via-Zylinder (⌀0.8 + Clearance + fremde halbe Spurbreite
@@ -307,18 +322,54 @@ def _route_pass(
             cix, ciy = grid.cell(px, py)
             cix = max(0, min(grid.nx - 1, cix))
             ciy = max(0, min(grid.ny - 1, ciy))
-            # ALLE Zellen der Pad-Fläche (Mitte zuerst) — die Mittelzelle
-            # allein kann von einer Fremd-Pad-Aufblasung überstempelt sein.
-            # (KEIN Escape über die Pad-Spitze hinaus: der Anschluss-Stummel
-            # liefe bei 2-Pad-Bauteilen übers eigene Gegen-Pad — Kurzschluss.)
-            cells = [(cix, ciy)]
-            rx = max(0, int(pw / 2 / _PITCH))
-            ry = max(0, int(ph / 2 / _PITCH))
-            for dy in range(-ry, ry + 1):
-                for dx in range(-rx, rx + 1):
-                    c = (cix + dx, ciy + dy)
-                    if c != (cix, ciy) and grid.inside(*c):
+            if _is_fine_pitch_pad(pw, ph):
+                # FEIN-PITCH (LQFP/USB-C, schmale längliche Pads): Start-
+                # zellen NUR entlang der Pad-LÄNGSACHSE und NUR JENSEITS der
+                # Pad-Spitze (Fanout-Escape). Zellen in der Pad-Fläche selbst
+                # sind tabu — der blinde Stummel Pad-Mitte→Zelle hätte bis
+                # 0,32 mm Seitenversatz und läuft bei 0,5-mm-Pitch ins
+                # Nachbar-Pad (ethernet: ALLE DRC-err waren solche Stummel).
+                # Jenseits der Spitze endet die Pad-Reihe → Querversatz ist
+                # dort konfliktfrei; der Stummel wird zweibeinig achsentreu
+                # emittiert (s. Stummel-Emission unten). Gated über die
+                # Pad-Geometrie: Boards ohne Fein-Pitch (7 ⭐) byte-identisch.
+                horiz = pw >= ph          # Längsachse in X?
+                tip = int(max(pw, ph) / 2 / _PITCH) + 1
+                cells = []
+                for sign in (1, -1):      # deterministisch: erst +, dann −
+                    for off in range(tip, tip + _FANOUT_CELLS):
+                        c = ((cix + sign * off, ciy) if horiz
+                             else (cix, ciy + sign * off))
+                        if not grid.inside(*c):
+                            break
+                        # Korridor-Regel: Stummel-Bein 1 läuft blind von der
+                        # Pad-Spitze bis zur Zelle — jede Zelle dazwischen
+                        # muss frei/eigenes Netz sein, sonst kreuzt das Bein
+                        # eine frühere Fremdbahn. Blockiert ⇒ dieser Ast endet.
+                        if not grid.passable(0, c[0], c[1], net_num):
+                            break
                         cells.append(c)
+                if not cells:
+                    cells = [(cix, ciy)]  # eingeschlossen: ehrlicher Fallback
+                pad_cells.append({"cell": cells[0], "cells": cells,
+                                  "x": px, "y": py, "fine_horiz": horiz,
+                                  "fine_tip": tip, "center": (cix, ciy),
+                                  "layers": (0, 1) if through else (0,),
+                                  "attach": 0})
+                continue
+            else:
+                # ALLE Zellen der Pad-Fläche (Mitte zuerst) — die Mittelzelle
+                # allein kann von einer Fremd-Pad-Aufblasung überstempelt
+                # sein. (KEIN Escape über die Pad-Spitze hinaus: der Stummel
+                # liefe bei 2-Pad-Bauteilen übers eigene Gegen-Pad.)
+                cells = [(cix, ciy)]
+                rx = max(0, int(pw / 2 / _PITCH))
+                ry = max(0, int(ph / 2 / _PITCH))
+                for dy in range(-ry, ry + 1):
+                    for dx in range(-rx, rx + 1):
+                        c = (cix + dx, ciy + dy)
+                        if c != (cix, ciy) and grid.inside(*c):
+                            cells.append(c)
             pad_cells.append({"cell": (cix, ciy), "cells": cells,
                               "x": px, "y": py,
                               "layers": (0, 1) if through else (0,),
@@ -332,8 +383,19 @@ def _route_pass(
             (c[0], c[1], layer)
             for c in seed["cells"] for layer in seed["layers"]}
         for pc in pad_cells[1:]:
-            if any((c[0], c[1], layer) in tree
-                   for c in pc["cells"] for layer in pc["layers"]):
+            hit = next(((c, layer) for c in pc["cells"]
+                        for layer in pc["layers"]
+                        if (c[0], c[1], layer) in tree), None)
+            if hit is not None:
+                # Schon vom Baum erreicht. NUR bei Fein-Pitch den Stummel
+                # auf die Treffer-Zelle umlenken: dessen Zellen liegen
+                # JENSEITS des Pad-Kupfers — cells[0] wäre ggf. eine leere
+                # Zelle auf der anderen Pad-Seite → gleiche-Netz-Insel.
+                # Nicht-Fein-Pads: alle Zellen liegen IM Pad (physisch
+                # verbunden) — Original-Verhalten beibehalten, damit die
+                # 7 ⭐-Boards byte-identisch bleiben.
+                if "fine_horiz" in pc:
+                    pc["cell"], pc["attach"] = hit[0], hit[1]
                 continue
             path = _route_edge(grid, pc["cells"], tree, net_num,
                                start_layers=pc["layers"])
@@ -365,12 +427,48 @@ def _route_pass(
 
         # Anschluss-Stummel: exakte Pad-Mitte → Rasterzelle, auf der Lage,
         # auf der die Spur andockt (gleiches Netz, endet IM Pad).
+        # Fein-Pitch: ZWEIBEINIG achsentreu — erst längs der Pad-Achse bis
+        # zur Along-Koordinate der Zelle (läuft nur übers eigene Pad und den
+        # freien Bereich jenseits der Spitze), dann kurz quer (≤ ½ Raster,
+        # jenseits der Pad-Reihe, wo kein Nachbar-Pad mehr liegt). Der alte
+        # diagonale Ein-Segment-Stummel schnitt bei 0,5-mm-Pitch Nachbarn.
         for pc in pad_cells:
             gx, gy = grid.pos(*pc["cell"])
-            if abs(gx - pc["x"]) > 0.01 or abs(gy - pc["y"]) > 0.01:
-                layer = LAYER_F if pc["attach"] == 0 else LAYER_B
-                lines.append(_segment(pc["x"], pc["y"], gx, gy, layer,
-                                      trace_w, net_num))
+            if abs(gx - pc["x"]) <= 0.01 and abs(gy - pc["y"]) <= 0.01:
+                continue
+            layer = LAYER_F if pc["attach"] == 0 else LAYER_B
+            if "fine_horiz" in pc:
+                # Korridor (Pad-Spitze → Zelle) als eigenes Netz markieren,
+                # damit SPÄTERE Netze das blinde Stummel-Bein nicht kreuzen
+                # (Gegenstück zur Korridor-Passierbarkeits-Regel oben).
+                cx0, cy0 = pc["center"]
+                ccx, ccy = pc["cell"]
+                half = trace_w / 2 + _CLEARANCE
+                if pc["fine_horiz"]:
+                    sgn = 1 if ccx >= cx0 else -1
+                    for off in range(pc["fine_tip"], abs(ccx - cx0) + 1):
+                        mx, my = grid.pos(cx0 + sgn * off, cy0)
+                        grid.mark_rect(0, mx, my, half, half, net_num)
+                else:
+                    sgn = 1 if ccy >= cy0 else -1
+                    for off in range(pc["fine_tip"], abs(ccy - cy0) + 1):
+                        mx, my = grid.pos(cx0, cy0 + sgn * off)
+                        grid.mark_rect(0, mx, my, half, half, net_num)
+                if pc["fine_horiz"]:
+                    lines.append(_segment(pc["x"], pc["y"], gx, pc["y"],
+                                          layer, trace_w, net_num))
+                    if abs(gy - pc["y"]) > 0.01:
+                        lines.append(_segment(gx, pc["y"], gx, gy,
+                                              layer, trace_w, net_num))
+                else:
+                    lines.append(_segment(pc["x"], pc["y"], pc["x"], gy,
+                                          layer, trace_w, net_num))
+                    if abs(gx - pc["x"]) > 0.01:
+                        lines.append(_segment(pc["x"], gy, gx, gy,
+                                              layer, trace_w, net_num))
+                continue
+            lines.append(_segment(pc["x"], pc["y"], gx, gy, layer,
+                                  trace_w, net_num))
 
     return lines, unrouted
 

@@ -243,6 +243,22 @@ def _resolve_lib_id_uncached(part: dict) -> str:
     name = part.get("name", "")
     value = part.get("value", "")
 
+    # 0. Explizites, EXISTIERENDES lib_id gewinnt immer — das Kit weiß es
+    #    besser als die Fuzzy-Suche. Fund usb_sensor_hub: name "USB_C"
+    #    matchte im Index den PLUG (Connector:USB_C_Plug), der physisch
+    #    keine B6/B7-Kontakte hat — die Buchsen-Pins blieben im Roundtrip
+    #    ehrlich „nicht angeschlossen", obwohl das Kit das Receptacle-Symbol
+    #    explizit benannte. Nur existierende Symbole (get_real_symbol) —
+    #    Tippfehler fallen weiter in die Suche/Passthrough darunter.
+    explicit = part.get("lib_id", "")
+    if ":" in explicit:
+        try:
+            from .symbol_cache import get_real_symbol
+            if get_real_symbol(explicit):
+                return explicit
+        except Exception:
+            pass
+
     # Pin-Zahl-abhängige Sonderfälle VOR der Namens-Tabelle: ein „Crystal" mit
     # 4 deklarierten Pins ist ein Gehäuse-Quarz mit GND-Pad (Pins 2/4 = GND) —
     # ``Device:Crystal`` hat nur 2 Pins, die GND-Pins blieben unverbunden

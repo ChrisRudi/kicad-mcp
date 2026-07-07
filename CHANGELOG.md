@@ -8,6 +8,37 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Fein-Pitch U1+U2: usb elektrisch korrekt + Fanout Stufe 1 — 0.34.0)
+- **U1 — USB-C-Kit vollständig beschaltet** (usb_sensor_hub): das
+  16-Pad-Receptacle (TYPE-C-31-M-12) trägt gespiegelte Duplikat-Pads —
+  B-Seite + SH-Schirm waren netzlos (→ shorting/clearance/mask zwischen
+  Nachbar-Pads), CC1 war ein 1-Pad-Netz OHNE Rd. Jetzt: B1/B12/A12/SH→GND,
+  B4/B9/A9→VBUS, B6→USB_DP, B7→USB_DM, CC1/CC2 je 5k1→GND (R4/R5; ohne Rd
+  liefert ein USB-C-Netzteil kein VBUS). J1-Pin-Namen eindeutig
+  (GND_A1, DP_B, …).
+- **Symbol-Resolver: explizites lib_id gewinnt** (`symbol_lib`): die
+  Fuzzy-Suche matchte für name "USB_C" den **Plug** (hat B6/B7 physisch
+  nicht) — der Roundtrip meldete die Buchsen-Pins ehrlich „nicht
+  angeschlossen". Existierendes explizites `lib_id` (usb: 
+  `Connector:USB_C_Receptacle_USB2.0_16P`) wird jetzt VOR der Index-Suche
+  respektiert; Tippfehler fallen weiter in Suche/Passthrough. Roundtrip
+  wieder 12/12.
+- **U2 — Fein-Pitch-Fanout Stufe 1** (`pcb/route.py`): Pads mit
+  Schmalseite < 0,55 mm und Aspekt ≥ 1,5 (LQFP-48 0,3×1,5; LQFP-32
+  0,5×1,5; USB-C 0,3×1,15) bekommen Startzellen NUR längs der Pad-Achse
+  und NUR jenseits der Pad-Spitze; Anschluss-Stummel zweibeinig achsentreu
+  (längs, dann kurz quer jenseits der Reihe); Escape-Korridor wird auf
+  Passierbarkeit geprüft (frühere Netze) und danach als eigenes Netz
+  markiert (spätere Netze); Baum-Treffer docken an der wirklich erreichten
+  Zelle an. **Messung:** ethernet 14 err/25 offen → 10/13; usb 31/22 →
+  12/23 (inkl. U1-Mehrlast: +9 Pflicht-Anschlüsse). Diagonal-Stummel-
+  Fehler (Quer über Nachbar-Pad) vollständig eliminiert.
+- **Nachhaltigkeits-Gate gehalten:** das Geometrie-Gating garantiert —
+  per Hash-A/B verifiziert — **byte-identische Ausgabe für alle 8 Boards
+  ohne Fein-Pitch-Pads**; Determinismus PCB+Schaltplan über 2 Seeds;
+  Roundtrip 12/12; 139 Tests grün. Stufe 2 (Konvergenz zu 0/0) folgt
+  nach Plan `docs/roadmap.md` §2c.
+
 ### Changed (ac_dc TNY268-Flyback datenblatt-korrigiert — ⭐ — Phase 3 — 0.33.0)
 - **Der TNY268-Flyback hatte vier echte Fehler** (Review gegen PI-Datenblatt
   TNY263-268 + KiCad `Regulator_Switching:TNY268P`):

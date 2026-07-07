@@ -1,7 +1,29 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.33.0**
+Aktuelle Version: **0.34.0**
+
+---
+
+## 🔬 Neu in 0.34.0 — USB-Demo elektrisch korrekt + Fein-Pitch-Fanout (Stufe 1)
+
+- **USB-C-Buchse war halb beschaltet:** Die Buchse hat gespiegelte
+  Kontakt-Duplikate (damit der Stecker verdreht passt) — die B-Seite und
+  der Schirm hingen in der Luft, und die CC-Widerstände fehlten ganz
+  (ohne sie liefert ein USB-C-Netzteil keine Spannung). Jetzt vollständig:
+  alle Pads benetzt, CC1/CC2 je 5,1 kΩ, Schirm an Masse.
+- **Falsches Symbol aufgedeckt:** Die Schaltplan-Symbolsuche wählte den
+  USB-C-*Stecker* statt der *Buchse* (der Stecker hat die B-Kontakte
+  physisch nicht). Explizit angegebene Symbole gewinnen jetzt gegen die
+  automatische Suche.
+- **Fein-Pitch-Fanout (Stufe 1):** Eng-gepitchte IC-Pads (0,5 mm) werden
+  nur noch längs der Pad-Achse angefahren — die Quer-Stummel, die bei
+  USB-Hub und Ethernet Nachbar-Pads schnitten, sind weg. Messbar:
+  Ethernet 14→10 Fehler / 25→13 offene, USB 31→12 Fehler. Noch nicht
+  fertig (Stufe 2 folgt) — aber die **8 fertigen Platinen bleiben
+  nachweislich byte-identisch** (der Umbau ist auf Fein-Pitch begrenzt).
+
+Stand: weiterhin **7 ⭐ / 1 ✅ / 2 🔬** — die 2 🔬 sind messbar näher an 0/0.
 
 ---
 
