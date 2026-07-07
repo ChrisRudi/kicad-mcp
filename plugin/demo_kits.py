@@ -144,7 +144,7 @@ KITS: tuple[DemoKit, ...] = (
             "firmware_map": "Pinbelegung als Firmware-Header exportieren — "
                             "Brücke zur Software.",
         },
-        board_clean=True, verified=False,
+        board_clean=True, verified=True,
         reference_pcb="usb_sensor_hub.reference.kicad_pcb",
     ),
     DemoKit(

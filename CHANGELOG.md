@@ -8,6 +8,29 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (USB-C-Buchse voll beschaltet — Footprint-Fehler an der Quelle — 0.36.0)
+- **Der vom Nutzer gemeldete „Footprint-Fehler" ist behoben** (keine
+  Geometrie-, sondern eine Beschaltungs-Sache): die Buchse
+  `USB_C_Receptacle_HRO_TYPE-C-31-M-12` hat 16 logische Pads auf 12 physischen
+  Positionen — vier Paare liegen **exakt übereinander** (A1+B12, A12+B1 = GND;
+  A4+B9, A9+B4 = VBUS), D+/D− je auf zwei Pads (A6+B6 / A7+B7). Das Kit
+  verdrahtete nur die A-Reihe → gestapelte Zwillinge ohne Netz, ein GND-
+  Terminal ganz offen (Ratsnest-Geister beim Routen). `usb_sensor_hub.json`
+  benetzt jetzt **alle** Pads: A1/A12/B1/B12/SH→GND, A4/A9/B4/B9→VBUS,
+  A6/B6→USB_DP, A7/B7→USB_DM.
+- **CC-Pulldowns ergänzt:** R4/R5 = 5,1 kΩ (CC1/CC2 → GND, Rd-Sink nach
+  USB-Type-C-Spec R2.0). Explizites Symbol `Connector:USB_C_Receptacle_USB2.0_16P`
+  an J1 (deterministische Auflösung, Buchse statt Stecker). Der generierte
+  Schaltplan bildet damit exakt die Referenz-Platine ab (Kohärenz Plan↔Board).
+- **usb_sensor_hub: verified=True → ⭐** (board_clean war seit 0.35.0). Beleg
+  in `docs/kit_datasheet_reviews.md` (STM32-USB-Pins PA11/PA12, Quarz-Load-Caps,
+  I²C-4k7-Pull-ups, AMS1117, CC-Rd). Stand: 8 ⭐ / 2 ✅ / 0 🔬.
+- **Kein 0.34.0-Rückfall:** Schaltplan legt auch im Platzhalter-Pfad (ohne
+  Symbol-Lib, wie im gemockten CI-Job) **0 Leitungen übereinander**
+  (`test_wire_merge`), Netzlisten-Roundtrip 10/10, byte-deterministisch über
+  Seeds. Die dichtere Verdrahtung diesmal überlappungsfrei — Grund war die
+  saubere Symbol-Anbindung + vollständige, konsistente Netzliste.
+
 ### Added (USB-C- & Ethernet-Platine als fertige Referenz — 0.35.0)
 - **`reference_pcb`-Feld an `DemoKit`:** Ein Bausatz kann eine mitgelieferte,
   fertig geroutete Platine hinterlegen (`.kicad_pcb` + gleichnamige

@@ -1,11 +1,33 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.35.0**
+Aktuelle Version: **0.36.0**
 
 ---
 
-## ✅ Neu in 0.35.0 — USB-C- & Ethernet-Platine als fertige Referenz (✅)
+## ⭐ Neu in 0.36.0 — USB-C-Buchse voll beschaltet, USB-Kit auf ⭐
+
+- **Der „Footprint-Fehler" an der USB-C-Buchse ist an der Quelle behoben.**
+  Die Buchse hat vier Paare **deckungsgleicher Pads** (A1+B12 & A12+B1 = GND,
+  A4+B9 & A9+B4 = VBUS) und führt D+ und D− auf je **zwei** Pads (für den
+  verdrehbaren Stecker). Vorher hat das Kit nur eine Reihe verdrahtet — die
+  gestapelten Zwillinge hingen in der Luft, ein GND-Terminal war komplett
+  offen. Jetzt sind **alle** Pads korrekt benetzt, plus die beiden
+  **5,1-kΩ-CC-Widerstände** (ohne die gibt eine USB-C-Quelle keine Spannung)
+  und der Schirm an Masse.
+- **Schaltplan = Platine:** Der generierte Schaltplan bildet jetzt exakt die
+  Beschaltung deiner Referenz-Platine ab. Datenblatt-geprüft (STM32-USB-Pins,
+  Quarz-Load-Caps, I²C-Pull-ups, AMS1117) → das **USB-C-Sensor-Hub-Kit ist
+  jetzt ⭐** (saubere Platine UND geprüfter Schaltplan).
+- **Kein Rückfall:** Der Schaltplan legt auch ohne installierte Symbol-
+  Bibliothek 0 Leitungen übereinander (genau die Schranke, die 0.34.0 rot
+  gemacht hatte), Netzlisten-Roundtrip 10/10, byte-deterministisch.
+- **Stand:** 8 ⭐ / 2 ✅ / 0 🔬. Ethernet bleibt ✅ (Platine sauber; der
+  PHY-Schaltplan-Review für ⭐ folgt).
+
+---
+
+## ✅ 0.35.0 — USB-C- & Ethernet-Platine als fertige Referenz (✅)
 
 - **Die zwei dichten Fein-Pitch-Boards sind jetzt sauber.** USB-C-Sensor-Hub
   und Ethernet-Gerät sind zweilagig, eng und fein gepitcht — der Auto-Router

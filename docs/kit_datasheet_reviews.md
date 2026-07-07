@@ -82,6 +82,35 @@ Cs, SMD-Footprints (SOIC-8 statt kriechstrecken-optimiertem DIP-8B). Die
 Kern-Topologie (Regler-Pinout, Klemme, Feedback, Isolation) ist datenblatt-
 korrekt; für ein reales 230-V-Produkt fehlen die Sicherheits-/EMV-Ebenen.
 
+## usb_sensor_hub — STM32F103 + USB-C-Buchse + AMS1117 (STM32-„Blue Pill"-Klasse)
+Datenblatt-Review 2026-07-07 (nach der Nutzer-Hand-Route). Autoritatives
+Symbol/Pinout: KiCad `Connector:USB_C_Receptacle_USB2.0_16P`, ST RM0008/
+STM32F103-Datenblatt, USB Type-C-Spec R2.0 (Rd-Pulldown Sink).
+- **USB-C-Buchse war halb beschaltet** (der vom Nutzer gemeldete
+  „Footprint-Fehler", nichts mit Routing): die Buchse hat vier Paare
+  deckungsgleicher Pads (A1+B12, A12+B1 = GND; A4+B9, A9+B4 = VBUS), plus
+  D+ auf **zwei** Pads (A6+B6), D− auf **zwei** (A7+B7). Vorher nur die
+  A-Reihe benetzt → gestapelte Zwillinge floateten, ein GND-Terminal hing
+  ganz in der Luft. Jetzt **alle** getied: A1/A12/B1/B12/SH→GND,
+  A4/A9/B4/B9→VBUS, A6/B6→USB_DP, A7/B7→USB_DM.
+- **CC-Pulldowns ergänzt:** R4/R5 = 5,1 kΩ von CC1 (A5) bzw. CC2 (B5) nach
+  GND — der Rd-Widerstand, an dem eine USB-C-Quelle das Sink erkennt und VBUS
+  freigibt (ohne ihn bleibt der Port tot). Schirm (SH) auf GND.
+- **STM32 USB-Pins korrekt:** PA11 = USB_DM (Pin 32), PA12 = USB_DP (Pin 33).
+- **Quarz + Load-Caps:** 8 MHz an OSC_IN/OSC_OUT (5/6), 2× 20 pF nach GND.
+- **I²C-Sensor** BME280 mit 4,7 kΩ-Pull-ups auf SCL/SDA; **NRST** 10 kΩ.
+- **AMS1117-3.3** (SOT-223): VIN = VBUS, VOUT = P3V3, Tab = VOUT; 10 µ Bulk
+  am Eingang, 100 n am Ausgang.
+Schaltplan roundtrip 10/10 (kicad-cli), 0 Leitungen übereinander (auch im
+Platzhalter-Pfad), byte-deterministisch. Platine = mitgelieferte Referenz
+(Hand-Route, GND-Fläche) 0 DRC / 0 offen. **board_clean UND verified → ⭐.**
+
+**Ehrliche Grenze:** kein ESD-Schutz an D+/D− und keine
+Serien-Widerstände/Common-Mode-Drossel am USB-Paar (für die kompakte Demo
+weggelassen); die Kern-Beschaltung (Buchse, CC, MCU-USB, Regler) ist
+datenblatt-korrekt.
+
 ## Noch offen (kein verified)
-- **usb_sensor_hub, ethernet_device**: Roadmap Phase 2c (Fein-Pitch-Router,
-  Fanout — Messdaten in `docs/roadmap.md`) + Phase 3 (Datenblatt-Review).
+- **ethernet_device**: Platine ✅ (mitgelieferte Referenz, 0 DRC/0 offen);
+  `verified` offen bis zum PHY-Datenblatt-Review (Beschaltung Magnetics/
+  RJ45, Entkopplung, Takt) — Roadmap Phase 3.
