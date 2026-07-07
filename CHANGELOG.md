@@ -8,6 +8,17 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Warnungs-Flut im Demo-Transkript: 73× „Flyback_Trafo" — 0.27.2)
+- **Platzhalter-Warnung je Symbol dedupliziert** (Feld-Report AC-DC-Demo):
+  der Layout-Optimierer ruft `build_schematic` dutzendfach auf; jede Runde
+  lief durch `_emit_lib_symbols` und warnte erneut über dasselbe fehlende
+  Symbol → 73 identische WARNING-Zeilen im Chat. Modul-globales
+  `_WARNED_PLACEHOLDERS`-Set: eine Warnung je lib_id und Prozess
+  (Regression: `test_placeholder_warning_logged_once_across_rebuilds`).
+  Inhaltlich bleibt die Warnung richtig — für den 6-Pin-Flyback-Trafo
+  (P1/P2/AUX/S1/S2/SGND) gibt es kein Stock-Symbol; der Platzhalter mit
+  benannten Pins ist dort korrekt.
+
 ### Fixed (Demo baute im Feld nichts — Spec-Pfad zeigte auf Dev-Checkout — 0.27.1)
 - **`demo_runner._SPEC_DIR` war der Dev-Checkout-Pfad**
   (`parents[1]/kicad_mcp/…`), den es im INSTALLIERTEN Plugin nicht gibt —

@@ -1,7 +1,19 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.27.1**
+Aktuelle Version: **0.27.2**
+
+---
+
+## 🔇 Neu in 0.27.2 — Demo-Transkript ohne Warnungs-Flut
+
+- **Behoben:** Beim AC-DC-Netzteil-Demo erschien dieselbe Warnung
+  („Symbol 'Flyback_Trafo' nicht gefunden, Platzhalter") 73-mal im
+  Chat — der Layout-Optimierer baut den Schaltplan intern viele Male,
+  und jede Runde meldete das fehlende Symbol erneut. Jetzt wird je
+  Symbol nur EINMAL gewarnt. Die eine Warnung ist übrigens korrekt:
+  Für den 6-Pin-Flyback-Trafo gibt es kein KiCad-Stock-Symbol, der
+  Platzhalter mit benannten Pins ist dort das Richtige.
 
 ---
 

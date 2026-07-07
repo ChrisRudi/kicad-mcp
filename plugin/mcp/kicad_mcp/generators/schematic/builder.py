@@ -489,6 +489,12 @@ def _fmt(v: float) -> str:
     return f"{round(v, 4):g}"
 
 
+# Schon gemeldete Platzhalter-Symbole — der Layout-Optimierer baut den
+# Schaltplan dutzendfach neu; ohne Dedupe flutet EIN fehlendes Symbol das
+# Demo-Transkript mit identischen WARNINGs (Feld-Report: 73× Flyback_Trafo).
+_WARNED_PLACEHOLDERS: set[str] = set()
+
+
 def _emit_lib_symbols(s: SExpr, parts: list[dict], nets: list[dict], project_name: str) -> None:
     s.open("lib_symbols")
     seen = set()
@@ -503,7 +509,11 @@ def _emit_lib_symbols(s: SExpr, parts: list[dict], nets: list[dict], project_nam
             s._lines.append(indented)
             logger.info(f"Embedded real KiCad symbol: {lib_id}")
         else:
-            logger.warning(f"Symbol '{lib_id}' not found in KiCad libraries, using placeholder")
+            if lib_id not in _WARNED_PLACEHOLDERS:
+                _WARNED_PLACEHOLDERS.add(lib_id)
+                logger.warning(
+                    f"Symbol '{lib_id}' not found in KiCad libraries, "
+                    f"using placeholder")
             _emit_placeholder_symbol(s, part, lib_id)
 
     pwr_flag = get_real_symbol("power:PWR_FLAG")

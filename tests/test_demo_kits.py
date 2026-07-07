@@ -182,3 +182,22 @@ def test_spec_builds_schematic_and_board(kit):
     pcb = build_pcb(spec["parts"], spec["nets"], spec.get("board"), kit.key)
     assert sch.count("(symbol ") >= len(spec["parts"])
     assert pcb.count("(footprint ") >= len(spec["parts"])
+
+
+def test_placeholder_warning_logged_once_across_rebuilds(caplog):
+    # Feld-Report (0.27.1-Demo): der Layout-Optimierer baut den Schaltplan
+    # dutzendfach — EIN fehlendes Symbol (Flyback_Trafo) flutete das
+    # Demo-Transkript mit 73 identischen WARNINGs. Dedupe je lib_id.
+    from kicad_mcp.generators.schematic import builder
+    builder._WARNED_PLACEHOLDERS.clear()
+    parts = [{"ref": "T1", "name": "No_Such_Symbol_XYZ", "value": "EE16",
+              "pins": [{"num": "1", "name": "P1"}, {"num": "2", "name": "P2"}]}]
+    nets = [{"name": "N1", "type": "signal", "connections": ["T1:1", "T1:2"]}]
+    with caplog.at_level("WARNING", logger="kicad_mcp.generators.schematic.builder"):
+        for _ in range(3):
+            builder.build_schematic(
+                [dict(p, pins=[dict(x) for x in p["pins"]]) for p in parts],
+                [dict(n) for n in nets], "warn_dedupe")
+    hits = [r for r in caplog.records
+            if "not found in KiCad libraries" in r.message]
+    assert len(hits) == 1, [r.message for r in hits]
