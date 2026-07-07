@@ -1,11 +1,34 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.34.1**
+Aktuelle Version: **0.35.0**
 
 ---
 
-## 🩹 Neu in 0.34.1 — Hotfix: USB-Schaltplan-Spec zurückgerollt
+## ✅ Neu in 0.35.0 — USB-C- & Ethernet-Platine als fertige Referenz (✅)
+
+- **Die zwei dichten Fein-Pitch-Boards sind jetzt sauber.** USB-C-Sensor-Hub
+  und Ethernet-Gerät sind zweilagig, eng und fein gepitcht — der Auto-Router
+  schloss sie nicht restlos. Beide werden jetzt als **fertig geroutete
+  Referenz-Platine** mitgeliefert (Hand-Route mit durchgehender GND-Fläche):
+  KiCads eigenes DRC meldet **0 Fehler / 0 offene Netze**. Damit steigen beide
+  Bausätze von 🔬 auf **✅** (saubere Platine).
+- **Wie:** jedem Bausatz kann eine `reference_pcb` hinterlegt werden — eine
+  mitgelieferte `.kicad_pcb` samt gleichnamiger `.kicad_pro` mit den
+  Fertigungsregeln (Clearance 0,1 mm, Via 0,45/0,2 mm — JLCPCB-tauglich). Das
+  DRC-Gate prüft dann genau diese Datei statt neu zu generieren; Label und
+  Realität bleiben gekoppelt (eine Quelle).
+- **Der Schlüssel zur Routbarkeit:** eine **GND-Kupferfläche** statt GND als
+  Einzelbahnen — genau der Hebel, an dem der reine Bahn-Router an der
+  Kapazität scheiterte.
+- **Noch offen für ⭐:** der *Schaltplan* beider Bausätze muss noch
+  pin-für-pin datenblatt-geprüft werden (USB-C voll beschalten wie die
+  Platine, Ethernet-PHY-Review) — dann steht neben der sauberen Platine auch
+  der geprüfte Schaltplan und beide werden ⭐.
+
+---
+
+## 🩹 0.34.1 — Hotfix: USB-Schaltplan-Spec zurückgerollt
 
 - Die USB-C-Voll-Beschaltung aus 0.34.0 erzeugte im Schaltplan (ohne
   installierte Symbol-Bibliothek, wie im schnellen CI-Lauf) **eine**

@@ -65,6 +65,15 @@ class DemoKit:
                  Gate-Eintrag, keine zweite Meinung.
     verified     Schaltplan Pin-für-Pin gegen Herstellerdatenblatt geprüft
                  (Quelle in der Spec/im Circuit-Block).
+    reference_pcb  basename einer mitgelieferten, fertig gerouteten
+                 ``.kicad_pcb`` (mit gleichnamiger ``.kicad_pro``) unter
+                 ``kicad_mcp/resources/data/demo_kits/``. Gesetzt für Bausätze,
+                 deren Platine der Auto-Router (noch) nicht restlos schließt
+                 (dichtes Fine-Pitch, 2-lagig): die *gelieferte saubere
+                 Platine* IST diese Referenz (Hand-Route mit GND-Fläche), nicht
+                 die frisch generierte. Das DRC-Gate prüft dann diese Datei
+                 statt neu zu generieren. Leer = Platine kommt aus dem
+                 Generator.
     """
     key: str
     title: str
@@ -75,6 +84,7 @@ class DemoKit:
     rationale: dict[str, str]
     board_clean: bool = False
     verified: bool = False
+    reference_pcb: str = ""
 
 
 # Menü-Abschnitte (Reihenfolge = Menü-Reihenfolge). Der Demo-Knopf klappt zu
@@ -134,7 +144,8 @@ KITS: tuple[DemoKit, ...] = (
             "firmware_map": "Pinbelegung als Firmware-Header exportieren — "
                             "Brücke zur Software.",
         },
-        board_clean=False, verified=False,
+        board_clean=True, verified=False,
+        reference_pcb="usb_sensor_hub.reference.kicad_pcb",
     ),
     DemoKit(
         key="ac_dc_supply",
@@ -235,7 +246,8 @@ KITS: tuple[DemoKit, ...] = (
                             "Alternativen finden.",
             "silk_cleanup": "Zum Abschluss die Referenzen lesbar rücken.",
         },
-        board_clean=False, verified=False,
+        board_clean=True, verified=False,
+        reference_pcb="ethernet_device.reference.kicad_pcb",
     ),
     DemoKit(
         key="sketch_to_copper",
@@ -338,6 +350,21 @@ def board_clean_keys() -> list[str]:
     auf ``board_clean=True`` hebt, muss den DRC-Test bestehen; fällt ein Board
     zurück, macht der Test rot (Gate statt Meinung)."""
     return [k.key for k in KITS if k.board_clean]
+
+
+def reference_pcb_path(kit: DemoKit):
+    """Absoluter Pfad der mitgelieferten Referenz-Platine eines Kits, oder
+    ``None`` wenn keine gesetzt ist. Löst über denselben mcp-root-Resolver auf
+    wie die Specs (``demo_runner._spec_dir``-Logik gespiegelt), damit Gate und
+    installiertes Plugin dieselbe Datei sehen. Die gleichnamige ``.kicad_pro``
+    liegt daneben und wird von ``kicad-cli`` automatisch mitgelesen."""
+    if not kit.reference_pcb:
+        return None
+    from pathlib import Path
+    from . import server_manager
+    return (Path(server_manager.default_mcp_root())
+            / "kicad_mcp" / "resources" / "data" / "demo_kits"
+            / kit.reference_pcb)
 
 
 def get(key: str) -> DemoKit | None:

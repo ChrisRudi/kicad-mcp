@@ -8,6 +8,37 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (USB-C- & Ethernet-Platine als fertige Referenz — 0.35.0)
+- **`reference_pcb`-Feld an `DemoKit`:** Ein Bausatz kann eine mitgelieferte,
+  fertig geroutete Platine hinterlegen (`.kicad_pcb` + gleichnamige
+  `.kicad_pro` unter `kicad_mcp/resources/data/demo_kits/`). Gedacht für
+  dichte, zweilagige Fein-Pitch-Boards, die der Auto-Router (noch) nicht
+  restlos schließt: die *gelieferte saubere Platine* IST diese Referenz
+  (Hand-Route mit GND-Fläche), nicht die frisch generierte.
+- **`usb_sensor_hub` und `ethernet_device` sind jetzt `board_clean=True`**
+  (🔬 → ✅), belegt durch die mitgelieferten Referenz-Platinen: `kicad-cli pcb
+  drc` meldet **0 Fehler / 0 offene Netze** für beide. Die `.kicad_pro`
+  deklarieren die (fertigbare) Prozess-Regelung, zu der geroutet wurde
+  (Clearance 0,1 mm, Via 0,45 mm/Bohrung 0,2 mm, Thermal-Spokes ≥1) —
+  keine Regel-Trickserei, sondern die reale JLCPCB-taugliche Vorgabe.
+- **Gate erweitert:** `tests/test_pcb_placement.test_finished_kits_route_drc_clean`
+  prüft für Kits mit `reference_pcb` genau diese Datei (+ `.kicad_pro`) per
+  KiCad-DRC statt neu zu generieren; Kits ohne Referenz bleiben beim
+  Generieren-und-prüfen. Eine Quelle (`demo_kits.board_clean_keys`) speist
+  weiterhin Label UND Gate.
+- **Neuer Wächter** `tests/test_demo_kits.test_reference_pcb_files_ship_with_project`:
+  jede `reference_pcb` liefert `.kicad_pcb` UND `.kicad_pro` und impliziert
+  `board_clean` — fängt eine fehlende Datei auch im gemockten CI-Job (ohne
+  `kicad-cli`).
+- **Hand-Route-Herkunft:** Die zwei Platinen wurden vom Nutzer geroutet
+  (der Router scheiterte an der 2-lagigen Kapazität); der entscheidende Hebel
+  war eine **GND-Kupferfläche** statt GND als Einzelbahnen.
+- **Noch offen für ⭐:** `verified` beider Bausätze bleibt `False` — der
+  Schaltplan muss pin-für-pin datenblatt-geprüft werden (USB-C voll
+  beschalten wie die Platine — die B-Seite/Schirm/CC2 hängen im Schaltplan
+  noch in der Luft, das ist der vom Nutzer gemeldete „Footprint-Fehler" —,
+  Ethernet-PHY-Review). Erst dann board_clean UND verified → ⭐.
+
 ### Fixed (Hotfix: usb-Schaltplan-Spec zurückgerollt — 0.34.1)
 - **CI-Rot auf main (074254a):** Der gemockte pytest-Job (ohne Symbol-Libs,
   Platzhalter-Symbole) meldete `test_wire_merge`

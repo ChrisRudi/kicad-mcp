@@ -241,6 +241,30 @@ def test_board_clean_keys_are_valid_and_nonempty():
     assert set(keys) <= valid
 
 
+def test_reference_pcb_files_ship_with_project():
+    # Kits mit hinterlegter Referenz-Platine (Hand-Route, dichte Fine-Pitch-
+    # Boards) MÜSSEN die .kicad_pcb UND die gleichnamige .kicad_pro liefern —
+    # sonst liest kicad-cli die Fertigungsregeln nicht und das DRC-Gate
+    # (test_pcb_placement) fiele auf Datei-fehlt. Läuft ohne kicad-cli, deckt
+    # also auch den gemockten CI-Job ab.
+    seen = 0
+    for kit in dk.all_kits():
+        if not kit.reference_pcb:
+            continue
+        seen += 1
+        pcb = dk.reference_pcb_path(kit)
+        assert pcb is not None and pcb.is_file(), \
+            f"{kit.key}: Referenz-Platine fehlt ({pcb})"
+        pro = pcb.with_suffix(".kicad_pro")
+        assert pro.is_file(), \
+            f"{kit.key}: .kicad_pro fehlt neben der Referenz-Platine ({pro})"
+        # Referenz-Platine impliziert board_clean (die gelieferte saubere
+        # Platine IST diese Datei) — sonst ist das Label inkonsistent.
+        assert kit.board_clean, \
+            f"{kit.key}: reference_pcb gesetzt, aber nicht board_clean"
+    assert seen, "kein Kit mit reference_pcb — Test müsste entfernt werden?"
+
+
 def test_recipe_kits_are_verified():
     # Wer als Circuit-Block+Rezept modelliert ist (Verschmelzung 0.27.0), hat
     # eine datenblatt-geprüfte Schaltung → muss verified sein. Hält Label und
