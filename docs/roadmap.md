@@ -139,6 +139,28 @@ alle Gates grün. **Aufwand:** ~½ Tag. **Risiko:** keins (nur Anzeige+Gate).
 wenn DRC-Gate grün; Determinismus 2 Seeds je Release; 7 ⭐ unverändert
 (U2: byte-identisch). **Endzustand: 10/10 mindestens board_clean, Ziel
 9–10 ⭐** (sketch bleibt ggf. bewusst Skizze).
+
+**Stand 0.34.0 (U1+U2 gelandet):** ethernet 14/25 → 10/13, usb 31/22 →
+12/23 (+9 Pflicht-Anschlüsse). U1/U2 byte-safe. **Stufe-2-Befund
+(gemessen, U3 verworfen):** Der Seed-Korridor-Rail bewegte NICHTS — die
+offenen Netze sind **nicht** ein Join-Bug, sondern **echt unroutbare
+Netze**: z. B. REF_CLK verbindet U1:10 und U2:3 (zwei LQFP auf
+verschiedenen ICs, 27 mm auseinander) — nur die zwei Escape-Stummel
+werden emittiert, `_route_edge` findet über das dichte 2-Lagen-Board
+KEINEN Weg (auch die Rip-up-Runde nicht). Zwei Fehler sind zudem
+GND↔P3V3-Track-Kollisionen: **GND wird als Track geroutet, nicht
+gegossen** (kicad-cli füllt Zonen nicht) → frisst die halbe Board-
+Fläche, die die Signale bräuchten.
+**→ Der Rest ist FUNDAMENTALE Routing-Kapazität, kein Tweak.** Zwei
+echte Hebel (eigener fokussierter Anlauf, KEIN Schnellschuss):
+(a) **Negotiated-Congestion-Router** (Rip-up mit Kosten-Historie über
+mehrere Runden statt Ein-Schuss-Dijkstra) — mittel-groß, byte-gated
+weiterhin auf Fein-Pitch beschränkbar;
+(b) **GND-Gießen** (Zone auf B.Cu + pcbnew-Fill im Build, damit DRC das
+gefüllte Kupfer sieht) — architektonisch, würfelt ALLE 10 Boards neu
+(volle Re-Verifikation der 7 ⭐), größter Kapazitäts-Gewinn.
+Empfehlung: (a) zuerst (begrenztes Risiko), (b) nur wenn (a) nicht
+reicht. Beides ist Tage-Arbeit mit eigener Gate-Runde.
 **Aufwand:** U1 ½ Tag · U2 1–2 Tage (Kern) · U3 ½–1 Tag · U4 ¼ Tag ·
 U5 1–2 Tage. **Risiko:** U1/U4/U5 minimal (Spec/Docs); U2/U3 mittel,
 durch Gating + Gates eingehegt.
