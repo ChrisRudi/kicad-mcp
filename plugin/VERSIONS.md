@@ -1,7 +1,25 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.32.0**
+Aktuelle Version: **0.33.0**
+
+---
+
+## ⚡ Neu in 0.33.0 — Netzteil-Demo datenblatt-korrigiert (jetzt 7 ⭐)
+
+- **Das AC-DC-Netzteil war ernsthaft falsch verdrahtet** — Review gegen das
+  Power-Integrations-Datenblatt fand vier echte Fehler: das TNY268-Pinout
+  war komplett vertauscht, der Pflicht-Bypass-Kondensator am BP-Pin fehlte,
+  der Rückkopplungs-Teiler hätte ~12,5 V statt 5 V geregelt, und die
+  Primär-Klemme (schützt den Schalttransistor vor der Spannungsspitze)
+  fehlte. Alles korrigiert; Platine weiterhin 0 Fehler / 0 offen.
+- Damit sind **7 der 10 Demos ⭐ Referenz-Qualität**.
+- **Ehrlich dokumentiert:** Das Netzteil ist eine kompakte Lehr-Schaltung —
+  die Kern-Topologie ist datenblatt-korrekt, aber EMV-Filter, Y-Sicherheits-
+  Kondensatoren und kriechstrecken-optimierte Gehäuse fehlen bewusst; es ist
+  **keine fertige 230-V-Serienvorlage** (`docs/kit_datasheet_reviews.md`).
+
+Stand: **7 ⭐ / 1 ✅ / 2 🔬** (nur noch USB-Hub & Ethernet — Fein-Pitch).
 
 ---
 

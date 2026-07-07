@@ -8,6 +8,25 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (ac_dc TNY268-Flyback datenblatt-korrigiert — ⭐ — Phase 3 — 0.33.0)
+- **Der TNY268-Flyback hatte vier echte Fehler** (Review gegen PI-Datenblatt
+  TNY263-268 + KiCad `Regulator_Switching:TNY268P`):
+  (1) **Pinout komplett falsch** (DRAIN=1/S=4/BP=5/EN=8) → korrekt
+  **BP=1, S=2/3/7/8, EN/UV=4, D=5** (Pin 6 weg — Kriechstrecke);
+  (2) **BP-Bypass-C fehlte** → C3 100 n (BP→SOURCE, Datenblatt-Pflicht);
+  (3) **Feedback-Teiler ergab ~12,5 V statt 5 V** → R1 10k→2k49
+  (Vout=2,495·(1+R1/R2)≈4,99 V);
+  (4) **Primär-RCD-Klemme fehlte** → R4 100k ‖ C4 2n2 + D2 UF4007 (ohne sie
+  zerstört die Drain-Spitze den MOSFET). AUX-Wicklung (T1:3) freigelegt
+  (TinySwitch selbstversorgt aus DRAIN). TL431/Opto-Schleife war korrekt.
+- Board bleibt **0 DRC / 0 offen** (3 neue Primär-Teile trägt die
+  0.31.0-Platzierung+Router), Roundtrip 10/10, PCB byte-deterministisch.
+  **verified=True → ac_dc ⭐. Stand 7 ⭐ / 1 ✅ / 2 🔬.**
+- **Ehrliche Grenze dokumentiert:** kompakte Lehr-Schaltung, Kern-Topologie
+  datenblatt-korrekt, aber EMI-Filter/X-Y-Sicherheits-Cs/Kriechstrecken-
+  Gehäuse bewusst simplifiziert — KEINE Serien-230-V-Vorlage
+  (`docs/kit_datasheet_reviews.md`).
+
 ### Changed (74HC595 aufs echte 16-Pin — production_ready ⭐ — Phase 3 — 0.32.0)
 - **production_ready trug ein auf SOIC-8 verkürztes 74HC595 mit
   unbeschaltetem RCLK** (Pin-Reduktion → das Schieberegister hätte real nie

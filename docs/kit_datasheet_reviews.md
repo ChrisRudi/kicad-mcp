@@ -60,18 +60,28 @@ VCC/SER/SRCLK/RCLK/GND); **/OE(13)→GND** (Ausgänge aktiv), **/SRCLR(10)→VCC
 (Clear inaktiv); VCC(16)/GND(8), Abblock-Cs. Board 0/0, Roundtrip 10/10,
 byte-deterministisch. **Verified → ⭐.**
 
+## ac_dc_supply — TNY268 + PC817 + TL431 (Power Integrations TinySwitch-II)
+Seit 0.33.0 datenblatt-korrigiert (der Review 2026-07-07 fand vier echte
+Fehler). Autoritatives Pinout: KiCad `Regulator_Switching:TNY268P` +
+PI-Datenblatt TNY263-268.
+- **Pinout war komplett falsch** (DRAIN=1/S=4/BP=5/EN=8). Korrekt:
+  **BP=1, S=2/3/7/8, EN/UV=4, D=5** (Pin 6 weggelassen — Kriechstrecke).
+- **BP-Bypass-C fehlte** → C3 (100 n, BP→SOURCE) ergänzt (Datenblatt-Pflicht;
+  DRAIN versorgt den Chip intern, keine Bias-Wicklung nötig → AUX T1:3
+  freigelegt).
+- **Feedback-Teiler ergab ~12,5 V statt 5 V** (R1 10k/R2 2k49) → R1=2k49
+  (Vout = 2,495·(1+R1/R2) ≈ 4,99 V).
+- **Primär-RCD-Klemme ergänzt** (R4 100k ‖ C4 2n2, D2 UF4007) — ohne sie
+  zerstört die Drain-Spitze aus der Trafo-Streuinduktivität den MOSFET.
+- TL431/Opto-Feedbackschleife (R3 Opto-Bias, TL431-Ref an FB) war korrekt.
+Board 0/0, Roundtrip 10/10, byte-deterministisch. **Verified → ⭐.**
+
+**Ehrliche Grenze (bewusst simplifiziert für die kompakte Demo, KEINE
+Serien-Netzteil-Vorlage):** kein EMI-Eingangsfilter, keine X/Y-Sicherheits-
+Cs, SMD-Footprints (SOIC-8 statt kriechstrecken-optimiertem DIP-8B). Die
+Kern-Topologie (Regler-Pinout, Klemme, Feedback, Isolation) ist datenblatt-
+korrekt; für ein reales 230-V-Produkt fehlen die Sicherheits-/EMV-Ebenen.
+
 ## Noch offen (kein verified)
-- **ac_dc_supply**: Platine seit 0.31.0 0/0 (✅), Schaltplan **bewusst NICHT
-  verified** — der TNY268-Review (2026-07-07) fand echte Mängel:
-  (1) **BP/M-Pin (5) unbeschaltet** — der TinySwitch-II braucht ZWINGEND
-  einen Bypass-C an BP→SOURCE (typ. 0,1/1 µF; sein Wert wählt zudem den
-  Strom-Limit-Mode). Ohne ihn nicht funktionsfähig.
-  (2) Pinout EN/DRAIN/BP gegen das PI-Datenblatt (DIP-8B) zu verifizieren
-  (aktuell DRAIN=1, S=4, BP=5, EN=8 — gegen die Standard-Belegung prüfen).
-  (3) AUX-Wicklung (T1:3→PRI_GND) klären — TinySwitch-II ist selbstversorgt
-  aus DRAIN, eine Bias-Wicklung ist meist unnötig.
-  **Netzspannungs-Schaltung → kein Raten**: der Rework braucht das echte
-  PI-Datenblatt + Kriechstrecken-Prüfung (safety_spacing), bevor ⭐. Bis
-  dahin ehrlich ✅ (Platine sauber, Schaltplan ungeprüft).
-- **usb_sensor_hub, ethernet_device**: Roadmap Phase 2c (Fein-Pitch-Router)
-  + Phase 3 (Datenblatt-Review, mehrere ICs/Straps).
+- **usb_sensor_hub, ethernet_device**: Roadmap Phase 2c (Fein-Pitch-Router,
+  Fanout — Messdaten in `docs/roadmap.md`) + Phase 3 (Datenblatt-Review).

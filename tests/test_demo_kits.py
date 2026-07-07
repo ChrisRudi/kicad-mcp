@@ -158,9 +158,12 @@ def test_spec_validates(kit):
 
 @pytest.mark.parametrize("kit", dk.all_kits(), ids=lambda k: k.key)
 def test_spec_is_minimal(kit):
-    # „möglichst minimal": kleine, sekundenschnelle Boards.
+    # „möglichst minimal": kleine, sekundenschnelle Boards. Obergrenze 20 —
+    # eine datenblatt-korrekte Schaltung (ac_dc-Flyback mit BP-Cap + RCD-Klemme;
+    # 74HC595-Breakout mit echtem 16-Pin) hat legitim mehr Teile als ein
+    # 0805-Blinker, bleibt aber klein.
     spec = _load_spec(kit)
-    assert 3 <= len(spec["parts"]) <= 16, f"{kit.key}: {len(spec['parts'])} Teile"
+    assert 3 <= len(spec["parts"]) <= 20, f"{kit.key}: {len(spec['parts'])} Teile"
     assert spec.get("description")  # nennt Zweck + Referenzquelle
 
 

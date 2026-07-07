@@ -102,23 +102,38 @@
       "pins": [
         {
           "num": "1",
-          "name": "DRAIN",
-          "type": "passive"
-        },
-        {
-          "num": "4",
-          "name": "SOURCE",
-          "type": "power_in"
-        },
-        {
-          "num": "5",
           "name": "BP",
           "type": "passive"
         },
         {
-          "num": "8",
+          "num": "2",
+          "name": "S",
+          "type": "power_in"
+        },
+        {
+          "num": "3",
+          "name": "S",
+          "type": "power_in"
+        },
+        {
+          "num": "4",
           "name": "EN",
           "type": "input"
+        },
+        {
+          "num": "5",
+          "name": "D",
+          "type": "passive"
+        },
+        {
+          "num": "7",
+          "name": "S",
+          "type": "power_in"
+        },
+        {
+          "num": "8",
+          "name": "S",
+          "type": "power_in"
         }
       ],
       "_pcb_group": "main_ic"
@@ -256,7 +271,7 @@
     {
       "ref": "R1",
       "name": "R",
-      "value": "10k",
+      "value": "2k49",
       "footprint": "Resistor_SMD:R_0603_1608Metric",
       "pins": [
         {
@@ -328,6 +343,82 @@
         }
       ],
       "_pcb_group": "connector_out"
+    },
+    {
+      "ref": "C3",
+      "name": "C",
+      "value": "100n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "R4",
+      "name": "R",
+      "value": "100k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "C4",
+      "name": "C",
+      "value": "2n2",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "P1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "P2",
+          "type": "passive"
+        }
+      ],
+      "_pcb_group": "passive"
+    },
+    {
+      "ref": "D2",
+      "name": "D_Fast",
+      "value": "UF4007",
+      "footprint": "Diode_SMD:D_SMA",
+      "pins": [
+        {
+          "num": "1",
+          "name": "K",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "A",
+          "type": "passive"
+        }
+      ],
+      "_pcb_group": "passive"
     }
   ],
   "nets": [
@@ -361,7 +452,9 @@
       "connections": [
         "BR1:4",
         "C1:1",
-        "T1:1"
+        "T1:1",
+        "R4:1",
+        "C4:1"
       ]
     },
     {
@@ -370,9 +463,12 @@
       "connections": [
         "BR1:2",
         "C1:2",
-        "U1:4",
-        "T1:3",
-        "U2:3"
+        "U1:2",
+        "U1:3",
+        "U1:7",
+        "U1:8",
+        "U2:3",
+        "C3:2"
       ]
     },
     {
@@ -380,7 +476,8 @@
       "type": "signal",
       "connections": [
         "T1:2",
-        "U1:1"
+        "U1:5",
+        "D2:2"
       ]
     },
     {
@@ -388,7 +485,7 @@
       "type": "signal",
       "connections": [
         "U2:4",
-        "U1:8"
+        "U1:4"
       ]
     },
     {
@@ -444,6 +541,23 @@
       "connections": [
         "U2:2",
         "U3:3"
+      ]
+    },
+    {
+      "name": "BP",
+      "type": "signal",
+      "connections": [
+        "U1:1",
+        "C3:1"
+      ]
+    },
+    {
+      "name": "CLAMP",
+      "type": "signal",
+      "connections": [
+        "R4:2",
+        "C4:2",
+        "D2:1"
       ]
     }
   ]

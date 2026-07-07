@@ -154,7 +154,7 @@ KITS: tuple[DemoKit, ...] = (
                               "Leistungshalbleiter.",
             "ampacity": "Primär- und Sekundärströme brauchen breite Bahnen.",
         },
-        board_clean=True, verified=False,
+        board_clean=True, verified=True,
     ),
     DemoKit(
         key="led_ring",
