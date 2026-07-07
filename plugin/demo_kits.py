@@ -25,11 +25,11 @@ steht nur die Bedeutungs-Ebene (welche Skills, in welcher Reihenfolge, warum sie
 genau hier helfen). Pure/stdlib, damit es headless importiert und ohne
 wx/KiCad unit-getestet wird — wie ``superfeatures.py``.
 
-TODO (Nutzer-Feedback 2026-07-04): **alle 10 Schaltpläne UND Platinen müssen
-überarbeitet werden** — sie validieren und bauen, sind als Schaustück aber noch
-nicht vorzeigbar (Schaltplan-Label-Überlappung, unaufgeräumte Verdrahtung;
-Platinen nur geclustert, kein Routing). Details + mögliche Richtungen in
-``docs/demo_kits_todo.md``.
+Reife je Bausatz steht als zwei Flags am Kit (``board_clean``/``verified``)
+und wird zu einer Menü-Stufe ⭐/✅/🔬 verdichtet (``stage``/``stage_badge``);
+das ist die EINE Quelle — der Nutzer sieht ehrlich, was Referenz-Qualität hat,
+und ``board_clean_keys()`` speist das DRC-Test-Gate. Der Fahrplan, alle 10 auf
+mindestens ✅ zu heben, steht in ``docs/roadmap.md`` (Phasen 2–4).
 """
 
 from __future__ import annotations
@@ -55,6 +55,16 @@ class DemoKit:
     rationale je Skill-Key eine Zeile: *warum hilft dieser Skill genau hier* —
               wird im Demo-Ablauf als Begründung des Schritts angezeigt. Muss
               exakt die Keys aus ``pipeline`` abdecken.
+
+    Reife (zwei unabhängige Achsen, siehe ``docs/roadmap.md`` — Kit-Lebens-
+    zyklus). Default beider ist ``False``, damit ein neuer oder vom Nutzer
+    geänderter Bausatz automatisch als „🔬 Draft" gilt (nie fälschlich als
+    fertig verkauft):
+    board_clean  Platine ist 0 DRC-Fehler / 0 offene Netze (KiCads eigenes
+                 DRC). Treibt das Test-Gate ``_DONE_KITS`` — Label IST der
+                 Gate-Eintrag, keine zweite Meinung.
+    verified     Schaltplan Pin-für-Pin gegen Herstellerdatenblatt geprüft
+                 (Quelle in der Spec/im Circuit-Block).
     """
     key: str
     title: str
@@ -63,6 +73,8 @@ class DemoKit:
     spec_file: str
     pipeline: tuple[str, ...]
     rationale: dict[str, str]
+    board_clean: bool = False
+    verified: bool = False
 
 
 # Menü-Abschnitte (Reihenfolge = Menü-Reihenfolge). Der Demo-Knopf klappt zu
@@ -99,6 +111,7 @@ KITS: tuple[DemoKit, ...] = (
             "ampacity": "Die Lautsprecher-Ausgangsbahnen tragen echten Strom — "
                         "Breite gegen Laststrom prüfen.",
         },
+        board_clean=False, verified=True,
     ),
     DemoKit(
         key="usb_sensor_hub",
@@ -121,6 +134,7 @@ KITS: tuple[DemoKit, ...] = (
             "firmware_map": "Pinbelegung als Firmware-Header exportieren — "
                             "Brücke zur Software.",
         },
+        board_clean=False, verified=False,
     ),
     DemoKit(
         key="ac_dc_supply",
@@ -140,6 +154,7 @@ KITS: tuple[DemoKit, ...] = (
                               "Leistungshalbleiter.",
             "ampacity": "Primär- und Sekundärströme brauchen breite Bahnen.",
         },
+        board_clean=False, verified=False,
     ),
     DemoKit(
         key="led_ring",
@@ -160,6 +175,7 @@ KITS: tuple[DemoKit, ...] = (
             "cost_estimate": "Viele identische Teile — der Kostenhebel liegt in "
                              "der Stückzahl.",
         },
+        board_clean=True, verified=False,
     ),
     DemoKit(
         key="motor_driver",
@@ -179,6 +195,7 @@ KITS: tuple[DemoKit, ...] = (
             "dfm_check": "Breite Bahnen + enge Gates gegen die echten "
                          "Fab-Regeln prüfen.",
         },
+        board_clean=True, verified=True,
     ),
     DemoKit(
         key="buck_converter",
@@ -199,6 +216,7 @@ KITS: tuple[DemoKit, ...] = (
             "explain_board": "Die Funktionsblöcke aus der Netzliste "
                              "rekonstruieren — Doku auf Knopfdruck.",
         },
+        board_clean=True, verified=True,
     ),
     DemoKit(
         key="ethernet_device",
@@ -217,6 +235,7 @@ KITS: tuple[DemoKit, ...] = (
                             "Alternativen finden.",
             "silk_cleanup": "Zum Abschluss die Referenzen lesbar rücken.",
         },
+        board_clean=False, verified=False,
     ),
     DemoKit(
         key="sketch_to_copper",
@@ -236,6 +255,7 @@ KITS: tuple[DemoKit, ...] = (
                           "(Clearance, DRC-Risiken).",
             "silk_cleanup": "Zum Schluss die Beschriftung aufräumen.",
         },
+        board_clean=False, verified=False,
     ),
     DemoKit(
         key="production_ready",
@@ -257,6 +277,7 @@ KITS: tuple[DemoKit, ...] = (
             "cost_estimate": "Die Kostentreiber sortiert zeigen — Fläche, "
                              "Lagen, Vias, BOM.",
         },
+        board_clean=True, verified=False,
     ),
     DemoKit(
         key="kit_seeding",
@@ -275,6 +296,7 @@ KITS: tuple[DemoKit, ...] = (
             "explain_board": "Zum Schluss erklären, was der Bausatz eigentlich "
                              "tut.",
         },
+        board_clean=True, verified=False,
     ),
 )
 
@@ -282,6 +304,40 @@ KITS: tuple[DemoKit, ...] = (
 def all_kits() -> tuple[DemoKit, ...]:
     """Alle Demo-Bausätze, in Menü-Reihenfolge."""
     return KITS
+
+
+# Reife-Stufen (Anzeige). Zwei Achsen → ein Menü-Symbol; siehe DemoKit-Doc.
+STAGE_PRIME = "prime"      # ⭐ board_clean UND verified — Referenz-Qualität
+STAGE_VERIFIED = "verified"  # ✅ eine der beiden Achsen grün — belastbar
+STAGE_DRAFT = "draft"      # 🔬 keine — in Arbeit
+
+_STAGE_BADGE = {STAGE_PRIME: "⭐", STAGE_VERIFIED: "✅", STAGE_DRAFT: "🔬"}
+
+
+def stage(kit: DemoKit) -> str:
+    """Reife-Stufe eines Bausatzes aus den zwei Achsen ableiten (eine Quelle:
+    die Flags am Kit). ``prime`` nur wenn Platine sauber UND Schaltplan
+    datenblatt-geprüft; ``verified`` wenn genau eine Achse grün; sonst
+    ``draft``. Robust gegen JSON-Änderungen: die Flags sind Metadaten hier,
+    kein Rücklesen der Spec."""
+    if kit.board_clean and kit.verified:
+        return STAGE_PRIME
+    if kit.board_clean or kit.verified:
+        return STAGE_VERIFIED
+    return STAGE_DRAFT
+
+
+def stage_badge(kit: DemoKit) -> str:
+    """Das Menü-Symbol der Reife-Stufe (⭐ / ✅ / 🔬)."""
+    return _STAGE_BADGE[stage(kit)]
+
+
+def board_clean_keys() -> list[str]:
+    """Keys aller Kits mit sauberer Platine (0 DRC / 0 offen) — die EINE Quelle
+    für das DRC-Test-Gate ``tests/test_pcb_placement._DONE_KITS``. Wer ein Kit
+    auf ``board_clean=True`` hebt, muss den DRC-Test bestehen; fällt ein Board
+    zurück, macht der Test rot (Gate statt Meinung)."""
+    return [k.key for k in KITS if k.board_clean]
 
 
 def get(key: str) -> DemoKit | None:

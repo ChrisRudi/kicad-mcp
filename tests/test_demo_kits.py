@@ -201,3 +201,55 @@ def test_placeholder_warning_logged_once_across_rebuilds(caplog):
     hits = [r for r in caplog.records
             if "not found in KiCad libraries" in r.message]
     assert len(hits) == 1, [r.message for r in hits]
+
+
+# ── Reife-Stufen (Phase 1 der Roadmap): eine Quelle, ehrliche Labels ─────────
+
+@pytest.mark.parametrize("kit", dk.all_kits(), ids=lambda k: k.key)
+def test_stage_is_derivable_and_badged(kit):
+    # Jeder Kit hat eine wohldefinierte Stufe + ein Menü-Symbol (kein Crash,
+    # auch wenn der Nutzer später Flags/JSON ändert).
+    st = dk.stage(kit)
+    assert st in (dk.STAGE_PRIME, dk.STAGE_VERIFIED, dk.STAGE_DRAFT)
+    assert dk.stage_badge(kit) in ("⭐", "✅", "🔬")
+    # Zwei-Achsen-Definition ist konsistent:
+    if kit.board_clean and kit.verified:
+        assert st == dk.STAGE_PRIME
+    elif kit.board_clean or kit.verified:
+        assert st == dk.STAGE_VERIFIED
+    else:
+        assert st == dk.STAGE_DRAFT
+
+
+def test_default_stage_is_draft():
+    # Ein frisch angelegter Kit ohne gesetzte Flags gilt als Draft — nie
+    # versehentlich als fertig verkauft (Robustheit gegen neue/geänderte Kits).
+    blank = dk.DemoKit(key="x", title="x", summary="x", section="analog",
+                       spec_file="x.json", pipeline=("thermal",),
+                       rationale={"thermal": "x"})
+    assert blank.board_clean is False and blank.verified is False
+    assert dk.stage(blank) == dk.STAGE_DRAFT
+
+
+def test_board_clean_keys_are_valid_and_nonempty():
+    keys = dk.board_clean_keys()
+    assert keys, "kein Kit als board_clean markiert?"
+    valid = {k.key for k in dk.all_kits()}
+    assert set(keys) <= valid
+
+
+def test_recipe_kits_are_verified():
+    # Wer als Circuit-Block+Rezept modelliert ist (Verschmelzung 0.27.0), hat
+    # eine datenblatt-geprüfte Schaltung → muss verified sein. Hält Label und
+    # Quelle synchron, auch wenn später Rezepte dazukommen.
+    import glob
+    import os
+    from kicad_mcp.generators.circuit_block.kit_compose import RECIPES_DIR
+    recipe_keys = {os.path.splitext(os.path.basename(p))[0]
+                   for p in glob.glob(os.path.join(RECIPES_DIR, "*.json"))}
+    for key in recipe_keys:
+        kit = dk.get(key)
+        assert kit is not None, f"Rezept ohne Kit: {key}"
+        assert kit.verified, (
+            f"{key}: hat ein Rezept (datenblatt-geprüfter Block), ist aber "
+            "nicht verified — Flag setzen")

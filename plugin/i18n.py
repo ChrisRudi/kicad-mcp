@@ -127,6 +127,21 @@ _EN: dict = {
     "Projekt geöffnet: ": "Project opened: ",
     "Weiter": "Next",
     "Ablauf beenden": "stop guided flow",
+    "Ablauf stoppen": "stop flow",
+    "Referenz: Platine 0 DRC & Schaltplan datenblatt-geprüft":
+        "Reference: board 0 DRC & schematic datasheet-verified",
+    "Platine 0 DRC": "board 0 DRC",
+    "Platine in Arbeit": "board in progress",
+    "Schaltplan datenblatt-geprüft": "schematic datasheet-verified",
+    "Schaltplan nicht datenblatt-geprüft": "schematic not datasheet-verified",
+    "In Arbeit — Platine & Schaltplan noch nicht vorzeigbar":
+        "In progress — board & schematic not yet presentable",
+    "Die Skills laufen jetzt automatisch nacheinander — jeder als echter "
+    "Tool-Aufruf, den du selbst so machen könntest. „✋ Stoppen“ hält an; "
+    "jeder Skill bleibt einzeln per ✨-Button nutzbar.":
+        "The skills now run automatically one after another — each a real "
+        "tool call you could make yourself. “✋ Stop” halts; every skill "
+        "stays available individually via its ✨ button.",
     "Demo-Ablauf abgeschlossen — alle Skills sind durch.":
         "Demo flow complete — all skills have run.",
     "Geführter Ablauf beendet — jeder Skill bleibt einzeln per "

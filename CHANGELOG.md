@@ -8,6 +8,24 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Added (Kit-Reife-Labels aus einer Quelle — Roadmap Phase 1 — 0.29.0)
+- **Zwei-Achsen-Reife am Bausatz:** `DemoKit` bekommt `board_clean` (Platine
+  0 DRC / 0 offen) und `verified` (Schaltplan Pin-für-Pin datenblatt-geprüft),
+  beide Default `False` → ein neuer/geänderter Kit ist automatisch „🔬 Draft"
+  (nie fälschlich fertig). `stage()`/`stage_badge()` verdichten zu ⭐ (beide) /
+  ✅ (eine) / 🔬 (keine). Aktuell 2 ⭐ (buck, motor), 4 ✅ (audio, led_ring,
+  kit_seeding, production_ready), 4 🔬 (ac_dc, usb, ethernet, sketch).
+- **Demo-Menü zeigt die Stufe:** Untermenü-Titel mit Badge, erste Zeile im
+  Untermenü als Klartext-Reifezeile (i18n de/en). Der Nutzer sieht sofort,
+  was Referenz-Qualität hat und was in Arbeit ist.
+- **Eine Quelle, kein zweiter Pflegeort:** `tests/test_pcb_placement._DONE_KITS`
+  wird jetzt aus `demo_kits.board_clean_keys()` abgeleitet — das Label IST der
+  DRC-Gate-Eintrag. Hebt jemand ein Kit auf `board_clean`, muss der DRC-Test
+  bestehen; fällt ein Board zurück, wird der Test rot. Label und Realität
+  können nicht auseinanderlaufen. Konsistenz-Tests: Stufe je Kit ableitbar +
+  gebadgt, Default = Draft, Rezept-Kits sind `verified`
+  (`test_demo_kits`).
+
 ### Added (Demo als sichtbare Tool-Kette + Auto-Lauf der Skills — 0.28.0)
 - **Bau als sichtbare Tool-Kette** (Feld-Wunsch „die Entstehung
   verfolgen, damit der User weiß: so kann ich das auch machen"):

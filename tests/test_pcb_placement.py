@@ -110,11 +110,17 @@ def test_demo_kits_place_without_overlaps(kit_path):
 
 # ── Router-Gate: fertige Demo-Boards sind DRC-sauber ─────────────────────────
 
-# audio_amp fehlt bewusst: 0 DRC-Fehler, aber 2 offene IN_NODE-Kanten —
-# die Pin-Tasche an U1:3 ist von Nachbar-Pad-Aufblasungen versiegelt
-# (Pin-Escape-Fähigkeit steht aus; naiver Escape shortete 2-Pad-Passives).
-_DONE_KITS = ["buck_converter", "kit_seeding", "led_ring",
-              "motor_driver", "production_ready"]
+# EINE Quelle: die Kits mit sauberer Platine tragen ``board_clean=True`` in
+# der Registry; das Menü-Label und dieses Gate lesen dieselbe Liste
+# (demo_kits.board_clean_keys). Wer ein Kit auf board_clean hebt, MUSS diesen
+# Test bestehen; fällt ein Board zurück, wird der Test rot — Label und Realität
+# können nicht auseinanderlaufen.
+# audio_amp bleibt bewusst draußen (board_clean=False): 0 DRC-Fehler, aber 2
+# offene IN_NODE-Kanten — die Pin-Tasche an U1:3 ist von Nachbar-Pad-
+# Aufblasungen versiegelt (Pin-Escape-Fähigkeit steht aus).
+from plugin import demo_kits as _demo_kits  # noqa: E402
+
+_DONE_KITS = sorted(_demo_kits.board_clean_keys())
 
 
 def _kicad_cli():

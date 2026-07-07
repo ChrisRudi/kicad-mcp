@@ -1139,6 +1139,10 @@ class ClaudeChatPanel(wx.Panel):
             hdr.Enable(False)
             for kit in kits:
                 sub = wx.Menu()
+                # Reife-Zeile zuerst (ehrlich: Referenz-Qualität vs. in Arbeit).
+                rl = sub.Append(wx.ID_ANY, self._kit_stage_line(kit))
+                rl.Enable(False)
+                sub.AppendSeparator()
                 for i, (label, why) in enumerate(
                         demo_kits.pipeline_items(kit), 1):
                     info = sub.Append(wx.ID_ANY, f"{i}. {label} — {why}")
@@ -1150,11 +1154,31 @@ class ClaudeChatPanel(wx.Panel):
                 self.Bind(wx.EVT_MENU,
                           lambda _e, k=kit.key: self._run_demo_kit(k), start)
                 menu.AppendSubMenu(
-                    sub, f"{kit.title}   ({len(kit.pipeline)} Skills)")
+                    sub, f"{demo_kits.stage_badge(kit)} {kit.title}"
+                    f"   ({len(kit.pipeline)} Skills)")
             menu.AppendSeparator()
         quick = menu.Append(wx.ID_ANY, tr("🔧 Schnell-Demo (Testboard)"))
         self.Bind(wx.EVT_MENU, lambda _e: self._run_quick_demo(), quick)
         return menu
+
+    def _kit_stage_line(self, kit) -> str:
+        """Eine Klartext-Reifezeile fürs Untermenü: was Referenz-Qualität hat
+        (⭐ Platine sauber + Schaltplan datenblatt-geprüft), was belastbar ist
+        (✅ eine Achse), was noch in Arbeit ist (🔬)."""
+        from . import demo_kits
+        st = demo_kits.stage(kit)
+        badge = demo_kits.stage_badge(kit)
+        if st == demo_kits.STAGE_PRIME:
+            return f"{badge} " + tr("Referenz: Platine 0 DRC & Schaltplan "
+                                    "datenblatt-geprüft")
+        if st == demo_kits.STAGE_VERIFIED:
+            parts = [tr("Platine 0 DRC") if kit.board_clean
+                     else tr("Platine in Arbeit"),
+                     tr("Schaltplan datenblatt-geprüft") if kit.verified
+                     else tr("Schaltplan nicht datenblatt-geprüft")]
+            return f"{badge} " + " · ".join(parts)
+        return f"{badge} " + tr("In Arbeit — Platine & Schaltplan noch nicht "
+                                "vorzeigbar")
 
     def _run_demo_kit(self, kit_key: str) -> None:
         """Einen gewählten Bausatz starten. Ist die Schaltplan-Spec vorhanden,

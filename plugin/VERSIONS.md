@@ -1,7 +1,22 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.28.0**
+Aktuelle Version: **0.29.0**
+
+---
+
+## 🏷️ Neu in 0.29.0 — Ehrliche Reife-Labels im Demo-Menü
+
+- **Auf einen Blick sehen, was Referenz-Qualität hat:** Jede Demo trägt
+  jetzt ein Symbol — ⭐ Referenz (Platine 0 DRC-Fehler **und** Schaltplan
+  datenblatt-geprüft), ✅ belastbar (eine der beiden Achsen), 🔬 in Arbeit.
+  Aktuell: **2 ⭐** (Buck-Wandler, Motor-Treiber), **4 ✅**, **4 🔬**.
+- **Eine Quelle, kein Etikettenschwindel:** Das Label und der interne
+  Qualitäts-Test lesen dieselbe Angabe — ein Kit kann nicht „fertig"
+  aussehen und es nicht sein. Neue oder geänderte Bausätze gelten
+  automatisch als „🔬 in Arbeit", bis sie die Prüfungen bestehen.
+- Grundlage für den weiteren Fahrplan (`docs/roadmap.md`): alle 10 Demos
+  Schritt für Schritt auf mindestens ✅ heben.
 
 ---
 
