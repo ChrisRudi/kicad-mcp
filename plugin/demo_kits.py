@@ -175,7 +175,7 @@ KITS: tuple[DemoKit, ...] = (
             "cost_estimate": "Viele identische Teile — der Kostenhebel liegt in "
                              "der Stückzahl.",
         },
-        board_clean=True, verified=False,
+        board_clean=True, verified=True,
     ),
     DemoKit(
         key="motor_driver",
@@ -255,7 +255,7 @@ KITS: tuple[DemoKit, ...] = (
                           "(Clearance, DRC-Risiken).",
             "silk_cleanup": "Zum Schluss die Beschriftung aufräumen.",
         },
-        board_clean=False, verified=False,
+        board_clean=False, verified=True,
     ),
     DemoKit(
         key="production_ready",
@@ -296,7 +296,7 @@ KITS: tuple[DemoKit, ...] = (
             "explain_board": "Zum Schluss erklären, was der Bausatz eigentlich "
                              "tut.",
         },
-        board_clean=True, verified=False,
+        board_clean=True, verified=True,
     ),
 )
 

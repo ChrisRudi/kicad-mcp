@@ -1,7 +1,26 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.29.0**
+Aktuelle Version: **0.30.0**
+
+---
+
+## 🔬 Neu in 0.30.0 — Drei weitere Demos datenblatt-geprüft
+
+- **Vier Referenz-Demos (⭐) statt zwei:** NE555-Blinker (kit_seeding),
+  LED-Ring (WS2812B) und der AMS1117-Regler (sketch_to_copper) sind jetzt
+  Pin-für-Pin gegen ihre Datenblätter geprüft. Damit sind Buck-Wandler,
+  Motor-Treiber, NE555-Blinker und LED-Ring **⭐ Referenz-Qualität**
+  (Platine 0 DRC + Schaltplan datenblatt-echt).
+- **Belege nachlesbar:** Jede Prüfung steht mit Datenblatt-Quelle und den
+  geprüften Punkten in `docs/kit_datasheet_reviews.md` (z. B. beim NE555
+  die Astabil-Formel Ra/Rb/C und der CV-Abblock-Kondensator).
+- **Ehrlich dokumentiert:** Beim LED-Ring ist die Abblockung 1× 100 nF je
+  2 LEDs (statt je LED) — für den kompakten Ring ausreichend und bewusst
+  so gewählt (6 Caps würden die Kupfer-Kantenabstände sprengen).
+- Noch offen: 74HC595-Breakout braucht Umbau aufs echte 16-Pin-Bauteil.
+
+Stand: **4 ⭐ / 3 ✅ / 3 🔬** (Fahrplan in `docs/roadmap.md`).
 
 ---
 

@@ -17,25 +17,34 @@ NICHT kann) und **selektions-bewusst**.
 | Stufe | Schaltplan (Elektrik) | Platine (Fertigung) | Gate |
 |---|---|---|---|
 | 🔬 Draft | baut, Netzlisten-Roundtrip 10/10 | baut, Footprints echt | `test_demo_kits` |
-| ✅ Verified | **Pin-für-Pin gegen Herstellerdatenblatt** (Quelle in Spec/Block) | Platzierung kollisionsfrei | Review-Log + `test_pcb_placement` |
-| ⭐ Prime-Time | Verified **+** als Circuit-Block+Rezept modelliert | **0 DRC-Fehler / 0 offene Netze** (kicad-cli) | `test_finished_kits_route_drc_clean` |
+| ✅ Verified | **genau eine** Achse grün: entweder Schaltplan datenblatt-geprüft **oder** Platine 0 DRC | (die jeweils andere offen) | `test_pcb_placement` / Review-Log |
+| ⭐ Prime-Time | **beide** Achsen: Schaltplan Pin-für-Pin datenblatt-geprüft (`verified`) **und** Platine 0 DRC / 0 offen (`board_clean`) | | `test_finished_kits_route_drc_clean` + Review-Log |
 
-**Regel:** „⭐" ist ein grüner Test (`_DONE_KITS`-Gate), keine Meinung.
+**Zwei unabhängige Achsen**, ein Menü-Symbol (implementiert in
+`demo_kits.stage`): `verified` (Schaltplan) und `board_clean` (Platine). ⭐ =
+beide, ✅ = eine, 🔬 = keine. Beide Default `False` → neue/geänderte Kits sind
+automatisch 🔬. Das Modellieren als Circuit-Block+Rezept (Verschmelzung
+0.27.0) ist das **Wartungs-Mittel**, um `verified` dauerhaft zu halten — kein
+eigener Gate. **Regel:** „⭐"/`board_clean` ist ein grüner Test
+(`board_clean_keys()` → `_DONE_KITS`), keine Meinung.
 
 ## Baseline 2026-07-07 (frisch gemessen, aktueller Code)
 
 | Kit | err | offen | Haupt-Fehlertypen | Stufe |
 |---|---|---|---|---|
-| buck_converter | 0 | 0 | — | ⭐ |
-| motor_driver | 0 | 0 | — | ⭐ |
-| led_ring | 0 | 0 | — | ✅ (Review fehlt) |
-| kit_seeding | 0 | 0 | — | ✅ (Review fehlt) |
-| production_ready | 0 | 0 | — | ✅ (Review fehlt) |
-| audio_amp | 0 | **2** | versiegelte Pin-Tasche U1:3 | ✅ (Block ✓) |
-| sketch_to_copper | 0 | **1** | 1 Netz nicht erreichbar | 🔬 (bewusst Skizze) |
+| buck_converter | 0 | 0 | MP1584 ✓ | ⭐ |
+| motor_driver | 0 | 0 | DRV8871 ✓ | ⭐ |
+| led_ring | 0 | 0 | WS2812B ✓ (0.30.0) | ⭐ |
+| kit_seeding | 0 | 0 | NE555 ✓ (0.30.0) | ⭐ |
+| audio_amp | 0 | **2** | LM386 ✓ | ✅ (Platine: Pin-Tasche U1:3) |
+| production_ready | 0 | 0 | 74HC595 8-Pin-Reduktion → Rework offen | ✅ (Schaltplan offen) |
+| sketch_to_copper | 0 | **1** | AMS1117 ✓ (0.30.0) | ✅ (Platine: bewusst Skizze) |
 | ac_dc_supply | **10** | 1 | pth_inside_courtyard ×4, courtyards_overlap ×2, shorting ×2, mask ×2 | 🔬 |
 | ethernet_device | **14** | **25** | clearance ×7, mask ×5, shorting ×2 (LQFP-48-Umfeld) | 🔬 |
 | usb_sensor_hub | **31** | **22** | mask ×14, clearance ×9, shorting ×7, crossing ×1 (LQFP-48) | 🔬 |
+
+**Stand nach 0.30.0: 4 ⭐ / 3 ✅ / 3 🔬.** Datenblatt-Belege je Kit in
+`docs/kit_datasheet_reviews.md`.
 
 ---
 
@@ -115,9 +124,9 @@ den Block. Reihenfolge nach Demo-Wert:
 
 | Kit | IC(s) | Referenz-Datenblatt | Kern-Prüfpunkte |
 |---|---|---|---|
-| led_ring | WS2812B | Worldsemi V5 | VDD 100n je LED (Pflicht!), DIN/DOUT-Kette, 5-V-Pegel |
-| kit_seeding | NE555 | TI SLFS022 | Astabil-Formeln R1/R2/C, CV-Abblock 10n, Reset an VCC |
-| production_ready | 74HC595 | Nexperia | MR/OE-Beschaltung, VCC-Abblock, Kaskaden-Pinout |
+| ~~led_ring~~ ✓0.30.0 | WS2812B | Worldsemi V5 | DIN/DOUT-Kette, 5-V-Pegel, 100n-Abblockung (1 je 2 LEDs, dok.) |
+| ~~kit_seeding~~ ✓0.30.0 | NE555 | TI SLFS022 | Astabil-Formeln R1/R2/C, CV-Abblock 10n, Reset an VCC |
+| production_ready | 74HC595 | Nexperia | **Rework auf echtes 16-Pin** (/OE→GND Pin13, /SRCLR→VCC Pin10, RCLK Pin12 verdrahten) |
 | ac_dc_supply | TNY268 + PC817 + TL431 | Power Integrations TNY263-268 | EN/BP-Pin-Beschaltung, Bias-Wicklung, TL431-Feedback-Teiler, **Kriechstrecken-Zonen prim/sek** |
 | usb_sensor_hub | STM32F103C8 + BME280 + AMS1117 | ST DS5319 + Bosch BST-BME280 | VDDA/VBAT, BOOT0-Strap, NRST-C, USB-DP-Pullup 1k5, BME280 CSB/SDO-Straps |
 | ethernet_device | STM32F407 + LAN8720 | ST + Microchip DS8720 | RMII-Pin-Zuordnung, 49R9-Terminierungen, XTAL-Beschaltung, PHY-Straps |

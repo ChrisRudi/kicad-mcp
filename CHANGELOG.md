@@ -8,6 +8,23 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (Datenblatt-Review: 3 weitere Kits verified — Roadmap Phase 3 — 0.30.0)
+- **kit_seeding (NE555), led_ring (WS2812B), sketch_to_copper (AMS1117-5.0)**
+  Pin-für-Pin gegen Datenblatt geprüft und auf `verified=True` gesetzt. Belege
+  in `docs/kit_datasheet_reviews.md` (NE555: Astabil Ra=R1/Rb=R2/C1, CV-Cap
+  C2 10n, RESET→VCC, f≈1,38 Hz; AMS1117: In/Out-Caps 10µ/22µ; WS2812B: Pinout
+  + Daisy-Chain, Abblockung dokumentiert 1×100n je 2 LEDs — 6 Caps sprengen
+  die Kupfer-Kantenabstände des runden Boards, 3 halten es 0/0).
+- **Stand jetzt 4 ⭐ / 3 ✅ / 3 🔬** (vorher 2/4/4): buck, motor, kit_seeding,
+  led_ring sind ⭐ (Platine 0 DRC + Schaltplan datenblatt-echt). Nur
+  `verified`-Metadaten + Docs geändert — `_DONE_KITS`/Board unberührt (null
+  DRC-Risiko).
+- **Roadmap-Lebenszyklus geschärft:** ⭐ = beide Achsen (`board_clean` +
+  `verified`), ✅ = eine, 🔬 = keine; das Circuit-Block+Rezept-Modellieren ist
+  Wartungs-Mittel für `verified`, kein eigener Gate (`docs/roadmap.md`).
+- **Offen:** production_ready trägt ein 8-Pin-reduziertes 74HC595 (real 16-Pin,
+  RCLK unbeschaltet) → Rework nötig vor `verified`; bleibt board_clean (✅).
+
 ### Added (Kit-Reife-Labels aus einer Quelle — Roadmap Phase 1 — 0.29.0)
 - **Zwei-Achsen-Reife am Bausatz:** `DemoKit` bekommt `board_clean` (Platine
   0 DRC / 0 offen) und `verified` (Schaltplan Pin-für-Pin datenblatt-geprüft),
