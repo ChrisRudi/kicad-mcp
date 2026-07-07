@@ -1,0 +1,273 @@
+{
+  "schema_version": "1.1",
+  "chip": "MP1584",
+  "value": "MP1584",
+  "manufacturer": "Monolithic Power Systems",
+  "datasheet_url": "https://www.monolithicpower.com/en/mp1584.html",
+  "package": "SOIC-8",
+  "kicad_symbol": "Regulator_Switching:MP1584",
+  "kicad_symbol_note": "Kein Stock-Symbol in KiCads Lib — lib_id ist der konventionelle Platz; validate_circuit_block warnt, bis eine User-Lib das Symbol stellt.",
+  "kicad_footprint": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+  "ic_pcb_group": "main_ic",
+  "comment": "MP1584 Typical Application 5 V; Pinout doppelt verifiziert; COMP-RC nach MPS-Designverfahren (fc ≈ fsw/20), FREQ-R Modul-Standard.",
+  "pins": [
+    {
+      "num": 1,
+      "name": "SW",
+      "type": "output"
+    },
+    {
+      "num": 2,
+      "name": "EN",
+      "type": "input",
+      "net": "VIN"
+    },
+    {
+      "num": 3,
+      "name": "COMP",
+      "type": "passive"
+    },
+    {
+      "num": 4,
+      "name": "FB",
+      "type": "input"
+    },
+    {
+      "num": 5,
+      "name": "GND",
+      "type": "power_in"
+    },
+    {
+      "num": 6,
+      "name": "FREQ",
+      "type": "passive"
+    },
+    {
+      "num": 7,
+      "name": "VIN",
+      "type": "power_in"
+    },
+    {
+      "num": 8,
+      "name": "BST",
+      "type": "passive"
+    }
+  ],
+  "peripherals": [
+    {
+      "id": "L_OUT",
+      "role": "l_out",
+      "between": [
+        "SW",
+        "VOUT"
+      ],
+      "part_name": "Inductor",
+      "value": "10uH",
+      "kicad_footprint": "Inductor_SMD:L_12x12mm_H8mm",
+      "pin_names": [
+        "P1",
+        "P2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "SW",
+        "2": "VOUT"
+      },
+      "required": true
+    },
+    {
+      "id": "C_IN",
+      "role": "c_in",
+      "between": [
+        "VIN",
+        "GND"
+      ],
+      "part_name": "C",
+      "value": "10u",
+      "kicad_footprint": "Capacitor_SMD:C_1210_3225Metric",
+      "pin_names": [
+        "P1",
+        "P2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "VIN",
+        "2": "GND"
+      },
+      "required": true
+    },
+    {
+      "id": "C_OUT",
+      "role": "c_out",
+      "between": [
+        "VOUT",
+        "GND"
+      ],
+      "part_name": "C",
+      "value": "22u",
+      "kicad_footprint": "Capacitor_SMD:C_1210_3225Metric",
+      "pin_names": [
+        "P1",
+        "P2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "VOUT",
+        "2": "GND"
+      },
+      "required": true
+    },
+    {
+      "id": "C_BST",
+      "role": "c_bst",
+      "between": [
+        "SW",
+        "BST"
+      ],
+      "part_name": "C",
+      "value": "100n",
+      "kicad_footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pin_names": [
+        "P1",
+        "P2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "SW",
+        "2": "BST"
+      },
+      "required": true
+    },
+    {
+      "id": "D_FW",
+      "role": "d_fw",
+      "between": [
+        "SW",
+        "GND"
+      ],
+      "part_name": "D_Schottky",
+      "value": "SS34",
+      "kicad_footprint": "Diode_SMD:D_SMA",
+      "pin_names": [
+        "K",
+        "A"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "SW",
+        "2": "GND"
+      },
+      "required": true
+    },
+    {
+      "id": "R_FB_H",
+      "role": "r_fb_h",
+      "between": [
+        "VOUT",
+        "FB"
+      ],
+      "part_name": "R",
+      "value": "100k",
+      "kicad_footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pin_names": [
+        "P1",
+        "P2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "VOUT",
+        "2": "FB"
+      },
+      "required": true
+    },
+    {
+      "id": "R_FB_L",
+      "role": "r_fb_l",
+      "between": [
+        "FB",
+        "GND"
+      ],
+      "part_name": "R",
+      "value": "19k1",
+      "kicad_footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pin_names": [
+        "P1",
+        "P2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "FB",
+        "2": "GND"
+      },
+      "required": true
+    },
+    {
+      "id": "R_FREQ",
+      "role": "r_freq",
+      "between": [
+        "FREQ",
+        "GND"
+      ],
+      "part_name": "R",
+      "value": "100k",
+      "kicad_footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pin_names": [
+        "1",
+        "2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "FREQ",
+        "2": "GND"
+      },
+      "required": true
+    },
+    {
+      "id": "R_COMP",
+      "role": "r_comp",
+      "between": [
+        "COMP",
+        "COMP_C"
+      ],
+      "part_name": "R",
+      "value": "40k2",
+      "kicad_footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pin_names": [
+        "1",
+        "2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "COMP",
+        "2": "COMP_C"
+      },
+      "required": true
+    },
+    {
+      "id": "C_COMP",
+      "role": "c_comp",
+      "between": [
+        "COMP_C",
+        "GND"
+      ],
+      "part_name": "C",
+      "value": "3n3",
+      "kicad_footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pin_names": [
+        "1",
+        "2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "COMP_C",
+        "2": "GND"
+      },
+      "required": true
+    }
+  ],
+  "external_nets": [
+    "GND",
+    "VIN",
+    "VOUT"
+  ]
+}

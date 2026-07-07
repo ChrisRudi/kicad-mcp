@@ -1,0 +1,128 @@
+{
+  "schema_version": "1.1",
+  "chip": "DRV8871",
+  "value": "DRV8871",
+  "manufacturer": "Texas Instruments",
+  "datasheet_url": "https://www.ti.com/lit/ds/symlink/drv8871.pdf",
+  "package": "SO-8 (DDA, PowerPAD)",
+  "kicad_symbol": "Driver_Motor:DRV8871DDA",
+  "kicad_footprint": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+  "ic_pcb_group": "main_ic",
+  "comment": "DRV8871 nach TI SLVSCY9B: VM-Bypass 100n + Bulk 47u (Datenblatt-Pflicht), ILIM 30k ≈ 2 A.",
+  "pins": [
+    {
+      "num": 1,
+      "name": "GND",
+      "type": "power_in"
+    },
+    {
+      "num": 2,
+      "name": "IN2",
+      "type": "input"
+    },
+    {
+      "num": 3,
+      "name": "IN1",
+      "type": "input"
+    },
+    {
+      "num": 4,
+      "name": "ILIM",
+      "type": "passive"
+    },
+    {
+      "num": 5,
+      "name": "VM",
+      "type": "power_in"
+    },
+    {
+      "num": 6,
+      "name": "OUT1",
+      "type": "output"
+    },
+    {
+      "num": 7,
+      "name": "PGND",
+      "type": "power_in",
+      "net": "GND"
+    },
+    {
+      "num": 8,
+      "name": "OUT2",
+      "type": "output"
+    }
+  ],
+  "peripherals": [
+    {
+      "id": "C_BULK",
+      "role": "c_bulk",
+      "between": [
+        "VM",
+        "GND"
+      ],
+      "part_name": "C",
+      "value": "47u",
+      "kicad_footprint": "Capacitor_SMD:CP_Elec_6.3x7.7",
+      "pin_names": [
+        "P1",
+        "P2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "VM",
+        "2": "GND"
+      },
+      "required": true
+    },
+    {
+      "id": "C_VM",
+      "role": "c_vm",
+      "between": [
+        "VM",
+        "GND"
+      ],
+      "part_name": "C",
+      "value": "100n",
+      "kicad_footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pin_names": [
+        "P1",
+        "P2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "VM",
+        "2": "GND"
+      },
+      "required": true
+    },
+    {
+      "id": "R_ILIM",
+      "role": "r_ilim",
+      "between": [
+        "ILIM",
+        "GND"
+      ],
+      "part_name": "R",
+      "value": "30k",
+      "kicad_footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pin_names": [
+        "P1",
+        "P2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "ILIM",
+        "2": "GND"
+      },
+      "required": true
+    }
+  ],
+  "external_nets": [
+    "GND",
+    "IN1",
+    "IN2",
+    "OUT1",
+    "OUT2",
+    "VM"
+  ]
+}

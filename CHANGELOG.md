@@ -8,6 +8,36 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (Eine Quelle: Demo-Kits aus Circuit-Blocks komponiert — 0.27.0)
+- **Verschmelzung der zwei Orte/Aufgaben (Nutzer-Auftrag):** Die
+  datenblatt-geprüfte IC-Applikationsschaltung lebt genau EINMAL als
+  Circuit-Block unter `kicad_mcp/resources/data/circuit_blocks/`
+  (v1.1-Schema + `connect`/`part_name`/`pin_names`/`pcb_group`-Felder;
+  Pin-`net`-Override, `""` = bewusst unbeschaltet). Ein Demo-Kit ist nur
+  noch ein **Rezept** (`…/demo_kits/recipes/<key>.json`): welcher Block,
+  welche Referenzen, welche Stecker, welche Netz-Reihenfolge
+  (`"@<block-id>"`-Platzhalter expandiert deterministisch zu den
+  Block-Anschlüssen). Die eingecheckten `demo_kits/<key>.json` sind
+  BUILD-ARTEFAKTE: `scripts/compose_demo_kits.py` regeneriert sie,
+  `tests/test_kit_compose.py` ist der Drift-Wächter (Muster
+  Bundle-Spiegel). Umgestellt: buck_converter, motor_driver, audio_amp
+  (Blocks `mp1584_buck_5v`, `drv8871_hbridge`, `lm386_amp20` mit
+  Hersteller/Datenblatt/Quelle; Rekomposition gegen den 0.26.1-Stand
+  elektrisch verifiziert). Composer:
+  `kicad_mcp/generators/circuit_block/kit_compose.py`.
+- **Blocks umgezogen:** `examples/circuit_block/*.json`
+  (tps54202_buck_3v3, ams1117_ldo_3v3, lm358_opamp) →
+  `kicad_mcp/resources/data/circuit_blocks/` (ausgeliefert statt nur im
+  Repo); `examples/circuit_block/README.md` ist reiner Wegweiser. Alle
+  sechs Blocks sind vollwertige v1.1-Specs (die drei Kit-Blocks bekamen
+  `kicad_symbol` + `between` je Peripherie; MP1584 hat kein
+  Stock-Symbol — `kicad_symbol_note` dokumentiert das, validate warnt
+  nur). Schema-Gate: `test_schema_validates_shipped_blocks`.
+- **Nackte Block-Namen:** `validate_circuit_block` / `apply_circuit_block`
+  akzeptieren jetzt `spec="mp1584_buck_5v"` — `_load_spec_from_arg` löst
+  Namen ohne Pfadtrenner gegen die ausgelieferte Block-Bibliothek auf
+  (Pfad und Inline-JSON unverändert).
+
 ### Added (Demo-UX: Speicherort, Auto-Öffnen, geführter Ablauf — 0.26.2)
 - **Nutzer-Feedback umgesetzt:** (1) Demo-Projekte landen sichtbar unter
   `Dokumente/KiCad/claude-demos/<kit>/` statt im versteckten

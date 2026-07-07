@@ -44,11 +44,26 @@ def _load_spec_from_arg(spec_arg: str) -> tuple[Optional[dict], Optional[str]]:
     Returns ``(spec_dict, error_message)``. Exactly one of the two is
     non-None. Path detection: if the string contains a path separator and
     points to an existing file we treat it as a path; otherwise we
-    json.loads() it as inline JSON.
+    json.loads() it as inline JSON. A bare name without separator/brace
+    (e.g. ``"mp1584_buck_5v"``) resolves against the shipped block library
+    ``resources/data/circuit_blocks/`` — the single home of the blocks.
     """
     if not spec_arg:
         return None, "spec is empty"
     spec_arg = spec_arg.strip()
+
+    # Bare block name → shipped library (one source for kits AND apply).
+    if ("/" not in spec_arg and "\\" not in spec_arg
+            and not spec_arg.startswith("{")):
+        from kicad_mcp.generators.circuit_block.kit_compose import BLOCKS_DIR
+        name = spec_arg[:-5] if spec_arg.endswith(".json") else spec_arg
+        shipped = os.path.join(BLOCKS_DIR, f"{name}.json")
+        if os.path.isfile(shipped):
+            try:
+                with open(shipped, encoding="utf-8") as fh:
+                    return json.load(fh), None
+            except Exception as exc:
+                return None, f"Failed to read shipped block {shipped!r}: {exc}"
 
     # Path?
     looks_like_path = (
@@ -166,9 +181,11 @@ def register_circuit_block_tools(mcp: FastMCP) -> None:
         ``schema_v1_1.json`` and reports JSON-Schema-style messages.
 
         Args:
-            spec: Either a path to a ``.json`` file or an inline JSON
-                string. Both are accepted to keep the LLM-driver from
-                having to write to disk for one-shot validations.
+            spec: Either a path to a ``.json`` file, an inline JSON
+                string, or the bare name of a shipped block (e.g.
+                ``"mp1584_buck_5v"`` — resolved against
+                ``resources/data/circuit_blocks/``, the same blocks the
+                demo kits are composed from).
 
         Returns:
             ``{success, errors: [str], warnings: [str], chip, schema_version,
@@ -229,7 +246,10 @@ def register_circuit_block_tools(mcp: FastMCP) -> None:
         Args:
             sch_path: ``.kicad_sch`` to patch. WSL- and Windows-style
                 paths both accepted.
-            spec: Path to a v1.1 spec ``.json`` file or inline JSON.
+            spec: Path to a v1.1 spec ``.json`` file, inline JSON, or
+                the bare name of a shipped block (e.g.
+                ``"mp1584_buck_5v"`` from
+                ``resources/data/circuit_blocks/``).
             instance_id: Reference of one entry in
                 ``spec.instances[]``. Empty = no instance loop, the
                 root-level ``placement`` is used. To apply all

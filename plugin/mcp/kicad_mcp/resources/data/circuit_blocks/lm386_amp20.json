@@ -1,0 +1,213 @@
+{
+  "schema_version": "1.1",
+  "chip": "LM386",
+  "value": "LM386",
+  "manufacturer": "Texas Instruments",
+  "datasheet_url": "https://www.ti.com/lit/ds/symlink/lm386.pdf",
+  "package": "SOIC-8",
+  "kicad_symbol": "Amplifier_Audio:LM386",
+  "kicad_footprint": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+  "ic_pcb_group": "main_ic",
+  "comment": "LM386 Typical Application gain=20 (Pins 1/8 offen): Zobel 10R+47n, Bypass 10u, Eingangskopplung 10u.",
+  "pins": [
+    {
+      "num": 1,
+      "name": "GAIN",
+      "type": "passive",
+      "net": ""
+    },
+    {
+      "num": 2,
+      "name": "IN-",
+      "type": "input",
+      "net": "GND"
+    },
+    {
+      "num": 3,
+      "name": "IN+",
+      "type": "input",
+      "net": "IN_NODE"
+    },
+    {
+      "num": 4,
+      "name": "GND",
+      "type": "power_in"
+    },
+    {
+      "num": 5,
+      "name": "VOUT",
+      "type": "output"
+    },
+    {
+      "num": 6,
+      "name": "VS",
+      "type": "power_in"
+    },
+    {
+      "num": 7,
+      "name": "BYPASS",
+      "type": "passive"
+    },
+    {
+      "num": 8,
+      "name": "GAIN",
+      "type": "passive",
+      "net": ""
+    }
+  ],
+  "peripherals": [
+    {
+      "id": "R_IN",
+      "role": "r_in",
+      "between": [
+        "IN_NODE",
+        "GND"
+      ],
+      "part_name": "R",
+      "value": "10k",
+      "kicad_footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pin_names": [
+        "P1",
+        "P2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "IN_NODE",
+        "2": "GND"
+      },
+      "required": true
+    },
+    {
+      "id": "R_ZOBEL",
+      "role": "r_zobel",
+      "between": [
+        "VOUT",
+        "ZOBEL"
+      ],
+      "part_name": "R",
+      "value": "10R",
+      "kicad_footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pin_names": [
+        "P1",
+        "P2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "VOUT",
+        "2": "ZOBEL"
+      },
+      "required": true
+    },
+    {
+      "id": "C_IN",
+      "role": "c_in",
+      "between": [
+        "AUDIO_IN",
+        "IN_NODE"
+      ],
+      "part_name": "C",
+      "value": "10u",
+      "kicad_footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pin_names": [
+        "P1",
+        "P2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "AUDIO_IN",
+        "2": "IN_NODE"
+      },
+      "required": true
+    },
+    {
+      "id": "C_OUT",
+      "role": "c_out",
+      "between": [
+        "VOUT",
+        "SPK"
+      ],
+      "part_name": "C",
+      "value": "220u",
+      "kicad_footprint": "Capacitor_SMD:CP_Elec_6.3x7.7",
+      "pin_names": [
+        "P1",
+        "P2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "VOUT",
+        "2": "SPK"
+      },
+      "required": true
+    },
+    {
+      "id": "C_VS",
+      "role": "c_vs",
+      "between": [
+        "VS",
+        "GND"
+      ],
+      "part_name": "C",
+      "value": "100n",
+      "kicad_footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pin_names": [
+        "P1",
+        "P2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "VS",
+        "2": "GND"
+      },
+      "required": true
+    },
+    {
+      "id": "C_BYP",
+      "role": "c_byp",
+      "between": [
+        "BYPASS",
+        "GND"
+      ],
+      "part_name": "C",
+      "value": "10u",
+      "kicad_footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pin_names": [
+        "P1",
+        "P2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "BYPASS",
+        "2": "GND"
+      },
+      "required": true
+    },
+    {
+      "id": "C_ZOBEL",
+      "role": "c_zobel",
+      "between": [
+        "ZOBEL",
+        "GND"
+      ],
+      "part_name": "C",
+      "value": "47n",
+      "kicad_footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pin_names": [
+        "P1",
+        "P2"
+      ],
+      "pcb_group": "passive",
+      "connect": {
+        "1": "ZOBEL",
+        "2": "GND"
+      },
+      "required": true
+    }
+  ],
+  "external_nets": [
+    "AUDIO_IN",
+    "GND",
+    "SPK",
+    "VS"
+  ]
+}

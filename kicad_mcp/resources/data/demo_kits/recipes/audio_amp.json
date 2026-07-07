@@ -1,0 +1,148 @@
+{
+  "project_name": "audio_amp",
+  "description": "Audioverstärker LM386, minimale Applikation mit Verstärkung 20 (Pins 1/8 offen) — nach dem TI-LM386-Datenblatt (Typical Application, gain=20): Eingangskopplung 10 µ + 10k-Last, Ausgangs-Elko 220 µ zum Lautsprecher, Zobel-Glied 10 Ω + 47 n, Bypass 10 µ (Pin 7), Versorgungs-Entkopplung 100 n, eigener Versorgungsstecker (J3). Referenz: ti.com/lit/ds/symlink/lm386.",
+  "board": {
+    "shape": "rectangle",
+    "width": 46,
+    "depth": 40,
+    "layers": 2
+  },
+  "blocks": [
+    {
+      "id": "b1",
+      "block": "lm386_amp20",
+      "ic_ref": "U1",
+      "refs": {
+        "C_IN": "C1",
+        "R_IN": "R1",
+        "C_OUT": "C2",
+        "R_ZOBEL": "R2",
+        "C_ZOBEL": "C5",
+        "C_BYP": "C4",
+        "C_VS": "C3"
+      }
+    }
+  ],
+  "extra_parts": [
+    {
+      "ref": "J1",
+      "name": "Conn_01x02",
+      "value": "IN",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "IN",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "_pcb_group": "connector_in"
+    },
+    {
+      "ref": "J2",
+      "name": "Conn_01x02",
+      "value": "SPK",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "OUTP",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "_pcb_group": "connector_out"
+    },
+    {
+      "ref": "J3",
+      "name": "Conn_01x02",
+      "value": "PWR",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "Pin_1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "Pin_2",
+          "type": "passive"
+        }
+      ]
+    }
+  ],
+  "nets": [
+    {
+      "name": "VS",
+      "type": "power",
+      "connections": [
+        "@b1",
+        "J3:1"
+      ]
+    },
+    {
+      "name": "GND",
+      "type": "power",
+      "connections": [
+        "J1:2",
+        "J2:2",
+        "@b1",
+        "J3:2"
+      ]
+    },
+    {
+      "name": "AUDIO_IN",
+      "type": "signal",
+      "connections": [
+        "J1:1",
+        "@b1"
+      ]
+    },
+    {
+      "name": "IN_NODE",
+      "type": "signal",
+      "connections": [
+        "@b1"
+      ]
+    },
+    {
+      "name": "VOUT",
+      "type": "signal",
+      "connections": [
+        "@b1"
+      ]
+    },
+    {
+      "name": "SPK",
+      "type": "signal",
+      "connections": [
+        "@b1",
+        "J2:1"
+      ]
+    },
+    {
+      "name": "ZOBEL",
+      "type": "signal",
+      "connections": [
+        "@b1"
+      ]
+    },
+    {
+      "name": "BYPASS",
+      "type": "signal",
+      "connections": [
+        "@b1"
+      ]
+    }
+  ]
+}

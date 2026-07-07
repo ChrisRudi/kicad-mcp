@@ -1,0 +1,138 @@
+{
+  "project_name": "buck_converter",
+  "description": "Abwärtswandler MP1584 auf 5 V nach MPS-Datenblatt: Pinout verifiziert (1 SW, 2 EN, 3 COMP, 4 FB, 5 GND, 6 FREQ, 7 VIN, 8 BST); EN direkt an VIN (Datenblatt: automatischer Start). FB-Teiler 100k/19k1 → 0.8 V·(1+R1/R2) = 4,99 V. Boot-C 100 n (BST–SW), L 10 µH, Cin 10 µ, Cout 22 µ (Datenblatt-Testbedingungen), SS34-Freilauf (nicht-synchron). FREQ-R 100k (Modul-Standard), COMP-Serien-RC 40k2+3n3 nach MPS-Designverfahren (fc ≈ fsw/20).",
+  "board": {
+    "shape": "rectangle",
+    "width": 50,
+    "depth": 40,
+    "layers": 2
+  },
+  "blocks": [
+    {
+      "id": "b1",
+      "block": "mp1584_buck_5v",
+      "ic_ref": "U1",
+      "refs": {
+        "L_OUT": "L1",
+        "C_IN": "C1",
+        "C_OUT": "C2",
+        "C_BST": "C3",
+        "D_FW": "D1",
+        "R_FB_H": "R1",
+        "R_FB_L": "R2",
+        "R_FREQ": "R3",
+        "R_COMP": "R4",
+        "C_COMP": "C4"
+      }
+    }
+  ],
+  "extra_parts": [
+    {
+      "ref": "J1",
+      "name": "Conn_01x02",
+      "value": "VIN",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "+",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "_pcb_group": "connector_in"
+    },
+    {
+      "ref": "J2",
+      "name": "Conn_01x02",
+      "value": "VOUT",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "+",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "_pcb_group": "connector_out"
+    }
+  ],
+  "nets": [
+    {
+      "name": "VIN",
+      "type": "power",
+      "connections": [
+        "J1:1",
+        "@b1"
+      ]
+    },
+    {
+      "name": "GND",
+      "type": "power",
+      "connections": [
+        "J1:2",
+        "@b1",
+        "J2:2"
+      ]
+    },
+    {
+      "name": "SW",
+      "type": "signal",
+      "connections": [
+        "@b1"
+      ]
+    },
+    {
+      "name": "BST",
+      "type": "signal",
+      "connections": [
+        "@b1"
+      ]
+    },
+    {
+      "name": "VOUT",
+      "type": "power",
+      "connections": [
+        "@b1",
+        "J2:1"
+      ]
+    },
+    {
+      "name": "FB",
+      "type": "signal",
+      "connections": [
+        "@b1"
+      ]
+    },
+    {
+      "name": "FREQ",
+      "type": "signal",
+      "connections": [
+        "@b1"
+      ]
+    },
+    {
+      "name": "COMP",
+      "type": "signal",
+      "connections": [
+        "@b1"
+      ]
+    },
+    {
+      "name": "COMP_C",
+      "type": "signal",
+      "connections": [
+        "@b1"
+      ]
+    }
+  ]
+}

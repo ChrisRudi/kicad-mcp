@@ -119,5 +119,5 @@
   "wiring_hint": "I2C bus (SDA/SCL) as horizontal trunk with pull-ups to VCC above. Sensor IC and connector aligned on bus. Power labels for VCC/GND.",
   "block_definition": null,
   "block_definition_status": "stub",
-  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the i2c_sensor pattern. See examples/circuit_block/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
+  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the i2c_sensor pattern. See kicad_mcp/resources/data/circuit_blocks/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
 }

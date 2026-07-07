@@ -121,5 +121,5 @@
   "wiring_hint": "Direct wires for all. Labels only for power.",
   "block_definition": null,
   "block_definition_status": "stub",
-  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the timer_counter_output pattern. See examples/circuit_block/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
+  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the timer_counter_output pattern. See kicad_mcp/resources/data/circuit_blocks/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
 }

@@ -6,6 +6,13 @@ der Galerie aller 10). Die 10 Bausätze unter
 echtes KiCad (reale Footprints), sind als *Schaustück* aber noch nicht
 vorzeigbar. **Alle 10** müssen überarbeitet werden — Schaltplan UND Platine.
 
+> **Seit 0.27.0 (Verschmelzung):** buck_converter, motor_driver und
+> audio_amp sind BUILD-ARTEFAKTE — Quelle ist Circuit-Block
+> (`resources/data/circuit_blocks/`) + Rezept (`demo_kits/recipes/`),
+> `scripts/compose_demo_kits.py` regeneriert, `tests/test_kit_compose.py`
+> wacht. Diese drei Kit-JSONs nie direkt editieren. Offen: die übrigen
+> 7 Kits im gleichen Muster auf Block+Rezept umstellen.
+
 ## Was konkret nicht stimmt
 
 ### Schaltpläne — GRÖSSTENTEILS ERLEDIGT (0.12.1)

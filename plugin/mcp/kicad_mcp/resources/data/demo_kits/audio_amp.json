@@ -9,44 +9,6 @@
   },
   "parts": [
     {
-      "ref": "J1",
-      "name": "Conn_01x02",
-      "value": "IN",
-      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
-      "pins": [
-        {
-          "num": "1",
-          "name": "IN",
-          "type": "passive"
-        },
-        {
-          "num": "2",
-          "name": "GND",
-          "type": "passive"
-        }
-      ],
-      "_pcb_group": "connector_in"
-    },
-    {
-      "ref": "J2",
-      "name": "Conn_01x02",
-      "value": "SPK",
-      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
-      "pins": [
-        {
-          "num": "1",
-          "name": "OUTP",
-          "type": "passive"
-        },
-        {
-          "num": "2",
-          "name": "GND",
-          "type": "passive"
-        }
-      ],
-      "_pcb_group": "connector_out"
-    },
-    {
       "ref": "U1",
       "name": "LM386",
       "value": "LM386",
@@ -229,6 +191,44 @@
       "_pcb_group": "passive"
     },
     {
+      "ref": "J1",
+      "name": "Conn_01x02",
+      "value": "IN",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "IN",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "_pcb_group": "connector_in"
+    },
+    {
+      "ref": "J2",
+      "name": "Conn_01x02",
+      "value": "SPK",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "OUTP",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "GND",
+          "type": "passive"
+        }
+      ],
+      "_pcb_group": "connector_out"
+    },
+    {
       "ref": "J3",
       "name": "Conn_01x02",
       "value": "PWR",
@@ -263,8 +263,8 @@
       "connections": [
         "J1:2",
         "J2:2",
-        "U1:4",
         "U1:2",
+        "U1:4",
         "R1:2",
         "C3:2",
         "C4:2",
@@ -284,9 +284,9 @@
       "name": "IN_NODE",
       "type": "signal",
       "connections": [
-        "C1:2",
+        "U1:3",
         "R1:1",
-        "U1:3"
+        "C1:2"
       ]
     },
     {
@@ -294,8 +294,8 @@
       "type": "signal",
       "connections": [
         "U1:5",
-        "C2:1",
-        "R2:1"
+        "R2:1",
+        "C2:1"
       ]
     },
     {

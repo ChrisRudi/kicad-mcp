@@ -7,113 +7,19 @@
     "depth": 36,
     "layers": 2
   },
-  "parts": [
+  "blocks": [
     {
-      "ref": "U1",
-      "name": "DRV8871",
-      "value": "DRV8871",
-      "footprint": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
-      "pins": [
-        {
-          "num": "1",
-          "name": "GND",
-          "type": "power_in"
-        },
-        {
-          "num": "2",
-          "name": "IN2",
-          "type": "input"
-        },
-        {
-          "num": "3",
-          "name": "IN1",
-          "type": "input"
-        },
-        {
-          "num": "4",
-          "name": "ILIM",
-          "type": "passive"
-        },
-        {
-          "num": "5",
-          "name": "VM",
-          "type": "power_in"
-        },
-        {
-          "num": "6",
-          "name": "OUT1",
-          "type": "output"
-        },
-        {
-          "num": "7",
-          "name": "PGND",
-          "type": "power_in"
-        },
-        {
-          "num": "8",
-          "name": "OUT2",
-          "type": "output"
-        }
-      ],
-      "_pcb_group": "main_ic"
-    },
-    {
-      "ref": "C1",
-      "name": "C",
-      "value": "47u",
-      "footprint": "Capacitor_SMD:CP_Elec_6.3x7.7",
-      "pins": [
-        {
-          "num": "1",
-          "name": "P1",
-          "type": "passive"
-        },
-        {
-          "num": "2",
-          "name": "P2",
-          "type": "passive"
-        }
-      ],
-      "_pcb_group": "passive"
-    },
-    {
-      "ref": "C2",
-      "name": "C",
-      "value": "100n",
-      "footprint": "Capacitor_SMD:C_0603_1608Metric",
-      "pins": [
-        {
-          "num": "1",
-          "name": "P1",
-          "type": "passive"
-        },
-        {
-          "num": "2",
-          "name": "P2",
-          "type": "passive"
-        }
-      ],
-      "_pcb_group": "passive"
-    },
-    {
-      "ref": "R1",
-      "name": "R",
-      "value": "30k",
-      "footprint": "Resistor_SMD:R_0603_1608Metric",
-      "pins": [
-        {
-          "num": "1",
-          "name": "P1",
-          "type": "passive"
-        },
-        {
-          "num": "2",
-          "name": "P2",
-          "type": "passive"
-        }
-      ],
-      "_pcb_group": "passive"
-    },
+      "id": "b1",
+      "block": "drv8871_hbridge",
+      "ic_ref": "U1",
+      "refs": {
+        "C_BULK": "C1",
+        "C_VM": "C2",
+        "R_ILIM": "R1"
+      }
+    }
+  ],
+  "extra_parts": [
     {
       "ref": "J1",
       "name": "Conn_01x02",
@@ -197,9 +103,7 @@
       "type": "power",
       "connections": [
         "J2:1",
-        "U1:5",
-        "C1:1",
-        "C2:1"
+        "@b1"
       ]
     },
     {
@@ -207,11 +111,7 @@
       "type": "power",
       "connections": [
         "J2:2",
-        "U1:1",
-        "U1:7",
-        "C1:2",
-        "C2:2",
-        "R1:2",
+        "@b1",
         "J3:3"
       ]
     },
@@ -220,7 +120,7 @@
       "type": "signal",
       "connections": [
         "J3:1",
-        "U1:3"
+        "@b1"
       ]
     },
     {
@@ -228,14 +128,14 @@
       "type": "signal",
       "connections": [
         "J3:2",
-        "U1:2"
+        "@b1"
       ]
     },
     {
       "name": "OUT1",
       "type": "signal",
       "connections": [
-        "U1:6",
+        "@b1",
         "J1:1",
         "TP1:1"
       ]
@@ -244,7 +144,7 @@
       "name": "OUT2",
       "type": "signal",
       "connections": [
-        "U1:8",
+        "@b1",
         "J1:2"
       ]
     },
@@ -252,8 +152,7 @@
       "name": "ILIM",
       "type": "signal",
       "connections": [
-        "U1:4",
-        "R1:1"
+        "@b1"
       ]
     }
   ]

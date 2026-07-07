@@ -130,5 +130,5 @@
   "wiring_hint": "Power labels only. Linear signal chain fully wired directly.",
   "block_definition": null,
   "block_definition_status": "stub",
-  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the sensor_driver_actuator pattern. See examples/circuit_block/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
+  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the sensor_driver_actuator pattern. See kicad_mcp/resources/data/circuit_blocks/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
 }

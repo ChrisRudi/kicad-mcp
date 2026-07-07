@@ -345,24 +345,37 @@ def test_schema_file_loads():
     assert os.path.isfile(schema_path())
 
 
-def test_schema_validates_examples():
-    """Every example in examples/circuit_block/ must pass schema validation."""
-    here = os.path.dirname(os.path.abspath(__file__))
-    examples = os.path.normpath(os.path.join(here, "..", "examples", "circuit_block"))
-    if not os.path.isdir(examples):
-        pytest.skip("examples directory missing")
+def test_schema_validates_shipped_blocks():
+    """Every shipped block in resources/data/circuit_blocks/ must pass
+    schema validation — the single home (examples/ is docs-only now)."""
+    from kicad_mcp.generators.circuit_block.kit_compose import BLOCKS_DIR
     from kicad_mcp.tools.circuit_block_tools import _jsonschema_validate
 
+    names = [f for f in os.listdir(BLOCKS_DIR) if f.endswith(".json")]
+    assert names, "no shipped blocks found"
     failures: list[str] = []
-    for fname in os.listdir(examples):
-        if not fname.endswith(".json"):
-            continue
-        with open(os.path.join(examples, fname), encoding="utf-8") as fh:
+    for fname in names:
+        with open(os.path.join(BLOCKS_DIR, fname), encoding="utf-8") as fh:
             spec = json.load(fh)
         errs = _jsonschema_validate(spec)
         if errs:
             failures.append(f"{fname}: {errs}")
     assert not failures, "\n".join(failures)
+
+
+def test_load_spec_accepts_bare_block_name():
+    """validate_circuit_block("mp1584_buck_5v") resolves the shipped block."""
+    from kicad_mcp.tools.circuit_block_tools import _load_spec_from_arg
+
+    spec, err = _load_spec_from_arg("mp1584_buck_5v")
+    assert err is None
+    assert spec["chip"] == "MP1584"
+    # .json-Suffix ohne Pfadtrenner geht ebenfalls auf die Bibliothek
+    spec2, err2 = _load_spec_from_arg("mp1584_buck_5v.json")
+    assert err2 is None and spec2 == spec
+    # Unbekannter Name fällt sauber auf die JSON-Fehlermeldung durch
+    spec3, err3 = _load_spec_from_arg("no_such_block")
+    assert spec3 is None and err3
 
 
 # ===========================================================================

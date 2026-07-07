@@ -113,5 +113,5 @@
   "wiring_hint": "Power rails V+/V-/GND labeled. All signal paths direct wires. Mirror symmetry top/bottom.",
   "block_definition": null,
   "block_definition_status": "stub",
-  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the push_pull_amplifier pattern. See examples/circuit_block/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
+  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the push_pull_amplifier pattern. See kicad_mcp/resources/data/circuit_blocks/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
 }

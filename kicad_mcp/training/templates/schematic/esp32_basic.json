@@ -141,5 +141,5 @@
   "wiring_hint": "Power labels for 3V3/5V/GND. USB \u2192 LDO \u2192 ESP32 power chain. Decoupling caps close to VCC pins. GPIO direct wires to header.",
   "block_definition": null,
   "block_definition_status": "stub",
-  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the esp32_basic pattern. See examples/circuit_block/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
+  "block_definition_todo": "Fill in chip/kicad_symbol/pins/peripherals for the esp32_basic pattern. See kicad_mcp/resources/data/circuit_blocks/ and the three fully-populated templates (smps_buck_converter, linear_voltage_regulator, h_bridge) for the format. Schema: kicad_mcp/generators/circuit_block/schema_v1_1.json"
 }

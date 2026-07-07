@@ -1,0 +1,135 @@
+{
+  "schema_version": "1.1",
+  "chip": "TPS54202",
+  "manufacturer": "Texas Instruments",
+  "datasheet_url": "https://www.ti.com/lit/ds/symlink/tps54202.pdf",
+  "datasheet_revision": "SLVSCT5C",
+  "datasheet_date": "2018-03",
+
+  "package": "SO-PowerPAD-8",
+  "kicad_symbol": "Regulator_Switching:TPS54202",
+  "kicad_footprint": "Package_SO:SOIC-8-1EP_3.9x4.9mm_P1.27mm_EP2.41x3.3mm",
+
+  "pins": [
+    {"num": 1, "name": "BOOT",  "type": "passive",  "function": "Bootstrap"},
+    {"num": 2, "name": "VIN",   "type": "power_in", "function": "Input voltage"},
+    {"num": 3, "name": "EN",    "type": "input",    "function": "Enable, active high"},
+    {"num": 4, "name": "FB",    "type": "input",    "function": "Feedback voltage"},
+    {"num": 5, "name": "GND",   "type": "power_in", "function": "Logic ground"},
+    {"num": 6, "name": "SW",    "type": "output",   "function": "Switching node"},
+    {"num": 7, "name": "GND",   "type": "power_in", "function": "Power ground"},
+    {"num": 8, "name": "GND",   "type": "power_in", "function": "Thermal pad"}
+  ],
+
+  "peripherals": [
+    {
+      "id": "C_VIN",
+      "role": "input_decoupling",
+      "between": ["VIN", "GND"],
+      "value": "10uF",
+      "specs": {"type": "ceramic", "dielectric": "X7R", "voltage_min": "25V"},
+      "kicad_footprint": "Capacitor_SMD:C_0805_2012Metric",
+      "placement_hint": "as close as possible to VIN pin",
+      "source": "DS Fig 7-1, p.7",
+      "required": true
+    },
+    {
+      "id": "C_BOOT",
+      "role": "bootstrap",
+      "between": ["BOOT", "SW"],
+      "value": "100nF",
+      "specs": {"type": "ceramic", "dielectric": "X7R"},
+      "placement_hint": "close to chip",
+      "source": "DS Section 7.3.2",
+      "required": true
+    },
+    {
+      "id": "L1",
+      "role": "inductor",
+      "between": [{"pin": "SW"}, {"net": "VOUT"}],
+      "value": "4.7uH",
+      "value_formula": {
+        "expr": "(Vin_max * (Vout/Vin_max) * (1 - Vout/Vin_max)) / (fsw * dI_L)",
+        "inputs": {"Vin_max": "operating_envelope.vin_max", "Vout": "operating_envelope.vout", "fsw": 500000.0, "dI_L": 0.4}
+      },
+      "specs": {"saturation_current_min": "Iout * 1.5"},
+      "kicad_footprint": "Inductor_SMD:L_Sumida_CDRH3D11-NP-Series",
+      "source": "DS Eq 7, Fig 7-1",
+      "required": true
+    },
+    {
+      "id": "C_OUT",
+      "role": "output_decoupling",
+      "between": [{"net": "VOUT"}, "GND"],
+      "value": "22uF",
+      "specs": {"type": "ceramic", "dielectric": "X7R", "voltage_min": "10V"},
+      "kicad_footprint": "Capacitor_SMD:C_0805_2012Metric",
+      "source": "DS Fig 7-1",
+      "required": true
+    },
+    {
+      "id": "R_FB_TOP",
+      "role": "feedback_divider_top",
+      "between": [{"net": "VOUT"}, "FB"],
+      "value": "100k",
+      "value_formula": "R_top = R_bot * (Vout / Vref - 1), Vref = 0.6V",
+      "source": "DS Eq 4",
+      "required": true
+    },
+    {
+      "id": "R_FB_BOT",
+      "role": "feedback_divider_bottom",
+      "between": ["FB", "GND"],
+      "value": "22.1k",
+      "comment": "default for Vout = 3.3V",
+      "source": "DS Eq 4",
+      "required": true
+    },
+    {
+      "id": "R_EN_PD",
+      "role": "enable_pulldown",
+      "between": ["EN", "GND"],
+      "value": "100k",
+      "comment": "if EN not driven by host MCU, this pulldown keeps the regulator off until commanded",
+      "source": "DS Section 7.3.3",
+      "required": false
+    }
+  ],
+
+  "external_nets": [
+    {"name": "VIN",  "direction": "input",  "type": "power"},
+    {"name": "VOUT", "direction": "output", "type": "power", "net_class": "power_2A"},
+    {"name": "GND",  "direction": "passive","type": "ground"},
+    {"name": "EN",   "direction": "input",  "type": "signal"}
+  ],
+
+  "operating_envelope": {
+    "vin_min": 4.5,
+    "vin_max": 28.0,
+    "vout": 3.3,
+    "vout_min": 0.6,
+    "iout_max": 2.0,
+    "fsw_typ": 500000
+  },
+
+  "power_pins_use_kicad_power_symbols": true,
+  "sheet_scope": "root",
+
+  "placement": {
+    "x_mm": 100.0,
+    "y_mm": 80.0,
+    "rotation_deg": 0,
+    "side": "F.Cu"
+  },
+
+  "section_frame": {
+    "title": "Power: TPS54202 Buck → 3V3",
+    "x_mm": 80.0,
+    "y_mm": 60.0,
+    "w_mm": 80.0,
+    "h_mm": 60.0
+  },
+
+  "review_status": "verified_against_datasheet",
+  "needs_review": []
+}

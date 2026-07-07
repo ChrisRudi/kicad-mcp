@@ -1,7 +1,24 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.26.2**
+Aktuelle Version: **0.27.0**
+
+---
+
+## 🧩 Neu in 0.27.0 — Eine Quelle für Schaltungsblöcke und Demos
+
+- **Zwei Orte verschmolzen:** Die datenblatt-geprüften IC-Schaltungen
+  (Buck-Converter, Motortreiber, Audio-Verstärker, Spannungsregler, …)
+  leben jetzt genau EINMAL — als Circuit-Blocks in den ausgelieferten
+  Ressourcen. Die Demo-Bausätze werden daraus komponiert (Block +
+  kleines Rezept), statt die Schaltung ein zweites Mal zu beschreiben.
+- **Blöcke direkt nutzbar:** `apply_circuit_block` und
+  `validate_circuit_block` verstehen jetzt den nackten Block-Namen
+  (z. B. „mp1584_buck_5v") — kein Dateipfad mehr nötig, um eine
+  fertige Regler-/Treiber-Beschaltung in den eigenen Schaltplan zu
+  übernehmen. Sechs Blocks ausgeliefert.
+- **Drift-Wächter:** Ein Test stellt sicher, dass Bausatz und Block
+  nie auseinanderlaufen (wie beim Plugin-Bundle-Spiegel).
 
 ---
 
