@@ -91,35 +91,57 @@ alle Gates grün. **Aufwand:** ~½ Tag. **Risiko:** keins (nur Anzeige+Gate).
 - **Akzeptanz:** audio in `_DONE_KITS` (0/0) ODER dokumentierte Grenze bleibt
   explizit (dann bleibt ✅). **Aufwand:** 1–2 Tage, Forschungsanteil.
 
-**2c. usb_sensor_hub (31/22) + ethernet_device (14/25) — Fine-Pitch-Fähigkeit**
-- Befund: Fehler clustern am **LQFP-48 (0,5-mm-Pitch)** — das 0,635-mm-Raster
-  kann Pads weder konfliktfrei anfahren noch zwischen ihnen hindurch
-  (clearance+mask+shorting), und 22–25 Netze bleiben unerreichbar.
-- Arbeitspakete (Reihenfolge):
-  1. **Feinraster um Fine-Pitch-Zonen**: lokal 0,3175 mm (½ Raster) in einem
-     Fenster um Footprints mit Pad-Pitch < 0,65 mm; global bleibt 0,635
-     (Laufzeit!). Alternativ: Escape-Routing je LQFP-Pad auf den Grobraster-
-     Ring (Fanout-Stubs), danach normal routen — industrieüblich, vermutlich
-     der sauberere Schnitt.
-  2. **Rip-up & Reroute light:** scheitert ein Netz, die 1–2 blockierenden
-     Segmente entfernen, beide neu routen (max N Runden, deterministisch).
-  3. **Mask-Bridges:** bei 0,5-mm-Pitch sind KiCads mask-bridge-Fehler z. T.
-     footprint-inhärent → prüfen, ob `solder_mask_min_width`-Boardsetup die
-     ehrliche Antwort ist statt Router-Verrenkung.
-  4. USB-D±: als Paar nacheinander mit gemeinsamem Korridor routen (kein
-     echtes Diff-Pair-Tuning — nur Nachbarschaft, semantisch ehrlich).
-- **Akzeptanz:** beide Kits ≤ 2 err / 0 offen als Zwischenziel, dann 0/0 in
-  `_DONE_KITS`; Laufzeit Galerie < 5 min gesamt; Determinismus 3 Seeds.
-- **Aufwand:** 3–5 Tage (der Forschungsbrocken). **Risiko:** mittel —
-  Fanout-Ansatz zuerst, Feinraster nur falls nötig.
-- **Messdaten 2026-07-07 (Feinraster-Experiment, verworfen):** globales
-  `_PITCH` von 0,635 → 0,5 senkte usb 31→23, ethernet 14→6 (buck blieb 0/0),
-  aber die OFFENEN Netze stiegen (usb 22, ethernet 18) und usb bleibt weit von
-  0. 0,4 half nicht mehr. **Fazit:** Ein globaler Raster-Tweak reicht NICHT
-  und würde alle 7 sauberen Boards neu würfeln (Determinismus/DRC-Risiko).
-  Der saubere Schnitt ist **echtes Fanout/Escape-Routing je Fine-Pitch-Pad**
-  (Pad → Grobraster-Ring, dann normal) — eigener fokussierter Anlauf mit dem
-  DRC-Gate als Absicherung der 7 ⭐/✅. Bewusst NICHT im Schnellschuss.
+**2c. usb_sensor_hub + ethernet_device — Fein-Pitch-Plan (Detailfassung
+2026-07-07, diagnose-basiert)**
+
+**Diagnose (gemessen, nicht vermutet):**
+- **ethernet (14 err / 25 offen) ist ein REINES Stummel-Problem:** alle
+  err sind 0,2–0,5-mm-Track-Stummel, die am LQFP **seitlich übers
+  Nachbar-Pad** laufen (der Pad-Anschluss-Stub des Routers hat bei
+  Fein-Pitch keine Richtungs-Beschränkung); JEDES Signalnetz ist genau
+  1× offen (Pad nicht erreichbar). Kein Kit-Fehler.
+- **usb (31 err / 22 offen) ist ZUR HÄLFTE ein Kit-Spec-Fehler:** das
+  USB-C-Receptacle (TYPE-C-31-M-12) hat gespiegelte Pad-Duplikate
+  (A1/B12/B1/A12=GND, A4/B9/B4/A9=VBUS, B6/B7=zweites DP/DM, B5=CC2) —
+  das Kit beschaltet nur die A-Seite, die B-Pads sind netzlos →
+  shorting/clearance/mask zwischen Nachbar-Pads + offene GND/VBUS/P3V3.
+  Der Rest ist dasselbe LQFP-Stummel-Problem wie ethernet.
+- **Feinraster-Experiment (verworfen):** globales `_PITCH` 0,635→0,5:
+  usb 31→23, eth 14→6, buck 0/0 — aber offene Netze STEIGEN und alle
+  7 sauberen Boards würden neu gewürfelt. Kein globaler Tweak.
+
+**Arbeitspakete (jede Stufe einzeln releasbar, Messlatte = pcb_gallery):**
+1. **U1 — USB-C-Kit-Fix (nur Spec, 0 Router-Risiko):** alle Duplikat-Pads
+   benetzen (B1/B12→GND, B4/B9→VBUS, B6→USB_DP, B7→USB_DM), B5=CC2 mit
+   eigenem 5k1-Rd (Datenblatt-korrekt für UFP), deklarierte J1-Pins
+   vervollständigen. Erwartung: usb-err halbiert, GND/VBUS schließbar.
+2. **U2 — Senkrechte Escape-Stubs (der Kern, fein-pitch-gated):** für Pads
+   an Footprints mit **Pad-Pitch < 0,65 mm** (a) Stub-Richtung senkrecht
+   zur Pad-Reihe nach AUSSEN (vom IC-Zentrum weg), (b) Startzellen des
+   Routings nur in dieser Richtung zulassen, (c) Stub als eigenes
+   Netz-Hindernis markieren. **Nachhaltigkeits-Eigenschaft: das Gating
+   (Pitch-Schwelle) garantiert, dass die 7 ⭐-Boards (kein Fein-Pitch)
+   byte-identisch bleiben** — Hash-Vergleich vor/nach ist der Dev-Gate,
+   der DRC-Gate (`_DONE_KITS`) der permanente. Erwartung: eth → 0/0.
+3. **U3 — Korridor-Politur:** Rip-up-Runden 1→2 (nur wenn Runde 1 nicht
+   reicht), Fein-Pitch-Netze in der Reihenfolge nach vorn. Erwartung:
+   usb → 0/0.
+4. **U4 — Mask-Bridges neu messen:** nach U1–U3; verbleibende
+   footprint-inhärente Fälle ehrlich dokumentieren statt Router-Verrenkung.
+5. **U5 — Datenblatt-Reviews (→ verified → ⭐):** usb: STM32F103C8
+   (BOOT0-Strap!, NRST-C, USB-DP-1k5-Pullup — F103 hat kein internes),
+   BME280 (CSB/SDO-Straps), AMS1117-Block wiederverwenden; eth: LAN8720
+   (Straps, RBIAS 12k1, **49R9-RMII-Terminierungen fehlen**), RJ45 ist
+   4-Pin-vereinfacht (Magnetics!) → Grenze dokumentieren oder HR911105A
+   voll ausführen. Jeder Review endet als Block+Rezept (Phase 4-Muster).
+
+**Akzeptanz je Stufe:** Galerie-Messung dokumentiert; board_clean erst
+wenn DRC-Gate grün; Determinismus 2 Seeds je Release; 7 ⭐ unverändert
+(U2: byte-identisch). **Endzustand: 10/10 mindestens board_clean, Ziel
+9–10 ⭐** (sketch bleibt ggf. bewusst Skizze).
+**Aufwand:** U1 ½ Tag · U2 1–2 Tage (Kern) · U3 ½–1 Tag · U4 ¼ Tag ·
+U5 1–2 Tage. **Risiko:** U1/U4/U5 minimal (Spec/Docs); U2/U3 mittel,
+durch Gating + Gates eingehegt.
 
 **2d. sketch_to_copper (0/1):** nach 2c neu messen; vermutlich fällt das eine
 offene Netz mit dem Escape-Routing. Bleibt sonst bewusst „Skizze" (🔬).
