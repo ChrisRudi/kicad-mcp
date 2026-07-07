@@ -61,6 +61,43 @@ def test_diagonal_wires_untouched():
     assert len(out) == 1 and "(xy 10 10)" in out[0] and "(xy 20 25)" in out[0]
 
 
+def _run_union(seglist):
+    # Baut ein SExpr mit je einem Draht pro Segment, ruft die Netz-bewusste
+    # Vereinigung und gibt die verbleibenden Draht-Zeilen zurück.
+    from kicad_mcp.generators.sexpr import SExpr
+    from kicad_mcp.generators.schematic.route import _union_same_net_overlaps
+    s = SExpr()
+    for i, (x1, y1, x2, y2, _net) in enumerate(seglist):
+        s.wire(x1, y1, x2, y2, f"w{i}")
+    segs = list(seglist)
+    _union_same_net_overlaps(s, segs, lambda v: round(v, 2),
+                             lambda key: key, "t")
+    return [ln for ln in s._lines if "(wire" in ln]
+
+
+def test_union_merges_same_net_interior_overlap():
+    # Zwei vertikale Segmente DESSELBEN Netzes, die sich innen überlappen
+    # (nicht nur am Endpunkt) → eine Vereinigung über die volle Spanne.
+    wires = _run_union([(77.47, 85.09, 77.47, 90.17, "GND"),
+                        (77.47, 87.63, 77.47, 92.71, "GND")])
+    assert len(wires) == 1
+    assert "(xy 77.47 85.09)" in wires[0] and "(xy 77.47 92.71)" in wires[0]
+
+
+def test_union_keeps_different_nets_apart():
+    # Gleiche Geometrie, aber ZWEI Netze → NICHT vereinen (wäre Kurzschluss).
+    wires = _run_union([(77.47, 85.09, 77.47, 90.17, "NET_A"),
+                        (77.47, 87.63, 77.47, 92.71, "NET_B")])
+    assert len(wires) == 2
+
+
+def test_union_leaves_touching_segments():
+    # Nur geteilter Endpunkt (kein Innen-Überlapp) → bleibt unangetastet.
+    wires = _run_union([(50, 10, 50, 20, "GND"),
+                        (50, 20, 50, 30, "GND")])
+    assert len(wires) == 2
+
+
 def test_all_kits_have_zero_wire_overlaps_after_build():
     # End-to-End: nach dem Merge misst KEIN Kit mehr Leitungen übereinander.
     for kit in ("buck_converter", "production_ready", "usb_sensor_hub",

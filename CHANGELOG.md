@@ -8,6 +8,27 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Schaltplan: Netz-bewusste Draht-Vereinigung — 0.36.1)
+- **0.36.0 wurde auf main im gemockten pytest-Job rot** (`test_wire_merge`:
+  `usb_sensor_hub: 1 Leitungen übereinander`) — die volle USB-C-Beschaltung
+  gab einem Signalnetz (D+ auf zwei Pads) eine dritte MST-Kante, deren A*-Route
+  ein Stück derselben Spur nachfuhr wie eine bestehende → **eine** kollinear
+  übereinander liegende Leitung. Nur im Platzhalter-Pfad (ohne Symbol-Lib);
+  mit echter KiCad-Lib war der Plan sauber. (Meine lokale Verifikation war
+  untreu: der Container hatte echte Symbole, `route.get_real_symbol` wurde nicht
+  mitgenullt → realer statt Platzhalter-Pin-Geometrie.)
+- **Fix an der Quelle:** neue `route._union_same_net_overlaps` vereinigt vor der
+  Junction-Berechnung kollinear ECHT-überlappende Segmente **desselben** Netzes
+  zu ihrer maximalen Spanne. Netz-bewusst (der globale, netz-blinde
+  `_merge_overlapping_wires` darf das nicht — er würde Nachbar-Stubs zweier
+  FREMDER Netze kurzschließen, Roundtrip-Befund). Nur echte Innen-Überlappung,
+  Endpunkt-Berührung bleibt unangetastet. 3 Unit-Tests
+  (`tests/test_wire_merge.py`).
+- **Verifiziert:** Platzhalter-Pfad aller vier Prüf-Kits 0 Überlappungen,
+  Netzlisten-Roundtrip 12/12, byte-deterministisch über Seeds 1/7/9, pylint 0/0.
+  Nebeneffekt: 6 Bausatz-Schaltpläne bekommen etwas kürzere Leitungen (gleiche
+  Konnektivität, aufgeräumter).
+
 ### Fixed (CI-Infra: Microsoft-apt-Repo-Flake härten — 0.36.0)
 - **Live-IPC- und GUI-Smoke-Job fielen auf main um** (0.35.0-Push, 9b6386d) —
   aber NICHT an Code: der auf GitHub-Runnern vorinstallierte

@@ -1,11 +1,28 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.36.0**
+Aktuelle Version: **0.36.1**
 
 ---
 
-## ⭐ Neu in 0.36.0 — USB-C-Buchse voll beschaltet, USB-Kit auf ⭐
+## 🩹 Neu in 0.36.1 — Schaltplan-Draht-Vereinigung (macht 0.36.0 grün)
+
+- Die volle USB-C-Beschaltung (0.36.0) gab einem Signalnetz eine dritte
+  Verbindung, deren automatische Leitung ein Stück derselben Spur nachfuhr
+  wie eine schon gelegte — **eine** Leitungs-Überlappung, aber nur im
+  schnellen CI-Lauf ohne Symbol-Bibliothek (mit echter KiCad-Lib war der
+  Plan sauber). Genau der Fall, der schon 0.34.0 stoppte.
+- **Behoben an der richtigen Stelle:** der Schaltplan-Router vereinigt jetzt
+  kollinear übereinander liegende Leitungen **desselben** Netzes zu einer —
+  netz-sicher (nie zwei fremde Netze, das wäre ein Kurzschluss). Ergebnis:
+  auch ohne Bibliothek 0 Leitungen übereinander, und nebenbei etwas
+  aufgeräumtere Pläne in mehreren Bausätzen.
+- **Außerdem grün:** der Microsoft-apt-Repo-Zufallsfehler auf den
+  GitHub-Runnern ist entschärft (Live-IPC/GUI-Smoke liefen dadurch schon).
+
+---
+
+## ⭐ 0.36.0 — USB-C-Buchse voll beschaltet, USB-Kit auf ⭐
 
 - **Der „Footprint-Fehler" an der USB-C-Buchse ist an der Quelle behoben.**
   Die Buchse hat vier Paare **deckungsgleicher Pads** (A1+B12 & A12+B1 = GND,

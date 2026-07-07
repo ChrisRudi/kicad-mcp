@@ -1127,6 +1127,18 @@ def _emit_wires_and_labels(
                     _label_pin_safe(net_name, ax, ay, sx, sy, lbl_uid, w_uid,
                                     is_hierarchical=is_hier)
 
+    # Draht-Vereinigung PRO NETZ: zwei MST-Kanten desselben Netzes können sich
+    # ein Stück derselben Achse teilen (dieselbe x- bzw. y-Spur) — das ergibt
+    # kollinear ÜBEREINANDER liegende Segmente (nicht bloß am Endpunkt
+    # berührend). Der globale ``builder._merge_overlapping_wires`` darf solche
+    # Innen-Überlappungen NICHT vereinen (netz-blind → würde Nachbar-Stubs
+    # zweier FREMDER Netze kurzschließen, Roundtrip-Befund). Hier ist der Netz
+    # bekannt: nur SELBES Netz, nur echte Innen-Überlappung → sicher zur
+    # maximalen Spanne vereinen. (Der voll beschaltete USB-C-Stecker mit D+ auf
+    # zwei Pads gab einem Signalnetz eine dritte Kante, deren Route die Spur
+    # der ersten teils nachfuhr → genau eine Überlappung.)
+    _union_same_net_overlaps(s, _segs, _r2, uid, project_name)
+
     # Junction-Punkte: an jedem Punkt, an dem ≥3 Draht-Enden zusammentreffen,
     # und an jedem T-Abzweig (Draht-Ende auf dem INNEREN eines anderen Drahts)
     # — Nutzer-Regel „wenn aus einer geraden Leitung eine Leitung abzweigt,
@@ -1160,6 +1172,92 @@ def _emit_wires_and_labels(
     logger.info("Emitted %d wires, %d labels, %d junctions",
                 wire_count, label_count, len(junctions))
     return labeled
+
+
+def _union_same_net_overlaps(s, segs, r2, uid_fn, project_name):
+    """Vereinigt kollinear ÜBEREINANDER liegende Drähte DESSELBEN Netzes zu
+    ihrer maximalen Spanne.
+
+    Netz-sicher: nur gleiches Netz, nur ECHTE Innen-Überlappung (Überlappung
+    > 0, nicht bloß am Endpunkt berührend). Damit kann — anders als der
+    netz-blinde ``builder._merge_overlapping_wires`` — nie ein Kurzschluss
+    zweier Fremdnetze entstehen. Mutiert ``s._lines`` (Original-Drähte raus,
+    Vereinigungs-Draht rein) und ``segs`` in-place, VOR der Junction-Berechnung,
+    damit die Punkte auf der bereinigten Spur sitzen.
+    """
+    import re
+    groups: dict = {}
+    for idx, (x1, y1, x2, y2, net) in enumerate(segs):
+        rx1, ry1, rx2, ry2 = r2(x1), r2(y1), r2(x2), r2(y2)
+        if ry1 == ry2 and rx1 != rx2:            # horizontal
+            groups.setdefault((net, "H", ry1), []).append(
+                (idx, min(rx1, rx2), max(rx1, rx2)))
+        elif rx1 == rx2 and ry1 != ry2:          # vertikal
+            groups.setdefault((net, "V", rx1), []).append(
+                (idx, min(ry1, ry2), max(ry1, ry2)))
+
+    remove_idx: set = set()
+    new_spans: list = []          # (net, orient, coord, lo, hi)
+    for (net, orient, coord), items in groups.items():
+        n = len(items)
+        used = [False] * n
+        for i in range(n):
+            if used[i]:
+                continue
+            comp = [i]
+            used[i] = True
+            changed = True
+            while changed:
+                changed = False
+                for j in range(n):
+                    if used[j]:
+                        continue
+                    if any(min(items[k][2], items[j][2])
+                           - max(items[k][1], items[j][1]) > 1e-6
+                           for k in comp):        # echte Innen-Überlappung
+                        comp.append(j)
+                        used[j] = True
+                        changed = True
+            if len(comp) < 2:
+                continue
+            lo = min(items[k][1] for k in comp)
+            hi = max(items[k][2] for k in comp)
+            for k in comp:
+                remove_idx.add(items[k][0])
+            new_spans.append((net, orient, coord, lo, hi))
+
+    if not remove_idx:
+        return
+
+    # Original-Drähte der vereinigten Segmente aus s._lines löschen (per Koord,
+    # mit Zähler — nie mehr entfernen als registriert).
+    remove_keys: dict = {}
+    for idx in remove_idx:
+        x1, y1, x2, y2, _net = segs[idx]
+        key = (r2(x1), r2(y1), r2(x2), r2(y2))
+        remove_keys[key] = remove_keys.get(key, 0) + 1
+    wpat = re.compile(r'\(wire \(pts \(xy (\S+) (\S+)\) \(xy (\S+) (\S+)\)\)')
+    keep: list = []
+    for ln in s._lines:
+        m = wpat.search(ln)
+        if m:
+            key = (r2(float(m.group(1))), r2(float(m.group(2))),
+                   r2(float(m.group(3))), r2(float(m.group(4))))
+            if remove_keys.get(key, 0) > 0:
+                remove_keys[key] -= 1
+                continue
+        keep.append(ln)
+    s._lines = keep
+
+    segs[:] = [seg for i, seg in enumerate(segs) if i not in remove_idx]
+    for u, (net, orient, coord, lo, hi) in enumerate(new_spans):
+        wuid = uid_fn(f"{project_name}_wunion_{u}")
+        if orient == "H":
+            s.wire(lo, coord, hi, coord, wuid)
+            segs.append((lo, coord, hi, coord, net))
+        else:
+            s.wire(coord, lo, coord, hi, wuid)
+            segs.append((coord, lo, coord, hi, net))
 
 
 # ── Pin position extraction ──────────────────────────────────────────────────
