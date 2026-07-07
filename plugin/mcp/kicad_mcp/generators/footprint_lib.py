@@ -166,6 +166,7 @@ def build_footprint_with_nets(
     ref_uuid: str,
     val_uuid: str,
     sym_uuid: str = "",
+    rotation: float = 0.0,
 ) -> str | None:
     """Return a ready-to-embed footprint string for a .kicad_pcb file.
 
@@ -201,7 +202,10 @@ def build_footprint_with_nets(
     out.append(f'\t(footprint "{footprint_id}"')
     # --- insert placement metadata right after header
     out.append('\t\t(layer "F.Cu")')
-    out.append(f"\t\t(at {x} {y})")
+    if rotation:
+        out.append(f"\t\t(at {x} {y} {rotation:g})")
+    else:
+        out.append(f"\t\t(at {x} {y})")
     out.append(f'\t\t(uuid "{fp_uuid}")')
     # --- path links this footprint to its schematic symbol
     if sym_uuid:
@@ -212,6 +216,7 @@ def build_footprint_with_nets(
     header_emitted = False  # first line already replaced above
     own_layer_skipped = False  # nur die EINE Footprint-Kopf-Layer-Zeile
 
+    in_pad = False
     for line in lines:
         stripped = line.strip()
 
@@ -219,6 +224,20 @@ def build_footprint_with_nets(
         if not header_emitted:
             header_emitted = True
             continue
+
+        if rotation and stripped.startswith("(pad "):
+            in_pad = True
+        if rotation and in_pad and stripped.startswith("(at "):
+            m = re.match(r"\(at\s+([-\d.]+)\s+([-\d.]+)"
+                          r"(?:\s+([-\d.]+))?\)", stripped)
+            if m:
+                ang = (float(m.group(3) or 0.0) + rotation) % 360
+                indent = line[:len(line) - len(line.lstrip())]
+                line = (f"{indent}(at {m.group(1)} {m.group(2)} {ang:g})"
+                        if ang else
+                        f"{indent}(at {m.group(1)} {m.group(2)})")
+                stripped = line.strip()
+                in_pad = False
 
         # ── Skip sections we replaced with our header block ────────
         if stripped.startswith("(version ") or stripped.startswith("(generator "):

@@ -435,20 +435,40 @@ def _compute_pcb_placement(
     # endpoints together)
 
     # ── Phase 8: Connectors at board edge (R08) ──────────────────────
-    pwr_y = y_min + 8
-    for conn in groups.get("connector_pwr", []):
-        if conn["ref"] not in result:
-            _place(conn["ref"], x_min + 4, pwr_y)
-            pwr_y += 15
+    def _edge_slot(part: dict, x: float, start_y: float) -> float:
+        """Erste kollisionsfreie y-Position an der Kante (2.54er-Schritte).
 
-    for conn in groups.get("connector_in", []):
+        Das blinde ``y += 15`` landete auf dem Montageloch-Keepout — die
+        Schiebe-Schleife von ``_place`` drückte den Stecker dann quer ins
+        Feld und gab notfalls AUF einem anderen fixen Stecker auf
+        (audio_amp: J1 auf J3). Hier wird der Slot VOR dem Platzieren
+        geprüft; findet sich keiner, bleibt start_y (ehrlicher Konflikt,
+        vom Überlappungs-Gate gemeldet statt versteckt)."""
+        w, h = _fp_size(part)
+        y = max(start_y, y_min + h / 2)
+        while y <= y_max - h / 2 + 0.01:
+            ok = True
+            for _, ox2, oy2, ow, oh in occupied:
+                if (abs(x - ox2) < (w + ow) / 2 + MIN_GAP
+                        and abs(y - oy2) < (h + oh) / 2 + MIN_GAP):
+                    ok = False
+                    break
+            if ok:
+                return y
+            y += 2.54
+        return start_y
+
+    pwr_y = y_min + 8
+    for conn in groups.get("connector_pwr", []) + groups.get("connector_in", []):
         if conn["ref"] not in result:
+            pwr_y = _edge_slot(conn, x_min + 4, pwr_y)
             _place(conn["ref"], x_min + 4, pwr_y)
             pwr_y += 15
 
     out_y = y_min + 8
     for conn in groups.get("connector_out", []):
         if conn["ref"] not in result:
+            out_y = _edge_slot(conn, x_max - 4, out_y)
             _place(conn["ref"], x_max - 4, out_y)
             out_y += 15
 

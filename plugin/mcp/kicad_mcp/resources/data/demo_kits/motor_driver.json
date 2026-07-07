@@ -1,6 +1,6 @@
 {
   "project_name": "motor_driver",
-  "description": "Bürsten-DC-Motor-Treiber DRV8871 (H-Brücke): Bulk-Elko 47µF + 100nF an VM, ILIM-Widerstand, Motor-/Versorgungs-/Steuerstecker, Testpunkt an OUT1. Nach dem TI-DRV8871-Datenblatt / Adafruit-Breakout (Open Hardware).",
+  "description": "Bürsten-DC-Motor-Treiber DRV8871 (H-Brücke) nach TI-Datenblatt SLVSCY9B: Pinout verifiziert (1 GND, 2 IN2, 3 IN1, 4 ILIM, 5 VM, 6 OUT1, 7 PGND, 8 OUT2). VM mit 100 n Bypass + 47 µ Bulk (Datenblatt-Pflicht), ILIM-R 30k → Strom-Chopping ≈ 2 A (wie Adafruit-Breakout), Motor-/Versorgungs-/Steuerstecker, Testpunkt OUT1.",
   "board": {
     "shape": "rectangle",
     "width": 46,
@@ -26,18 +26,18 @@
         },
         {
           "num": "3",
-          "name": "VM",
-          "type": "power_in"
+          "name": "IN1",
+          "type": "input"
         },
         {
           "num": "4",
-          "name": "OUT2",
-          "type": "output"
+          "name": "ILIM",
+          "type": "passive"
         },
         {
           "num": "5",
-          "name": "ILIM",
-          "type": "passive"
+          "name": "VM",
+          "type": "power_in"
         },
         {
           "num": "6",
@@ -46,13 +46,13 @@
         },
         {
           "num": "7",
-          "name": "IN1",
-          "type": "input"
+          "name": "PGND",
+          "type": "power_in"
         },
         {
           "num": "8",
-          "name": "GND",
-          "type": "power_in"
+          "name": "OUT2",
+          "type": "output"
         }
       ],
       "_pcb_group": "main_ic"
@@ -197,7 +197,7 @@
       "type": "power",
       "connections": [
         "J2:1",
-        "U1:3",
+        "U1:5",
         "C1:1",
         "C2:1"
       ]
@@ -208,7 +208,7 @@
       "connections": [
         "J2:2",
         "U1:1",
-        "U1:8",
+        "U1:7",
         "C1:2",
         "C2:2",
         "J3:3",
@@ -220,7 +220,7 @@
       "type": "signal",
       "connections": [
         "J3:1",
-        "U1:7"
+        "U1:3"
       ]
     },
     {
@@ -244,7 +244,7 @@
       "name": "OUT2",
       "type": "signal",
       "connections": [
-        "U1:4",
+        "U1:8",
         "J1:2"
       ]
     },
@@ -252,7 +252,7 @@
       "name": "ILIM",
       "type": "signal",
       "connections": [
-        "U1:5",
+        "U1:4",
         "R1:1"
       ]
     }

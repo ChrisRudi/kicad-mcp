@@ -266,16 +266,10 @@ def _emit_footprints(
         real_fp = build_footprint_with_nets(
             fp_id, ref, part.get("value", part["name"]),
             px, py, pad_nets, fp_uid, ref_uid, val_uid, sym_uuid,
+            rotation=rotation,
         )
 
         if real_fp:
-            # Inject rotation if needed
-            if rotation != 0:
-                real_fp = real_fp.replace(
-                    f"(at {px} {py})",
-                    f"(at {px} {py} {rotation})",
-                    1,
-                )
             s.emit(real_fp)
         else:
             logger.warning(
@@ -505,11 +499,15 @@ def _emit_routed_traces_from_placements(
                 abs_x = round(wx + ox, 3)
                 abs_y = round(wy + oy, 3)
 
-                pad_through = any(
-                    pd["num"] == pad_num and pd["through"]
-                    for pd in _read_footprint_pads_full(fp_id))
+                pad_geo = next(
+                    (pd for pd in _read_footprint_pads_full(fp_id)
+                     if pd["num"] == pad_num), None)
+                pad_through = bool(pad_geo and pad_geo["through"])
+                pw, ph = (pad_geo["w"], pad_geo["h"]) if pad_geo else (1.0, 1.0)
+                if pad_geo and (fp_rot + pad_geo["rot"]) % 180 == 90:
+                    pw, ph = ph, pw
                 pad_positions[net_name].append(
-                    (abs_x, abs_y, f"{ref}:{pad_num}", pad_through))
+                    (abs_x, abs_y, f"{ref}:{pad_num}", pad_through, pw, ph))
                 net_info[net_name] = (net_num, net_name)
 
         # GND wird MIT geroutet (Zone bleibt als Fläche obendrauf, aber die

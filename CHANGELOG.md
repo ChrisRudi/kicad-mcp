@@ -8,6 +8,42 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Fixed (Industrie-Review der Demo-Kits + Pad-Winkel-Emission — 0.26.1)
+- **buck_converter trug das MP2307-Pinout unter MP1584-Namen** (1 BST,
+  2 IN, 3 SW … 8 SS = Mini-360-Chip). Korrigiert aufs verifizierte
+  MP1584-Pinout (1 SW, 2 EN, 3 COMP, 4 FB, 5 GND, 6 FREQ, 7 VIN, 8 BST;
+  zwei unabhängige Quellen) und die Datenblatt-Pflicht-Beschaltung
+  ergänzt: FREQ-R 100k, COMP-Serien-RC 40k2+3n3 (MPS-Designverfahren,
+  fc ≈ fsw/20); EN an VIN (automatischer Start). FB-Teiler 100k/19k1
+  → 4,99 V bestätigt.
+- **motor_driver: DRV8871-Pins VM/IN1/OUT2/ILIM falsch** — nach
+  TI-Datenblatt SLVSCY9B korrigiert (1 GND, 2 IN2, 3 IN1, 4 ILIM, 5 VM,
+  6 OUT1, 7 PGND, 8 OUT2); PGND jetzt angeschlossen.
+- **audio_amp hatte keinen Versorgungsstecker** (VS hing nur am
+  Abblock-C) — J3 (VS/GND) ergänzt; LM386-Beschaltung gegen TI-Datenblatt
+  bestätigt (gain=20, Zobel 10Ω+47n, Bypass 10µ).
+- **Pad-Winkel-Emission (CLAUDE.md-Footgun #3 im Generator):** KiCad
+  interpretiert Pad-Winkel absolut — unsere Emission drehte bei
+  rotierten Footprints die Pad-POSITIONEN, aber nicht die Pad-FORMEN;
+  Router-Modell (korrekt mitgedreht) und reales Board divergierten
+  (led_ring: GND-Bahn streift den un-gedrehten D5-Pad).
+  `build_footprint_with_nets` schreibt jetzt `rotation` in Footprint-`at`
+  UND jedes Pad-`at` (wie KiCads eigenes Speichern).
+- **Stecker-Kantenplätze kollisionsgeprüft** (`place._edge_slot`): das
+  blinde `y += 15` landete auf dem Montageloch-Keepout, `_place` schob
+  den Stecker quer ins Feld und gab AUF einem anderen fixen Stecker auf
+  (audio: J1 auf J3). Audio-Board 34→40 mm tief (zwei THT-Stecker +
+  Loch-Keepouts passen in 34 mm nicht übereinander).
+- **Router: Multi-Start über die Pad-Fläche** — die Mittelzelle allein
+  kann von der Aufblasung eines dicht benachbarten Fremd-Pads
+  überstempelt sein („nicht routbar", obwohl der Pad-Rand frei ist);
+  Clearance 0.2 → 0.25 (Masken-Aufweitung + solder_mask_min_width).
+- Stand: **5 Boards 0 DRC-Fehler / 0 offen** (buck, motor, led_ring,
+  kit_seeding, production_ready — Gate aktualisiert); audio ehrlich
+  0 Fehler / 2 offene IN_NODE-Kanten (versiegelte Pin-Tasche; Pin-Escape
+  braucht Stub-Konfliktprüfung — dokumentierter Rest). Bilanz aller 10:
+  2141 → 55. PCB-/Schaltplan-Determinismus über Seeds byte-gleich.
+
 ### Added (Demo-Platinen Phase 2b: Grid-Router + Entwirren — 0.26.0)
 - **Neuer Zwei-Lagen-Router** (`pcb/route.py`, komplett ersetzt): Dijkstra
   auf 0.635-mm-Raster mit Knick-/Via-Kosten und HARTEM Konfliktmodell —

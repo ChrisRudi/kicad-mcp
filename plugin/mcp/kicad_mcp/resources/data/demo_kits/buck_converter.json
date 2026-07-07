@@ -1,6 +1,6 @@
 {
   "project_name": "buck_converter",
-  "description": "Abwärtswandler MP1584 auf 5 V: Eingangs-/Ausgangs-MLCCs, 10µH-Spule, Schottky-Freilaufdiode, Boot-C, Feedback-Teiler. Nach dem MPS-MP1584-Datenblatt (Typical Application, VOUT=5V) / verbreitetes Mini-Buck-Modul (OSHWLab).",
+  "description": "Abwärtswandler MP1584 auf 5 V nach MPS-Datenblatt: Pinout verifiziert (1 SW, 2 EN, 3 COMP, 4 FB, 5 GND, 6 FREQ, 7 VIN, 8 BST); EN direkt an VIN (Datenblatt: automatischer Start). FB-Teiler 100k/19k1 → 0.8 V·(1+R1/R2) = 4,99 V. Boot-C 100 n (BST–SW), L 10 µH, Cin 10 µ, Cout 22 µ (Datenblatt-Testbedingungen), SS34-Freilauf (nicht-synchron). FREQ-R 100k (Modul-Standard), COMP-Serien-RC 40k2+3n3 nach MPS-Designverfahren (fc ≈ fsw/20).",
   "board": {
     "shape": "rectangle",
     "width": 50,
@@ -16,42 +16,42 @@
       "pins": [
         {
           "num": "1",
-          "name": "BST",
-          "type": "passive"
-        },
-        {
-          "num": "2",
-          "name": "IN",
-          "type": "power_in"
-        },
-        {
-          "num": "3",
           "name": "SW",
           "type": "output"
         },
         {
-          "num": "4",
-          "name": "GND",
-          "type": "power_in"
-        },
-        {
-          "num": "5",
-          "name": "FB",
-          "type": "input"
-        },
-        {
-          "num": "6",
-          "name": "COMP",
-          "type": "passive"
-        },
-        {
-          "num": "7",
+          "num": "2",
           "name": "EN",
           "type": "input"
         },
         {
+          "num": "3",
+          "name": "COMP",
+          "type": "passive"
+        },
+        {
+          "num": "4",
+          "name": "FB",
+          "type": "input"
+        },
+        {
+          "num": "5",
+          "name": "GND",
+          "type": "power_in"
+        },
+        {
+          "num": "6",
+          "name": "FREQ",
+          "type": "passive"
+        },
+        {
+          "num": "7",
+          "name": "VIN",
+          "type": "power_in"
+        },
+        {
           "num": "8",
-          "name": "SS",
+          "name": "BST",
           "type": "passive"
         }
       ],
@@ -227,6 +227,60 @@
         }
       ],
       "_pcb_group": "connector_out"
+    },
+    {
+      "ref": "R3",
+      "name": "R",
+      "value": "100k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "2",
+          "type": "passive"
+        }
+      ]
+    },
+    {
+      "ref": "R4",
+      "name": "R",
+      "value": "40k2",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "2",
+          "type": "passive"
+        }
+      ]
+    },
+    {
+      "ref": "C4",
+      "name": "C",
+      "value": "3n3",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "pins": [
+        {
+          "num": "1",
+          "name": "1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "2",
+          "type": "passive"
+        }
+      ]
     }
   ],
   "nets": [
@@ -235,9 +289,9 @@
       "type": "power",
       "connections": [
         "J1:1",
+        "U1:7",
         "U1:2",
-        "C1:1",
-        "U1:7"
+        "C1:1"
       ]
     },
     {
@@ -245,19 +299,21 @@
       "type": "power",
       "connections": [
         "J1:2",
-        "U1:4",
+        "U1:5",
         "C1:2",
         "C2:2",
         "R2:2",
         "D1:2",
-        "J2:2"
+        "J2:2",
+        "R3:2",
+        "C4:2"
       ]
     },
     {
       "name": "SW",
       "type": "signal",
       "connections": [
-        "U1:3",
+        "U1:1",
         "L1:1",
         "D1:1",
         "C3:1"
@@ -267,7 +323,7 @@
       "name": "BST",
       "type": "signal",
       "connections": [
-        "U1:1",
+        "U1:8",
         "C3:2"
       ]
     },
@@ -287,7 +343,31 @@
       "connections": [
         "R1:2",
         "R2:1",
-        "U1:5"
+        "U1:4"
+      ]
+    },
+    {
+      "name": "FREQ",
+      "type": "signal",
+      "connections": [
+        "U1:6",
+        "R3:1"
+      ]
+    },
+    {
+      "name": "COMP",
+      "type": "signal",
+      "connections": [
+        "U1:3",
+        "R4:1"
+      ]
+    },
+    {
+      "name": "COMP_C",
+      "type": "signal",
+      "connections": [
+        "R4:2",
+        "C4:1"
       ]
     }
   ]

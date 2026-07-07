@@ -1,10 +1,10 @@
 {
   "project_name": "audio_amp",
-  "description": "Audioverstärker LM386, minimale Applikation mit Verstärkung 20 (Pins 1/8 offen) — nach dem TI-LM386-Datenblatt (Typical Application, gain=20). Eingangskopplung, Ausgangs-Elko zum Lautsprecher, Versorgungs-Entkopplung, Bypass. Referenz: ti.com/lit/ds/symlink/lm386.",
+  "description": "Audioverstärker LM386, minimale Applikation mit Verstärkung 20 (Pins 1/8 offen) — nach dem TI-LM386-Datenblatt (Typical Application, gain=20): Eingangskopplung 10 µ + 10k-Last, Ausgangs-Elko 220 µ zum Lautsprecher, Zobel-Glied 10 Ω + 47 n, Bypass 10 µ (Pin 7), Versorgungs-Entkopplung 100 n, eigener Versorgungsstecker (J3). Referenz: ti.com/lit/ds/symlink/lm386.",
   "board": {
     "shape": "rectangle",
     "width": 46,
-    "depth": 34,
+    "depth": 40,
     "layers": 2
   },
   "parts": [
@@ -227,6 +227,24 @@
         }
       ],
       "_pcb_group": "passive"
+    },
+    {
+      "ref": "J3",
+      "name": "Conn_01x02",
+      "value": "PWR",
+      "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+      "pins": [
+        {
+          "num": "1",
+          "name": "Pin_1",
+          "type": "passive"
+        },
+        {
+          "num": "2",
+          "name": "Pin_2",
+          "type": "passive"
+        }
+      ]
     }
   ],
   "nets": [
@@ -235,7 +253,8 @@
       "type": "power",
       "connections": [
         "U1:6",
-        "C3:1"
+        "C3:1",
+        "J3:1"
       ]
     },
     {
@@ -249,7 +268,8 @@
         "R1:2",
         "C3:2",
         "C4:2",
-        "C5:2"
+        "C5:2",
+        "J3:2"
       ]
     },
     {

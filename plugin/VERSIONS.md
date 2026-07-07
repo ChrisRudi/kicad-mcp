@@ -1,7 +1,29 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.26.0**
+Aktuelle Version: **0.26.1**
+
+---
+
+## 🏭 Neu in 0.26.1 — Industrie-Check der Demo-Schaltungen + Pad-Dreh-Fix
+
+- **Datenblatt-Review der Vorzeige-Demos:** Der Buck-Converter trug das
+  Pinout des falschen Chips (MP2307 statt MP1584 — jetzt verifiziert
+  korrigiert, plus fehlende COMP-/FREQ-Beschaltung ergänzt); beim
+  DRV8871-Motortreiber lagen VM/IN1/OUT2/ILIM auf falschen Pins (nach
+  TI-Datenblatt korrigiert); der LM386-Verstärker hatte keinen
+  Versorgungsstecker (ergänzt). Quellen stehen jetzt in jeder Spec.
+- **Tiefer Rotations-Bug behoben:** Bei gedrehten Bauteilen drehte die
+  Platine zwar die Pad-Positionen, aber nicht die Pad-Formen (KiCad
+  erwartet die Winkel im Pad selbst) — Router-Modell und echtes Board
+  gingen auseinander. Jetzt schreibt der Generator die Pad-Winkel wie
+  KiCad selbst.
+- Stecker-Kantenplätze prüfen jetzt auf Kollision (vorher konnte einer
+  auf dem Montageloch-Platz landen); Router startet notfalls von jeder
+  freien Zelle der Pad-Fläche.
+- Stand: **5 Demo-Platinen mit 0 DRC-Fehlern und 0 offenen Verbindungen**
+  (buck, motor, led_ring, kit_seeding, production_ready);
+  Gesamt-Fehlerbilanz aller 10: 2141 → 55.
 
 ---
 

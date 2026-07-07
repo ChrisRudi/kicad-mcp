@@ -41,7 +41,9 @@ logger = logging.getLogger(__name__)
 
 _PITCH = 0.635          # Raster (¼ × 2.54) — fein genug für 0603-Gassen
 _EDGE_MARGIN = 0.8      # Kupfer-Abstand zur Board-Kante (Edge-Clearance + Luft)
-_CLEARANCE = 0.2        # Kupfer-Kupfer-Abstand (JLCPCB min 0.127 + Luft)
+_CLEARANCE = 0.25       # Kupfer-Kupfer-Abstand: JLCPCB min 0.127 + Masken-
+#                         Aufweitung (pad_to_mask 0.05, Brücken-Check prüft
+#                         APERTUREN, nicht Kupfer) + Rundungs-Luft
 
 _COST_STEP = 10
 _COST_TURN = 6
@@ -107,28 +109,31 @@ class _Grid:
         return cur is None or cur == net
 
 
-def _route_edge(grid: _Grid, start: tuple[int, int],
+def _route_edge(grid: _Grid, start: list[tuple[int, int]],
                 targets: set[tuple[int, int, int]], net: int,
                 start_layers: tuple[int, ...] = (0,),
                 max_pops: int = 200_000):
-    """Multi-Target-Suche (Dijkstra mit Knick-/Via-Kosten) von ``start``
-    zur nächsten Ziel-Zelle des Netzes.
+    """Multi-Start/Multi-Target-Suche (Dijkstra mit Knick-/Via-Kosten).
 
+    ``start``: ALLE passierbaren Zellen der Start-Pad-Fläche — die
+    Mittelzelle allein kann von der Aufblasung eines dicht benachbarten
+    Fremd-Pads überstempelt sein (audio_amp: IN_NODE „nicht routbar",
+    obwohl der Pad-Rand frei war).
     ``start_layers``: Lagen, auf denen das Start-Pad PHYSISCH existiert —
     SMD nur F.Cu, THT beide. Der Router darf sonst „gratis" auf B.Cu
     beginnen und hinterlässt eine Spur ohne Via-Anbindung ans Pad (die
     8 unconnected-Reste der ersten Buck-Messung).
 
     Returns Pfadliste [(ix, iy, layer), …] oder ``None`` (kein Weg)."""
-    sx, sy = start
     heap: list = []
     best: dict[tuple[int, int, int, int], int] = {}
     parent: dict = {}
-    for layer in start_layers:
-        if grid.passable(layer, sx, sy, net):
-            state = (sx, sy, layer, -1)
-            best[state] = 0
-            heapq.heappush(heap, (0, state))
+    for (sx, sy) in start:
+        for layer in start_layers:
+            if grid.passable(layer, sx, sy, net):
+                state = (sx, sy, layer, -1)
+                best[state] = 0
+                heapq.heappush(heap, (0, state))
     goal = None
     pops = 0
     while heap:
@@ -243,11 +248,14 @@ def route_pcb(
                            net_num if net_num > 0 else -1)
 
     # Reihenfolge: Power zuerst (breit), dann kleine Netze, dann Name
+    # Power zuerst (breite Spuren brauchen Platz), dann GROSSE Netze —
+    # ein 3-Pad-Netz zuletzt findet seine Korridore zugebaut vor
+    # (audio_amp: IN_NODE unroutbar, sobald alle 2-Pad-Netze vorher dran waren).
     order = sorted(
         (n for n in pad_positions
          if len(pad_positions[n]) >= 2 and n in net_info),
         key=lambda n: (0 if net_types.get(n) == "power" else 1,
-                       len(pad_positions[n]), n))
+                       -len(pad_positions[n]), n))
 
     lines: list[str] = []
     unrouted = 0
@@ -261,10 +269,25 @@ def route_pcb(
         for pad in pads:
             px, py = pad[0], pad[1]
             through = bool(pad[3]) if len(pad) > 3 else False
+            pw = float(pad[4]) if len(pad) > 4 else 1.0
+            ph = float(pad[5]) if len(pad) > 5 else 1.0
             cix, ciy = grid.cell(px, py)
             cix = max(0, min(grid.nx - 1, cix))
             ciy = max(0, min(grid.ny - 1, ciy))
-            pad_cells.append({"cell": (cix, ciy), "x": px, "y": py,
+            # ALLE Zellen der Pad-Fläche (Mitte zuerst) — die Mittelzelle
+            # allein kann von einer Fremd-Pad-Aufblasung überstempelt sein.
+            # (KEIN Escape über die Pad-Spitze hinaus: der Anschluss-Stummel
+            # liefe bei 2-Pad-Bauteilen übers eigene Gegen-Pad — Kurzschluss.)
+            cells = [(cix, ciy)]
+            rx = max(0, int(pw / 2 / _PITCH))
+            ry = max(0, int(ph / 2 / _PITCH))
+            for dy in range(-ry, ry + 1):
+                for dx in range(-rx, rx + 1):
+                    c = (cix + dx, ciy + dy)
+                    if c != (cix, ciy) and grid.inside(*c):
+                        cells.append(c)
+            pad_cells.append({"cell": (cix, ciy), "cells": cells,
+                              "x": px, "y": py,
                               "layers": (0, 1) if through else (0,),
                               "attach": 0})
 
@@ -273,13 +296,13 @@ def route_pcb(
         # Ziele nur auf Lagen, wo wirklich Kupfer liegt (SMD: nur F.Cu).
         seed = pad_cells[0]
         tree: set[tuple[int, int, int]] = {
-            (seed["cell"][0], seed["cell"][1], layer)
-            for layer in seed["layers"]}
+            (c[0], c[1], layer)
+            for c in seed["cells"] for layer in seed["layers"]}
         for pc in pad_cells[1:]:
-            cix, ciy = pc["cell"]
-            if any((cix, ciy, layer) in tree for layer in pc["layers"]):
+            if any((c[0], c[1], layer) in tree
+                   for c in pc["cells"] for layer in pc["layers"]):
                 continue
-            path = _route_edge(grid, (cix, ciy), tree, net_num,
+            path = _route_edge(grid, pc["cells"], tree, net_num,
                                start_layers=pc["layers"])
             if path is None:
                 unrouted += 1
@@ -287,8 +310,12 @@ def route_pcb(
                             net_name, pc["x"], pc["y"])
                 continue
             pc["attach"] = path[0][2]
-            if path[-1][0:2] == seed["cell"]:
+            pc["cell"] = path[0][0:2]      # Stub dockt an der echten Startzelle an
+            if (path[-1][0], path[-1][1], path[-1][2]) in {
+                    (c[0], c[1], la) for c in seed["cells"]
+                    for la in seed["layers"]}:
                 seed["attach"] = path[-1][2]
+                seed["cell"] = path[-1][0:2]
             _emit_path(grid, path, net_num, trace_w, lines)
             half = trace_w / 2 + _CLEARANCE
             prev_layer = None
