@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, master]
   workflow_dispatch:
+  schedule:
+    # Wöchentliches KiCad-11-Frühwarnsystem (Montag 04:17 UTC). Nur der
+    # kicad-nightly-Job hört darauf (er ist auf schedule/dispatch gegated).
+    - cron: "17 4 * * 1"
 
 jobs:
   lint:
@@ -184,3 +188,49 @@ jobs:
           name: gui-smoke-screenshots
           path: gui-smoke-out/
           retention-days: 7
+
+  kicad-nightly:
+    name: KiCad-11-Frühwarnung (Nightly-PPA, optional)
+    # Nur wöchentlich (schedule) oder manuell — NICHT bei jedem Push/PR.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    # Darf main NIE rot machen: Nightlies sind instabil, der Wert ist der
+    # Wochen-Diff des Fähigkeits-Reports (docs/kicad11_vorbereitung.md §2).
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install KiCad Nightly (dev-PPA)
+        # Best effort: die Nightly-PPA kann zeitweise brechen. Fällt sie aus,
+        # bleibt der Fähigkeits-Report gegen das ggf. vorhandene Stable-KiCad.
+        run: |
+          sudo add-apt-repository -y ppa:kicad/kicad-dev-nightly || true
+          sudo apt-get update -qq || true
+          sudo apt-get install -y -qq kicad-nightly || \
+            sudo sh scripts/setup_container_kicad.sh "" || true
+
+      - name: Python + kipy
+        run: |
+          python3 -m venv .venv-nightly
+          .venv-nightly/bin/pip install --upgrade pip
+          .venv-nightly/bin/pip install kicad-python || true
+
+      - name: Fähigkeits-Report (→ Job-Summary)
+        run: |
+          # kicad-nightly installiert kicad-cli evtl. als kicad-cli-nightly →
+          # per Symlink erreichbar machen, sonst greift der Stable-Pfad.
+          command -v kicad-cli-nightly >/dev/null 2>&1 && \
+            sudo ln -sf "$(command -v kicad-cli-nightly)" /usr/local/bin/kicad-cli || true
+          .venv-nightly/bin/python scripts/kicad_capability_probe.py \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Selftest gegen Nightly (best effort)
+        run: .venv-nightly/bin/python -m kicad_mcp.selftest --out nightly-out --verbose || true
+
+      - name: Upload nightly selftest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-selftest
+          path: nightly-out/
+          retention-days: 14

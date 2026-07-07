@@ -23,10 +23,18 @@ semantisch gültig; **aber** der Handshake (`GetVersion`) und neue Messages
 verlangen vermutlich ein kipy-Update. Die Version wird zur Laufzeit erkannt,
 nicht zur Importzeit — Feature-Gates im Code (Abschnitt 6), kein zweiter Tree.
 
-## 2. Frühwarnsystem: Nightly-CI-Job (JETZT machbar, Vorstufe)
+## 2. Frühwarnsystem: Nightly-CI-Job ✅ UMGESETZT (0.31.0)
 
-Neuer **optionaler** CI-Job `kicad-nightly` (manuell + wöchentlich per cron,
-`continue-on-error: true` — er darf main nie rot machen):
+Der **optionale** CI-Job `kicad-nightly` ist da (`.github/workflows/ci.yml`):
+wöchentlich (cron `17 4 * * 1`) + `workflow_dispatch`, `continue-on-error:
+true`, gegated per `if: schedule||workflow_dispatch` (läuft NICHT bei Push/PR).
+Er installiert die Nightly-PPA (best effort), fährt `kicad_mcp.selftest` und
+druckt `scripts/kicad_capability_probe.py` in die Job-Summary. Baseline
+KiCad 10.0.4: kicad-cli-Subkommandos fp/jobset/pcb/sch/sym/version (kein
+api/ipc/serve), kipy Board+Project (KEINE Schematic-API), 85 Proto-Commands.
+Der Wochen-Diff dieser Zahlen ist das Trigger-Signal für §3–5.
+
+Original-Plan (Referenz):
 
 - Gleiches Muster wie der `live-ipc`-Job, nur PPA `ppa:kicad/kicad-dev-nightly`
   statt stable; danach `python -m kicad_mcp.selftest`, pcbnew-Suite,
