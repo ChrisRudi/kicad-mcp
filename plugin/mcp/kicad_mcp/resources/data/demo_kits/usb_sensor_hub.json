@@ -237,14 +237,19 @@
       "footprint": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
       "pins": [
         {
-          "num": "A1",
-          "name": "GND_A1",
-          "type": "passive"
+          "num": "A4",
+          "name": "VBUS",
+          "type": "power_in"
         },
         {
-          "num": "A4",
-          "name": "VBUS_A4",
-          "type": "passive"
+          "num": "A6",
+          "name": "DP",
+          "type": "bidirectional"
+        },
+        {
+          "num": "A7",
+          "name": "DM",
+          "type": "bidirectional"
         },
         {
           "num": "A5",
@@ -252,68 +257,12 @@
           "type": "passive"
         },
         {
-          "num": "A6",
-          "name": "DP_A",
-          "type": "passive"
-        },
-        {
-          "num": "A7",
-          "name": "DM_A",
-          "type": "passive"
-        },
-        {
-          "num": "A9",
-          "name": "VBUS_A9",
-          "type": "passive"
-        },
-        {
-          "num": "A12",
-          "name": "GND_A12",
-          "type": "passive"
-        },
-        {
-          "num": "B1",
-          "name": "GND_B1",
-          "type": "passive"
-        },
-        {
-          "num": "B4",
-          "name": "VBUS_B4",
-          "type": "passive"
-        },
-        {
-          "num": "B5",
-          "name": "CC2",
-          "type": "passive"
-        },
-        {
-          "num": "B6",
-          "name": "DP_B",
-          "type": "passive"
-        },
-        {
-          "num": "B7",
-          "name": "DM_B",
-          "type": "passive"
-        },
-        {
-          "num": "B9",
-          "name": "VBUS_B9",
-          "type": "passive"
-        },
-        {
-          "num": "B12",
-          "name": "GND_B12",
-          "type": "passive"
-        },
-        {
-          "num": "SH",
-          "name": "SHIELD",
-          "type": "passive"
+          "num": "A1",
+          "name": "GND",
+          "type": "power_in"
         }
       ],
-      "_pcb_group": "connector_in",
-      "lib_id": "Connector:USB_C_Receptacle_USB2.0_16P"
+      "_pcb_group": "connector_in"
     },
     {
       "ref": "U4",
@@ -376,44 +325,6 @@
         }
       ],
       "_pcb_group": "passive"
-    },
-    {
-      "ref": "R4",
-      "name": "R",
-      "value": "5k1",
-      "footprint": "Resistor_SMD:R_0603_1608Metric",
-      "pins": [
-        {
-          "num": "1",
-          "name": "P1",
-          "type": "passive"
-        },
-        {
-          "num": "2",
-          "name": "P2",
-          "type": "passive"
-        }
-      ],
-      "_pcb_group": "passive"
-    },
-    {
-      "ref": "R5",
-      "name": "R",
-      "value": "5k1",
-      "footprint": "Resistor_SMD:R_0603_1608Metric",
-      "pins": [
-        {
-          "num": "1",
-          "name": "P1",
-          "type": "passive"
-        },
-        {
-          "num": "2",
-          "name": "P2",
-          "type": "passive"
-        }
-      ],
-      "_pcb_group": "passive"
     }
   ],
   "nets": [
@@ -423,10 +334,7 @@
       "connections": [
         "J1:A4",
         "U4:3",
-        "C4:1",
-        "J1:A9",
-        "J1:B4",
-        "J1:B9"
+        "C4:1"
       ]
     },
     {
@@ -456,13 +364,7 @@
         "C1:2",
         "C2:2",
         "C3:2",
-        "C4:2",
-        "J1:A12",
-        "J1:B1",
-        "J1:B12",
-        "J1:SH",
-        "R4:2",
-        "R5:2"
+        "C4:2"
       ]
     },
     {
@@ -488,8 +390,7 @@
       "type": "signal",
       "connections": [
         "U1:33",
-        "J1:A6",
-        "J1:B6"
+        "J1:A6"
       ]
     },
     {
@@ -497,8 +398,7 @@
       "type": "signal",
       "connections": [
         "U1:32",
-        "J1:A7",
-        "J1:B7"
+        "J1:A7"
       ]
     },
     {
@@ -531,16 +431,7 @@
       "name": "CC1",
       "type": "signal",
       "connections": [
-        "J1:A5",
-        "R4:1"
-      ]
-    },
-    {
-      "name": "CC2",
-      "type": "signal",
-      "connections": [
-        "J1:B5",
-        "R5:1"
+        "J1:A5"
       ]
     }
   ]

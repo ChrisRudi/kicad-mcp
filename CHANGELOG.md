@@ -8,7 +8,25 @@ the first tag ships.
 
 ## [Unreleased]
 
-### Added (Fein-Pitch U1+U2: usb elektrisch korrekt + Fanout Stufe 1 — 0.34.0)
+### Fixed (Hotfix: usb-Schaltplan-Spec zurückgerollt — 0.34.1)
+- **CI-Rot auf main (074254a):** Der gemockte pytest-Job (ohne Symbol-Libs,
+  Platzhalter-Symbole) meldete `test_wire_merge`
+  `usb_sensor_hub: 1 Leitung übereinander`. Die voll beschaltete 16-Pin-
+  USB-C-Buchse (U1 aus 0.34.0) verdichtet die GND/VBUS-Verdrahtung am
+  Platzhalter-Symbol so, dass genau eine Leitungs-Überlappung entsteht —
+  isoliert bestätigt: ohne CC-Rs identisch, mit 0.33.0-Spec = 0. Mit ECHTER
+  KiCad-Lib ist der Plan sauber (der Echt-KiCad-Job war grün); die Schranke
+  prüft aber beide Pfade. Lehre: `test_wire_merge` gehört in die lokale
+  Gate-Runde (war übersehen).
+- **usb_sensor_hub.json auf 0.33.0-Stand zurückgesetzt** → Schaltplan wieder
+  0 Überlappungen (Mock verifiziert), Roundtrip 12/12, main grün. **Behalten:
+  U2 (Fein-Pitch-Fanout, byte-safe — ethernet weiter 14→10) und der
+  symbol_lib-Fix.** usb-DRC damit 31→26 (Fanout wirkt weiter aufs LQFP).
+- **U1 (USB-C-Voll-Beschaltung) vertagt** — Re-Land braucht Schaltplan-
+  Layout-Arbeit für die dichte Buchse UND `test_wire_merge` in den Gates
+  (Roadmap §2c, Stufe U1').
+
+### Added (Fein-Pitch U2: Fanout Stufe 1 + symbol_lib-Fix — 0.34.0, usb-Teil in 0.34.1 zurückgerollt)
 - **U1 — USB-C-Kit vollständig beschaltet** (usb_sensor_hub): das
   16-Pad-Receptacle (TYPE-C-31-M-12) trägt gespiegelte Duplikat-Pads —
   B-Seite + SH-Schirm waren netzlos (→ shorting/clearance/mask zwischen

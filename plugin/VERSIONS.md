@@ -1,11 +1,24 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.34.0**
+Aktuelle Version: **0.34.1**
 
 ---
 
-## 🔬 Neu in 0.34.0 — USB-Demo elektrisch korrekt + Fein-Pitch-Fanout (Stufe 1)
+## 🩹 Neu in 0.34.1 — Hotfix: USB-Schaltplan-Spec zurückgerollt
+
+- Die USB-C-Voll-Beschaltung aus 0.34.0 erzeugte im Schaltplan (ohne
+  installierte Symbol-Bibliothek, wie im schnellen CI-Lauf) **eine**
+  Leitungs-Überlappung — mit echter KiCad-Bibliothek war der Plan sauber,
+  aber die Qualitätsschranke prüft beide Fälle. Bis der Schaltplan-
+  Layouter die dichte Buchsen-Verdrahtung auch ohne Bibliothek sauber
+  legt, ist die USB-Spec vorerst auf den 0.34.0-Vorstand zurückgesetzt.
+- **Behalten bleiben:** der Fein-Pitch-Fanout im Router (Ethernet
+  weiterhin 14→10 Fehler) und der Symbol-Resolver-Fix.
+
+---
+
+## 🔬 0.34.0 — Fein-Pitch-Fanout (Stufe 1) + USB-Analyse
 
 - **USB-C-Buchse war halb beschaltet:** Die Buchse hat gespiegelte
   Kontakt-Duplikate (damit der Stecker verdreht passt) — die B-Seite und
