@@ -11,11 +11,17 @@ kein Modell-Kontingent und läuft immer gleich. Die Schritte sind als sichtbare
 Tool-Kette gebaut (Feld-Wunsch „die Entstehung verfolgen") — jeder ``⚙``-Aufruf
 ist ein echtes MCP-Tool, das der Nutzer genauso aus dem Chat rufen kann:
 
-  1. Idee        — die fixe Spezifikation (Bauteile + Netze + Board)
+  1. Idee        — Steckbrief: WAS entsteht (voller Beschreibungstext +
+                   Leitbauteile), damit man es VOR dem Bauen sieht
   2. Prüfen      — ``validate_design`` (Refs/Pin-Typen/Board-Maß, schreibt nichts)
   3. Schaltplan  — ``generate_schematic`` erzeugt ``.kicad_sch`` (+ ERC-Report)
   4. Berechnung  — LED-Vorwiderstand aus den echten Spec-Werten nachrechnen
   5. Platine     — ``generate_pcb`` erzeugt ``.kicad_pcb`` (Panel öffnet ihn)
+  6. Bilder      — ``export_png`` rendert Schaltplan UND Platine als PNG, das
+                   Panel öffnet sie (Ergebnis SEHEN, nicht nur Text lesen)
+
+Narration in der ERSTEN Person („Ich zeichne den Schaltplan …") — der Nutzer
+schaut zu, er wird nicht instruiert.
 
 Die Zerlegung liefert byte-identische Dateien wie das frühere
 ``generate_project`` (alle Demo-Kits sind Einzelblatt; empirisch verifiziert).
@@ -134,6 +140,27 @@ def _fmt_ohms(ohms: float) -> str:
     return f"{ohms:g} Ω"
 
 
+# Ref-Präfixe der „Leitbauteile" fürs Steckbrief: ICs, Halbleiter, Spulen,
+# Quarze, Stecker — die tragen die Funktion; R/C sind Beiwerk.
+_LEAD_PREFIXES = ("U", "Q", "D", "L", "Y", "J")
+
+
+def _lead_parts(spec: dict, limit: int = 6) -> list[str]:
+    """Die Leitbauteile eines Bausatzes als ``'Ref Value'`` — für den
+    Steckbrief („was baue ich"). ICs/Halbleiter/Spulen/Quarze/Stecker zuerst,
+    damit der Nutzer VOR dem Bauen sieht, worum es geht (nicht nur eine Zahl).
+    Rein, ohne I/O."""
+    lead = []
+    for part in spec.get("parts", []):
+        ref = str(part.get("ref", ""))
+        if ref.startswith(_LEAD_PREFIXES):
+            val = str(part.get("value", "")).strip()
+            lead.append(f"{ref} {val}".strip())
+        if len(lead) >= limit:
+            break
+    return lead
+
+
 def run_demo(out_dir: str, server=None, spec_path: Optional[str] = None,
              on_step: Optional[Callable[[str], None]] = None) -> dict:
     """Den Demo-Ablauf fahren; Ergebnis-Dict mit Schritten + Board-Pfad.
@@ -165,13 +192,22 @@ def run_demo(out_dir: str, server=None, spec_path: Optional[str] = None,
     dims = (f"{board_cfg.get('width','?')}×{board_cfg.get('depth','?')} mm"
             if board_cfg else "")
 
-    # 1) Idee
+    # 1) Idee — Steckbrief: WAS baue ich (voller Beschreibungstext + Leitteile),
+    # damit der Nutzer VOR dem Bauen sieht, was entsteht — nicht nur eine Zahl.
     n_parts, n_nets = len(spec["parts"]), len(spec["nets"])
-    steps.append({"key": "idee", "ok": True,
-                  "title": "Idee",
-                  "text": (f"{spec.get('description','').split('.')[0]} — "
-                           f"{n_parts} Bauteile, {n_nets} Netze.")})
-    emit(f"① Idee: {steps[-1]['text']}")
+    desc = str(spec.get("description", "")).strip()
+    lead = _lead_parts(spec)
+    emit(f"① Das baue ich jetzt: {name}" + (f"  ·  {dims}" if dims else ""))
+    if desc:
+        emit(f"   {desc}")
+    if lead:
+        emit(f"   Kernbauteile: {' · '.join(lead)}")
+    emit(f"   Umfang: {n_parts} Bauteile, {n_nets} Netze — ich lege Schaltplan "
+         f"und Platine an und zeige sie dir am Ende als Bild.")
+    steps.append({"key": "idee", "ok": True, "title": "Idee",
+                  "text": (f"{desc.split('.')[0]} — {n_parts} Bauteile, "
+                           f"{n_nets} Netze." if desc
+                           else f"{n_parts} Bauteile, {n_nets} Netze.")})
 
     # 2) Prüfen — validate_design (sichtbarer Tool-Aufruf, schreibt nichts)
     emit(_tool_line("validate_design",
@@ -187,7 +223,7 @@ def run_demo(out_dir: str, server=None, spec_path: Optional[str] = None,
     except Exception as exc:  # pragma: no cover - defensiv
         v_ok, v_text = False, f"{type(exc).__name__}: {exc}"
     steps.append({"key": "pruefen", "ok": v_ok, "title": "Prüfen", "text": v_text})
-    emit(f"② Prüfen: {v_text}")
+    emit(f"② Ich prüfe die Spec: {v_text}")
 
     # 3) Schaltplan — generate_schematic (erzeugt .kicad_sch, .kicad_pro)
     emit(_tool_line("generate_schematic", f"→ {name}.kicad_sch"))
@@ -207,7 +243,7 @@ def run_demo(out_dir: str, server=None, spec_path: Optional[str] = None,
         sch_ok, sch_text = False, f"{type(exc).__name__}: {exc}"
     steps.append({"key": "schaltplan", "ok": sch_ok, "title": "Schaltplan",
                   "text": sch_text})
-    emit(f"③ Schaltplan: {sch_text}")
+    emit(f"③ Ich zeichne den Schaltplan: {sch_text}")
 
     # 4) Berechnung (rein, aus den Spec-Werten). Der Mini-Rechenschritt ist die
     # LED-Vorwiderstands-Prüfung; hat ein Bausatz keinen LED-Zweig, entfällt sie
@@ -223,7 +259,7 @@ def run_demo(out_dir: str, server=None, spec_path: Optional[str] = None,
         steps.append({"key": "berechnung", "ok": True, "title": "Berechnung",
                       "text": ("keine LED-Vorwiderstands-Prüfung nötig — die "
                                "Elektrik-Skills rechnen das Passende.")})
-    emit(f"④ Berechnung: {steps[-1]['text']}")
+    emit(f"④ Ich rechne nach: {steps[-1]['text']}")
 
     # 5) Platine — generate_pcb (erzeugt .kicad_pcb)
     emit(_tool_line("generate_pcb",
@@ -242,14 +278,51 @@ def run_demo(out_dir: str, server=None, spec_path: Optional[str] = None,
         pcb_ok, pcb_text = False, f"{type(exc).__name__}: {exc}"
     steps.append({"key": "platine", "ok": pcb_ok, "title": "Platine",
                   "text": pcb_text})
-    emit(f"⑤ Platine: {pcb_text}")
+    emit(f"⑤ Ich route die Platine: {pcb_text}")
+
+    # 6) Bilder — Schaltplan UND Platine als PNG rendern, damit der Nutzer das
+    # Ergebnis SIEHT (nicht nur Text vorbeiziehen). Best-effort: fehlt kicad-cli
+    # (headless ohne KiCad), bleibt der Schritt ok — die Dateien liegen ja im
+    # Projekt. Das Panel öffnet die erzeugten PNGs anschließend.
+    sch_png, pcb_png = _render_images(server, sch_path if sch_ok else "",
+                                      board_path, emit)
+    if sch_png and pcb_png:
+        img_text = "Schaltplan- und Platinen-Bild erzeugt — ich öffne sie dir."
+    elif sch_png or pcb_png:
+        img_text = "Bild erzeugt — ich öffne es dir."
+    else:
+        img_text = ("Bild-Render hier nicht verfügbar (kicad-cli fehlt) — "
+                    "Schaltplan & Platine liegen im Projekt.")
+    steps.append({"key": "bilder", "ok": True, "title": "Bilder",
+                  "text": img_text})
+    emit(f"⑥ Ich rendere die Ansichten: {img_text}")
 
     return {
         "ok": all(s["ok"] for s in steps),
         "steps": steps,
         "board_path": board_path,
+        "sch_png": sch_png,
+        "pcb_png": pcb_png,
         "out_dir": out_dir,
     }
+
+
+def _render_images(server, sch_path: str, board_path: str,
+                   emit: Callable[[str], None]) -> tuple[str, str]:
+    """Schaltplan- und Platinen-PNG über ``export_png`` (kicad-cli) rendern.
+    Gibt ``(sch_png, pcb_png)`` zurück — leer, wenn ein Render nicht geht
+    (kein kicad-cli, kein Rasterizer). Best-effort, wirft nie: die Bilder sind
+    ein Bonus fürs Ansehen, kein Kern-Schritt."""
+    def _png(src: str, what: str) -> str:
+        if not (src and os.path.isfile(src)):
+            return ""
+        emit(_tool_line("export_png", f"{what} als Bild rendern"))
+        try:
+            out = _call(server, "export_png", {"file_path": src})
+            return out.get("output_path", "") if out.get("success") else ""
+        except Exception:  # pragma: no cover - kicad-cli/rasterizer fehlt
+            return ""
+    return _png(sch_path, "Schaltplan"), _png(board_path, "Platine")
 
 
 def summary_line(result: dict) -> str:
@@ -285,6 +358,10 @@ def main(argv=None) -> int:
     print(summary_line(result), flush=True)
     if result.get("board_path"):
         print("BOARD\t" + result["board_path"], flush=True)
+    if result.get("sch_png"):
+        print("SCH_PNG\t" + result["sch_png"], flush=True)
+    if result.get("pcb_png"):
+        print("PCB_PNG\t" + result["pcb_png"], flush=True)
     return 0 if result["ok"] else 1
 
 

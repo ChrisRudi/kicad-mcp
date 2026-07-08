@@ -1215,8 +1215,8 @@ class ClaudeChatPanel(wx.Panel):
             self._append("error", f"Demo-Plan fehlgeschlagen: {exc}")
             return
         if not preview:
-            self._write("  " + tr("Damit entwerfen diese Skills das Board:")
-                        + "\n", theme.DIM)
+            self._write("  " + tr("Damit entwerfe ich das Board weiter — "
+                                   "Skill für Skill:") + "\n", theme.DIM)
         for i, step in enumerate(steps):
             if step.kind == demo_runner.STEP_BUILD:
                 if preview:
@@ -1226,15 +1226,16 @@ class ClaudeChatPanel(wx.Panel):
             self._write(f"        {step.detail}\n", theme.DIM)
         if preview:
             self._write("  📋 " + tr(
-                "Vorschau — die Schaltung wird angelegt, sobald ihre Spec "
-                "vorliegt; dann laufen diese Skills der Reihe nach automatisch "
-                "das Board entwerfen.") + "\n", theme.DIM)
+                "Vorschau — ich lege die Schaltung an, sobald ihre Spec "
+                "vorliegt; dann fahre ich diese Skills der Reihe nach "
+                "automatisch ab und entwerfe damit das Board.") + "\n",
+                theme.DIM)
         else:
             self._write("  💡 " + tr(
-                "Die Skills laufen jetzt automatisch nacheinander — jeder "
-                "als echter Tool-Aufruf, den du selbst so machen könntest. "
-                "„✋ Stoppen“ hält an; jeder Skill bleibt einzeln per "
-                "✨-Button nutzbar.") + "\n", theme.DIM)
+                "Ich fahre die Skills jetzt automatisch nacheinander ab — "
+                "jeder ein echter Tool-Aufruf. „✋ Stoppen“ hält an; jeden "
+                "Skill kannst du auch selbst per ✨-Button auslösen.") + "\n",
+                theme.DIM)
 
     def _offer_next_demo_step(self) -> None:
         """Geführter Demo-Ablauf: den NÄCHSTEN Pipeline-Skill als Klick-Chip
@@ -1251,8 +1252,8 @@ class ClaudeChatPanel(wx.Panel):
             return
         if flow["step"] >= len(kit.pipeline):
             self._demo_flow = None
-            self._write("\n🏁 " + tr("Demo-Ablauf abgeschlossen — alle "
-                                      "Skills sind durch.") + "\n",
+            self._write("\n🏁 " + tr("Ich bin durch — alle Skills des "
+                                      "Ablaufs sind gelaufen.") + "\n",
                         theme.CLAUDE_ORANGE, bold=True)
             return
         feat = sf.get(kit.pipeline[flow["step"]])
@@ -1333,16 +1334,36 @@ class ClaudeChatPanel(wx.Panel):
         self._set_busy(True)
         threading.Thread(target=self._demo_worker, daemon=True).start()
 
+    @staticmethod
+    def _os_open(path: str) -> bool:
+        """Eine Datei mit dem OS-Handler öffnen (wie Doppelklick) — Bild-Viewer
+        für die gerenderten PNGs, Projekt-Manager fürs ``.kicad_pro``. Bewusst
+        KEIN direkter pcbnew-Spawn (Geister-Editor-Risiko, 0.7.8). Best-effort:
+        gibt zurück, ob das Öffnen angestoßen wurde."""
+        import subprocess as _sp
+        try:
+            if hasattr(os, "startfile"):
+                os.startfile(path)  # type: ignore[attr-defined]  # Windows
+            else:
+                _sp.Popen(["xdg-open", path],
+                          stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
+            return True
+        except Exception:
+            return False
+
     def _demo_worker(self, kit_key: str = "") -> None:
         """Off-GUI: Demo als Subprozess mit sys.path-Bootstrap fahren (das
         Plugin-GUI-Python hat ``kicad_mcp`` NICHT auf dem Pfad — deshalb kein
         In-Process-Import), Schritte live ins Transkript. ``kit_key`` leer =
         Selftest-Board (Schnell-Demo), sonst der gewählte Bausatz (``--kit``).
-        Öffnen muss der Nutzer selbst (KiCad-10-IPC kann kein Dokument öffnen)."""
+        Am Ende öffnet das Panel die gerenderten Ansichten (Schaltplan- und
+        Platinen-PNG, ``SCH_PNG``/``PCB_PNG``) im Bild-Viewer und das Projekt
+        selbst über den OS-Handler — der Nutzer SIEHT das Ergebnis, statt nur
+        Text zu lesen (KiCad-10-IPC kann selbst kein Dokument öffnen)."""
         import subprocess
         _os = os
         from . import deps as _deps, mcp_config, server_manager
-        board = ""
+        board = sch_png = pcb_png = ""
         try:
             py = mcp_config.find_kicad_python()
             if not py:
@@ -1370,6 +1391,12 @@ class ClaudeChatPanel(wx.Panel):
                 if line.startswith("BOARD\t"):
                     board = line.split("\t", 1)[1]
                     continue
+                if line.startswith("SCH_PNG\t"):
+                    sch_png = line.split("\t", 1)[1]
+                    continue
+                if line.startswith("PCB_PNG\t"):
+                    pcb_png = line.split("\t", 1)[1]
+                    continue
                 if line.startswith(("✅", "⚠")):
                     col = theme.CLAUDE_ORANGE
                 elif line.startswith("⚙"):
@@ -1378,26 +1405,21 @@ class ClaudeChatPanel(wx.Panel):
                     col = theme.FOREGROUND
                 wx.CallAfter(self._write, "  " + line + "\n", col)
             proc.wait()
+            # Ergebnis SEHEN (Nutzer-Feedback: „der User sieht nur Text
+            # vorbeiziehen"): erst die gerenderten Ansichten im Bild-Viewer
+            # öffnen — Schaltplan UND Platine — dann das Projekt selbst.
+            for label, png in (("Schaltplan", sch_png), ("Platine", pcb_png)):
+                if png and _os.path.isfile(png) and self._os_open(png):
+                    wx.CallAfter(self._write,
+                                 "  📸 " + tr("Ansicht geöffnet")
+                                 + f" ({label}): {png}\n", theme.DIM)
             if board:
                 # Auto-Öffnen über den OS-Handler (wie Doppelklick): das
                 # .kicad_pro startet den Projekt-Manager — kein Geister-
                 # Editor-Risiko wie beim direkten pcbnew-Spawn (0.7.8).
                 pro = (board[:-10] + ".kicad_pro"
                        if board.endswith(".kicad_pcb") else board)
-                opened = False
-                try:
-                    if _os.path.isfile(pro):
-                        if hasattr(_os, "startfile"):
-                            _os.startfile(pro)  # Windows
-                        else:
-                            subprocess.Popen(
-                                ["xdg-open", pro],
-                                stdout=subprocess.DEVNULL,
-                                stderr=subprocess.DEVNULL)
-                        opened = True
-                except Exception:
-                    opened = False
-                if opened:
+                if _os.path.isfile(pro) and self._os_open(pro):
                     wx.CallAfter(self._write,
                                  "  📂 " + tr("Projekt geöffnet: ")
                                  + f"{pro}\n", theme.DIM)
