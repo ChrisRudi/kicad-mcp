@@ -635,6 +635,40 @@ def undo(client: Any) -> bool:
     return False
 
 
+def save_pcb(client: Any) -> bool:
+    """Persist the open PCB via the proper ``SaveDocument`` IPC command —
+    silent, dialog-free (the doc is already on disk by being open). The
+    plugin-side twin of ``ipc_tools`` save, using the panel's own client.
+
+    Returns True if the save was issued. Best-effort: no PCB open, no kipy, or
+    a dead socket → False. Used to persist the demo's LIVE board edits at the
+    end of the guided skill flow — the skills mutate the open board over IPC,
+    and without this final save those edits are lost on the next revert/close
+    (‚zum Schluss nicht vergessen zu speichern')."""
+    try:
+        from kipy.proto.common.commands.editor_commands_pb2 import (  # type: ignore  # pylint: disable=no-name-in-module
+            SaveDocument)
+        from kipy.proto.common.types.base_types_pb2 import (  # type: ignore  # pylint: disable=no-name-in-module
+            DocumentType)
+        from google.protobuf.empty_pb2 import Empty  # type: ignore
+    except Exception:
+        return False
+    try:
+        docs = call(lambda: client.get_open_documents(
+            DocumentType.Value("DOCTYPE_PCB")))
+    except Exception:
+        return False
+    if not docs:
+        return False
+    cmd = SaveDocument()
+    cmd.document.CopyFrom(docs[0])
+    try:
+        call(lambda: client._client.send(cmd, Empty))  # pylint: disable=protected-access
+        return True
+    except Exception:
+        return False
+
+
 def _item_xy_mm(item: Any) -> Optional[tuple]:
     """An item's anchor point in mm: its ``position`` (footprint/via/pad), or a
     track's ``start`` as a fallback so routing can also anchor a coordinate."""

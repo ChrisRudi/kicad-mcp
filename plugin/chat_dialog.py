@@ -1255,6 +1255,7 @@ class ClaudeChatPanel(wx.Panel):
             self._write("\n🏁 " + tr("Ich bin durch — alle Skills des "
                                       "Ablaufs sind gelaufen.") + "\n",
                         theme.CLAUDE_ORANGE, bold=True)
+            self._save_demo_board()  # zum Schluss die Live-Edits sichern
             return
         feat = sf.get(kit.pipeline[flow["step"]])
         if feat is None:
@@ -1319,6 +1320,27 @@ class ClaudeChatPanel(wx.Panel):
         self._write("  ✋ " + tr("Geführter Ablauf beendet — jeder Skill "
                                  "bleibt einzeln per ✨-Button nutzbar.")
                     + "\n", theme.DIM)
+        self._save_demo_board()  # auch beim Abbruch: nichts halbfertig im RAM
+
+    def _save_demo_board(self) -> None:
+        """Den geführten Demo-Ablauf mit einem Speichern abschließen: die Skills
+        mutieren das offene Board live über IPC — ohne diesen Save gingen die
+        Änderungen beim nächsten Revert/Schließen verloren („zum Schluss nicht
+        vergessen zu speichern"). Best-effort: ist kein Board offen (nur
+        zugeschaut, kein Live-Editor), wird still übersprungen. Läuft im Worker,
+        damit die IPC-Runde (bis 15 s bei Contention) die GUI nicht blockiert."""
+        def _work():
+            from . import board_links
+            try:
+                client, _board = board_links.connect()
+                saved = board_links.save_pcb(client)
+            except Exception:
+                saved = False
+            if saved:
+                wx.CallAfter(self._write, "  💾 " + tr(
+                    "Gespeichert — die Live-Änderungen am Board sind "
+                    "gesichert.") + "\n", theme.DIM)
+        threading.Thread(target=_work, daemon=True).start()
 
     def _run_quick_demo(self) -> None:
         """Schnell-Demo: baut die Testschaltung sichtbar (Idee→Schaltplan→

@@ -27,6 +27,13 @@ the first tag ships.
   `SCH_PNG`/`PCB_PNG`-Zeilen, geteilte `_os_open`-Hilfe) plus das Projekt.
   Best-effort: ohne kicad-cli bleibt der Schritt grün, die Dateien liegen im
   Projekt. `tests/test_demo.py` auf 6 Schritte + Ich-Narration angepasst.
+- **Abschluss-Save.** Neue `board_links.save_pcb` (proper `SaveDocument`-IPC-
+  Kommando, plugin-seitiges Pendant zu `ipc_tools`); `chat_dialog._save_demo_
+  board` hängt sie ans Flow-Ende **und** an den Abbruch (`_end_demo_flow`) —
+  die Skills mutieren das offene Board live über IPC, ohne diesen Save gingen
+  die Edits beim nächsten Revert/Schließen verloren. Best-effort (kein Board
+  offen → still übersprungen), im Worker (blockiert die GUI nicht). 3 Unit-
+  Tests (`TestSavePcb`).
 
 ### Fixed (Schaltplan: Netz-bewusste Draht-Vereinigung — 0.36.1)
 - **0.36.0 wurde auf main im gemockten pytest-Job rot** (`test_wire_merge`:

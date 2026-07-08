@@ -866,3 +866,46 @@ class TestConnectSelfHeal:
 
         with pytest.raises(board_links.BoardUnavailable):
             board_links.connect(_reap=_boom, _sleep=lambda s: None)
+
+
+class _SaveClient:
+    """Fake kipy client for save_pcb: get_open_documents returns the given
+    DocumentSpecifier list, ``_client.send`` records the emitted command."""
+
+    def __init__(self, docs, boom: bool = False):
+        self._docs = docs
+        self.sent = []
+        self._boom = boom
+        self._client = SimpleNamespace(send=self._send)
+
+    def get_open_documents(self, _doc_type):
+        return list(self._docs)
+
+    def _send(self, cmd, _resp):
+        if self._boom:
+            raise RuntimeError("socket dead")
+        self.sent.append(cmd)
+
+
+class TestSavePcb:
+    """The demo's guided flow mutates the open board live over IPC; the final
+    save must persist those edits (‚zum Schluss nicht vergessen zu speichern')."""
+
+    def _doc(self):
+        from kipy.proto.common.types.base_types_pb2 import (  # type: ignore
+            DocumentSpecifier)
+        return DocumentSpecifier()
+
+    def test_issues_savedocument_when_pcb_open(self):
+        client = _SaveClient([self._doc()])
+        assert board_links.save_pcb(client) is True
+        assert len(client.sent) == 1
+
+    def test_no_open_pcb_returns_false(self):
+        client = _SaveClient([])
+        assert board_links.save_pcb(client) is False
+        assert not client.sent
+
+    def test_send_error_is_swallowed(self):
+        client = _SaveClient([self._doc()], boom=True)
+        assert board_links.save_pcb(client) is False
