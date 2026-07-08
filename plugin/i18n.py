@@ -153,6 +153,8 @@ _EN: dict = {
     "Ich bin durch — alle Skills des Ablaufs sind gelaufen.":
         "I'm done — every skill in the flow has run.",
     "Ansicht geöffnet": "View opened",
+    "Gespeichert — die Live-Änderungen am Board sind gesichert.":
+        "Saved — the live changes to the board are persisted.",
     "Geführter Ablauf beendet — jeder Skill bleibt einzeln per "
     "✨-Button nutzbar.":
         "Guided flow stopped — every skill remains available via its "

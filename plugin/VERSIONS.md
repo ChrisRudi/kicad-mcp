@@ -27,6 +27,10 @@ vorbeiziehen." Alle vier Punkte behoben:
 - **Ergebnis sichtbar.** Zum Schluss rendert die Demo **Schaltplan UND
   Platine als Bild** und öffnet beide im Bild-Betrachter (plus das Projekt
   selbst) — man sieht das fertige Board, statt nur Text zu lesen.
+- **Zum Schluss gespeichert.** Läuft die geführte Skill-Folge gegen ein
+  offenes Board (die Skills ändern es live über IPC), speichert die Demo am
+  Ende **automatisch** — und ebenso beim Abbruch. Nichts bleibt halbfertig im
+  Speicher, kein „Strg+S nicht vergessen".
 
 ---
 
