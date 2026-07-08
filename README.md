@@ -73,6 +73,48 @@ Firmware-Pinmap, MLCC-Derating, Silk-Aufräumen, Datenblatt→Schaltung.
 
 ---
 
+## ▶ Demo — 10 Referenz-Bausätze
+
+Der **`▶ Demo ▾`**-Knopf im Chat-Panel öffnet ein Menü mit 10 kuratierten
+Bausätzen. Jeder fährt den vollen Ablauf **Idee → Schaltplan → Berechnung →
+Platine** ab und lässt anschließend die zum Bausatz passende
+Super-Feature-Pipeline laufen (z. B. Bus-Radar → semantischer ERC → Impedanz).
+So sieht man in einem Klick, was der Copilot produziert — ohne eigenes Board.
+Daneben liegt eine **🔧 Schnell-Demo (Testboard)** für den 10-Sekunden-Blick.
+
+**Reife-Label je Bausatz** — zwei unabhängige Achsen, ein Symbol
+(`demo_kits.stage`, ein grüner Test, keine Meinung):
+
+- **⭐ Prime-Time** — *beide* Achsen grün: Schaltplan Pin-für-Pin
+  datenblatt-geprüft **und** Platine 0 DRC / 0 offene Netze.
+- **✅ Verified** — *eine* Achse grün (die andere bewusst oder noch offen).
+- **🔬 In Arbeit** — noch keine Achse grün.
+
+**Stand: 8 ⭐ / 2 ✅ / 0 🔬** — alle 10 Platinen bauen DRC-sauber (0 Fehler,
+0 offene Netze); Datenblatt-Belege je Bausatz in
+[docs/kit_datasheet_reviews.md](docs/kit_datasheet_reviews.md).
+
+| Bausatz | Reife | Was ihn ausmacht |
+|---|---|---|
+| 🔊 Audioverstärker | ⭐ | Chip-Endstufe mit OpAmp-Eingangsstufe — der Analog-Klassiker (LM386). |
+| 🔌 USB-C Sensor-Hub | ⭐ | MCU mit I²C/SPI-Sensoren + USB-C (STM32, LQFP-48) — das Digital-Arbeitstier. |
+| ⚡ AC-DC-Netzteil | ⭐ | Offline-Flyback 230 V → 5 V (TNY268) — das Netzspannungs-Projekt. |
+| ⚙️ Motor-Treiber | ⭐ | Gate-Driver mit MOSFET-Brücke und MCU (DRV8871) — Leistungselektronik. |
+| 📉 Buck-Wandler-Modul | ⭐ | DC-DC-Abwärtswandler mit IC, Spule, Filter-Cs (MP1584). |
+| ⊙ LED-Ring | ⭐ | Adressierbare WS2812-LEDs auf rundem Board (Polar-Layout). |
+| 🏭 Serienreife & Kosten | ⭐ | Dichtes Breakout mit vielen R/C (74HC595) — Fokus Fertigung & Kosten. |
+| 🪄 Datenblatt & Foto → Schaltung | ⭐ | Meta-Demo: wie ein Bausatz überhaupt entsteht. |
+| 🌐 Ethernet-Gerät | ✅ | MCU + Ethernet-PHY + RJ45 — Platine ist saubere Referenz (0/0); Schaltplan-Datenblatt-Prüfung noch offen. |
+| ✏️ Skizze → Kupfer | ✅ | Kleiner Leistungspfad, den man interaktiv mit Hilfe routet — *bewusst* Skizze. |
+
+Die 10 Spec-JSONs liegen unter `kicad_mcp/resources/data/demo_kits/`; drei
+(Buck, Motor, Audio) sind seit 0.27.0 **Build-Artefakte** aus Circuit-Block +
+Rezept (eine Quelle, `tests/test_kit_compose.py` wacht). Der ganze Fahrplan,
+wie aus den Startplatzierungen 0/0-Platinen wurden:
+[docs/roadmap.md](docs/roadmap.md).
+
+---
+
 ## Install
 
 ### A) Das KiCad-Plugin (empfohlen — Chat + alles oben)
