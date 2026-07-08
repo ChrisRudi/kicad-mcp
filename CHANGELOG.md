@@ -8,6 +8,26 @@ the first tag ships.
 
 ## [Unreleased]
 
+### Changed (Demo-Ablauf: zeigt WAS gebaut wird, in erster Person — 0.37.0)
+- **Steckbrief vor dem Bauen.** `kicad_mcp/demo.py` emittiert als Schritt ①
+  jetzt „▶ Das baue ich jetzt": den vollen Beschreibungstext der Spec plus die
+  Leitbauteile (`_lead_parts`: Ref-Präfixe U/Q/D/L/Y/J). Vorher nur der erste
+  Satz + „N Bauteile" — man sah nicht, was entsteht.
+- **Erste-Person-Narration.** Die ①–⑥-Zeilen und alle `demo_kits`-Rationale
+  sind auf „Ich …" umgestellt (der Nutzer schaut zu, wird nicht instruiert).
+  Panel-Copy in `chat_dialog.py` (`_write_demo_plan`, `_offer_next_demo_step`)
+  ebenso; EN-Katalog (`i18n.py`) nachgezogen.
+- **Datenblatt aus dem Netz.** Die Datenblatt-abhängigen Super-Feature-Prompts
+  (`datasheet_diff`, `datasheet_circuit`, `xtal_caps`, `slew_rate`) suchen bei
+  fehlendem lokalem PDF jetzt per WebSearch das offizielle Datenblatt, nennen
+  Quelle + URL + Ablageort (`docs/<Value>.pdf`) und arbeiten damit weiter —
+  statt anzuhalten (konsistent mit `bom_sourcing`).
+- **Ergebnis sichtbar.** Neuer Schritt ⑥ rendert Schaltplan UND Platine via
+  `export_png`; das Panel öffnet beide PNGs im Bild-Betrachter (neue
+  `SCH_PNG`/`PCB_PNG`-Zeilen, geteilte `_os_open`-Hilfe) plus das Projekt.
+  Best-effort: ohne kicad-cli bleibt der Schritt grün, die Dateien liegen im
+  Projekt. `tests/test_demo.py` auf 6 Schritte + Ich-Narration angepasst.
+
 ### Fixed (Schaltplan: Netz-bewusste Draht-Vereinigung — 0.36.1)
 - **0.36.0 wurde auf main im gemockten pytest-Job rot** (`test_wire_merge`:
   `usb_sensor_hub: 1 Leitungen übereinander`) — die volle USB-C-Beschaltung

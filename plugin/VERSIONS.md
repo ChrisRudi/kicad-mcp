@@ -1,7 +1,32 @@
 # Versionsübersicht — Claude für KiCad (Plugin)
 
 Was jede Version gebracht hat, in einfacher Sprache. Neueste zuerst.
-Aktuelle Version: **0.36.1**
+Aktuelle Version: **0.37.0**
+
+---
+
+## ▶ Neu in 0.37.0 — Die Demo zeigt jetzt, WAS sie baut (und in erster Person)
+
+Feld-Feedback: „Beim Demo-Aufruf sieht man vorher nicht, was gebaut wird;
+überall steht ‚du solltest' statt ‚ich mache'; ein gefordertes Datenblatt wird
+nicht gesucht; und das Öffnen wurde vergessen — der Nutzer sieht nur Text
+vorbeiziehen." Alle vier Punkte behoben:
+
+- **Steckbrief zuerst.** Vor dem Bauen zeigt die Demo jetzt „▶ Das baue ich
+  jetzt": die volle Beschreibung der Schaltung (inkl. Datenblatt-Kontext) und
+  die **Kernbauteile** (ICs, Halbleiter, Spulen, Quarz, Stecker) — man weiß
+  vorher, was entsteht, nicht nur „11 Bauteile".
+- **Erste Person durchgängig.** Die Narration heißt jetzt „Ich zeichne den
+  Schaltplan …", „Ich rechne nach …", „Ich route die Platine …" und je Skill
+  „Ich prüfe / Ich lege aus / Ich kühle …" — der Nutzer schaut zu, er wird
+  nicht angewiesen.
+- **Datenblatt aus dem Netz.** Fehlt für einen Datenblatt-Schritt das lokale
+  PDF, sucht die Demo jetzt selbst per Websuche das offizielle Hersteller-
+  Datenblatt, nennt Quelle + URL und wohin es gehört (`docs/<Value>.pdf`) und
+  arbeitet damit weiter — statt anzuhalten und nachzufragen.
+- **Ergebnis sichtbar.** Zum Schluss rendert die Demo **Schaltplan UND
+  Platine als Bild** und öffnet beide im Bild-Betrachter (plus das Projekt
+  selbst) — man sieht das fertige Board, statt nur Text zu lesen.
 
 ---
 

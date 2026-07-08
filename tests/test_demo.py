@@ -48,7 +48,8 @@ class TestRunDemo:
         lines = []
         res = demo.run_demo(str(tmp_path), on_step=lines.append)
         keys = [s["key"] for s in res["steps"]]
-        assert keys == ["idee", "pruefen", "schaltplan", "berechnung", "platine"]
+        assert keys == ["idee", "pruefen", "schaltplan", "berechnung",
+                        "platine", "bilder"]
         assert res["ok"] is True
         # echte Dateien
         assert os.path.isfile(res["board_path"])
@@ -60,14 +61,17 @@ class TestRunDemo:
         assert any("validate_design" in ln for ln in tool_lines)
         assert any("generate_schematic" in ln for ln in tool_lines)
         assert any("generate_pcb" in ln for ln in tool_lines)
-        # nummerierte Narration je Schritt
+        # nummerierte Narration je Schritt — erste Person („Ich …"), der Nutzer
+        # schaut zu; Steckbrief zuerst, dann die gebauten Schritte.
         assert lines[0].startswith("①")
-        assert any(ln.startswith("⑤ Platine") for ln in lines)
+        assert any(ln.startswith("① Das baue ich jetzt") for ln in lines)
+        assert any(ln.startswith("⑤ Ich route die Platine") for ln in lines)
 
     def test_summary_line_reports_success(self, tmp_path):
         res = demo.run_demo(str(tmp_path))
         assert "Demo fertig" in demo.summary_line(res)
-        assert "5/5" in demo.summary_line(res)
+        # 6 Schritte inkl. Bild-Render (best-effort: ok auch ohne kicad-cli).
+        assert "6/6" in demo.summary_line(res)
 
     def test_step_failure_does_not_crash_run(self, tmp_path, monkeypatch):
         # Tool-Kette bricht → prüfen/schaltplan/platine ok:False, Ablauf lebt

@@ -136,14 +136,23 @@ _EN: dict = {
     "Schaltplan nicht datenblatt-geprüft": "schematic not datasheet-verified",
     "In Arbeit — Platine & Schaltplan noch nicht vorzeigbar":
         "In progress — board & schematic not yet presentable",
-    "Die Skills laufen jetzt automatisch nacheinander — jeder als echter "
-    "Tool-Aufruf, den du selbst so machen könntest. „✋ Stoppen“ hält an; "
-    "jeder Skill bleibt einzeln per ✨-Button nutzbar.":
-        "The skills now run automatically one after another — each a real "
-        "tool call you could make yourself. “✋ Stop” halts; every skill "
-        "stays available individually via its ✨ button.",
-    "Demo-Ablauf abgeschlossen — alle Skills sind durch.":
-        "Demo flow complete — all skills have run.",
+    "Ich fahre die Skills jetzt automatisch nacheinander ab — jeder ein "
+    "echter Tool-Aufruf. „✋ Stoppen“ hält an; jeden Skill kannst du auch "
+    "selbst per ✨-Button auslösen.":
+        "I now run the skills automatically one after another — each a real "
+        "tool call. “✋ Stop” halts; you can also trigger any skill yourself "
+        "via its ✨ button.",
+    "Damit entwerfe ich das Board weiter — Skill für Skill:":
+        "With these I keep designing the board — skill by skill:",
+    "Vorschau — ich lege die Schaltung an, sobald ihre Spec vorliegt; dann "
+    "fahre ich diese Skills der Reihe nach automatisch ab und entwerfe damit "
+    "das Board.":
+        "Preview — I create the circuit as soon as its spec exists; then I "
+        "run these skills in order automatically and design the board with "
+        "them.",
+    "Ich bin durch — alle Skills des Ablaufs sind gelaufen.":
+        "I'm done — every skill in the flow has run.",
+    "Ansicht geöffnet": "View opened",
     "Geführter Ablauf beendet — jeder Skill bleibt einzeln per "
     "✨-Button nutzbar.":
         "Guided flow stopped — every skill remains available via its "

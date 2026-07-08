@@ -109,17 +109,18 @@ KITS: tuple[DemoKit, ...] = (
         pipeline=("sim_models", "simulate", "slew_rate", "untangle",
                   "thermal", "ampacity"),
         rationale={
-            "sim_models": "Ohne SPICE-Modelle für OpAmp/Endstufe läuft keine "
-                          "Simulation — der lästige Schritt zuerst.",
-            "simulate": "Frequenzgang/Bandbreite der Stufe prüfen, bevor "
-                        "irgendwas platziert wird.",
-            "slew_rate": "Schafft die Endstufe die geforderte Signalflanke? "
-                         "Sonst Verzerrung — reine Datenblatt-Rechnung.",
-            "untangle": "Signalweg Eingang→Endstufe kreuzungsarm platzieren.",
-            "thermal": "Die Endstufe ist der Verlustleistungs-Hotspot — "
-                       "Kühlkupfer/Thermal-Vias.",
-            "ampacity": "Die Lautsprecher-Ausgangsbahnen tragen echten Strom — "
-                        "Breite gegen Laststrom prüfen.",
+            "sim_models": "Ich hinterlege zuerst SPICE-Modelle für OpAmp/"
+                          "Endstufe — ohne die läuft keine Simulation.",
+            "simulate": "Ich prüfe Frequenzgang/Bandbreite der Stufe, bevor "
+                        "ich irgendetwas platziere.",
+            "slew_rate": "Ich rechne, ob die Endstufe die geforderte "
+                         "Signalflanke schafft — sonst Verzerrung.",
+            "untangle": "Ich platziere den Signalweg Eingang→Endstufe "
+                        "kreuzungsarm.",
+            "thermal": "Ich kühle die Endstufe — den Verlustleistungs-Hotspot "
+                       "— mit Kupferfläche und Thermal-Vias.",
+            "ampacity": "Ich prüfe die Lautsprecher-Ausgangsbahnen gegen den "
+                        "echten Laststrom.",
         },
         board_clean=True, verified=True,
     ),
@@ -132,17 +133,18 @@ KITS: tuple[DemoKit, ...] = (
         pipeline=("bus_radar", "semantic_erc", "xtal_caps", "pin_swap",
                   "impedance", "firmware_map"),
         rationale={
-            "bus_radar": "I²C/SPI-Teilnehmer als eine Bedeutungseinheit sehen, "
-                         "nicht als lose Einzelnetze.",
-            "semantic_erc": "Fehlende I²C-Pull-ups und Abblock-Cs findet KiCads "
-                            "ERC nicht — der semantische schon.",
-            "xtal_caps": "Load-Caps des MCU-Quarzes aus CL rechnen, sonst "
-                         "Startprobleme.",
-            "pin_swap": "GPIOs so umlegen, dass das Routing kreuzungsfrei wird "
-                        "(Pinmux-Wissen).",
-            "impedance": "USB-C D+/D− auf 90 Ω differentiell auslegen.",
-            "firmware_map": "Pinbelegung als Firmware-Header exportieren — "
-                            "Brücke zur Software.",
+            "bus_radar": "Ich sehe die I²C/SPI-Teilnehmer als eine "
+                         "Bedeutungseinheit, nicht als lose Einzelnetze.",
+            "semantic_erc": "Ich finde fehlende I²C-Pull-ups und Abblock-Cs — "
+                            "die KiCads ERC nicht sieht.",
+            "xtal_caps": "Ich rechne die Load-Caps des MCU-Quarzes aus dem CL "
+                         "— sonst Startprobleme.",
+            "pin_swap": "Ich lege die GPIOs so um, dass das Routing "
+                        "kreuzungsfrei wird (Pinmux-Wissen).",
+            "impedance": "Ich lege das USB-C-Paar D+/D− auf 90 Ω differentiell "
+                         "aus.",
+            "firmware_map": "Ich exportiere die Pinbelegung als Firmware-Header "
+                            "— die Brücke zur Software.",
         },
         board_clean=True, verified=True,
         reference_pcb="usb_sensor_hub.reference.kicad_pcb",
@@ -156,14 +158,16 @@ KITS: tuple[DemoKit, ...] = (
         pipeline=("protection_class", "safety_spacing", "thermal",
                   "operating_temp", "ampacity"),
         rationale={
-            "protection_class": "Schutzklasse I/II und Isolationskonzept nach "
-                                "IEC 61140 klären — reines Norm-Wissen.",
-            "safety_spacing": "Kriech-/Luftstrecken Netz↔SELV gegen IEC-60664 — "
-                              "Sicherheitskritisch, kennt KiCad nicht.",
-            "thermal": "Gleichrichter und Schalttransistor sind Hotspots.",
-            "operating_temp": "Sperrschicht-Temperatur und Derating-Reserve der "
-                              "Leistungshalbleiter.",
-            "ampacity": "Primär- und Sekundärströme brauchen breite Bahnen.",
+            "protection_class": "Ich kläre Schutzklasse I/II und das "
+                                "Isolationskonzept nach IEC 61140 — Norm-Wissen.",
+            "safety_spacing": "Ich prüfe Kriech-/Luftstrecken Netz↔SELV gegen "
+                              "IEC 60664 — sicherheitskritisch, kennt KiCad nicht.",
+            "thermal": "Ich kühle Gleichrichter und Schalttransistor — die "
+                       "Hotspots der Schaltung.",
+            "operating_temp": "Ich prüfe Sperrschicht-Temperatur und "
+                              "Derating-Reserve der Leistungshalbleiter.",
+            "ampacity": "Ich verbreitere die Bahnen für Primär- und "
+                        "Sekundärströme.",
         },
         board_clean=True, verified=True,
     ),
@@ -176,15 +180,15 @@ KITS: tuple[DemoKit, ...] = (
         pipeline=("polar_board", "select_place", "ampacity", "mlcc_derating",
                   "cost_estimate"),
         rationale={
-            "polar_board": "Rundes Board zwingt zu Radial-Layout (Radius+Winkel "
+            "polar_board": "Ich lege das runde Board radial an (Radius+Winkel "
                            "statt X/Y).",
-            "select_place": "Die LEDs gleichmäßig auf dem Kreis verteilen.",
-            "ampacity": "Der 5-V-Ring speist viele LEDs — summierter Strom wird "
-                        "schnell groß.",
-            "mlcc_derating": "Die Abblock-Cs je LED verlieren unter DC-Bias "
-                             "Kapazität.",
-            "cost_estimate": "Viele identische Teile — der Kostenhebel liegt in "
-                             "der Stückzahl.",
+            "select_place": "Ich verteile die LEDs gleichmäßig auf dem Kreis.",
+            "ampacity": "Ich prüfe den summierten 5-V-Strom des Rings — er wird "
+                        "mit vielen LEDs schnell groß.",
+            "mlcc_derating": "Ich prüfe die Abblock-Cs je LED — sie verlieren "
+                             "unter DC-Bias Kapazität.",
+            "cost_estimate": "Ich schätze die Kosten — bei vielen identischen "
+                             "Teilen liegt der Hebel in der Stückzahl.",
         },
         board_clean=True, verified=True,
     ),
@@ -197,14 +201,15 @@ KITS: tuple[DemoKit, ...] = (
         pipeline=("ampacity", "thermal", "via_cost", "test_points",
                   "dfm_check"),
         rationale={
-            "ampacity": "Phasen- und Versorgungsströme sind hoch — Bahnbreite "
-                        "ist hier sicherheitsrelevant.",
-            "thermal": "Die MOSFETs sind die Verlustleistungs-Hotspots.",
-            "via_cost": "Power-Vias tragen Strom und kosten — Anzahl/Typ "
-                        "optimieren.",
-            "test_points": "Gate- und Phasennetze brauchen Bring-up-Prüfpunkte.",
-            "dfm_check": "Breite Bahnen + enge Gates gegen die echten "
-                         "Fab-Regeln prüfen.",
+            "ampacity": "Ich prüfe die Bahnbreite für Phasen- und "
+                        "Versorgungsströme — hier sicherheitsrelevant.",
+            "thermal": "Ich kühle die MOSFETs — die Verlustleistungs-Hotspots.",
+            "via_cost": "Ich optimiere Anzahl/Typ der Power-Vias — sie tragen "
+                        "Strom und kosten.",
+            "test_points": "Ich lege Bring-up-Prüfpunkte an Gate- und "
+                           "Phasennetze.",
+            "dfm_check": "Ich prüfe breite Bahnen und enge Gates gegen die "
+                         "echten Fab-Regeln.",
         },
         board_clean=True, verified=True,
     ),
@@ -217,15 +222,16 @@ KITS: tuple[DemoKit, ...] = (
         pipeline=("datasheet_diff", "mlcc_derating", "operating_temp",
                   "simulate", "explain_board"),
         rationale={
-            "datasheet_diff": "Die Beschaltung des Buck-ICs gegen die typische "
-                              "Applikationsschaltung im Datenblatt abgleichen.",
-            "mlcc_derating": "Der Klassiker: 10 µF/6,3 V an 5 V ist real ~4 µF — "
-                             "Ausgangs-Cs unter Bias prüfen.",
-            "operating_temp": "Sperrschicht-Temperatur des Reglers unter Last.",
-            "simulate": "Arbeitspunkt/Ripple verstehen statt nur Kurven "
+            "datasheet_diff": "Ich gleiche die Beschaltung des Buck-ICs gegen "
+                              "die Applikationsschaltung im Datenblatt ab.",
+            "mlcc_derating": "Ich prüfe die Ausgangs-Cs unter Bias — 10 µF/"
+                             "6,3 V an 5 V ist real nur ~4 µF.",
+            "operating_temp": "Ich prüfe die Sperrschicht-Temperatur des "
+                              "Reglers unter Last.",
+            "simulate": "Ich simuliere Arbeitspunkt/Ripple, statt nur Kurven "
                         "auszuspucken.",
-            "explain_board": "Die Funktionsblöcke aus der Netzliste "
-                             "rekonstruieren — Doku auf Knopfdruck.",
+            "explain_board": "Ich rekonstruiere die Funktionsblöcke aus der "
+                             "Netzliste — Doku auf Knopfdruck.",
         },
         board_clean=True, verified=True,
     ),
@@ -238,13 +244,16 @@ KITS: tuple[DemoKit, ...] = (
         pipeline=("nl_navigation", "semantic_erc", "impedance", "bom_sourcing",
                   "silk_cleanup"),
         rationale={
-            "nl_navigation": "In normaler Sprache klären, welcher Pin welche "
+            "nl_navigation": "Ich kläre in normaler Sprache, welcher Pin welche "
                              "PHY-/MII-Funktion treibt.",
-            "semantic_erc": "PHY-Entkopplung und Magnetics-Beschaltung prüfen.",
-            "impedance": "Die Ethernet-Paare auf 100 Ω differentiell auslegen.",
-            "bom_sourcing": "PHY-Verfügbarkeit live prüfen und pin-kompatible "
-                            "Alternativen finden.",
-            "silk_cleanup": "Zum Abschluss die Referenzen lesbar rücken.",
+            "semantic_erc": "Ich prüfe PHY-Entkopplung und "
+                            "Magnetics-Beschaltung.",
+            "impedance": "Ich lege die Ethernet-Paare auf 100 Ω differentiell "
+                         "aus.",
+            "bom_sourcing": "Ich prüfe die PHY-Verfügbarkeit live und finde "
+                            "pin-kompatible Alternativen.",
+            "silk_cleanup": "Ich rücke zum Abschluss die Referenzen lesbar "
+                            "zurecht.",
         },
         board_clean=True, verified=False,
         reference_pcb="ethernet_device.reference.kicad_pcb",
@@ -258,14 +267,15 @@ KITS: tuple[DemoKit, ...] = (
         pipeline=("untangle", "sketch_layer", "sketch_conductor", "watch_mode",
                   "silk_cleanup"),
         rationale={
-            "untangle": "Erst einen sauberen, routbaren Startpunkt schaffen.",
-            "sketch_layer": "Die Routing-Absicht auf den gemeinsamen "
-                            "Skizzen-Layer zeichnen.",
-            "sketch_conductor": "Die Skizze in EINEM Zug als Kupfer auf F.Cu "
-                                "gießen — ein Undo-Schritt.",
-            "watch_mode": "Die entstandenen Bahnen fachlich reviewen "
+            "untangle": "Ich schaffe erst einen sauberen, routbaren "
+                        "Startpunkt.",
+            "sketch_layer": "Ich zeichne die Routing-Absicht auf den "
+                            "gemeinsamen Skizzen-Layer.",
+            "sketch_conductor": "Ich gieße die Skizze in EINEM Zug als Kupfer "
+                                "auf F.Cu — ein Undo-Schritt.",
+            "watch_mode": "Ich reviewe die entstandenen Bahnen fachlich "
                           "(Clearance, DRC-Risiken).",
-            "silk_cleanup": "Zum Schluss die Beschriftung aufräumen.",
+            "silk_cleanup": "Ich räume zum Schluss die Beschriftung auf.",
         },
         board_clean=False, verified=True,
     ),
@@ -278,15 +288,15 @@ KITS: tuple[DemoKit, ...] = (
         pipeline=("bom_consolidate", "preferred_parts", "via_cost",
                   "dfm_check", "cost_estimate"),
         rationale={
-            "bom_consolidate": "Fast-gleiche R/C-Werte auf E-Reihen "
-                               "standardisieren — weniger Feeder.",
-            "preferred_parts": "Auf die No-Load-Fee-Vorzugsteile des Fertigers "
-                               "mappen (JLCPCB/Seeed).",
-            "via_cost": "Teure Blind/Buried-Vias in Through-Vias wandeln, wo "
-                        "gefahrlos.",
-            "dfm_check": "Fertigbarkeit gegen die echten Regeln eines konkreten "
-                         "Fertigers.",
-            "cost_estimate": "Die Kostentreiber sortiert zeigen — Fläche, "
+            "bom_consolidate": "Ich standardisiere fast-gleiche R/C-Werte auf "
+                               "E-Reihen — weniger Feeder.",
+            "preferred_parts": "Ich mappe auf die No-Load-Fee-Vorzugsteile des "
+                               "Fertigers (JLCPCB/Seeed).",
+            "via_cost": "Ich wandle teure Blind/Buried-Vias in Through-Vias, wo "
+                        "es gefahrlos ist.",
+            "dfm_check": "Ich prüfe die Fertigbarkeit gegen die echten Regeln "
+                         "eines konkreten Fertigers.",
+            "cost_estimate": "Ich zeige die Kostentreiber sortiert — Fläche, "
                              "Lagen, Vias, BOM.",
         },
         board_clean=True, verified=True,
@@ -300,13 +310,14 @@ KITS: tuple[DemoKit, ...] = (
         pipeline=("datasheet_circuit", "datasheet_diff", "photo_reverse",
                   "explain_board"),
         rationale={
-            "datasheet_circuit": "Aus dem IC-Datenblatt die typische "
-                                 "Applikationsschaltung generieren.",
-            "datasheet_diff": "Das Ergebnis gegen das Datenblatt gegenprüfen.",
-            "photo_reverse": "Ein Referenz-Board aus einem Foto rekonstruieren "
-                             "(Multimodal).",
-            "explain_board": "Zum Schluss erklären, was der Bausatz eigentlich "
-                             "tut.",
+            "datasheet_circuit": "Ich generiere aus dem IC-Datenblatt die "
+                                 "typische Applikationsschaltung.",
+            "datasheet_diff": "Ich prüfe das Ergebnis gegen das Datenblatt "
+                              "gegen.",
+            "photo_reverse": "Ich rekonstruiere ein Referenz-Board aus einem "
+                             "Foto (multimodal).",
+            "explain_board": "Ich erkläre zum Schluss, was der Bausatz "
+                             "eigentlich tut.",
         },
         board_clean=True, verified=True,
     ),
